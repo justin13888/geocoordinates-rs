@@ -48,6 +48,19 @@ This project uses [Lefthook](https://github.com/evilmartians/lefthook). Pre-comm
 
 GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests.
 
+### Releases
+
+Releases are automated with [release-plz](https://release-plz.dev) and driven by
+[Conventional Commits](https://www.conventionalcommits.org). As commits land on `master`,
+release-plz maintains a **release PR** that bumps the version and updates
+[`CHANGELOG.md`](CHANGELOG.md). Merging that PR cuts the release: it tags `vX.Y.Z`, creates
+a GitHub release, and publishes to [crates.io](https://crates.io/crates/geocoordinates).
+
+To honor the staged [ROADMAP](ROADMAP.md), the release PR is merged at milestone boundaries
+rather than on every commit. Publishing uses crates.io
+[Trusted Publishing](https://crates.io/docs/trusted-publishing) (OIDC) — no API token is
+stored in the repository.
+
 ### Code Coverage
 
 This project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for LLVM-based code coverage. No minimum threshold is enforced yet — tests and a threshold are added once the API stabilizes.
