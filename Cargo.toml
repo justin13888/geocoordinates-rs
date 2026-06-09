@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
 categories = ["science::geo", "mathematics", "parser-implementations"]
 # ROADMAP.md is a contributor-facing release plan, not part of the published crate.
-exclude = ["ROADMAP.md"]
+exclude = ["AGENTS.md", "CLAUDE.md", "ROADMAP.md"]
 
 [dependencies]
 geo = "0.33.1"
