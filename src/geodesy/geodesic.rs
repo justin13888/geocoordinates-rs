@@ -115,6 +115,8 @@ pub fn rhumb_destination(
     todo!("reuse geo::Rhumb destination")
 }
 
-// Ellipsoidal polygon area/perimeter, point-in-polygon, centroid, convex hull,
-// buffers, and bounding boxes are delegated to `geo` directly (it implements
-// them correctly); this module owns only the point-to-point geodesic ops above.
+// Polygon and line ops — ellipsoidal area/perimeter, point-in-polygon, centroid,
+// convex hull, buffers, bounding boxes, line densification, and simplification
+// (Douglas-Peucker / `geo::Simplify`) — are delegated to `geo` directly (it
+// implements them correctly); this module owns only the point-to-point geodesic
+// ops above.

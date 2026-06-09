@@ -6,6 +6,10 @@
 //! time, prefer the typed newtype conversions (e.g. [`crate::Wgs84`] →
 //! [`crate::Gcj02`] via [`From`]), which return exact bare types where the math
 //! is exact.
+//!
+//! Conversions are per-coordinate; batch / vectorized conversion is left to the
+//! caller (iterate, or parallelize with e.g. `rayon`) rather than offered as a
+//! dedicated API.
 
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Crs};

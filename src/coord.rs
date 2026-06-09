@@ -40,6 +40,9 @@ pub enum Crs {
 /// GNSS reports **ellipsoidal** height natively; humans expect **orthometric**
 /// height (above the geoid / "sea level"). Converting between them requires a
 /// geoid model — see the optional `geoid` feature.
+///
+/// Only these two surfaces are modeled; tidal datums (MSL, MLLW, …) are out of
+/// scope.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Height {

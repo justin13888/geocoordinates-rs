@@ -15,6 +15,11 @@ use crate::coord::Coordinate;
 pub type Timestamp = std::time::SystemTime;
 
 /// A coordinate plus all known observation metadata.
+///
+/// Scope is *positional* metadata only — accuracy, time, and parse provenance.
+/// Motion/telemetry that some sources carry (heading from EXIF
+/// `GPSImgDirection`, NMEA course and speed) is intentionally excluded to keep
+/// the type lean.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Fix {

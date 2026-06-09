@@ -8,10 +8,18 @@
 //! [`Approx`](crate::Approx).
 //!
 //! This module owns only the lightweight parametric path (a small catalog of
-//! common datums: NAD27, Tokyo, Pulkovo-1942). Higher-accuracy **grid-based**
+//! common datums: NAD27, Tokyo, Pulkovo-1942). Helmert (run through ECEF) is the
+//! *only* parametric model offered: the abridged **Molodensky /
+//! Molodensky-Badekas** transforms are deliberately omitted, as the ECEF Helmert
+//! path is more general and at least as accurate. Higher-accuracy **grid-based**
 //! transforms (NTv2, NADCON5), national grid projections, and the full EPSG
 //! registry are out of scope here and are delegated to the optional `proj`
 //! feature.
+//!
+//! Transforms are **static**. Epoch / time-aware geodesy — plate-motion velocity
+//! models, the 14-parameter (rate-of-change) transforms, and distinct ITRF
+//! realizations — is out of scope for v1; sub-centimeter, time-varying work is
+//! not a goal here.
 
 use crate::coord::{Coordinate, Crs};
 use crate::geodesy::ecef::Ecef;
