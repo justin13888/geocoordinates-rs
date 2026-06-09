@@ -22,7 +22,30 @@ impl Ellipsoid {
         semi_major_m: 6_378_137.0,
         inverse_flattening: 298.257_222_101,
     };
-    // TODO(impl): Krasovsky-1940, Airy-1830 (OSGB), Bessel-1841, Clarke-1866, …
+
+    /// The Krasovsky-1940 ellipsoid (Pulkovo-1942, SK-42, and derived datums).
+    pub const KRASOVSKY_1940: Ellipsoid = Ellipsoid {
+        semi_major_m: 6_378_245.0,
+        inverse_flattening: 298.3,
+    };
+
+    /// The Airy-1830 ellipsoid (OSGB36 / Ordnance Survey of Great Britain).
+    pub const AIRY_1830: Ellipsoid = Ellipsoid {
+        semi_major_m: 6_377_563.396,
+        inverse_flattening: 299.324_964_6,
+    };
+
+    /// The Bessel-1841 ellipsoid (Tokyo datum, older European datums).
+    pub const BESSEL_1841: Ellipsoid = Ellipsoid {
+        semi_major_m: 6_377_397.155,
+        inverse_flattening: 299.152_812_8,
+    };
+
+    /// The Clarke-1866 ellipsoid (NAD27 / North American Datum 1927).
+    pub const CLARKE_1866: Ellipsoid = Ellipsoid {
+        semi_major_m: 6_378_206.4,
+        inverse_flattening: 294.978_698_2,
+    };
 
     /// Flattening `f`.
     #[must_use]

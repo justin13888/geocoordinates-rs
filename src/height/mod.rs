@@ -16,6 +16,10 @@ pub enum GeoidModel {
     Egm96,
     /// EGM2008 (1′ grid, higher resolution).
     Egm2008,
+    /// EGM2020 (the latest Earth Gravitational Model revision).
+    Egm2020,
+    // Marine/tidal vertical datums (MSL, MLLW, …) are out of scope; this module
+    // covers only geoid-based ellipsoidal ↔ orthometric height.
 }
 
 /// Geoid undulation `N` (meters) at a location for the given model.

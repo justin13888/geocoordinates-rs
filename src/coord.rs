@@ -23,8 +23,16 @@ pub enum Crs {
     Gcj02,
     /// BD-09 — Baidu's additional obfuscation atop GCJ-02.
     Bd09,
-    // TODO(impl): NAD83, ETRS89, ITRF realizations, national datums, EPSG codes
-    // (the long tail is delegated to the optional `proj` feature).
+    /// NAD27 — North American Datum 1927 (Clarke-1866 ellipsoid).
+    Nad27,
+    /// Tokyo datum (Bessel-1841 ellipsoid; legacy Japan / Korea).
+    Tokyo,
+    /// Pulkovo-1942 / SK-42 (Krasovsky-1940 ellipsoid).
+    Pulkovo42,
+    // These classic datums are reached natively via a 7-parameter Helmert
+    // transform — see [`crate::geodesy::datum`]. NAD83, ETRS89, ITRF
+    // realizations, national grids, and the full EPSG long tail are delegated
+    // to the optional `proj` feature.
 }
 
 /// A height value, tagged by the surface it is measured from.
@@ -89,10 +97,22 @@ impl Coordinate {
 
     /// Validate that latitude ∈ [-90, 90] and longitude ∈ [-180, 180].
     ///
+    /// This is a pure range check; it does *not* flag suspicious-but-valid
+    /// values such as "Null Island" — use [`is_null_island`](Self::is_null_island)
+    /// for that.
+    ///
     /// # Errors
     /// Returns [`crate::Error::OutOfRange`] when either component is invalid.
     pub fn validate(&self) -> Result<()> {
         todo!("range-check lat/lon; see units::wrap_longitude / clamp_latitude")
+    }
+
+    /// Whether this is "Null Island" — latitude and longitude both ~0, the
+    /// telltale of a missing or defaulted fix rather than a real position in
+    /// the Gulf of Guinea.
+    #[must_use]
+    pub fn is_null_island(&self) -> bool {
+        todo!("true when |lat| and |lon| are within a small epsilon of 0")
     }
 }
 

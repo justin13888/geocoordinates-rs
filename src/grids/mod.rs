@@ -8,6 +8,9 @@
 //! Encoding a point into a cell is exact, but **decoding** yields a cell with
 //! spatial extent — those methods return [`Approx`](crate::Approx) carrying the
 //! cell half-width as the error bound.
+//!
+//! National grid projections (OSGB36, Swiss LV95, Dutch RD, …) are out of scope
+//! here — reach them through the optional `proj` feature.
 
 pub mod encoded;
 pub mod mgrs;

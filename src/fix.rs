@@ -52,7 +52,9 @@ pub struct Accuracy {
     pub horizontal_m: Option<f64>,
     /// Vertical accuracy in meters.
     pub vertical_m: Option<f64>,
-    // TODO(impl): full covariance matrix and DOP fields for sub-meter work.
+    // Full uncertainty propagation (covariance matrix, CEP, DOP) is out of
+    // scope: accuracy stays a simple scalar radius. Revisit only if sub-meter
+    // error modeling proves necessary.
 }
 
 /// The original input a coordinate was parsed from, with parse confidence.

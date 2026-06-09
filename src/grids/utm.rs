@@ -60,3 +60,21 @@ impl TryFrom<Coordinate> for Utm {
         todo!("pick zone from lon; forward transverse Mercator; error near poles")
     }
 }
+
+impl Ups {
+    /// UPS → geodetic WGS-84 coordinate (exact inverse polar stereographic).
+    #[must_use]
+    pub fn to_coordinate(self) -> Coordinate {
+        todo!("inverse polar stereographic")
+    }
+}
+
+impl TryFrom<Coordinate> for Ups {
+    type Error = crate::Error;
+
+    /// Geodetic → UPS. Fails outside the polar zones (north of ~84°N or south
+    /// of ~80°S is UPS territory; use [`Utm`] elsewhere).
+    fn try_from(coord: Coordinate) -> Result<Self> {
+        todo!("forward polar stereographic; error outside the polar zones")
+    }
+}
