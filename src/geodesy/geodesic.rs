@@ -32,9 +32,22 @@ pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
 }
 
 /// Cheap spherical (haversine) distance — approximate, named for clarity.
+///
+/// Uses the IUGG mean Earth radius. The `atan2` form is numerically robust for
+/// the full range of separations, including near-antipodal points.
 #[must_use]
 pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
-    todo!("reuse geo::Haversine distance")
+    /// IUGG mean Earth radius, in meters (matches `geo`'s haversine).
+    const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
+
+    let lat1 = a.lat().to_radians();
+    let lat2 = b.lat().to_radians();
+    let d_lat = (b.lat() - a.lat()).to_radians();
+    let d_lon = (b.lon() - a.lon()).to_radians();
+
+    let h = (d_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
+    let c = 2.0 * h.sqrt().atan2((1.0 - h).max(0.0).sqrt());
+    Length::from_meters(MEAN_EARTH_RADIUS_M * c)
 }
 
 /// Rhumb-line (loxodrome / constant-bearing) distance.

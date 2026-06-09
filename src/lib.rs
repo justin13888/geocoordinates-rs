@@ -58,10 +58,14 @@ pub mod height;
 #[cfg(any(feature = "h3", feature = "s2"))]
 pub mod dgg;
 
+/// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
+#[cfg(test)]
+pub(crate) mod test_support;
+
 // Crate root re-exports: the central types you cannot do much without. The
 // broader common working set is in [`prelude`]; everything else is by path.
 pub use approx::Approx;
-pub use china::{Bd09, Gcj02, Wgs84};
+pub use china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 pub use coord::{Coordinate, Crs, Height, LatLon};
 pub use error::{Error, Result};
 pub use fix::{Accuracy, Confidence, Fix, RawSource};

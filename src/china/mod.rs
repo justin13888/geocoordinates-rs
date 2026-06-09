@@ -18,30 +18,51 @@
 //! Outside China (see [`out_of_china`]) every conversion is the identity. This
 //! creates a documented discontinuity at the border.
 
+mod baidu_mercator;
 mod bd09;
 mod gcj02;
+
+pub use baidu_mercator::BaiduMercator;
 
 use crate::coord::{Coordinate, Crs};
 use crate::error::Error;
 
-// TODO: Validate these constants vv
-/// Semi-major axis of the Krasovsky/GCJ reference ellipsoid, in meters.
-pub(crate) const EARTH_R: f64 = 6_378_137.0;
-/// Eccentricity squared used by the GCJ offset.
+/// Semi-major axis `a` of the **Krasovsky 1940** ellipsoid, in meters.
+///
+/// The GCJ-02 offset is defined against Krasovsky 1940 (`a = 6378245.0`,
+/// `1/f = 298.3`), **not** WGS-84 — using WGS-84's `6378137.0` here is a
+/// recurring ~100 m-scale bug. Paired with [`EE`], the Krasovsky eccentricity.
+pub(crate) const GCJ_A: f64 = 6_378_245.0;
+/// Eccentricity squared `e²` of the Krasovsky 1940 ellipsoid (`2f − f²`).
 pub(crate) const EE: f64 = 0.006_693_421_622_965_943;
 /// Baidu's magic angular constant, `π · 3000 / 180`.
 ///
 /// The canonical BD-09 constant. Plain `π` (used by several stale ports) is a
 /// bug that introduces a systematic ~2 m error; do not use it.
 pub(crate) const X_PI: f64 = std::f64::consts::PI * 3000.0 / 180.0;
-// TODO(end)
+/// Baidu's BD-09 latitude offset, in degrees (the `+0.0060` nudge).
+pub(crate) const BD_DLAT: f64 = 0.006_0;
+/// Baidu's BD-09 longitude offset, in degrees (the `+0.0065` nudge).
+pub(crate) const BD_DLON: f64 = 0.006_5;
 
-/// Bounding box gate: conversions are the identity outside China.
+/// Bounding-box gate: every China conversion is the identity outside it.
 ///
-/// Box: `72.004 ≤ lon ≤ 137.8347`, `0.8293 ≤ lat ≤ 55.8271`.
+/// Box: `72.004 ≤ lon ≤ 137.8347`, `0.8293 ≤ lat ≤ 55.8271`. This is the
+/// de-facto-standard rectangle used by every mainstream port (eviltransform,
+/// coordtransform, …), so our results match theirs at the border.
+///
+/// The hard rectangle creates a **documented discontinuity**: a point just
+/// inside the box is offset, a point just outside is not. It is also coarse —
+/// it includes ocean and neighboring countries and does not model the true,
+/// jagged GCJ distortion boundary. A future refinement could replace it with a
+/// precise polygon and special-case the territories where the real border
+/// matters (Hong Kong / Macau, which use WGS-84-ish data, and the Xinjiang /
+/// border regions where the rectangle over-reaches). Kept as a box here for
+/// parity with the reference implementations and to avoid a large vendored
+/// vertex table.
 #[must_use]
 pub fn out_of_china(lat: f64, lon: f64) -> bool {
-    todo!("hard bounding-box check; document the border discontinuity")
+    !(72.004..=137.8347).contains(&lon) || !(0.8293..=55.8271).contains(&lat)
 }
 
 /// A WGS-84 position (real GPS / OpenStreetMap), in decimal degrees.
