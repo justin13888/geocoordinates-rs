@@ -26,7 +26,8 @@ pub enum Error {
     #[error("could not parse coordinate: {0}")]
     Parse(String),
 
-    /// The requested runtime conversion is not supported by [`crate::convert`].
+    /// The requested runtime conversion is not supported by the `convert`
+    /// dispatch (a later release).
     #[error("unsupported conversion: {from} -> {to}")]
     UnsupportedConversion {
         /// Source reference system.

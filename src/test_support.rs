@@ -9,6 +9,10 @@
 //! — eviltransform (BSD-2-Clause), coordtransform-rs (MIT/Apache-2.0), and
 //! undrift_gps (MIT) — never from PRCoords (GPL).
 
+// Shared test scaffolding: not every helper / field is exercised by the current
+// (trimmed) test set, and more are used as later releases land. See ROADMAP.md.
+#![allow(dead_code)]
+
 use crate::coord::LatLon;
 use crate::geodesy::haversine_distance;
 use crate::{Bd09, Gcj02, Wgs84};

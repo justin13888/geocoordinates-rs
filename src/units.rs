@@ -25,16 +25,18 @@ impl Length {
         Self { meters }
     }
 
-    /// Construct from a value in the given unit.
-    #[must_use]
-    pub fn from_unit(value: f64, unit: LengthUnit) -> Self {
-        todo!("scale `value` by the unit's meter factor")
-    }
-
     /// Value in meters.
     #[must_use]
     pub fn meters(&self) -> f64 {
         self.meters
+    }
+
+    // --- Unit conversions: released in 0.2 (see ROADMAP.md) ---
+    /*
+    /// Construct from a value in the given unit.
+    #[must_use]
+    pub fn from_unit(value: f64, unit: LengthUnit) -> Self {
+        todo!("scale `value` by the unit's meter factor")
     }
 
     /// Value in the requested unit.
@@ -42,6 +44,7 @@ impl Length {
     pub fn to_unit(&self, unit: LengthUnit) -> f64 {
         todo!("divide meters by the unit's meter factor")
     }
+    */
 }
 
 /// Supported length units.

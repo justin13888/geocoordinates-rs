@@ -1,28 +1,25 @@
 //! Distance, bearing, and geodesic problems.
 //!
+//! Only the spherical [`haversine_distance`] (cheap, ~0.5% error) is available
+//! in this release. The full set — exact ellipsoidal Karney `geodesic_distance`,
+//! rhumb-line distance and bearing, forward/final bearings, and the position
+//! producers (`destination`, `midpoint`, `intermediate`, `intersection`,
+//! `rhumb_destination`) — lands with the 0.4 geodesy release (see `ROADMAP.md`),
+//! reusing [`geo`](https://docs.rs/geo) where it already implements the math.
+//!
 //! The model is explicit in the function name, so the accuracy is obvious
-//! without reading docs:
-//!
-//! - [`geodesic_distance`] — **exact** ellipsoidal distance (Karney's
-//!   algorithm, robust everywhere including near-antipodal points). Reuses
-//!   [`geo`](https://docs.rs/geo).
-//! - [`haversine_distance`] — spherical approximation (cheap, ~0.5% error).
-//! - [`rhumb_distance`] — loxodrome (constant-bearing) distance for marine
-//!   navigation.
-//!
-//! **Measurement** functions (distances, bearings) take any [`LatLon`], so they
-//! work on [`Coordinate`] and the per-datum newtypes alike — a scalar result has
-//! no reference system to mislabel.
-//!
-//! **Producer** functions (those returning a position: [`destination`],
-//! [`midpoint`], [`intermediate`], [`intersection`], [`rhumb_destination`])
-//! take `&Coordinate` and propagate its [`Crs`](crate::Crs) to the result. The
-//! ellipsoidal math assumes a WGS-84 / true-datum input; feeding an obfuscated
-//! GCJ-02 / BD-09 position is a logic error.
+//! without reading docs. Measurement functions (distances, bearings) take any
+//! [`LatLon`], so they work on `Coordinate` and the per-datum newtypes alike — a
+//! scalar result has no reference system to mislabel. Producer functions will
+//! take `&Coordinate` and propagate its CRS to the result; that ellipsoidal math
+//! assumes a WGS-84 / true-datum input, so feeding an obfuscated GCJ-02 / BD-09
+//! position is a logic error.
 
-use crate::coord::{Coordinate, LatLon};
+use crate::coord::LatLon;
 use crate::units::Length;
 
+// --- geodesic_distance: released in 0.4 (see ROADMAP.md) ---
+/*
 /// Exact ellipsoidal (Karney geodesic) distance between two points.
 ///
 /// Preferred over Vincenty, which fails to converge for near-antipodal points.
@@ -30,6 +27,7 @@ use crate::units::Length;
 pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
     todo!("reuse geo::Geodesic distance")
 }
+*/
 
 /// Cheap spherical (haversine) distance — approximate, named for clarity.
 ///
@@ -50,6 +48,8 @@ pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
     Length::from_meters(MEAN_EARTH_RADIUS_M * c)
 }
 
+// --- The remaining geodesic ops are released in 0.4 (see ROADMAP.md) ---
+/*
 /// Rhumb-line (loxodrome / constant-bearing) distance.
 #[must_use]
 pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
@@ -133,6 +133,7 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
 pub fn rhumb_destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Coordinate {
     todo!("reuse geo::Rhumb destination; result carries start.crs")
 }
+*/
 
 // Polygon and line ops — ellipsoidal area/perimeter, point-in-polygon, centroid,
 // convex hull, buffers, bounding boxes, line densification, and simplification

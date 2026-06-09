@@ -25,38 +25,49 @@
 //! println!("{} ± {} m", w.lat(), w.max_error_m());
 //! ```
 //!
-//! See `AGENTS.md` for design constraints. The implementation is in progress;
-//! most bodies are `todo!()` placeholders pending review.
+//! See `AGENTS.md` for design constraints, and `ROADMAP.md` for the staged
+//! release plan.
+//!
+//! ## Released surface
+//!
+//! This crate is shipped incrementally. The modules declared below are the
+//! implemented, working surface; the remainder of the planned API
+//! (full geodesy, grids, ingestion, formatting, runtime conversion, and the
+//! optional `proj`/`geoid`/`dgg` integrations) is commented out and lands one
+//! release at a time. `ROADMAP.md` tracks the order.
 
-// TODO(impl): remove once the stub bodies below are implemented. While the API
-// is `todo!()`-only, parameters and private fields are intentionally unused.
-#![allow(unused_variables, dead_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod angle;
 pub mod approx;
 pub mod china;
-pub mod convert;
 pub mod coord;
 pub mod error;
 pub mod fix;
-pub mod format;
 pub mod geodesy;
-pub mod grids;
-pub mod parse;
 pub mod units;
 
-/// PROJ-backed transforms for the full EPSG/datum long tail (optional C dep).
-#[cfg(feature = "proj")]
-pub mod proj;
-
-/// Geoid models for ellipsoidal ↔ orthometric height (optional, needs data).
-#[cfg(feature = "geoid")]
-pub mod height;
-
-/// Discrete global grid indexing (H3 / S2), via external crates (optional).
-#[cfg(any(feature = "h3", feature = "s2"))]
-pub mod dgg;
+// --- Not yet released (see ROADMAP.md) ---
+// Each module below is implemented behind `todo!()` stubs and is uncommented one
+// release at a time. The stub source stays on disk; only its `mod` declaration,
+// re-exports, prelude entries, and Cargo feature are commented out for now.
+//
+// pub mod convert; // 0.6 — runtime CRS dispatch
+// pub mod format; // 0.11 — locale-aware formatting
+// pub mod grids; // 0.7–0.9 — UTM/UPS, MGRS, Geohash/Plus Code/Maidenhead
+// pub mod parse; // 0.10+ — free-text, interchange, sensor ingestion
+//
+// /// PROJ-backed transforms for the full EPSG/datum long tail (optional C dep).
+// #[cfg(feature = "proj")]
+// pub mod proj;
+//
+// /// Geoid models for ellipsoidal ↔ orthometric height (optional, needs data).
+// #[cfg(feature = "geoid")]
+// pub mod height;
+//
+// /// Discrete global grid indexing (H3 / S2), via external crates (optional).
+// #[cfg(any(feature = "h3", feature = "s2"))]
+// pub mod dgg;
 
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
@@ -73,25 +84,29 @@ pub use units::{Length, LengthUnit};
 
 /// Common imports for typical use: `use geocoordinates::prelude::*;`.
 ///
-/// Brings in the canonical types plus the most-used angle, geodesy, grid,
-/// formatting, parsing, and conversion items. Less-common items (PROJ, geoid,
-/// DGG, raw Helmert/datum internals) remain reachable by their module path.
+/// Brings in the canonical types, the China datums, the angle encodings, the
+/// `Fix` metadata, and `haversine_distance`. As later releases land (see
+/// `ROADMAP.md`), this set grows to include the geodesy, grid, formatting,
+/// parsing, and conversion items.
 pub mod prelude {
     pub use crate::{
-        Accuracy, Approx, Bd09, Confidence, Coordinate, Crs, Error, Fix, Gcj02, Height, LatLon,
-        Length, LengthUnit, RawSource, Result, Wgs84,
+        Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Error, Fix, Gcj02,
+        Height, LatLon, Length, LengthUnit, RawSource, Result, Wgs84,
     };
 
     pub use crate::angle::{Axis, Dd, Ddm, Dms, Hemisphere};
-    pub use crate::convert::{can_convert, convert};
     pub use crate::fix::{AxisOrder, DatumAmbiguity};
-    pub use crate::format::{FormatOptions, Representation, format, format_fix};
-    pub use crate::geodesy::{
-        Aer, DatumTransform, Ecef, Ellipsoid, Enu, Helmert, Ned, along_track_distance,
-        cross_track_distance, destination, final_bearing, geodesic_distance, haversine_distance,
-        initial_bearing, intermediate, intersection, midpoint, rhumb_bearing, rhumb_destination,
-        rhumb_distance,
-    };
-    pub use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
-    pub use crate::parse::parse_coordinate;
+    pub use crate::geodesy::haversine_distance;
+
+    // Grows with each release (see ROADMAP.md):
+    // pub use crate::convert::{can_convert, convert};
+    // pub use crate::format::{FormatOptions, Representation, format, format_fix};
+    // pub use crate::geodesy::{
+    //     Aer, DatumTransform, Ecef, Ellipsoid, Enu, Helmert, Ned, along_track_distance,
+    //     cross_track_distance, destination, final_bearing, geodesic_distance,
+    //     initial_bearing, intermediate, intersection, midpoint, rhumb_bearing,
+    //     rhumb_destination, rhumb_distance,
+    // };
+    // pub use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
+    // pub use crate::parse::parse_coordinate;
 }

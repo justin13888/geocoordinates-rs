@@ -7,18 +7,22 @@
 //! `geo` lacks first-class types for (ECEF, ENU/NED/AER, datum/ellipsoid
 //! parameters tied to our [`Crs`](crate::Crs)).
 
-pub mod datum;
-pub mod ecef;
-pub mod ellipsoid;
-pub mod frames;
 pub mod geodesic;
 
-pub use datum::{DatumTransform, Helmert};
-pub use ecef::Ecef;
-pub use ellipsoid::Ellipsoid;
-pub use frames::{Aer, Enu, Ned};
-pub use geodesic::{
-    along_track_distance, cross_track_distance, destination, final_bearing, geodesic_distance,
-    haversine_distance, initial_bearing, intermediate, intersection, midpoint, rhumb_bearing,
-    rhumb_destination, rhumb_distance,
-};
+pub use geodesic::haversine_distance;
+
+// --- Released across 0.3–0.5 (see ROADMAP.md) ---
+// pub mod datum;     // 0.5 — Helmert / classic-datum transforms
+// pub mod ecef;      // 0.3 — ECEF geocentric coordinates
+// pub mod ellipsoid; // 0.3 — reference ellipsoid parameters
+// pub mod frames;    // 0.3 — local tangent frames (ENU/NED/AER)
+//
+// pub use datum::{DatumTransform, Helmert};
+// pub use ecef::Ecef;
+// pub use ellipsoid::Ellipsoid;
+// pub use frames::{Aer, Enu, Ned};
+// pub use geodesic::{
+//     along_track_distance, cross_track_distance, destination, final_bearing, geodesic_distance,
+//     initial_bearing, intermediate, intersection, midpoint, rhumb_bearing,
+//     rhumb_destination, rhumb_distance,
+// };

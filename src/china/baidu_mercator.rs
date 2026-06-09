@@ -6,7 +6,7 @@
 //! coefficient rows in [`LL2MC`] (forward) or [`MC2LL`] (inverse).
 //!
 //! Both directions are deterministic, so they implement [`From`] and are modeled
-//! as **exact** (like [`Utm`](crate::grids::Utm)). The two coefficient tables are
+//! as **exact** (like a UTM projection). The two coefficient tables are
 //! independent empirical fits, so a `from_bd09(p).to_bd09()` round-trip is stable
 //! to sub-meter, not bit-identical.
 //!

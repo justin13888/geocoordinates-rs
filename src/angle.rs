@@ -51,6 +51,8 @@ pub struct Ddm {
     pub hemisphere: Hemisphere,
 }
 
+// --- Angle conversions: released in 0.2 (see ROADMAP.md) ---
+/*
 impl Dd {
     /// Convert to DMS for the given axis (latitude or longitude selects the
     /// hemisphere letters).
@@ -93,6 +95,7 @@ impl From<Ddm> for Dd {
         todo!("deg + min/60, signed by hemisphere")
     }
 }
+*/
 
 /// Which axis an angle represents — selects N/S vs E/W hemisphere letters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,6 +106,8 @@ pub enum Axis {
     Longitude,
 }
 
+// --- Angle normalization helpers: released in 0.2 (see ROADMAP.md) ---
+/*
 /// Wrap a longitude into the half-open range `[-180, 180)`.
 #[must_use]
 pub fn wrap_longitude(lon_deg: f64) -> f64 {
@@ -122,3 +127,4 @@ pub fn clamp_latitude(lat_deg: f64) -> f64 {
 pub fn normalize_degrees(deg: f64) -> f64 {
     todo!("deg.rem_euclid(360.0)")
 }
+*/

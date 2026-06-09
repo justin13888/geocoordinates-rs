@@ -93,7 +93,7 @@ impl Bd09 {
     /// BD-09 → WGS-84, refined composition through GCJ-02 (**approximate**).
     ///
     /// Chains the two refined inverses, summing their error bounds via
-    /// [`Approx::and_then`].
+    /// `Approx::and_then`.
     #[must_use]
     pub fn to_wgs84_refined(self) -> Approx<Wgs84> {
         self.to_gcj02_refined()

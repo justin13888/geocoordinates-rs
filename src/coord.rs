@@ -2,20 +2,20 @@
 //!
 //! Design (locked): a **lean** [`Coordinate`] (position + optional height +
 //! reference system) is what the geodetic math and the central
-//! [`crate::convert`] dispatch operate on. Rich observation metadata
+//! `convert` dispatch (a later release) operate on. Rich observation metadata
 //! (accuracy, timestamp, raw source, parse confidence) lives separately in
 //! [`crate::fix::Fix`], populated by the ingestion layer.
 
 use core::fmt;
-use core::str::FromStr;
-
-use crate::error::{Error, Result};
+// Re-enabled with the items that use them (see ROADMAP.md):
+// use core::str::FromStr;          // Coordinate: FromStr (0.10, with `parse`)
+// use crate::error::{Error, Result}; // Coordinate::validate (0.2)
 
 /// A coordinate reference system / datum tag used for runtime dispatch.
 ///
 /// GCJ-02 and BD-09 are obfuscation transforms rather than true geodetic
 /// datums, but are modeled here as reference systems so the central
-/// [`crate::convert::convert`] can dispatch over them uniformly.
+/// `convert` dispatch (a later release) can dispatch over them uniformly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
@@ -123,6 +123,8 @@ impl Coordinate {
         }
     }
 
+    // --- Released in 0.2 (see ROADMAP.md) ---
+    /*
     /// Validate that latitude ∈ [-90, 90] and longitude ∈ [-180, 180].
     ///
     /// This is a pure range check; it does *not* flag suspicious-but-valid
@@ -142,6 +144,7 @@ impl Coordinate {
     pub fn is_null_island(&self) -> bool {
         todo!("true when |lat| and |lon| are within a small epsilon of 0")
     }
+    */
 }
 
 /// Shared read access to a latitude/longitude pair.
@@ -179,6 +182,8 @@ impl fmt::Display for Crs {
     }
 }
 
+// --- FromStr: released in 0.10 with `parse` (see ROADMAP.md) ---
+/*
 impl FromStr for Coordinate {
     type Err = Error;
 
@@ -192,7 +197,10 @@ impl FromStr for Coordinate {
         todo!("delegate to parse::parse_coordinate(s)?.coord")
     }
 }
+*/
 
+// --- Display: released in 0.11 with `format` (see ROADMAP.md) ---
+/*
 impl fmt::Display for Coordinate {
     /// Render in decimal degrees with default precision. For other
     /// representations, symbols, or locale use [`format`](crate::format::format).
@@ -200,3 +208,4 @@ impl fmt::Display for Coordinate {
         todo!("default decimal-degrees rendering (infallible for DD)")
     }
 }
+*/

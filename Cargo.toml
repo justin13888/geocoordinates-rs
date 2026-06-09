@@ -10,6 +10,8 @@ repository = "https://github.com/justin13888/geocoordinates-rs"
 readme = "README.md"
 keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
 categories = ["science::geo", "mathematics", "parser-implementations"]
+# ROADMAP.md is a contributor-facing release plan, not part of the published crate.
+exclude = ["ROADMAP.md"]
 
 [dependencies]
 geo = "0.33.1"
@@ -23,22 +25,28 @@ default = []
 # Enable serde Serialize/Deserialize on this crate's types and on the underlying geo-types.
 serde = ["dep:serde", "geo-types/serde", "geo/serde"]
 
-# --- Interchange formats (parsers/writers) ---
-# Each pulls an external crate when implemented; currently todo!() stubs.
-geojson = ["serde"] # GeoJSON (lon-lat axis order) — TODO: serde_json / geojson crate
-wkt = []            # WKT/WKB — TODO: wkt crate
-gpx = []            # GPX track files — TODO: gpx crate
-kml = []            # KML/KMZ — TODO: kml crate
-
-# --- Sensor / device ingestion ---
-nmea = []           # NMEA 0183 sentences — TODO: nmea parser crate
-exif = []           # EXIF/XMP image GPS metadata — TODO: kamadak-exif
-
-# --- Heavy / external integrations ---
-proj = []           # PROJ-backed EPSG long tail — TODO: proj crate (C dep)
-geoid = []          # EGM96/EGM2008 geoid models — TODO: bundled/loaded grid data
-h3 = []             # Uber H3 indexing — TODO: h3o crate
-s2 = []             # Google S2 indexing — TODO: s2 crate
-
-# Convenience: enable every optional capability.
-full = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "exif", "proj", "geoid", "h3", "s2"]
+# --- Staged features (see ROADMAP.md) ---
+# The optional capabilities below are commented out until their modules are
+# implemented and released. Uncomment each line as its ROADMAP milestone lands
+# (alongside the matching `pub mod` in src/lib.rs). They gate nothing while their
+# modules are commented out, so leaving them defined would only advertise
+# panicking APIs.
+#
+# Interchange formats (parsers/writers):
+# geojson = ["serde"] # GeoJSON (lon-lat axis order) — serde_json / geojson crate
+# wkt = []            # WKT/WKB — wkt crate
+# gpx = []            # GPX track files — gpx crate
+# kml = []            # KML/KMZ — kml crate
+#
+# Sensor / device ingestion:
+# nmea = []           # NMEA 0183 sentences — nmea parser crate
+# exif = []           # EXIF/XMP image GPS metadata — kamadak-exif
+#
+# Heavy / external integrations:
+# proj = []           # PROJ-backed EPSG long tail — proj crate (C dep)
+# geoid = []          # EGM96/EGM2008 geoid models — bundled/loaded grid data
+# h3 = []             # Uber H3 indexing — h3o crate
+# s2 = []             # Google S2 indexing — s2 crate
+#
+# Convenience: enable every optional capability (restore entries as they return).
+# full = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "exif", "proj", "geoid", "h3", "s2"]

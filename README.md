@@ -1,8 +1,19 @@
 # geocoordinates
 
-A feature-complete geospatial coordinate library for Rust — China datums (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation.
+A geospatial coordinate library for Rust — China datums (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation.
 
-> **Status:** Early development. The public API is being designed and is not yet stable.
+> **Status:** Early development, released incrementally. The public API is `0.x` and may change between minor versions. See [ROADMAP.md](ROADMAP.md) for the planned release order.
+
+## What's available now
+
+The current release ships the core data model and the China datums:
+
+- **Coordinate model:** `Coordinate`, `Crs`, `Height`, `LatLon`; `Approx<T>`; typed `Error`/`Result`; `Length`/`LengthUnit`; angle encodings (`Dd`/`Dms`/`Ddm`); `Fix` observation metadata.
+- **China datums:** `Wgs84` ↔ `Gcj02` ↔ `Bd09` (exact forward transforms, approximate inverses with explicit error bounds) and `BaiduMercator`.
+- **Distance:** spherical `haversine_distance`.
+- Optional `serde` support (`serde` feature).
+
+Geodesy (ECEF/frames/Karney geodesics/Helmert datums), grids (UTM/MGRS/Geohash/Plus Code/Maidenhead), ingestion (free-text, GeoJSON/WKT/GPX/KML, NMEA/EXIF), formatting, and runtime CRS conversion are scaffolded and land in subsequent releases — see [ROADMAP.md](ROADMAP.md).
 
 ## Prerequisites
 
