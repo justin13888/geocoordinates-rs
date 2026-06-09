@@ -1,4 +1,4 @@
-# gcoords
+# geocoordinates
 
 A feature-complete geospatial coordinate library for Rust — China datums (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation.
 

@@ -10,11 +10,13 @@
 //! - **Locale**: a European decimal comma (`40,7128`) collides with the list
 //!   separator.
 
-use super::{AxisOrder, ParseReport};
+use super::AxisOrder;
 use crate::error::Result;
+use crate::fix::Fix;
 
 /// Options controlling tolerant parsing.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TextParseOptions {
     /// Axis order to assume when range heuristics are inconclusive.
     pub default_axis_order: AxisOrder,
@@ -33,9 +35,12 @@ impl Default for TextParseOptions {
 
 /// Parse a free-text coordinate with default options.
 ///
+/// The returned [`Fix`] records the assumed axis order and parse confidence in
+/// its [`RawSource`](crate::fix::RawSource).
+///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
-pub fn parse(input: &str) -> Result<ParseReport> {
+pub fn parse(input: &str) -> Result<Fix> {
     parse_with(input, &TextParseOptions::default())
 }
 
@@ -43,6 +48,6 @@ pub fn parse(input: &str) -> Result<ParseReport> {
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
-pub fn parse_with(input: &str, options: &TextParseOptions) -> Result<ParseReport> {
+pub fn parse_with(input: &str, options: &TextParseOptions) -> Result<Fix> {
     todo!("normalize typography, split, parse DD/DMS/DDM, resolve axis order, score confidence")
 }

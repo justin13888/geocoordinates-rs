@@ -1,5 +1,6 @@
 //! Angle encodings: decimal degrees (DD), degrees-minutes-seconds (DMS), and
-//! degrees-decimal-minutes (DDM).
+//! degrees-decimal-minutes (DDM), plus angle-normalization helpers (longitude
+//! wrap, latitude clamp, degree normalization).
 //!
 //! DDM is what NMEA and marine/aviation use and is frequently forgotten.
 //! Conversions between these encodings are **exact** (pure arithmetic), so they
@@ -65,6 +66,22 @@ impl Dd {
     }
 }
 
+impl Dms {
+    /// Convert to degrees-decimal-minutes, preserving the hemisphere.
+    #[must_use]
+    pub fn to_ddm(self) -> Ddm {
+        todo!("minutes = self.minutes + self.seconds/60")
+    }
+}
+
+impl Ddm {
+    /// Convert to degrees-minutes-seconds, preserving the hemisphere.
+    #[must_use]
+    pub fn to_dms(self) -> Dms {
+        todo!("seconds = fract(minutes)*60; minutes = trunc(minutes)")
+    }
+}
+
 impl From<Dms> for Dd {
     fn from(dms: Dms) -> Self {
         todo!("deg + min/60 + sec/3600, signed by hemisphere")
@@ -84,4 +101,24 @@ pub enum Axis {
     Latitude,
     /// Longitude (E/W).
     Longitude,
+}
+
+/// Wrap a longitude into the half-open range `[-180, 180)`.
+#[must_use]
+pub fn wrap_longitude(lon_deg: f64) -> f64 {
+    todo!("normalize longitude across the antimeridian")
+}
+
+/// Clamp a latitude into `[-90, 90]`.
+#[must_use]
+pub fn clamp_latitude(lat_deg: f64) -> f64 {
+    todo!("clamp latitude to the poles")
+}
+
+/// Normalize an angle (degrees) into `[0, 360)`.
+///
+/// Use for bearings/azimuths as well — a bearing is just an angle in `[0, 360)`.
+#[must_use]
+pub fn normalize_degrees(deg: f64) -> f64 {
+    todo!("deg.rem_euclid(360.0)")
 }

@@ -26,15 +26,21 @@ impl Ecef {
         Self { x, y, z }
     }
 
-    /// ECEF → geodetic lat/lon/height on the given ellipsoid (exact, Bowring).
+    /// ECEF → geodetic [`Coordinate`] (lat/lon/height) on the given ellipsoid
+    /// (exact, Bowring closed-form inverse).
+    ///
+    /// The result carries no [`Crs`](crate::Crs) tag of its own — ECEF is
+    /// datum-agnostic; the caller is responsible for tagging the coordinate
+    /// with the reference system the `ellipsoid` belongs to.
     #[must_use]
-    pub fn to_geodetic(self, ellipsoid: Ellipsoid) -> Coordinate {
+    pub fn to_coordinate(self, ellipsoid: Ellipsoid) -> Coordinate {
         todo!("Bowring closed-form inverse; height from ellipsoid")
     }
 
-    /// Geodetic → ECEF on the given ellipsoid (exact, closed form).
+    /// Geodetic [`Coordinate`] → ECEF on the given ellipsoid (exact, closed
+    /// form).
     #[must_use]
-    pub fn from_geodetic(coord: Coordinate, ellipsoid: Ellipsoid) -> Self {
+    pub fn from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Self {
         todo!("standard forward formula using N = a / sqrt(1 - e² sin²φ)")
     }
 }

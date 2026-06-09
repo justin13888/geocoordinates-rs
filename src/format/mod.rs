@@ -6,9 +6,12 @@
 //! must not drift.
 
 use crate::coord::Coordinate;
+use crate::error::Result;
+use crate::fix::Fix;
 
 /// Target representation for rendering a coordinate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum Representation {
     /// Decimal degrees (`40.712800, -74.006000`).
@@ -29,6 +32,8 @@ pub enum Representation {
 
 /// Symbol style for DMS/DDM rendering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum SymbolStyle {
     /// Unicode `°′″`.
     Unicode,
@@ -40,6 +45,8 @@ pub enum SymbolStyle {
 
 /// Sign style for hemispheres.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum HemisphereStyle {
     /// Signed numbers (`-74.006`).
     Signed,
@@ -49,11 +56,13 @@ pub enum HemisphereStyle {
 
 /// Options controlling how a coordinate is rendered.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FormatOptions {
     /// Target representation.
     pub representation: Representation,
-    /// Decimal places (DD) or sub-second/minute precision. When `None`, choose
-    /// precision from the fix's accuracy rather than printing spurious digits.
+    /// Decimal places (DD) or sub-second/minute precision. When `None`, a
+    /// sensible default is used for a bare coordinate; [`format_fix`] instead
+    /// derives precision from the fix's accuracy to avoid spurious digits.
     pub precision: Option<u8>,
     /// Symbol style for DMS/DDM.
     pub symbol_style: SymbolStyle,
@@ -76,7 +85,23 @@ impl Default for FormatOptions {
 }
 
 /// Render a coordinate to a string using the given options.
-#[must_use]
-pub fn format(coord: &Coordinate, options: &FormatOptions) -> String {
+///
+/// # Errors
+/// Returns an error when the requested [`Representation`] is undefined for the
+/// coordinate — e.g. [`Representation::Utm`] at the poles (see
+/// [`crate::Error::InvalidGridRef`]). The DD/DMS/DDM representations never fail.
+pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
     todo!("dispatch on representation; respect precision, symbols, hemisphere, locale")
+}
+
+/// Render a [`Fix`] to a string, deriving display precision from its
+/// [`accuracy`](crate::fix::Fix::accuracy) when `options.precision` is `None`
+/// (so spurious digits beyond the fix's resolution are not printed).
+///
+/// # Errors
+/// As [`format()`].
+pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
+    todo!(
+        "choose precision from fix.accuracy when options.precision is None, then format(&fix.coord, ..)"
+    )
 }

@@ -1,4 +1,4 @@
-//! # gcoordinates
+//! # geocoordinates
 //!
 //! A feature-complete geospatial coordinate library for Rust — China datums
 //! (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation.
@@ -58,9 +58,36 @@ pub mod height;
 #[cfg(any(feature = "h3", feature = "s2"))]
 pub mod dgg;
 
+// Crate root re-exports: the central types you cannot do much without. The
+// broader common working set is in [`prelude`]; everything else is by path.
 pub use approx::Approx;
 pub use china::{Bd09, Gcj02, Wgs84};
 pub use coord::{Coordinate, Crs, Height, LatLon};
 pub use error::{Error, Result};
 pub use fix::{Accuracy, Confidence, Fix, RawSource};
 pub use units::{Length, LengthUnit};
+
+/// Common imports for typical use: `use geocoordinates::prelude::*;`.
+///
+/// Brings in the canonical types plus the most-used angle, geodesy, grid,
+/// formatting, parsing, and conversion items. Less-common items (PROJ, geoid,
+/// DGG, raw Helmert/datum internals) remain reachable by their module path.
+pub mod prelude {
+    pub use crate::{
+        Accuracy, Approx, Bd09, Confidence, Coordinate, Crs, Error, Fix, Gcj02, Height, LatLon,
+        Length, LengthUnit, RawSource, Result, Wgs84,
+    };
+
+    pub use crate::angle::{Axis, Dd, Ddm, Dms, Hemisphere};
+    pub use crate::convert::{can_convert, convert};
+    pub use crate::fix::{AxisOrder, DatumAmbiguity};
+    pub use crate::format::{FormatOptions, Representation, format, format_fix};
+    pub use crate::geodesy::{
+        Aer, DatumTransform, Ecef, Ellipsoid, Enu, Helmert, Ned, along_track_distance,
+        cross_track_distance, destination, final_bearing, geodesic_distance, haversine_distance,
+        initial_bearing, intermediate, intersection, midpoint, rhumb_bearing, rhumb_destination,
+        rhumb_distance,
+    };
+    pub use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
+    pub use crate::parse::parse_coordinate;
+}

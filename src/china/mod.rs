@@ -11,15 +11,18 @@
 //! | WGS-84 → GCJ-02 | exact forward offset | [`From`] / [`Wgs84::to_gcj02`] |
 //! | GCJ-02 → BD-09 | exact (empirical) forward | [`From`] / [`Gcj02::to_bd09`] |
 //! | WGS-84 → BD-09 | exact composition | [`From`] / [`Wgs84::to_bd09`] |
-//! | GCJ-02 → WGS-84 | **approximate** inverse | [`Gcj02::to_wgs84_refined`] → [`Approx`] |
-//! | BD-09 → GCJ-02 | **approximate** inverse | [`Bd09::to_gcj02_refined`] → [`Approx`] |
-//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::to_wgs84_refined`] → [`Approx`] |
+//! | GCJ-02 → WGS-84 | **approximate** inverse | [`Gcj02::to_wgs84_refined`] → [`Approx`](crate::Approx) |
+//! | BD-09 → GCJ-02 | **approximate** inverse | [`Bd09::to_gcj02_refined`] → [`Approx`](crate::Approx) |
+//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::to_wgs84_refined`] → [`Approx`](crate::Approx) |
 //!
 //! Outside China (see [`out_of_china`]) every conversion is the identity. This
 //! creates a documented discontinuity at the border.
 
 mod bd09;
 mod gcj02;
+
+use crate::coord::{Coordinate, Crs};
+use crate::error::Error;
 
 // TODO: Validate these constants vv
 /// Semi-major axis of the Krasovsky/GCJ reference ellipsoid, in meters.
@@ -85,3 +88,83 @@ macro_rules! impl_latlon {
     )*};
 }
 impl_latlon!(Wgs84, Gcj02, Bd09);
+
+// --- Bridges to the canonical `Coordinate` ---
+//
+// Datum newtype → `Coordinate` is exact and total: it injects the correct
+// [`Crs`] tag and leaves height unset. `Coordinate` → newtype is fallible: the
+// coordinate's [`Crs`] must match (so a datum is never silently laundered), and
+// any height is dropped (GCJ-02 / BD-09 are 2D obfuscations with no vertical
+// datum).
+
+impl From<Wgs84> for Coordinate {
+    fn from(p: Wgs84) -> Self {
+        Coordinate::wgs84(p.lat, p.lon)
+    }
+}
+
+impl From<Gcj02> for Coordinate {
+    fn from(p: Gcj02) -> Self {
+        Coordinate::gcj02(p.lat, p.lon)
+    }
+}
+
+impl From<Bd09> for Coordinate {
+    fn from(p: Bd09) -> Self {
+        Coordinate::bd09(p.lat, p.lon)
+    }
+}
+
+impl TryFrom<Coordinate> for Wgs84 {
+    type Error = Error;
+
+    /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Wgs84`].
+    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+        match coord.crs {
+            Crs::Wgs84 => Ok(Wgs84 {
+                lat: coord.lat,
+                lon: coord.lon,
+            }),
+            found => Err(Error::CrsMismatch {
+                expected: Crs::Wgs84,
+                found,
+            }),
+        }
+    }
+}
+
+impl TryFrom<Coordinate> for Gcj02 {
+    type Error = Error;
+
+    /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Gcj02`].
+    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+        match coord.crs {
+            Crs::Gcj02 => Ok(Gcj02 {
+                lat: coord.lat,
+                lon: coord.lon,
+            }),
+            found => Err(Error::CrsMismatch {
+                expected: Crs::Gcj02,
+                found,
+            }),
+        }
+    }
+}
+
+impl TryFrom<Coordinate> for Bd09 {
+    type Error = Error;
+
+    /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Bd09`].
+    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+        match coord.crs {
+            Crs::Bd09 => Ok(Bd09 {
+                lat: coord.lat,
+                lon: coord.lon,
+            }),
+            found => Err(Error::CrsMismatch {
+                expected: Crs::Bd09,
+                found,
+            }),
+        }
+    }
+}

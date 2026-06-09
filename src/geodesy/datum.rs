@@ -102,13 +102,16 @@ impl DatumTransform {
         todo!("catalog: Nad27, Tokyo, Pulkovo42 -> Wgs84; None otherwise")
     }
 
-    /// Transform a geodetic coordinate from the source to the target datum.
+    /// Transform a geodetic coordinate from the source to the target datum,
+    /// tagging the result with `to`.
     ///
-    /// Exact within the published parameters; the result carries the target
-    /// [`Crs`].
+    /// Exact within the published parameters. `DatumTransform` holds only the
+    /// two ellipsoids — which do not uniquely determine a [`Crs`] (e.g. GRS80
+    /// backs both NAD83 and ETRS89) — so the target reference system is supplied
+    /// explicitly rather than inferred.
     #[must_use]
-    pub fn transform(&self, coord: Coordinate) -> Coordinate {
-        todo!("geodetic->ECEF(from) -> helmert -> ECEF->geodetic(to)")
+    pub fn transform(&self, coord: Coordinate, to: Crs) -> Coordinate {
+        todo!("geodetic->ECEF(from) -> helmert -> ECEF->geodetic(to); tag crs = to")
     }
 
     /// The reverse transform (swaps ellipsoids and inverts the Helmert shift).

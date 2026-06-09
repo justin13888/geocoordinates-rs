@@ -27,7 +27,7 @@ pub enum Error {
     Parse(String),
 
     /// The requested runtime conversion is not supported by [`crate::convert`].
-    #[error("unsupported conversion: {from:?} -> {to:?}")]
+    #[error("unsupported conversion: {from} -> {to}")]
     UnsupportedConversion {
         /// Source reference system.
         from: Crs,
@@ -35,9 +35,30 @@ pub enum Error {
         to: Crs,
     },
 
+    /// A coordinate was used where a different reference system was required —
+    /// e.g. converting a [`Coordinate`](crate::Coordinate) tagged one [`Crs`]
+    /// into a datum newtype of another. Prevents silently laundering a datum.
+    #[error("crs mismatch: expected {expected}, found {found}")]
+    CrsMismatch {
+        /// The reference system that was required.
+        expected: Crs,
+        /// The reference system the coordinate actually carried.
+        found: Crs,
+    },
+
+    /// A grid reference (MGRS / Plus Code / geohash / Maidenhead) was malformed
+    /// or fell outside the grid's valid domain (e.g. a bad grid-zone letter).
+    #[error("invalid grid reference: {0}")]
+    InvalidGridRef(String),
+
+    /// A geoid-height conversion was requested but the model's grid data is not
+    /// loaded, or the point lies outside the model's coverage.
+    #[error("geoid data unavailable for the requested model or location")]
+    GeoidDataUnavailable,
+
     /// An optional capability was requested whose cargo feature is disabled.
     #[error("feature `{0}` is not enabled")]
     FeatureDisabled(&'static str),
-    // TODO(impl): add variants as modules are fleshed out (projection domain
-    // errors, MGRS grid-zone errors, geoid data not loaded, PROJ errors, ...).
+    // TODO(impl): add further variants as modules are fleshed out (projection
+    // domain errors, PROJ errors, ...).
 }

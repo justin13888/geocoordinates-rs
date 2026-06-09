@@ -13,6 +13,10 @@ use core::ops::Deref;
 ///
 /// `Approx<T>` derefs to `T`, so `approx.lat()` and similar accessors work
 /// directly.
+///
+/// Note: the derived [`PartialEq`] compares [`max_error_m`](Approx::max_error_m)
+/// too, so two approximations of the same point with different bounds are not
+/// equal. Compare [`value`](Approx::value) explicitly for a bound-agnostic test.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Approx<T> {
@@ -51,6 +55,21 @@ impl<T> Approx<T> {
         Approx {
             value: f(self.value),
             max_error_m: self.max_error_m,
+        }
+    }
+
+    /// Chain another approximate step, accumulating the error bounds.
+    ///
+    /// The composed bound is the sum of this step's bound and the next step's,
+    /// the conservative worst case for sequential approximate conversions (e.g.
+    /// BD-09 → GCJ-02 → WGS-84). Centralizes bound arithmetic so call sites do
+    /// not re-derive it.
+    #[must_use]
+    pub(crate) fn and_then<U>(self, f: impl FnOnce(T) -> Approx<U>) -> Approx<U> {
+        let next = f(self.value);
+        Approx {
+            value: next.value,
+            max_error_m: self.max_error_m + next.max_error_m,
         }
     }
 }

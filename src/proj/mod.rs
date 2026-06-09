@@ -13,6 +13,7 @@ use crate::error::Result;
 
 /// A coordinate reference system identified by EPSG code or PROJ string.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CrsId {
     /// EPSG code, e.g. `4326` (WGS-84) or `3857` (Web Mercator).
     Epsg(u32),

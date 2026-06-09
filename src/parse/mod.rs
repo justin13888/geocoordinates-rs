@@ -1,4 +1,4 @@
-//! Ingestion: turning real-world input into a [`Fix`](crate::Fix).
+//! Ingestion: turning real-world input into a [`Fix`].
 //!
 //! - [`text`] — tolerant free-text / DMS / DDM parsing (always available).
 //! - [`from_geo_uri`] — `geo:` URIs per RFC 5870 (always available).
@@ -28,35 +28,22 @@ pub mod sensors;
 use crate::error::Result;
 use crate::fix::Fix;
 
-/// Axis ordering of a textual/structured coordinate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum AxisOrder {
-    /// Latitude first (human/EPSG convention).
-    LatLon,
-    /// Longitude first (GeoJSON/WKT X,Y convention).
-    LonLat,
-}
-
-/// The outcome of a parse, including ambiguities that were resolved.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ParseReport {
-    /// The parsed fix (coordinate + metadata + confidence).
-    pub fix: Fix,
-    /// The axis order that was assumed.
-    pub axis_order: AxisOrder,
-}
+/// Axis ordering of a textual/structured coordinate. Re-exported from
+/// [`fix`](crate::fix), where it lives so parsers can record it on a [`Fix`]'s
+/// [`RawSource`](crate::fix::RawSource).
+pub use crate::fix::AxisOrder;
 
 /// Best-effort parse of a single coordinate from arbitrary input.
 ///
 /// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]); a UTM / MGRS /
 /// Plus Code / geohash token (via the [`grids`](crate::grids) decoders); then
-/// falls back to free-text DD/DMS/DDM heuristics (see [`text`]). Reports parse
-/// confidence and the assumed axis order.
+/// falls back to free-text DD/DMS/DDM heuristics (see [`text`]). The returned
+/// [`Fix`] records parse confidence and the assumed [`AxisOrder`] in its
+/// [`RawSource`](crate::fix::RawSource).
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found.
-pub fn parse_coordinate(input: &str) -> Result<ParseReport> {
+pub fn parse_coordinate(input: &str) -> Result<Fix> {
     todo!(
         "detect geo: URI, then UTM/MGRS/PlusCode/geohash tokens via grids \
          decoders, else text::parse with range/locale heuristics"

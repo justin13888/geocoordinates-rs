@@ -10,10 +10,17 @@
 //! - [`rhumb_distance`] — loxodrome (constant-bearing) distance for marine
 //!   navigation.
 //!
-//! These take any [`LatLon`](crate::coord::LatLon) so they work on
-//! [`Coordinate`](crate::Coordinate) and the per-datum newtypes alike.
+//! **Measurement** functions (distances, bearings) take any [`LatLon`], so they
+//! work on [`Coordinate`] and the per-datum newtypes alike — a scalar result has
+//! no reference system to mislabel.
+//!
+//! **Producer** functions (those returning a position: [`destination`],
+//! [`midpoint`], [`intermediate`], [`intersection`], [`rhumb_destination`])
+//! take `&Coordinate` and propagate its [`Crs`](crate::Crs) to the result. The
+//! ellipsoidal math assumes a WGS-84 / true-datum input; feeding an obfuscated
+//! GCJ-02 / BD-09 position is a logic error.
 
-use crate::coord::LatLon;
+use crate::coord::{Coordinate, LatLon};
 use crate::units::Length;
 
 /// Exact ellipsoidal (Karney geodesic) distance between two points.
@@ -51,22 +58,24 @@ pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
 }
 
 /// Direct geodesic problem: the point reached from `start` by traveling
-/// `distance` along `bearing_deg` (exact, Karney).
+/// `distance` along `bearing_deg` (exact, Karney). The result carries
+/// `start.crs`.
 #[must_use]
-pub fn destination(start: &impl LatLon, bearing_deg: f64, distance: Length) -> crate::Coordinate {
-    todo!("reuse geo::Geodesic destination")
+pub fn destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Coordinate {
+    todo!("reuse geo::Geodesic destination; result carries start.crs")
 }
 
-/// The geodesic midpoint between `a` and `b`.
+/// The geodesic midpoint between `a` and `b`. The result carries `a.crs`.
 #[must_use]
-pub fn midpoint(a: &impl LatLon, b: &impl LatLon) -> crate::Coordinate {
-    todo!("intermediate at fraction 0.5")
+pub fn midpoint(a: &Coordinate, b: &Coordinate) -> Coordinate {
+    todo!("intermediate at fraction 0.5; result carries a.crs")
 }
 
 /// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic
 /// from `a` to `b`. Interpolates along the geodesic, handling the antimeridian.
+/// The result carries `a.crs`.
 #[must_use]
-pub fn intermediate(a: &impl LatLon, b: &impl LatLon, fraction: f64) -> crate::Coordinate {
+pub fn intermediate(a: &Coordinate, b: &Coordinate, fraction: f64) -> Coordinate {
     todo!("reuse geo geodesic interpolation; wrap longitude across the antimeridian")
 }
 
@@ -87,14 +96,15 @@ pub fn along_track_distance(point: &impl LatLon, start: &impl LatLon, end: &impl
 /// Intersection of two geodesics, each given by a point and an initial bearing.
 ///
 /// Returns `None` when the paths are parallel or coincident. Geodesics on the
-/// sphere generally intersect twice; this returns the nearer intersection.
+/// sphere generally intersect twice; this returns the nearer intersection. The
+/// result carries `a.crs`.
 #[must_use]
 pub fn intersection(
-    a: &impl LatLon,
+    a: &Coordinate,
     bearing_a_deg: f64,
-    b: &impl LatLon,
+    b: &Coordinate,
     bearing_b_deg: f64,
-) -> Option<crate::Coordinate> {
+) -> Option<Coordinate> {
     todo!("great-circle path intersection; handle antimeridian and poles")
 }
 
@@ -105,14 +115,10 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
 }
 
 /// The point reached from `start` by traveling `distance` along a constant
-/// `bearing_deg` rhumb line (loxodrome).
+/// `bearing_deg` rhumb line (loxodrome). The result carries `start.crs`.
 #[must_use]
-pub fn rhumb_destination(
-    start: &impl LatLon,
-    bearing_deg: f64,
-    distance: Length,
-) -> crate::Coordinate {
-    todo!("reuse geo::Rhumb destination")
+pub fn rhumb_destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Coordinate {
+    todo!("reuse geo::Rhumb destination; result carries start.crs")
 }
 
 // Polygon and line ops — ellipsoidal area/perimeter, point-in-polygon, centroid,

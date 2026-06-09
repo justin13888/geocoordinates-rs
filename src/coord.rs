@@ -6,7 +6,10 @@
 //! (accuracy, timestamp, raw source, parse confidence) lives separately in
 //! [`crate::fix::Fix`], populated by the ingestion layer.
 
-use crate::error::Result;
+use core::fmt;
+use core::str::FromStr;
+
+use crate::error::{Error, Result};
 
 /// A coordinate reference system / datum tag used for runtime dispatch.
 ///
@@ -78,6 +81,28 @@ impl Coordinate {
         }
     }
 
+    /// Construct a GCJ-02 ("Mars") coordinate from latitude/longitude in degrees.
+    #[must_use]
+    pub fn gcj02(lat: f64, lon: f64) -> Self {
+        Self {
+            lat,
+            lon,
+            height: None,
+            crs: Crs::Gcj02,
+        }
+    }
+
+    /// Construct a BD-09 (Baidu) coordinate from latitude/longitude in degrees.
+    #[must_use]
+    pub fn bd09(lat: f64, lon: f64) -> Self {
+        Self {
+            lat,
+            lon,
+            height: None,
+            crs: Crs::Bd09,
+        }
+    }
+
     /// Construct a coordinate in an explicit reference system.
     #[must_use]
     pub fn new(lat: f64, lon: f64, crs: Crs) -> Self {
@@ -107,7 +132,7 @@ impl Coordinate {
     /// # Errors
     /// Returns [`crate::Error::OutOfRange`] when either component is invalid.
     pub fn validate(&self) -> Result<()> {
-        todo!("range-check lat/lon; see units::wrap_longitude / clamp_latitude")
+        todo!("range-check lat/lon; see angle::wrap_longitude / clamp_latitude")
     }
 
     /// Whether this is "Null Island" — latitude and longitude both ~0, the
@@ -136,5 +161,42 @@ impl LatLon for Coordinate {
     }
     fn lon(&self) -> f64 {
         self.lon
+    }
+}
+
+impl fmt::Display for Crs {
+    /// The short canonical name (e.g. `WGS84`, `GCJ-02`), as used in errors.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Crs::Wgs84 => "WGS84",
+            Crs::Gcj02 => "GCJ-02",
+            Crs::Bd09 => "BD-09",
+            Crs::Nad27 => "NAD27",
+            Crs::Tokyo => "Tokyo",
+            Crs::Pulkovo42 => "Pulkovo-1942",
+        };
+        f.write_str(name)
+    }
+}
+
+impl FromStr for Coordinate {
+    type Err = Error;
+
+    /// Parse via [`parse_coordinate`](crate::parse::parse_coordinate) with
+    /// default options, discarding the surrounding [`Fix`](crate::Fix)
+    /// metadata. Use `parse::parse_coordinate` directly to keep provenance.
+    ///
+    /// # Errors
+    /// Returns [`Error::Parse`] when the input cannot be interpreted.
+    fn from_str(s: &str) -> Result<Self> {
+        todo!("delegate to parse::parse_coordinate(s)?.coord")
+    }
+}
+
+impl fmt::Display for Coordinate {
+    /// Render in decimal degrees with default precision. For other
+    /// representations, symbols, or locale use [`format`](crate::format::format).
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!("default decimal-degrees rendering (infallible for DD)")
     }
 }

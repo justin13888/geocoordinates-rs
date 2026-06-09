@@ -1,27 +1,34 @@
 //! Encoded/discrete location systems: Geohash, Plus Codes, Maidenhead.
 //!
 //! Each encodes a point into a variable-length string identifying a **cell**.
-//! Encoding is exact; decoding returns the cell center wrapped in
-//! [`Approx`](crate::Approx) with the cell half-extent as the error bound.
+//! Strings are validated at construction ([`TryFrom<&str>`] / [`FromStr`]), so
+//! [`encode`](Geohash::encode) is exact and [`decode`](Geohash::decode) is
+//! infallible — the latter returns the cell center wrapped in [`Approx`] with
+//! the cell half-extent as the error bound.
+//!
+//! [`TryFrom<&str>`]: Geohash::try_from
+//! [`FromStr`]: std::str::FromStr
+
+use core::str::FromStr;
 
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::Result;
 
-/// A geohash string (base-32), e.g. `dr5regy`.
+/// A validated geohash string (base-32), e.g. `dr5regy`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Geohash(pub String);
+pub struct Geohash(String);
 
-/// An Open Location Code / Plus Code, e.g. `87G7X2VV+2V`.
+/// A validated Open Location Code / Plus Code, e.g. `87G7X2VV+2V`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct PlusCode(pub String);
+pub struct PlusCode(String);
 
-/// A Maidenhead locator (amateur radio grid square), e.g. `FN20`.
+/// A validated Maidenhead locator (amateur radio grid square), e.g. `FN20`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Maidenhead(pub String);
+pub struct Maidenhead(String);
 
 impl Geohash {
     /// Encode a coordinate at the given character length (exact).
@@ -30,12 +37,34 @@ impl Geohash {
         todo!()
     }
 
+    /// The canonical geohash string.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
     /// Decode to the cell center; error bound is the cell half-diagonal.
-    ///
-    /// # Errors
-    /// Returns an error for non-base-32 input.
-    pub fn decode(&self) -> Result<Approx<Coordinate>> {
+    /// Infallible — validated at construction.
+    #[must_use]
+    pub fn decode(&self) -> Approx<Coordinate> {
         todo!()
+    }
+}
+
+impl TryFrom<&str> for Geohash {
+    type Error = crate::Error;
+
+    /// # Errors
+    /// Returns [`crate::Error::InvalidGridRef`] for non-base-32 input.
+    fn try_from(s: &str) -> Result<Self> {
+        todo!("validate base-32 alphabet")
+    }
+}
+
+impl FromStr for Geohash {
+    type Err = crate::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_from(s)
     }
 }
 
@@ -46,12 +75,34 @@ impl PlusCode {
         todo!()
     }
 
-    /// Decode to the cell center wrapped in [`Approx`].
-    ///
-    /// # Errors
-    /// Returns an error for malformed codes.
-    pub fn decode(&self) -> Result<Approx<Coordinate>> {
+    /// The canonical Plus Code string.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Decode to the cell center wrapped in [`Approx`]. Infallible — validated
+    /// at construction.
+    #[must_use]
+    pub fn decode(&self) -> Approx<Coordinate> {
         todo!()
+    }
+}
+
+impl TryFrom<&str> for PlusCode {
+    type Error = crate::Error;
+
+    /// # Errors
+    /// Returns [`crate::Error::InvalidGridRef`] for malformed codes.
+    fn try_from(s: &str) -> Result<Self> {
+        todo!("validate Open Location Code format")
+    }
+}
+
+impl FromStr for PlusCode {
+    type Err = crate::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_from(s)
     }
 }
 
@@ -62,11 +113,33 @@ impl Maidenhead {
         todo!()
     }
 
-    /// Decode to the grid-square center wrapped in [`Approx`].
-    ///
-    /// # Errors
-    /// Returns an error for malformed locators.
-    pub fn decode(&self) -> Result<Approx<Coordinate>> {
+    /// The canonical Maidenhead locator string.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Decode to the grid-square center wrapped in [`Approx`]. Infallible —
+    /// validated at construction.
+    #[must_use]
+    pub fn decode(&self) -> Approx<Coordinate> {
         todo!()
+    }
+}
+
+impl TryFrom<&str> for Maidenhead {
+    type Error = crate::Error;
+
+    /// # Errors
+    /// Returns [`crate::Error::InvalidGridRef`] for malformed locators.
+    fn try_from(s: &str) -> Result<Self> {
+        todo!("validate Maidenhead locator format")
+    }
+}
+
+impl FromStr for Maidenhead {
+    type Err = crate::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_from(s)
     }
 }

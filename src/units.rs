@@ -1,4 +1,9 @@
-//! Length units and angle normalization helpers.
+//! Length units and conversions.
+//!
+//! Angle normalization helpers (longitude wrap, latitude clamp, degree
+//! normalization) live in [`crate::angle`], alongside the DD/DMS/DDM encodings.
+
+use core::ops::{Add, Mul, Sub};
 
 /// A length, stored in meters, with conversions to common units.
 ///
@@ -11,6 +16,9 @@ pub struct Length {
 }
 
 impl Length {
+    /// The zero length.
+    pub const ZERO: Length = Length { meters: 0.0 };
+
     /// Construct from meters.
     #[must_use]
     pub fn from_meters(meters: f64) -> Self {
@@ -53,26 +61,29 @@ pub enum LengthUnit {
     NauticalMile,
 }
 
-/// Wrap a longitude into the half-open range `[-180, 180)`.
-#[must_use]
-pub fn wrap_longitude(lon_deg: f64) -> f64 {
-    todo!("normalize longitude across the antimeridian")
+impl Add for Length {
+    type Output = Length;
+    fn add(self, rhs: Length) -> Length {
+        Length {
+            meters: self.meters + rhs.meters,
+        }
+    }
 }
 
-/// Clamp a latitude into `[-90, 90]`.
-#[must_use]
-pub fn clamp_latitude(lat_deg: f64) -> f64 {
-    todo!("clamp latitude to the poles")
+impl Sub for Length {
+    type Output = Length;
+    fn sub(self, rhs: Length) -> Length {
+        Length {
+            meters: self.meters - rhs.meters,
+        }
+    }
 }
 
-/// Normalize an angle (degrees) into `[0, 360)`.
-#[must_use]
-pub fn normalize_degrees(deg: f64) -> f64 {
-    todo!()
-}
-
-/// Normalize a bearing (degrees) into `[0, 360)`.
-#[must_use]
-pub fn normalize_bearing(bearing_deg: f64) -> f64 {
-    todo!()
+impl Mul<f64> for Length {
+    type Output = Length;
+    fn mul(self, rhs: f64) -> Length {
+        Length {
+            meters: self.meters * rhs,
+        }
+    }
 }

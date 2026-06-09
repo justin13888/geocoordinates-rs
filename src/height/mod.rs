@@ -10,6 +10,7 @@ use crate::error::Result;
 
 /// A geoid model providing undulation lookups.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum GeoidModel {
     /// EGM96 (15′ grid).

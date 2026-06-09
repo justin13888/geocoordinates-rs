@@ -28,3 +28,5 @@ just coverage        # coverage report (no threshold enforced yet)
 - All `pub` items need doc comments. Mark pure getters / fallible-return types with `#[must_use]` where appropriate.
 - Safe rust only. Return typed errors via `thiserror`.
 - Keep `geo` reuse direct — wrap only to add China-datum or parsing logic `geo` does not provide.
+- **Conversion naming:** geometric / projected types (ECEF, ENU/NED/AER, UTM/UPS, MGRS) use `to_coordinate` / `from_coordinate` (or `TryFrom` where the forward is fallible); discrete cell / encoding systems (Geohash, Plus Code, Maidenhead, H3, S2) keep domain-standard `encode` / `decode`.
+- **serde:** under the `serde` feature, derive `Serialize`/`Deserialize` on every value / option / id type (coordinates, enums, config structs like `FormatOptions`/`TextParseOptions`, ids like `CrsId`). Skip only purely behavioral types.

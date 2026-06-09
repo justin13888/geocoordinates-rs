@@ -44,9 +44,9 @@ pub struct Aer {
 }
 
 impl Enu {
-    /// Compute the ENU offset of `target` relative to `origin` (exact).
+    /// The ENU offset of `target` relative to `origin` (exact).
     #[must_use]
-    pub fn between(origin: Coordinate, target: Coordinate) -> Self {
+    pub fn from_coordinate(target: Coordinate, origin: Coordinate) -> Self {
         todo!("rotate the ECEF difference into the local tangent frame at origin")
     }
 
@@ -56,15 +56,108 @@ impl Enu {
         todo!()
     }
 
-    /// Convert to the NED convention.
+    /// Convert to the NED convention (exact).
     #[must_use]
     pub fn to_ned(self) -> Ned {
-        todo!("north=north, east=east, down=-up")
+        Ned {
+            north: self.north,
+            east: self.east,
+            down: -self.up,
+        }
     }
 
-    /// Convert to azimuth/elevation/range.
+    /// Convert to azimuth/elevation/range (exact).
     #[must_use]
     pub fn to_aer(self) -> Aer {
-        todo!()
+        todo!("azimuth=atan2(east,north); range=hypot3; elevation=asin(up/range)")
+    }
+}
+
+impl Ned {
+    /// The NED offset of `target` relative to `origin` (exact).
+    #[must_use]
+    pub fn from_coordinate(target: Coordinate, origin: Coordinate) -> Self {
+        Enu::from_coordinate(target, origin).to_ned()
+    }
+
+    /// Recover the absolute coordinate of this NED offset about `origin`.
+    #[must_use]
+    pub fn to_coordinate(self, origin: Coordinate) -> Coordinate {
+        self.to_enu().to_coordinate(origin)
+    }
+
+    /// Convert to the ENU convention (exact).
+    #[must_use]
+    pub fn to_enu(self) -> Enu {
+        Enu {
+            east: self.east,
+            north: self.north,
+            up: -self.down,
+        }
+    }
+
+    /// Convert to azimuth/elevation/range (exact).
+    #[must_use]
+    pub fn to_aer(self) -> Aer {
+        self.to_enu().to_aer()
+    }
+}
+
+impl Aer {
+    /// The azimuth/elevation/range of `target` relative to `origin` (exact).
+    #[must_use]
+    pub fn from_coordinate(target: Coordinate, origin: Coordinate) -> Self {
+        Enu::from_coordinate(target, origin).to_aer()
+    }
+
+    /// Recover the absolute coordinate of this AER offset about `origin`.
+    #[must_use]
+    pub fn to_coordinate(self, origin: Coordinate) -> Coordinate {
+        self.to_enu().to_coordinate(origin)
+    }
+
+    /// Convert to the ENU convention (exact).
+    #[must_use]
+    pub fn to_enu(self) -> Enu {
+        todo!("east=range·cos(el)·sin(az); north=range·cos(el)·cos(az); up=range·sin(el)")
+    }
+
+    /// Convert to the NED convention (exact).
+    #[must_use]
+    pub fn to_ned(self) -> Ned {
+        self.to_enu().to_ned()
+    }
+}
+
+// Frame-to-frame conversions are exact and origin-independent (pure rotation /
+// repackaging), so they also implement `From`, per the conversion convention.
+impl From<Enu> for Ned {
+    fn from(enu: Enu) -> Ned {
+        enu.to_ned()
+    }
+}
+impl From<Ned> for Enu {
+    fn from(ned: Ned) -> Enu {
+        ned.to_enu()
+    }
+}
+impl From<Enu> for Aer {
+    fn from(enu: Enu) -> Aer {
+        enu.to_aer()
+    }
+}
+impl From<Aer> for Enu {
+    fn from(aer: Aer) -> Enu {
+        aer.to_enu()
+    }
+}
+impl From<Ned> for Aer {
+    fn from(ned: Ned) -> Aer {
+        ned.to_aer()
+    }
+}
+impl From<Aer> for Ned {
+    fn from(aer: Aer) -> Ned {
+        aer.to_ned()
     }
 }
