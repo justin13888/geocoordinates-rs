@@ -1,0 +1,44 @@
+[package]
+name = "geocoordinates"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A feature-complete geospatial coordinate library: China datums (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation."
+authors = ["Justin Chung"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/justin13888/geocoordinates-rs"
+readme = "README.md"
+keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
+categories = ["science::geo", "mathematics", "parser-implementations"]
+
+[dependencies]
+geo = "0.33.1"
+geo-types = "0.7.19"
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+thiserror = "2.0.18"
+tracing = "0.1.44"
+
+[features]
+default = []
+# Enable serde Serialize/Deserialize on this crate's types and on the underlying geo-types.
+serde = ["dep:serde", "geo-types/serde", "geo/serde"]
+
+# --- Interchange formats (parsers/writers) ---
+# Each pulls an external crate when implemented; currently todo!() stubs.
+geojson = ["serde"] # GeoJSON (lon-lat axis order) — TODO: serde_json / geojson crate
+wkt = []            # WKT/WKB — TODO: wkt crate
+gpx = []            # GPX track files — TODO: gpx crate
+kml = []            # KML/KMZ — TODO: kml crate
+
+# --- Sensor / device ingestion ---
+nmea = []           # NMEA 0183 sentences — TODO: nmea parser crate
+exif = []           # EXIF/XMP image GPS metadata — TODO: kamadak-exif
+
+# --- Heavy / external integrations ---
+proj = []           # PROJ-backed EPSG long tail — TODO: proj crate (C dep)
+geoid = []          # EGM96/EGM2008 geoid models — TODO: bundled/loaded grid data
+h3 = []             # Uber H3 indexing — TODO: h3o crate
+s2 = []             # Google S2 indexing — TODO: s2 crate
+
+# Convenience: enable every optional capability.
+full = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "exif", "proj", "geoid", "h3", "s2"]

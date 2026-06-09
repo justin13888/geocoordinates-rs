@@ -1,0 +1,24 @@
+pre-commit:
+  piped: true # Runs command groups sequentially by priority; same-priority commands run in parallel
+  commands:
+    format-fix:
+      priority: 1
+      glob: "**/*.rs"
+      stage_fixed: true
+      run: just fmt
+    lint-fix:
+      priority: 2
+      glob: "**/*.rs"
+      stage_fixed: true
+      run: just lint-fix
+
+pre-push:
+  commands:
+    format-check:
+      run: just fmt-check
+    lint-check:
+      run: just lint
+    test:
+      run: just test
+    coverage:
+      run: just coverage
