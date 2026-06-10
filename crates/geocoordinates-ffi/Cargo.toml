@@ -1,0 +1,36 @@
+[package]
+name = "geocoordinates-ffi"
+version = "0.1.0"
+edition = "2024"
+# No `rust-version`: this crate is never published (`publish = false`), and
+# pinning an MSRV below UniFFI's would make the resolver silently downgrade
+# `uniffi`. CI builds it on stable. UniFFI's own MSRV applies in practice.
+description = "UniFFI bindings (Python, Kotlin, Swift, Ruby) for the geocoordinates crate."
+authors = ["Justin Chung"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/justin13888/geocoordinates-rs"
+publish = false
+
+[lib]
+name = "geocoordinates_ffi"
+# cdylib   — the loadable shared library that the generated Python/Kotlin/Ruby
+#            bindings `dlopen`, and the artifact `uniffi-bindgen --library`
+#            introspects to emit bindings.
+# staticlib — Swift static linking (an iOS app/XCFramework links the `.a`;
+#            iOS cannot `dlopen` an arbitrary dylib).
+# lib (rlib) — lets the `uniffi-bindgen` bin target and `cargo test` use this
+#            crate as a normal Rust library in-process.
+crate-type = ["cdylib", "staticlib", "lib"]
+
+[dependencies]
+# The core crate, by path. Its `serde` feature is intentionally NOT enabled —
+# the translation layer only reads public fields and calls inherent methods.
+geocoordinates = { path = "../..", version = "0.1" }
+uniffi = { version = "0.31", features = ["cli"] }
+thiserror = "2.0"
+
+[[bin]]
+# Standard library-mode bindgen shim; `uniffi-bindgen generate --library` runs
+# through this so the bindgen version is locked to the runtime's `uniffi`.
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"

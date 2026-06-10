@@ -1,0 +1,13 @@
+# release-plz configuration.
+#
+# The repo became a Cargo workspace to host the `geocoordinates-ffi` bindings
+# crate. release-plz manages every workspace member by default, so we explicitly
+# exclude the FFI crate: it is `publish = false` (not a crates.io artifact — its
+# value ships as generated Python/Kotlin/Swift/Ruby bindings, not a Rust crate)
+# and must not get version bumps, changelog entries, tags, or release PRs.
+#
+# The `geocoordinates` crate keeps its existing Trusted-Publishing flow untouched.
+
+[[package]]
+name = "geocoordinates-ffi"
+release = false

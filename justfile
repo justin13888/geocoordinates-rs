@@ -36,3 +36,35 @@ doc:
 
 # fmt-check + lint + test (CI parity)
 check: fmt-check lint test
+
+# --- FFI bindings (geocoordinates-ffi) ---
+# The recipes above are scoped to the published crate via `default-members`;
+# the FFI crate is built/linted explicitly here.
+
+# Shared library the bindings are generated from (OS-specific extension).
+_ffi_lib := if os() == "macos" {
+    "target/release/libgeocoordinates_ffi.dylib"
+} else {
+    "target/release/libgeocoordinates_ffi.so"
+}
+
+# Lint the FFI bindings crate (warnings denied).
+ffi-check:
+    cargo clippy -p geocoordinates-ffi --all-targets -- -D warnings
+
+# Build the release cdylib the bindings are generated from.
+bindings-build:
+    cargo build --release -p geocoordinates-ffi
+
+# Generate <lang> bindings from the built cdylib (UniFFI library mode).
+_bindings lang:
+    cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
+        generate --library {{ _ffi_lib }} --language {{ lang }} --out-dir bindings/{{ lang }}
+
+bindings-python: bindings-build (_bindings "python")
+bindings-kotlin: bindings-build (_bindings "kotlin")
+bindings-swift: bindings-build (_bindings "swift")
+bindings-ruby: bindings-build (_bindings "ruby")
+
+# Generate bindings for every UniFFI language (Python, Kotlin, Swift, Ruby).
+bindings: bindings-python bindings-kotlin bindings-swift bindings-ruby
