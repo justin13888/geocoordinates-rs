@@ -55,6 +55,19 @@ wgs = gc.gcj02_to_wgs84_refined(gcj)          # approximate inverse
 print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
 ```
 
+### Published packages
+
+Each language's bindings are published to its registry on every `v*` release, using
+that ecosystem's native tooling. See [PUBLISHING.md](PUBLISHING.md) for the release
+workflows and registry setup.
+
+| Ecosystem | Install |
+|---|---|
+| Python (PyPI) | `pip install geocoordinates` |
+| TypeScript/WASM (npm) | `npm install geocoordinates` |
+| Kotlin / Java (Maven Central) | `io.github.justin13888:geocoordinates` |
+| Swift (SwiftPM) | `.package(url: "https://github.com/justin13888/geocoordinates-rs", from: "0.1.0")` |
+
 ## Prerequisites
 
 - [Rust (rustup)](https://rustup.rs) — toolchain (pinned via `rust-toolchain.toml`)

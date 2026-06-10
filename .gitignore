@@ -18,3 +18,8 @@ target
 # UniFFI-generated language bindings (reproducible from the cdylib via
 # `just bindings`; distributed via PyPI/Maven/SwiftPM, not committed here).
 /bindings/
+
+# Swift XCFramework build outputs (reproducible; the zip ships on the GitHub
+# Release, the generated Swift sources under swift/Sources/ are committed).
+/swift/*.xcframework/
+/swift/*.xcframework.zip

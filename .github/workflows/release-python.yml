@@ -1,0 +1,88 @@
+name: Release (PyPI)
+
+# Publishes the Python wheels for `geocoordinates` (the UniFFI bindings) to PyPI.
+#
+# Trigger: the `v*` GitHub Release that release-plz creates for the core crate, so
+# the binding version tracks the Rust crate version. `workflow_dispatch` builds the
+# wheels for testing without publishing.
+#
+# Auth: PyPI Trusted Publishing (OIDC) — no token. Configure a trusted publisher on
+# PyPI for this repo + workflow file `release-python.yml` (a "pending publisher"
+# works before the first release).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. 0.1.0 (test builds only; does not publish)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Wheel (${{ matrix.runner }} ${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, target: x86_64 }
+          - { runner: ubuntu-latest, target: aarch64 }
+          - { runner: macos-13, target: x86_64 }
+          - { runner: macos-14, target: aarch64 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare manifests (version + maturin bindgen scope)
+        shell: bash
+        env:
+          REF_VERSION: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_VERSION:-$INPUT_VERSION}"
+          VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ]; then
+            echo "::error::No version (provide one via workflow_dispatch input)"; exit 1
+          fi
+          # Stamp the FFI crate version from the release tag (package line only).
+          perl -i -pe 's/^version = "[^"]*"/version = "'"$VERSION"'"/' \
+            crates/geocoordinates-ffi/Cargo.toml
+          # maturin runs `cargo run --bin uniffi-bindgen` from the workspace root,
+          # where the bin otherwise resolves to the core package. Point
+          # default-members at the FFI crate so it resolves. (Ephemeral; the
+          # committed manifest keeps default-members = ["."] for core CI.)
+          perl -i -pe 's{^default-members = .*}{default-members = ["crates/geocoordinates-ffi"]}' \
+            Cargo.toml
+          echo "Building geocoordinates $VERSION"
+          grep -m1 '^version' crates/geocoordinates-ffi/Cargo.toml
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: auto
+          sccache: "true"
+          working-directory: crates/geocoordinates-ffi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.runner }}-${{ matrix.target }}
+          path: crates/geocoordinates-ffi/dist
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Only the real release publishes; workflow_dispatch is a build-only dry run.
+    if: github.event_name == 'release'
+    permissions:
+      id-token: write # OIDC for PyPI Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -10,8 +10,9 @@ repository = "https://github.com/justin13888/geocoordinates-rs"
 readme = "README.md"
 keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
 categories = ["science::geo", "mathematics", "parser-implementations"]
-# ROADMAP.md is a contributor-facing release plan, not part of the published crate.
-exclude = ["AGENTS.md", "CLAUDE.md", "ROADMAP.md"]
+# Contributor-facing files and the Swift package (which lives at the repo root for
+# SwiftPM) are not part of the published crate.
+exclude = ["AGENTS.md", "CLAUDE.md", "ROADMAP.md", "PUBLISHING.md", "Package.swift", "swift"]
 
 # The repo is a workspace so the FFI bindings live in their own crate
 # (`geocoordinates-ffi`) without touching this published, pure-`rlib` crate.

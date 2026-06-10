@@ -28,6 +28,12 @@ perl -i -pe 's/^opt-level = "3"/opt-level = 3/' rust_modules/wasm/Cargo.toml
 wasm-pack build rust_modules/wasm --release --target web \
   --out-dir "$PWD/src/generated/web/wasm-bindgen" --out-name index
 
+# wasm-pack drops a `.gitignore` (`*`) and its own `package.json` in the out-dir.
+# The `.gitignore` makes `npm pack` exclude the wasm artifacts, and the nested
+# package.json confuses module resolution — remove both.
+rm -f src/generated/web/wasm-bindgen/.gitignore \
+      src/generated/web/wasm-bindgen/package.json
+
 # 4. Type-check the generated bindings against @ubjs/core + the wasm typings.
 npm run --silent typecheck
 

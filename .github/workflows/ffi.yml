@@ -102,3 +102,35 @@ jobs:
           test -f src/generated/web/wasm-bindgen/index.js
           test -f src/generated/web/wasm-bindgen/index_bg.wasm
           echo "WASM/TypeScript bindings generated and type-checked."
+
+  # Build the JVM (Kotlin) bindings and prove they are callable from Java: generate
+  # the Kotlin, then run a Gradle JUnit test written in Java that loads the cdylib
+  # via JNA and exercises a China conversion. This is the Java surface (Java
+  # consumes the Kotlin artifact); the host cdylib is loaded via UniFFI's
+  # libraryOverride hook so the test needs no per-platform resource staging.
+  jvm-smoke:
+    name: JVM (Kotlin/Java) smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11"
+      - name: Build cdylib
+        run: cargo build --release -p geocoordinates-ffi
+      - name: Generate Kotlin bindings
+        run: |
+          cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format \
+            --library "$FFI_LIB" --language kotlin \
+            --out-dir crates/geocoordinates-ffi/jvm/src/main/kotlin
+      - name: Gradle test (Java consumption smoke)
+        working-directory: crates/geocoordinates-ffi/jvm
+        env:
+          GEOCOORDINATES_NATIVE_LIB: ${{ github.workspace }}/${{ env.FFI_LIB }}
+        run: gradle test

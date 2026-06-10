@@ -1,0 +1,58 @@
+name: Release (SwiftPM)
+
+# Builds the XCFramework for `geocoordinates` and wires it into the root
+# Package.swift for Swift Package Manager.
+#
+# Trigger: the `v*` GitHub Release that release-plz creates for the core crate.
+# `workflow_dispatch` builds the XCFramework without publishing (dry run).
+#
+# No external account: SwiftPM resolves from the git tag + the GitHub Release.
+# Because a binaryTarget checksum is self-referential (it depends on the built
+# zip), the job uploads the zip to the release, writes the URL + checksum into
+# Package.swift, commits, and re-points the tag at that commit so SwiftPM sees a
+# matching manifest.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag to build, e.g. v0.1.0 (dry run; does not publish)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  xcframework:
+    name: Build + publish XCFramework
+    runs-on: macos-14
+    permissions:
+      contents: write # upload the release asset, re-point the tag
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build XCFramework
+        id: xcf
+        run: bash crates/geocoordinates-ffi/swift/build-xcframework.sh
+      - name: Publish to the release + re-point tag
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          CHECKSUM: ${{ steps.xcf.outputs.checksum }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/geocoordinates_ffiFFI.xcframework.zip"
+          gh release upload "$TAG" swift/geocoordinates_ffiFFI.xcframework.zip --clobber
+          # Rewrite the remote binaryTarget URL + checksum in Package.swift.
+          perl -0pi -e "s{url: \"[^\"]*geocoordinates_ffiFFI\\.xcframework\\.zip\"}{url: \"${URL}\"}" Package.swift
+          perl -0pi -e "s{checksum: \"[0-9a-f]{64}\"}{checksum: \"${CHECKSUM}\"}" Package.swift
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Package.swift swift/Sources/GeoCoordinates
+          git commit -m "chore(swift): XCFramework + checksum for ${TAG}"
+          # Re-point the tag so SwiftPM resolves a manifest with the real checksum.
+          git tag -f "$TAG"
+          git push -f origin "$TAG"
