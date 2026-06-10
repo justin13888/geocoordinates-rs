@@ -89,7 +89,11 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           cargo build --release -p geocoordinates-ffi
-          HOST_LIB=$(ls target/release/libgeocoordinates_ffi.so target/release/libgeocoordinates_ffi.dylib 2>/dev/null | head -1)
+          HOST_LIB=""
+          for ext in so dylib; do
+            cand="target/release/libgeocoordinates_ffi.$ext"
+            [ -f "$cand" ] && HOST_LIB="$cand" && break
+          done
           cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format \
             --library "$HOST_LIB" --language kotlin \
             --out-dir crates/geocoordinates-ffi/jvm/src/main/kotlin
