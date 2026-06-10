@@ -12,10 +12,12 @@ env:
   FFI_LIB: target/release/libgeocoordinates_ffi.so
 
 jobs:
-  # Lint the FFI crate, build the cdylib, and confirm bindings generate for
-  # every targeted language. `--no-format` keeps generation independent of
-  # ktlint/rubocop being installed (Kotlin/Swift/Ruby are generate-validated
-  # only here; Swift needs a macOS toolchain and Ruby's backend is legacy).
+  # Lint the FFI crate, build the cdylib, and confirm bindings generate for the
+  # built-in UniFFI backends. `--no-format` keeps generation independent of
+  # ktlint being installed (Kotlin/Swift are generate-validated only here; Swift
+  # needs a macOS toolchain to actually compile). Java is served by the
+  # Kotlin/JVM artifact, so it has no separate generation step. TypeScript/WASM
+  # is built in the `web-wasm` job below (external `ubrn` toolchain).
   build-and-bind:
     name: Build cdylib + generate bindings
     runs-on: ubuntu-latest
@@ -29,9 +31,9 @@ jobs:
         run: cargo clippy -p geocoordinates-ffi --all-targets -- -D warnings
       - name: Build cdylib
         run: cargo build --release -p geocoordinates-ffi
-      - name: Generate bindings for all languages
+      - name: Generate bindings for the built-in backends
         run: |
-          for lang in python kotlin swift ruby; do
+          for lang in python kotlin swift; do
             echo "::group::generate $lang"
             cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
               generate --no-format --library "$FFI_LIB" \
@@ -62,3 +64,41 @@ jobs:
         run: |
           cp "$FFI_LIB" bindings/python/
           python crates/geocoordinates-ffi/tests/smoke.py
+
+  # Build the TypeScript/WebAssembly bindings end-to-end: generate via `ubrn`,
+  # compile the wasm wrapper crate, run wasm-bindgen (wasm-pack), and type-check
+  # the result against @ubjs/core + the wasm typings (all driven by build.sh).
+  # RUSTFLAGS is relaxed here: the generated wrapper crate and the wasm builds of
+  # third-party deps are not where we enforce -D warnings (the FFI crate's own
+  # lint is covered by the clippy step above).
+  web-wasm:
+    name: Build WASM/TypeScript bindings
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: jetli/wasm-pack-action@v0.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: crates/geocoordinates-ffi/web/package-lock.json
+      - name: Install npm deps
+        working-directory: crates/geocoordinates-ffi/web
+        run: npm ci
+      - name: Build bindings (generate + wasm-pack + type-check)
+        working-directory: crates/geocoordinates-ffi/web
+        run: npm run build
+      - name: Assert expected outputs exist
+        working-directory: crates/geocoordinates-ffi/web
+        run: |
+          test -f src/index.web.ts
+          test -f src/generated/web/geocoordinates_ffi.ts
+          test -f src/generated/web/wasm-bindgen/index.js
+          test -f src/generated/web/wasm-bindgen/index_bg.wasm
+          echo "WASM/TypeScript bindings generated and type-checked."

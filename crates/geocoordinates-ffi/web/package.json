@@ -1,0 +1,31 @@
+{
+  "name": "geocoordinates",
+  "version": "0.1.0",
+  "description": "WebAssembly bindings for the geocoordinates geospatial library — China datums (GCJ-02/BD-09), geodetic transforms.",
+  "license": "MIT OR Apache-2.0",
+  "author": "Justin Chung",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/justin13888/geocoordinates-rs"
+  },
+  "type": "module",
+  "main": "src/index.web.ts",
+  "browser": "src/index.web.ts",
+  "files": [
+    "src/index.web.ts",
+    "src/generated/web"
+  ],
+  "scripts": {
+    "generate": "ubrn build web --release --no-cargo --no-wasm-pack",
+    "build": "bash build.sh",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf src/generated src/index.web.ts rust_modules"
+  },
+  "dependencies": {
+    "@ubjs/core": "0.31.0-3"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "uniffi-bindgen-react-native": "0.31.0-3"
+  }
+}

@@ -1,0 +1,19 @@
+# uniffi-bindgen-react-native (`ubrn`) configuration — WASM / web target only.
+#
+# `ubrn web build` generates a standalone wasm wrapper crate (under rust_modules/)
+# that path-depends on `geocoordinates-ffi`, builds it for wasm32-unknown-unknown,
+# runs wasm-bindgen, and emits the TypeScript bindings into `web.ts` below.
+#
+# The wrapper carries `wasm-bindgen` and the `wasm-unstable-single-threaded`
+# uniffi runtime; the `geocoordinates-ffi` crate itself stays a plain cdylib.
+rust:
+  # Cargo workspace root, relative to this file (crates/geocoordinates-ffi/web/).
+  directory: ../../..
+  # The FFI crate manifest, relative to `directory`.
+  manifestPath: crates/geocoordinates-ffi/Cargo.toml
+web:
+  # Distinct from the core `geocoordinates` crate name to avoid a Cargo lockfile
+  # collision (the generated wrapper path-depends on the core crate transitively).
+  wasmCrateName: geocoordinates_web
+  # TypeScript + wasm-bindgen output directory (relative to this package).
+  ts: src/generated/web
