@@ -165,10 +165,13 @@ pub enum GeoError {
         lon: f64,
     },
     /// Any other library error, with its message preserved.
-    #[error("{message}")]
+    // NB: the field is `detail`, not `message`: UniFFI's Kotlin backend emits an
+    // `override val message` getter on every error variant, which would collide
+    // with a field named `message` and break Kotlin/Java compilation.
+    #[error("{detail}")]
     Other {
         /// The underlying error's display message.
-        message: String,
+        detail: String,
     },
 }
 
@@ -335,7 +338,7 @@ impl From<gc::Error> for GeoError {
             },
             gc::Error::OutOfRange { lat, lon } => GeoError::OutOfRange { lat, lon },
             other => GeoError::Other {
-                message: other.to_string(),
+                detail: other.to_string(),
             },
         }
     }
