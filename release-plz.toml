@@ -12,3 +12,6 @@
 [[package]]
 name = "geocoordinates-ffi"
 release = false
+# Match the crate's `publish = false`; release-plz errors on a mismatch between
+# Cargo.toml and its own config.
+publish = false
