@@ -5,8 +5,9 @@
 # library at runtime via `ctypes`. Because it is ctypes-based (not the CPython
 # C-API), one wheel works across all CPython/PyPy versions — abi3 does not apply.
 #
-# The distribution is `geocoordinates`; the importable module is the UniFFI
-# namespace `geocoordinates_ffi` (`import geocoordinates_ffi as gc`).
+# The distribution is `geocoordinates-rs` (the bare `geocoordinates` is taken on
+# PyPI by an unrelated project); the importable module is the UniFFI namespace
+# `geocoordinates_ffi` (`import geocoordinates_ffi as gc`).
 #
 # The version is read from Cargo.toml; the release workflow stamps it from the
 # release tag before building.
@@ -15,7 +16,7 @@ requires = ["maturin>=1.7,<2"]
 build-backend = "maturin"
 
 [project]
-name = "geocoordinates"
+name = "geocoordinates-rs"
 description = "Geospatial coordinate library: China datums (GCJ-02/BD-09) and geodetic transforms."
 readme = "README.md"
 license = { text = "MIT OR Apache-2.0" }
