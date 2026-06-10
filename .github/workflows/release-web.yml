@@ -1,0 +1,69 @@
+name: Release (npm)
+
+# Publishes the WebAssembly/TypeScript `geocoordinates` package to npm.
+#
+# Trigger: the `v*` GitHub Release that release-plz creates for the core crate.
+# `workflow_dispatch` builds + `npm pack`s without publishing (dry run).
+#
+# Auth: an npm automation token in the `NPM_TOKEN` secret. (npm cannot pre-create
+# an empty package, so OIDC trusted publishing is not usable for the first release;
+# the token creates the package on first publish. `--provenance` still attaches a
+# build attestation via the GitHub OIDC `id-token`.)
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. 0.1.0 (dry run; does not publish)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build + publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance attestation
+    defaults:
+      run:
+        working-directory: crates/geocoordinates-ffi/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: jetli/wasm-pack-action@v0.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: crates/geocoordinates-ffi/web/package-lock.json
+      - name: Compute version
+        id: ver
+        env:
+          REF_VERSION: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          V="${REF_VERSION:-$INPUT_VERSION}"; V="${V#v}"
+          if [ -z "$V" ]; then echo "::error::No version"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - name: Set package version
+        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+      - name: Build bindings
+        run: npm run build
+      - name: Publish to npm
+        if: github.event_name == 'release'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Dry run (workflow_dispatch)
+        if: github.event_name != 'release'
+        run: npm pack --dry-run

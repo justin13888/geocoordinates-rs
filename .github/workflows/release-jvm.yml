@@ -1,0 +1,128 @@
+name: Release (Maven Central)
+
+# Publishes the JVM (Kotlin) bindings — the artifact Java also consumes — to
+# Maven Central as io.github.justin13888:geocoordinates.
+#
+# Trigger: the `v*` GitHub Release that release-plz creates for the core crate.
+# `workflow_dispatch` builds + assembles the JAR without publishing (dry run).
+#
+# Auth (configure before the first release; see the PR description / README):
+#   secrets.MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD  — Central Portal token
+#   secrets.GPG_SIGNING_KEY (ASCII-armored) / GPG_SIGNING_PASSWORD — artifact signing
+# Until these are set the `publish` job is skipped, so the other registries are
+# unaffected.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. 0.1.0 (dry run; does not publish)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Cross-build the cdylib for every JVM-supported platform, named by JNA's
+  # `<os>-<arch>` resource convention.
+  natives:
+    name: native ${{ matrix.jna }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, target: x86_64-unknown-linux-gnu, jna: linux-x86-64, lib: libgeocoordinates_ffi.so }
+          - { runner: ubuntu-latest, target: aarch64-unknown-linux-gnu, jna: linux-aarch64, lib: libgeocoordinates_ffi.so, cross: true }
+          - { runner: macos-14, target: aarch64-apple-darwin, jna: darwin-aarch64, lib: libgeocoordinates_ffi.dylib }
+          - { runner: macos-13, target: x86_64-apple-darwin, jna: darwin-x86-64, lib: libgeocoordinates_ffi.dylib }
+          - { runner: windows-latest, target: x86_64-pc-windows-msvc, jna: win32-x86-64, lib: geocoordinates_ffi.dll }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Set up aarch64 cross linker
+        if: matrix.cross
+        run: |
+          sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+      - name: Build cdylib
+        run: cargo build --release -p geocoordinates-ffi --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.jna }}
+          path: target/${{ matrix.target }}/release/${{ matrix.lib }}
+
+  publish:
+    name: Assemble JAR + publish
+    needs: natives
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/geocoordinates-ffi/jvm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11"
+      - name: Compute version
+        id: ver
+        working-directory: ${{ github.workspace }}
+        env:
+          REF_VERSION: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          V="${REF_VERSION:-$INPUT_VERSION}"; V="${V#v}"
+          if [ -z "$V" ]; then echo "::error::No version"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Generate Kotlin bindings
+        working-directory: ${{ github.workspace }}
+        run: |
+          cargo build --release -p geocoordinates-ffi
+          HOST_LIB=$(ls target/release/libgeocoordinates_ffi.so target/release/libgeocoordinates_ffi.dylib 2>/dev/null | head -1)
+          cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format \
+            --library "$HOST_LIB" --language kotlin \
+            --out-dir crates/geocoordinates-ffi/jvm/src/main/kotlin
+      - name: Download native libraries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: ${{ github.workspace }}/natives
+      - name: Stage natives into JNA resource layout
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          base=crates/geocoordinates-ffi/jvm/src/main/resources
+          for dir in natives/native-*; do
+            jna="${dir#natives/native-}"
+            mkdir -p "$base/$jna"
+            cp "$dir"/* "$base/$jna/"
+          done
+          find "$base" -type f | sort
+      - name: Assemble JAR (dry run)
+        if: github.event_name != 'release'
+        run: gradle -PreleaseVersion="${{ steps.ver.outputs.version }}" build
+      - name: Publish to Maven Central
+        if: github.event_name == 'release'
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SIGNING_PASSWORD }}
+        run: |
+          if [ -z "${ORG_GRADLE_PROJECT_mavenCentralUsername:-}" ]; then
+            echo "::warning::Maven Central credentials not set — skipping publish. Configure Sonatype Central Portal + GPG secrets to enable."
+            exit 0
+          fi
+          gradle -PreleaseVersion="${{ steps.ver.outputs.version }}" \
+            publishToMavenCentral --no-configuration-cache

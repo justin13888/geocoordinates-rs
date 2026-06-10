@@ -1,0 +1,38 @@
+# Python packaging for the UniFFI bindings, built with maturin.
+#
+# maturin has first-class UniFFI support (`bindings = "uniffi"`): it builds the
+# crate's cdylib and bundles it with the generated Python module, which loads the
+# library at runtime via `ctypes`. Because it is ctypes-based (not the CPython
+# C-API), one wheel works across all CPython/PyPy versions — abi3 does not apply.
+#
+# The distribution is `geocoordinates`; the importable module is the UniFFI
+# namespace `geocoordinates_ffi` (`import geocoordinates_ffi as gc`).
+#
+# The version is read from Cargo.toml; the release workflow stamps it from the
+# release tag before building.
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "geocoordinates"
+description = "Geospatial coordinate library: China datums (GCJ-02/BD-09) and geodetic transforms."
+readme = "README.md"
+license = { text = "MIT OR Apache-2.0" }
+requires-python = ">=3.8"
+authors = [{ name = "Justin Chung" }]
+keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+]
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/justin13888/geocoordinates-rs"
+
+[tool.maturin]
+bindings = "uniffi"

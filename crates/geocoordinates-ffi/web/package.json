@@ -6,11 +6,18 @@
   "author": "Justin Chung",
   "repository": {
     "type": "git",
-    "url": "https://github.com/justin13888/geocoordinates-rs"
+    "url": "git+https://github.com/justin13888/geocoordinates-rs.git"
   },
+  "homepage": "https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web",
+  "keywords": ["gis", "geo", "coordinates", "gcj02", "bd09", "wasm", "webassembly"],
   "type": "module",
   "main": "src/index.web.ts",
+  "module": "src/index.web.ts",
   "browser": "src/index.web.ts",
+  "types": "src/index.web.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "src/index.web.ts",
     "src/generated/web"
