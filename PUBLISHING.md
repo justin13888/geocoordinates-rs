@@ -14,17 +14,20 @@ publish** — use it to dry-run a pipeline.
 
 | Registry | Package | Workflow | Tooling | Auth |
 |---|---|---|---|---|
-| PyPI | `geocoordinates` | `release-python.yml` | maturin (`bindings=uniffi`) + maturin-action matrix | OIDC trusted publishing (no secret) |
+| PyPI | `geocoordinates-rs` | `release-python.yml` | maturin (`bindings=uniffi`) + maturin-action matrix | OIDC trusted publishing (no secret) |
 | npm | `geocoordinates` | `release-web.yml` | `ubrn` + wasm-pack (WASM) | `NPM_TOKEN` secret (+ provenance) |
 | Maven Central | `io.github.justin13888:geocoordinates` | `release-jvm.yml` | Gradle + JNA fat-JAR + vanniktech plugin | Central Portal token + GPG (secrets) |
 | SwiftPM | `GeoCoordinates` | `release-swift.yml` | XCFramework on the GitHub Release + root `Package.swift` | none (uses `GITHUB_TOKEN`) |
 
 ## Account / secret setup
 
-### PyPI — done (OIDC, no secret)
-Configure a **Trusted Publisher** on PyPI for project `geocoordinates`:
+### PyPI (OIDC, no secret)
+The bare `geocoordinates` is taken on PyPI by an unrelated project, so the
+distribution is **`geocoordinates-rs`** (the import module stays `geocoordinates_ffi`).
+Configure a **Trusted Publisher** on PyPI for project `geocoordinates-rs`:
 repo `justin13888/geocoordinates-rs`, workflow `release-python.yml`, no environment.
-A "pending publisher" works before the first release.
+A "pending publisher" creates the project on the first CI publish — no token, no
+local bootstrap needed.
 
 ### npm — `NPM_TOKEN` secret
 npm cannot pre-create an empty package, so the first publish creates it with a token

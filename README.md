@@ -63,7 +63,7 @@ workflows and registry setup.
 
 | Ecosystem | Install |
 |---|---|
-| Python (PyPI) | `pip install geocoordinates` |
+| Python (PyPI) | `pip install geocoordinates-rs` |
 | TypeScript/WASM (npm) | `npm install geocoordinates` |
 | Kotlin / Java (Maven Central) | `io.github.justin13888:geocoordinates` |
 | Swift (SwiftPM) | `.package(url: "https://github.com/justin13888/geocoordinates-rs", from: "0.1.0")` |
