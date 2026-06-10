@@ -64,7 +64,13 @@ _bindings lang:
 bindings-python: bindings-build (_bindings "python")
 bindings-kotlin: bindings-build (_bindings "kotlin")
 bindings-swift: bindings-build (_bindings "swift")
-bindings-ruby: bindings-build (_bindings "ruby")
 
-# Generate bindings for every UniFFI language (Python, Kotlin, Swift, Ruby).
-bindings: bindings-python bindings-kotlin bindings-swift bindings-ruby
+# Generate the TypeScript / WebAssembly bindings (uniffi-bindgen-react-native).
+# Not a built-in UniFFI backend: builds the crate to wasm32 via wasm-pack.
+# Requires the `wasm32-unknown-unknown` target, `wasm-pack`, and Node.js.
+bindings-web:
+    cd crates/geocoordinates-ffi/web && npm install && npm run build
+
+# Generate bindings for every target language.
+# (Java is served by the Kotlin/JVM artifact, so it has no separate generation.)
+bindings: bindings-python bindings-kotlin bindings-swift bindings-web

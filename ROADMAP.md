@@ -119,7 +119,7 @@ Reuses `geo` where it already implements the math:
 ### FFI bindings *(parallel track, not published to crates.io)*
 
 The `geocoordinates-ffi` crate exposes a curated, FFI-flattened subset of the live
-surface to Python / Kotlin / Swift / Ruby via UniFFI. It tracks whatever has shipped
+surface to Python / Kotlin / Java / Swift / TypeScript via UniFFI. It tracks whatever has shipped
 above — starting with the 0.1 China-datum core — and grows as later milestones land.
 It is `publish = false` (bindings ship via PyPI/Maven/SwiftPM, not crates.io) and does
 not gate the core release order. See `README.md` and the FFI-translatability note in

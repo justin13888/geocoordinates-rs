@@ -17,11 +17,11 @@ Geodesy (ECEF/frames/Karney geodesics/Helmert datums), grids (UTM/MGRS/Geohash/P
 
 ## Language bindings (FFI)
 
-A curated subset of the API is exposed to **Python, Kotlin, Swift, and Ruby** via
-[UniFFI](https://mozilla.github.io/uniffi-rs/), generated from the separate
-`geocoordinates-ffi` crate. The bindings cover the China-datum core: WGS-84 ↔
-GCJ-02 ↔ BD-09 conversions, Baidu Web Mercator, `out_of_china`, and haversine
-distance.
+A curated subset of the API is exposed to **Python, Kotlin, Swift, and TypeScript**
+via [UniFFI](https://mozilla.github.io/uniffi-rs/), generated from the separate
+`geocoordinates-ffi` crate (Java consumes the Kotlin/JVM artifact directly). The
+bindings cover the China-datum core: WGS-84 ↔ GCJ-02 ↔ BD-09 conversions, Baidu
+Web Mercator, `out_of_china`, and haversine distance.
 
 Because the Rust API is idiomatic, the FFI surface is deliberately flattened:
 generics (`Approx<T>`), traits, `Deref`, and operator overloads do not cross the
@@ -31,8 +31,11 @@ meters). Approximate inverses keep their `_fast` / `_refined` names and carry
 `max_error_m`. The published `geocoordinates` crate is unaffected — the bindings
 build from their own `cdylib`/`staticlib` crate.
 
-> Ruby support is experimental: UniFFI keeps its Ruby backend working but does
-> not actively extend it.
+> Java is served by the Kotlin/JVM bindings (directly callable from Java), so it
+> has no separate generated surface. TypeScript targets WebAssembly (browser /
+> bundler) via [`ubrn`](https://github.com/jhugman/uniffi-bindgen-react-native);
+> initialize it with `await uniffiInitAsync()` before use (see
+> [`crates/geocoordinates-ffi/web/`](crates/geocoordinates-ffi/web/)).
 
 Generate the bindings (needs the [Rust toolchain](https://rustup.rs) and
 [just](https://github.com/casey/just)):

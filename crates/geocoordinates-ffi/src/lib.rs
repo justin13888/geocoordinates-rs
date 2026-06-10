@@ -1,9 +1,10 @@
 //! UniFFI bindings for [`geocoordinates`](https://docs.rs/geocoordinates).
 //!
 //! This crate exposes a **deliberately curated subset** of the Rust API to
-//! Python, Kotlin, Swift, and Ruby. The Rust library is intentionally
-//! idiomatic, and several of its idioms cannot cross an FFI boundary, so they
-//! are re-expressed here as flat, language-neutral records and free functions:
+//! Python, Kotlin, Swift, and TypeScript/WASM (and Java, via the Kotlin/JVM
+//! artifact). The Rust library is intentionally idiomatic, and several of its
+//! idioms cannot cross an FFI boundary, so they are re-expressed here as flat,
+//! language-neutral records and free functions:
 //!
 //! | Rust idiom | FFI form here |
 //! |---|---|

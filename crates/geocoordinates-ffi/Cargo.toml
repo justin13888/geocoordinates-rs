@@ -5,7 +5,7 @@ edition = "2024"
 # No `rust-version`: this crate is never published (`publish = false`), and
 # pinning an MSRV below UniFFI's would make the resolver silently downgrade
 # `uniffi`. CI builds it on stable. UniFFI's own MSRV applies in practice.
-description = "UniFFI bindings (Python, Kotlin, Swift, Ruby) for the geocoordinates crate."
+description = "UniFFI bindings (Python, Kotlin/Java, Swift, TypeScript/WASM) for the geocoordinates crate."
 authors = ["Justin Chung"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/justin13888/geocoordinates-rs"
@@ -13,9 +13,10 @@ publish = false
 
 [lib]
 name = "geocoordinates_ffi"
-# cdylib   — the loadable shared library that the generated Python/Kotlin/Ruby
-#            bindings `dlopen`, and the artifact `uniffi-bindgen --library`
-#            introspects to emit bindings.
+# cdylib   — the loadable shared library that the generated Python/Kotlin
+#            bindings `dlopen`, the artifact `uniffi-bindgen --library`
+#            introspects to emit bindings, and the form the generated wasm
+#            wrapper crate links for the TypeScript/WASM target.
 # staticlib — Swift static linking (an iOS app/XCFramework links the `.a`;
 #            iOS cannot `dlopen` an arbitrary dylib).
 # lib (rlib) — lets the `uniffi-bindgen` bin target and `cargo test` use this
