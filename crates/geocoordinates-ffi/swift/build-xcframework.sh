@@ -46,7 +46,13 @@ lipo -create "target/aarch64-apple-ios-sim/release/$LIB" "target/x86_64-apple-io
 echo "==> Generating Swift bindings (sources + header + modulemap)"
 # A host dylib is enough for UniFFI to extract the interface metadata.
 cargo build --release -p geocoordinates-ffi
-HOST_LIB=$(ls target/release/libgeocoordinates_ffi.dylib target/release/libgeocoordinates_ffi.so 2>/dev/null | head -1)
+# Pick the host library by extension (note: a bare `ls a b` exits non-zero when
+# one path is missing, which would trip `set -e`).
+HOST_LIB=""
+for ext in dylib so; do
+  cand="target/release/libgeocoordinates_ffi.$ext"
+  [ -f "$cand" ] && HOST_LIB="$cand" && break
+done
 cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format \
   --library "$HOST_LIB" --language swift --out-dir "$BUILD/gen"
 
