@@ -15,6 +15,43 @@ The current release ships the core data model and the China datums:
 
 Geodesy (ECEF/frames/Karney geodesics/Helmert datums), grids (UTM/MGRS/Geohash/Plus Code/Maidenhead), ingestion (free-text, GeoJSON/WKT/GPX/KML, NMEA/EXIF), formatting, and runtime CRS conversion are scaffolded and land in subsequent releases — see [ROADMAP.md](ROADMAP.md).
 
+## Language bindings (FFI)
+
+A curated subset of the API is exposed to **Python, Kotlin, Swift, and Ruby** via
+[UniFFI](https://mozilla.github.io/uniffi-rs/), generated from the separate
+`geocoordinates-ffi` crate. The bindings cover the China-datum core: WGS-84 ↔
+GCJ-02 ↔ BD-09 conversions, Baidu Web Mercator, `out_of_china`, and haversine
+distance.
+
+Because the Rust API is idiomatic, the FFI surface is deliberately flattened:
+generics (`Approx<T>`), traits, `Deref`, and operator overloads do not cross the
+boundary. Their equivalents are concrete records (e.g. `ApproxWgs84 { lat, lon,
+max_error_m }`) and free functions returning primitives (distance is returned in
+meters). Approximate inverses keep their `_fast` / `_refined` names and carry
+`max_error_m`. The published `geocoordinates` crate is unaffected — the bindings
+build from their own `cdylib`/`staticlib` crate.
+
+> Ruby support is experimental: UniFFI keeps its Ruby backend working but does
+> not actively extend it.
+
+Generate the bindings (needs the [Rust toolchain](https://rustup.rs) and
+[just](https://github.com/casey/just)):
+
+```bash
+just bindings           # all languages -> bindings/<lang>/
+just bindings-python    # a single language
+```
+
+Python example:
+
+```python
+import geocoordinates_ffi as gc
+
+gcj = gc.wgs84_to_gcj02(gc.Wgs84(lat=39.915, lon=116.404))
+wgs = gc.gcj02_to_wgs84_refined(gcj)          # approximate inverse
+print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
+```
+
 ## Prerequisites
 
 - [Rust (rustup)](https://rustup.rs) — toolchain (pinned via `rust-toolchain.toml`)
@@ -39,6 +76,7 @@ just check   # fmt-check + clippy + tests
 | `just lint-fix`  | Lint and auto-fix                |
 | `just coverage`  | Report code coverage             |
 | `just check`     | fmt-check + lint + test (CI parity) |
+| `just bindings`  | Generate FFI bindings (all languages) |
 
 ### Git Hooks
 
@@ -46,7 +84,7 @@ This project uses [Lefthook](https://github.com/evilmartians/lefthook). Pre-comm
 
 ### CI/CD
 
-GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests.
+GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests. A separate FFI workflow builds the bindings `cdylib`, generates bindings for all four languages, and runs a Python smoke test.
 
 ### Releases
 

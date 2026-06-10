@@ -13,6 +13,16 @@ categories = ["science::geo", "mathematics", "parser-implementations"]
 # ROADMAP.md is a contributor-facing release plan, not part of the published crate.
 exclude = ["AGENTS.md", "CLAUDE.md", "ROADMAP.md"]
 
+# The repo is a workspace so the FFI bindings live in their own crate
+# (`geocoordinates-ffi`) without touching this published, pure-`rlib` crate.
+# The root package auto-joins as a member; `default-members = ["."]` keeps bare
+# `cargo build/test/clippy/llvm-cov` scoped to this crate only, so the FFI crate
+# (built explicitly via `-p geocoordinates-ffi`) never perturbs core CI/coverage.
+[workspace]
+members = ["crates/geocoordinates-ffi"]
+default-members = ["."]
+resolver = "3"
+
 [dependencies]
 geo = "0.33.1"
 geo-types = "0.7.19"

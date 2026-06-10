@@ -1,0 +1,64 @@
+name: FFI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  # cdylib produced by the FFI crate on the Linux runners.
+  FFI_LIB: target/release/libgeocoordinates_ffi.so
+
+jobs:
+  # Lint the FFI crate, build the cdylib, and confirm bindings generate for
+  # every targeted language. `--no-format` keeps generation independent of
+  # ktlint/rubocop being installed (Kotlin/Swift/Ruby are generate-validated
+  # only here; Swift needs a macOS toolchain and Ruby's backend is legacy).
+  build-and-bind:
+    name: Build cdylib + generate bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy (ffi crate)
+        run: cargo clippy -p geocoordinates-ffi --all-targets -- -D warnings
+      - name: Build cdylib
+        run: cargo build --release -p geocoordinates-ffi
+      - name: Generate bindings for all languages
+        run: |
+          for lang in python kotlin swift ruby; do
+            echo "::group::generate $lang"
+            cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
+              generate --no-format --library "$FFI_LIB" \
+              --language "$lang" --out-dir "bindings/$lang"
+            echo "::endgroup::"
+          done
+
+  # Functional smoke test of the Python bindings: import the generated module,
+  # run a China conversion, check an Approx bound, and exercise the error path.
+  python-smoke:
+    name: Python smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build cdylib
+        run: cargo build --release -p geocoordinates-ffi
+      - name: Generate Python bindings
+        run: |
+          cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
+            generate --no-format --library "$FFI_LIB" \
+            --language python --out-dir bindings/python
+      - name: Smoke test
+        run: |
+          cp "$FFI_LIB" bindings/python/
+          python crates/geocoordinates-ffi/tests/smoke.py
