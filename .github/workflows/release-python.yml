@@ -35,7 +35,11 @@ jobs:
         include:
           - { runner: ubuntu-latest, target: x86_64 }
           - { runner: ubuntu-latest, target: aarch64 }
-          - { runner: macos-13, target: x86_64 }
+          # Cross-build the Intel wheel on the arm64 runner: GitHub's Intel
+          # macos-13 runners are being retired and queue indefinitely. The arm64
+          # macOS toolchain targets x86_64-apple-darwin natively (same as the
+          # Swift XCFramework build), so this needs no Intel runner.
+          - { runner: macos-14, target: x86_64 }
           - { runner: macos-14, target: aarch64 }
     steps:
       - uses: actions/checkout@v4
