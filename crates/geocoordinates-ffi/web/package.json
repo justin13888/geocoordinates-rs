@@ -1,5 +1,5 @@
 {
-  "name": "geocoordinates",
+  "name": "geocoordinates-rs",
   "version": "0.1.0",
   "description": "WebAssembly bindings for the geocoordinates geospatial library — China datums (GCJ-02/BD-09), geodetic transforms.",
   "license": "MIT OR Apache-2.0",
@@ -9,7 +9,15 @@
     "url": "git+https://github.com/justin13888/geocoordinates-rs.git"
   },
   "homepage": "https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web",
-  "keywords": ["gis", "geo", "coordinates", "gcj02", "bd09", "wasm", "webassembly"],
+  "keywords": [
+    "gis",
+    "geo",
+    "coordinates",
+    "gcj02",
+    "bd09",
+    "wasm",
+    "webassembly"
+  ],
   "type": "module",
   "main": "src/index.web.ts",
   "module": "src/index.web.ts",

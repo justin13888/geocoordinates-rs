@@ -28,7 +28,7 @@ regenerated each run, and its `opt-level` is emitted as a string).
 The wasm module loads asynchronously, so initialize once before calling the API:
 
 ```ts
-import GeoCoordinates, { uniffiInitAsync, wgs84ToGcj02, coordinateWgs84 } from "geocoordinates";
+import GeoCoordinates, { uniffiInitAsync, wgs84ToGcj02, coordinateWgs84 } from "geocoordinates-rs";
 
 await uniffiInitAsync();
 
