@@ -2,8 +2,9 @@ name: Release (npm)
 
 # Publishes the WebAssembly/TypeScript `geocoordinates` package to npm.
 #
-# Trigger: the `v*` GitHub Release that release-plz creates for the core crate.
-# `workflow_dispatch` builds + `npm pack`s without publishing (dry run).
+# Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
+# `publish=true`). A manual `workflow_dispatch` (publish defaulting to false) builds
+# + `npm pack`s without publishing (dry run).
 #
 # Auth: an npm automation token in the `NPM_TOKEN` secret. (npm cannot pre-create
 # an empty package, so OIDC trusted publishing is not usable for the first release;
@@ -15,8 +16,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build, e.g. 0.1.0 (dry run; does not publish)"
+        description: "Version to build, e.g. 0.1.0"
         required: false
+      publish:
+        description: "Publish to npm (set by release-plz; manual dispatch = dry run)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -60,10 +65,10 @@ jobs:
       - name: Build bindings
         run: npm run build
       - name: Publish to npm
-        if: github.event_name == 'release'
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Dry run (workflow_dispatch)
-        if: github.event_name != 'release'
+      - name: Dry run (npm pack)
+        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
         run: npm pack --dry-run

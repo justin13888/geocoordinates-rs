@@ -3,10 +3,11 @@ name: Release (Maven Central)
 # Publishes the JVM (Kotlin) bindings — the artifact Java also consumes — to
 # Maven Central as io.github.justin13888:geocoordinates.
 #
-# Trigger: the `v*` GitHub Release that release-plz creates for the core crate.
-# `workflow_dispatch` builds + assembles the JAR without publishing (dry run).
+# Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
+# `publish=true`), so the binding version tracks the Rust crate version. A manual
+# `workflow_dispatch` (publish defaulting to false) only builds + assembles the JAR.
 #
-# Auth (configure before the first release; see the PR description / README):
+# Auth (configure before the first release; see PUBLISHING.md):
 #   secrets.MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD  — Central Portal token
 #   secrets.GPG_SIGNING_KEY (ASCII-armored) / GPG_SIGNING_PASSWORD — artifact signing
 # Until these are set the `publish` job is skipped, so the other registries are
@@ -17,8 +18,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build, e.g. 0.1.0 (dry run; does not publish)"
+        description: "Version to build, e.g. 0.1.0"
         required: false
+      publish:
+        description: "Publish to Maven Central (set by release-plz; manual dispatch = dry run)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -114,10 +119,10 @@ jobs:
           done
           find "$base" -type f | sort
       - name: Assemble JAR (dry run)
-        if: github.event_name != 'release'
+        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
         run: gradle -PreleaseVersion="${{ steps.ver.outputs.version }}" build
       - name: Publish to Maven Central
-        if: github.event_name == 'release'
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

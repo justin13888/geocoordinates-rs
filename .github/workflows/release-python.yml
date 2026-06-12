@@ -2,9 +2,9 @@ name: Release (PyPI)
 
 # Publishes the Python wheels for `geocoordinates` (the UniFFI bindings) to PyPI.
 #
-# Trigger: the `v*` GitHub Release that release-plz creates for the core crate, so
-# the binding version tracks the Rust crate version. `workflow_dispatch` builds the
-# wheels for testing without publishing.
+# Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
+# `publish=true`), so the binding version tracks the Rust crate version. A manual
+# `workflow_dispatch` (publish defaulting to false) builds the wheels without publishing.
 #
 # Auth: PyPI Trusted Publishing (OIDC) — no token. Configure a trusted publisher on
 # PyPI for this repo + workflow file `release-python.yml` (a "pending publisher"
@@ -15,8 +15,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build, e.g. 0.1.0 (test builds only; does not publish)"
+        description: "Version to build, e.g. 0.1.0"
         required: false
+      publish:
+        description: "Publish to PyPI (set by release-plz; manual dispatch = test build only)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -74,8 +78,9 @@ jobs:
     name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
-    # Only the real release publishes; workflow_dispatch is a build-only dry run.
-    if: github.event_name == 'release'
+    # Publish on a real release, or a release-plz dispatch with publish=true; a plain
+    # manual workflow_dispatch is a build-only dry run.
+    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
     permissions:
       id-token: write # OIDC for PyPI Trusted Publishing
     steps:
