@@ -1,6 +1,6 @@
 # geocoordinates
 
-A geospatial coordinate library for Rust — China datums (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation.
+Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities. The crate abstracts only geo-related complexity, as primitives for higher-level libraries to consume.
 
 > **Status:** Early development, released incrementally. The public API is `0.x` and may change between minor versions. See [ROADMAP.md](ROADMAP.md) for the planned release order.
 
@@ -13,15 +13,16 @@ The current release ships the core data model and the China datums:
 - **Distance:** spherical `haversine_distance`.
 - Optional `serde` support (`serde` feature).
 
-Geodesy (ECEF/frames/Karney geodesics/Helmert datums), grids (UTM/MGRS/Geohash/Plus Code/Maidenhead), ingestion (free-text, GeoJSON/WKT/GPX/KML, NMEA/EXIF), formatting, and runtime CRS conversion are scaffolded and land in subsequent releases — see [ROADMAP.md](ROADMAP.md).
+The core path ships next: angle/unit conversions, DD/DMS/DDM formatting, text + `geo:`-URI parsing, and Plus Code. Geodesy (ECEF/frames/Karney geodesics/Helmert datums), the remaining grids (UTM/MGRS/Geohash/Maidenhead), interchange ingestion (GeoJSON/WKT/GPX/KML, NMEA), and runtime CRS conversion are scaffolded but deferred — see [ROADMAP.md](ROADMAP.md). EXIF GPS extraction is out of scope: it belongs to a separate library that consumes this crate's primitives.
 
 ## Language bindings (FFI)
 
-A curated subset of the API is exposed to **Python, Kotlin, Swift, and TypeScript**
-via [UniFFI](https://mozilla.github.io/uniffi-rs/), generated from the separate
-`geocoordinates-ffi` crate (Java consumes the Kotlin/JVM artifact directly). The
-bindings cover the China-datum core: WGS-84 ↔ GCJ-02 ↔ BD-09 conversions, Baidu
-Web Mercator, `out_of_china`, and haversine distance.
+The API is exposed to **Python, Kotlin, Swift, and TypeScript** with full
+capability parity via [UniFFI](https://mozilla.github.io/uniffi-rs/), generated
+from the separate `geocoordinates-ffi` crate (Java consumes the Kotlin/JVM
+artifact directly). The bindings track the released surface and gate each
+release; today that covers the China-datum core: WGS-84 ↔ GCJ-02 ↔ BD-09
+conversions, Baidu Web Mercator, `out_of_china`, and haversine distance.
 
 Because the Rust API is idiomatic, the FFI surface is deliberately flattened:
 generics (`Approx<T>`), traits, `Deref`, and operator overloads do not cross the

@@ -1,7 +1,10 @@
 //! # geocoordinates
 //!
-//! A feature-complete geospatial coordinate library for Rust — China datums
-//! (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation.
+//! Low-level geospatial coordinate primitives for Rust — China datums
+//! (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy
+//! utilities. Following the UNIX philosophy, this crate abstracts *only*
+//! geo-related complexity; higher-level concerns (e.g. EXIF extraction) live in
+//! separate libraries that consume these primitives.
 //!
 //! ## Conversion conventions
 //!
@@ -51,11 +54,13 @@ pub mod units;
 // Each module below is implemented behind `todo!()` stubs and is uncommented one
 // release at a time. The stub source stays on disk; only its `mod` declaration,
 // re-exports, prelude entries, and Cargo feature are commented out for now.
+// Core-path milestones ship first (format, parse, Plus Code); the rest is
+// deferred — ROADMAP.md tracks both.
 //
-// pub mod convert; // 0.6 — runtime CRS dispatch
-// pub mod format; // 0.11 — locale-aware formatting
-// pub mod grids; // 0.7–0.9 — UTM/UPS, MGRS, Geohash/Plus Code/Maidenhead
-// pub mod parse; // 0.10+ — free-text, interchange, sensor ingestion
+// pub mod format; // core path — DD/DMS/DDM presentation
+// pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferred)
+// pub mod grids; // core path: Plus Code; deferred: UTM/UPS, MGRS, Geohash, Maidenhead
+// pub mod convert; // deferred — runtime CRS dispatch
 //
 // /// PROJ-backed transforms for the full EPSG/datum long tail (optional C dep).
 // #[cfg(feature = "proj")]

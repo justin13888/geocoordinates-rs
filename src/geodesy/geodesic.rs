@@ -4,8 +4,10 @@
 //! in this release. The full set — exact ellipsoidal Karney `geodesic_distance`,
 //! rhumb-line distance and bearing, forward/final bearings, and the position
 //! producers (`destination`, `midpoint`, `intermediate`, `intersection`,
-//! `rhumb_destination`) — lands with the 0.4 geodesy release (see `ROADMAP.md`),
-//! reusing [`geo`](https://docs.rs/geo) where it already implements the math.
+//! `rhumb_destination`) — lands with the deferred geodesics milestone (see
+//! `ROADMAP.md`). Karney math will be delegated to
+//! [`geographiclib-rs`](https://docs.rs/geographiclib-rs); the spherical
+//! rhumb/loxodrome and cross/along-track routines are implemented here.
 //!
 //! The model is explicit in the function name, so the accuracy is obvious
 //! without reading docs. Measurement functions (distances, bearings) take any
@@ -18,14 +20,14 @@
 use crate::coord::LatLon;
 use crate::units::Length;
 
-// --- geodesic_distance: released in 0.4 (see ROADMAP.md) ---
+// --- geodesic_distance: released with the geodesics milestone (see ROADMAP.md) ---
 /*
 /// Exact ellipsoidal (Karney geodesic) distance between two points.
 ///
 /// Preferred over Vincenty, which fails to converge for near-antipodal points.
 #[must_use]
 pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
-    todo!("reuse geo::Geodesic distance")
+    todo!("geographiclib_rs::Geodesic::wgs84().inverse() distance")
 }
 */
 
@@ -35,7 +37,7 @@ pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
 /// the full range of separations, including near-antipodal points.
 #[must_use]
 pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
-    /// IUGG mean Earth radius, in meters (matches `geo`'s haversine).
+    /// IUGG mean Earth radius R1 = (2a + b) / 3, in meters.
     const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 
     let lat1 = a.lat().to_radians();
@@ -48,18 +50,18 @@ pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
     Length::from_meters(MEAN_EARTH_RADIUS_M * c)
 }
 
-// --- The remaining geodesic ops are released in 0.4 (see ROADMAP.md) ---
+// --- The remaining geodesic ops: released with the geodesics milestone (see ROADMAP.md) ---
 /*
 /// Rhumb-line (loxodrome / constant-bearing) distance.
 #[must_use]
 pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
-    todo!("reuse geo::Rhumb distance")
+    todo!("hand-rolled spherical loxodrome distance")
 }
 
 /// Initial bearing (forward azimuth) from `a` to `b`, in degrees.
 #[must_use]
 pub fn initial_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
-    todo!("reuse geo bearing")
+    todo!("geographiclib_rs::Geodesic::wgs84().inverse() azimuth at `a`")
 }
 
 /// Final bearing (azimuth on arrival) of the geodesic from `a` to `b`, in
@@ -67,7 +69,7 @@ pub fn initial_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
 /// azimuth changes along a geodesic.
 #[must_use]
 pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
-    todo!("reuse geo geodesic azimuth at the destination")
+    todo!("geographiclib_rs::Geodesic::wgs84().inverse() azimuth at `b`")
 }
 
 /// Direct geodesic problem: the point reached from `start` by traveling
@@ -75,7 +77,7 @@ pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
 /// `start.crs`.
 #[must_use]
 pub fn destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Coordinate {
-    todo!("reuse geo::Geodesic destination; result carries start.crs")
+    todo!("geographiclib_rs::Geodesic::wgs84().direct(); result carries start.crs")
 }
 
 /// The geodesic midpoint between `a` and `b`. The result carries `a.crs`.
@@ -89,7 +91,10 @@ pub fn midpoint(a: &Coordinate, b: &Coordinate) -> Coordinate {
 /// The result carries `a.crs`.
 #[must_use]
 pub fn intermediate(a: &Coordinate, b: &Coordinate, fraction: f64) -> Coordinate {
-    todo!("reuse geo geodesic interpolation; wrap longitude across the antimeridian")
+    todo!(
+        "inverse() for distance/azimuth, then direct() at fraction * s12; \
+         wrap longitude across the antimeridian"
+    )
 }
 
 /// Signed perpendicular distance from `point` to the geodesic path
@@ -124,19 +129,18 @@ pub fn intersection(
 /// Rhumb-line (loxodrome / constant) bearing from `a` to `b`, in degrees.
 #[must_use]
 pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
-    todo!("reuse geo::Rhumb bearing")
+    todo!("hand-rolled spherical loxodrome bearing")
 }
 
 /// The point reached from `start` by traveling `distance` along a constant
 /// `bearing_deg` rhumb line (loxodrome). The result carries `start.crs`.
 #[must_use]
 pub fn rhumb_destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Coordinate {
-    todo!("reuse geo::Rhumb destination; result carries start.crs")
+    todo!("hand-rolled spherical loxodrome destination; result carries start.crs")
 }
 */
 
 // Polygon and line ops — ellipsoidal area/perimeter, point-in-polygon, centroid,
-// convex hull, buffers, bounding boxes, line densification, and simplification
-// (Douglas-Peucker / `geo::Simplify`) — are delegated to `geo` directly (it
-// implements them correctly); this module owns only the point-to-point geodesic
-// ops above.
+// convex hull, buffers, bounding boxes, line densification, and simplification —
+// are out of scope for this crate: use the `geo` crate directly for them. This
+// module owns only the point-to-point geodesic ops above.

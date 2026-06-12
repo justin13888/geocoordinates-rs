@@ -10,6 +10,10 @@ use crate::error::Result;
 use crate::fix::Fix;
 
 /// Target representation for rendering a coordinate.
+///
+/// Grid representations (Plus Code, then UTM / MGRS / geohash) are added as
+/// their grid milestones ship — see `ROADMAP.md`. Adding a variant is a
+/// breaking change that also updates the FFI mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
@@ -20,14 +24,6 @@ pub enum Representation {
     Dms,
     /// Degrees-decimal-minutes (`40°42.766′N`).
     Ddm,
-    /// UTM grid reference.
-    Utm,
-    /// MGRS string.
-    Mgrs,
-    /// Plus Code (Open Location Code).
-    PlusCode,
-    /// Geohash.
-    Geohash,
 }
 
 /// Symbol style for DMS/DDM rendering.
@@ -88,7 +84,7 @@ impl Default for FormatOptions {
 ///
 /// # Errors
 /// Returns an error when the requested [`Representation`] is undefined for the
-/// coordinate — e.g. [`Representation::Utm`] at the poles (see
+/// coordinate — e.g. a future UTM representation at the poles (see
 /// [`crate::Error::InvalidGridRef`]). The DD/DMS/DDM representations never fail.
 pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
     todo!("dispatch on representation; respect precision, symbols, hemisphere, locale")

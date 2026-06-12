@@ -7,8 +7,20 @@ the public surface; everything else is commented out at its `pub mod` declaratio
 (plus re-exports, prelude entries, and Cargo feature) and brought back **one release
 at a time**.
 
-This file is the order in which that happens. It is excluded from the published crate
-(`exclude = ["ROADMAP.md"]` in `Cargo.toml`) — it's a contributor-facing plan, not API docs.
+This file is the plan. Milestones are **named** (version numbers are assigned at
+release time): the **core path** ships in order, the **deferred** section is
+unscheduled, and a few things are explicitly **out of scope**. It is excluded from
+the published crate (`exclude = ["ROADMAP.md"]` in `Cargo.toml`) — it's a
+contributor-facing plan, not API docs.
+
+## Scope
+
+This crate provides **low-level geospatial coordinate primitives** for higher-level
+libraries to consume (UNIX philosophy: abstract only the geo-related complexity).
+The core path covers what is strictly necessary to (a) process photo geolocation
+metadata and (b) convert coordinates into the representations used by maps
+(Google, Gaode/AMap, Baidu, Apple). Everything else stays deferred until a concrete
+consumer appears.
 
 ## How a milestone ships
 
@@ -20,17 +32,17 @@ For each milestone below:
 3. Implement the `todo!()` bodies (the stub source already exists on disk).
 4. Add tightly-scoped tests (reference vectors, round-trip stability, edge cases:
    antimeridian, poles, out-of-range).
-5. `just check` (fmt + clippy `-D warnings` + test) and `cargo doc` must stay clean.
-6. Bump the version and release.
+5. Mirror the new surface in `geocoordinates-ffi` (full capability parity — the FFI
+   crate gates the release; see the FFI section below) and keep `just ffi-check`
+   clean.
+6. `just check` (fmt + clippy `-D warnings` + test) and `cargo doc` must stay clean.
+7. Bump the version and release.
 
 Versions are `0.x`, so each minor may make breaking changes until `1.0`.
 
-## Release order
+## Shipped
 
-Ordering follows the dependency graph: a capability ships only after everything it
-builds on.
-
-### 0.1 — Foundation *(shipped — the current surface)*
+### Foundation *(0.1 — the current surface)*
 
 The canonical data model plus the flagship China datums:
 
@@ -44,88 +56,111 @@ The canonical data model plus the flagship China datums:
 - `geodesy::haversine_distance`
 - the `serde` feature
 
-### 0.2 — Angles & units complete
+## Core path
 
-Small, dependency-free primitive math, unlocking honest angle handling:
+Ordering follows the dependency graph: a capability ships only after everything it
+builds on.
+
+### 1. Angles & units complete
+
+Small, dependency-free primitive math, unlocking honest angle handling. These are
+the primitives the external EXIF library consumes (GPS rationals → decimal degrees,
+hemisphere signs), so this milestone is the immediate priority:
 
 - `Dd` ↔ `Dms` ↔ `Ddm` conversions (`From`/`to_*`)
 - `angle::wrap_longitude` / `clamp_latitude` / `normalize_degrees`
 - `Length::from_unit` / `to_unit`
 - `Coordinate::validate` / `is_null_island`
 
-### 0.3 — Geodesy I: frames
+This (breaking) minor also carries two FFI-coherence changes:
 
-- `Ellipsoid` (parameters + derived quantities)
-- `Ecef` (geodetic ↔ geocentric)
-- local tangent frames: `Enu`, `Ned`, `Aer`
+- Drop `#[non_exhaustive]` from the FFI-mirrored **data** enums (`Crs`,
+  `LengthUnit`, `DatumAmbiguity`; stub-side `Representation` / `SymbolStyle` /
+  `HemisphereStyle`, `GeoidModel`) so adding a variant **fails the FFI mirror's
+  compile** instead of silently hitting a wildcard arm. Delete the mirror's
+  `_ => Crs::Wgs84` fallback. `Error` keeps `#[non_exhaustive]` — its FFI
+  catch-all (`GeoError::Other { detail }`) preserves meaning, unlike a datum
+  fallback which would mislabel data.
+- FFI catch-up for the 0.1 surface: `Fix` / `Accuracy` / `RawSource` /
+  `Confidence` (UniFFI maps `SystemTime` natively via its builtin `Timestamp`),
+  the angle types, and the new `Length` unit helpers as free functions.
 
-### 0.4 — Geodesy II: geodesics
+### 2. Format: DD / DMS / DDM
 
-Reuses `geo` where it already implements the math:
+- `format::format` / `format_fix`, `FormatOptions`, `Representation` (DD/DMS/DDM
+  only — grid representations are added by their own milestones)
+- enables `Coordinate: Display` (needs angles & units only)
 
-- exact `geodesic_distance` (Karney), `rhumb_distance`
-- `initial_bearing` / `final_bearing` / `rhumb_bearing`
-- producers: `destination`, `midpoint`, `intermediate`, `intersection`, `rhumb_destination`
-- `cross_track_distance` / `along_track_distance`
-
-### 0.5 — Geodesy III: classic datums
-
-- `Helmert` (7-parameter Bursa-Wolf) + `DatumTransform`
-- classic datum support for `Nad27`, `Tokyo`, `Pulkovo42`
-
-### 0.6 — Convert dispatch
-
-- `convert::convert` / `can_convert` — runtime routing over `Crs`, now able to route
-  both China datums and the classic datums through a WGS-84 hub.
-
-### 0.7 — Grids I: UTM / UPS
-
-- `Utm`, `Ups` projections (+ `TryFrom<Coordinate>`).
-
-### 0.8 — Grids II: MGRS
-
-- `Mgrs` (depends on UTM/UPS).
-
-### 0.9 — Grids III: encoded systems
-
-- `Geohash`, `PlusCode`, `Maidenhead` (`encode` / `decode`).
-
-### 0.10 — Parse I: text
+### 3. Parse: text + `geo:` URI
 
 - `parse::parse_coordinate`, `from_geo_uri`, `text::parse_with`
-- enables `Coordinate: FromStr` (needs 0.2 angle conversions).
+- enables `Coordinate: FromStr`
+- round-trip parse ↔ format tests close the loop with the format milestone
 
-### 0.11 — Format / presentation
+### 4. Plus Code
 
-- `format::format` / `format_fix`, `FormatOptions`, `Representation`
-- enables `Coordinate: Display` (needs 0.2 + grids for UTM/MGRS/PlusCode/Geohash output).
+- `PlusCode` (`encode` / `decode`) — Google Maps' shareable representation, the one
+  grid system that is a map representation rather than an indexing scheme.
+  Re-extends `Representation` and `parse_coordinate` token detection (each
+  re-added variant compile-forces the FFI mirror update).
 
-### 0.12 — Parse II: interchange *(feature-gated)*
+The live 0.1 surface (China datums for Gaode/Baidu/Apple-in-China, `BaiduMercator`,
+`haversine_distance` for clustering, the `Fix` model) covers the rest of the
+map-conversion story.
 
-- `from_geojson` / `from_wkt` / `from_gpx` / `from_kml`
-- features: `geojson`, `wkt`, `gpx`, `kml`.
+## Deferred
 
-### 0.13 — Parse III: sensors *(feature-gated)*
+Unscheduled — promoted into the core path only when a concrete consumer appears.
+Dependency notes are kept so the order stays derivable:
 
-- `from_nmea_sentence`, `from_exif`
-- features: `nmea`, `exif`.
+- **Geohash** (first candidate, if a consumer needs spatial-index keys) and
+  **Maidenhead** (`encode` / `decode`).
+- **Geodesy I: frames** — `Ellipsoid` (parameters + derived quantities), `Ecef`
+  (geodetic ↔ geocentric), local tangent frames `Enu` / `Ned` / `Aer`.
+- **Geodesy II: geodesics** — exact `geodesic_distance` (Karney, delegated to
+  [`geographiclib-rs`](https://crates.io/crates/geographiclib-rs), the same engine
+  the `geo` crate uses, with `default-features = false`), hand-rolled spherical
+  `rhumb_distance` / `rhumb_bearing` / `rhumb_destination`, `initial_bearing` /
+  `final_bearing`, producers (`destination`, `midpoint`, `intermediate`,
+  `intersection`), `cross_track_distance` / `along_track_distance`.
+- **Geodesy III: classic datums** — `Helmert` (7-parameter Bursa-Wolf) +
+  `DatumTransform`; classic datum support for `Nad27`, `Tokyo`, `Pulkovo42`.
+- **Convert dispatch** — `convert::convert` / `can_convert`; only matters once
+  multiple datum families exist (the China bridge already routes
+  WGS-84 / GCJ-02 / BD-09).
+- **UTM / UPS** (needs Ellipsoid) → **MGRS** (needs UTM/UPS).
+- **Interchange** *(feature-gated)* — `from_gpx` (track-log geotagging),
+  `from_geojson`, `from_wkt`, `from_kml`; features `gpx`, `geojson`, `wkt`, `kml`.
+  (The `gpx` crate brings `geo-types` in transitively; that's acceptable — it's
+  light and never touches the public API.)
+- **Sensors: NMEA** *(feature-gated)* — `from_nmea_sentence`; feature `nmea`.
+- **Long tail** *(optional, feature-gated)* — `proj` (PROJ-backed EPSG/datum long
+  tail: `CrsId`, `proj::transform`), `geoid` (EGM96/EGM2008/EGM2020 height
+  undulation), `dgg` (Uber H3 / Google S2 indexing).
 
-### Long tail *(optional, feature-gated; scheduled as the integrations mature)*
+## Out of scope
 
-- `proj` — PROJ-backed EPSG/datum long tail (`CrsId`, `proj::transform`).
-- `geoid` — EGM96/EGM2008/EGM2020 height undulation (`height` module).
-- `dgg` — Uber H3 / Google S2 indexing.
+- **EXIF/XMP GPS extraction** — handled by a separate library that consumes this
+  crate's primitives (angle conversions for GPS rationals, `Fix` / `RawSource`,
+  `DatumAmbiguity::PossiblyGcj02` for the China-EXIF ambiguity). The `from_exif`
+  stub and `exif` feature were removed.
+- **Polygon / line geometry ops** (area, point-in-polygon, centroid, simplification,
+  …) — use the [`geo`](https://crates.io/crates/geo) crate directly.
 
-### FFI bindings *(parallel track, not published to crates.io)*
+## FFI bindings *(gating; full capability parity)*
 
-The `geocoordinates-ffi` crate exposes a curated, FFI-flattened subset of the live
-surface to Python / Kotlin / Java / Swift / TypeScript via UniFFI. It tracks whatever has shipped
-above — starting with the 0.1 China-datum core — and grows as later milestones land.
-It is `publish = false` (bindings ship via PyPI/Maven/SwiftPM, not crates.io) and does
-not gate the core release order. See `README.md` and the FFI-translatability note in
-`AGENTS.md`.
+The `geocoordinates-ffi` crate exposes the live surface to Python / Kotlin / Java /
+Swift / TypeScript via UniFFI with **full capability parity**: every public
+capability is reachable through one canonical FFI form (concrete records, free
+functions, primitives) — though not necessarily every Rust-side overload, trait
+impl, or operator. The FFI mirror **gates every release**: a milestone is not done
+until its surface crosses the boundary (step 5 of "How a milestone ships").
 
-### 1.0 — API freeze
+The crate is `publish = false` (bindings ship via PyPI / npm / Maven Central /
+SwiftPM, not crates.io). A catch-up for the 0.1 surface rides the angles & units
+milestone. See `README.md` and the FFI-translatability note in `AGENTS.md`.
 
-Once the surface above is implemented and has proven stable, freeze the public API and
+## 1.0 — API freeze
+
+Once the core path is implemented and has proven stable, freeze the public API and
 adopt strict semver. Add a coverage threshold (see `just coverage`).

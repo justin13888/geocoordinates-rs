@@ -3,7 +3,8 @@
 //! - [`text`] — tolerant free-text / DMS / DDM parsing (always available).
 //! - [`from_geo_uri`] — `geo:` URIs per RFC 5870 (always available).
 //! - [`interchange`] — GeoJSON, WKT, GPX, KML (each behind a cargo feature).
-//! - [`sensors`] — NMEA 0183 and EXIF/XMP image metadata (feature-gated).
+//! - [`sensors`] — NMEA 0183 (feature-gated). EXIF is out of scope — a separate
+//!   library handles it, consuming this crate's primitives.
 //!
 //! ## Axis order is first-class
 //!
@@ -22,7 +23,7 @@ pub mod text;
 #[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml"))]
 pub mod interchange;
 
-#[cfg(any(feature = "nmea", feature = "exif"))]
+#[cfg(feature = "nmea")]
 pub mod sensors;
 
 use crate::error::Result;
@@ -35,19 +36,16 @@ pub use crate::fix::AxisOrder;
 
 /// Best-effort parse of a single coordinate from arbitrary input.
 ///
-/// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]); a UTM / MGRS /
-/// Plus Code / geohash token (via the [`grids`](crate::grids) decoders); then
-/// falls back to free-text DD/DMS/DDM heuristics (see [`text`]). The returned
-/// [`Fix`] records parse confidence and the assumed [`AxisOrder`] in its
-/// [`RawSource`](crate::fix::RawSource).
+/// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]); then falls back
+/// to free-text DD/DMS/DDM heuristics (see [`text`]). Grid-token detection
+/// (UTM / MGRS / Plus Code / geohash) is added as each grid milestone ships —
+/// see `ROADMAP.md`. The returned [`Fix`] records parse confidence and the
+/// assumed [`AxisOrder`] in its [`RawSource`](crate::fix::RawSource).
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found.
 pub fn parse_coordinate(input: &str) -> Result<Fix> {
-    todo!(
-        "detect geo: URI, then UTM/MGRS/PlusCode/geohash tokens via grids \
-         decoders, else text::parse with range/locale heuristics"
-    )
+    todo!("detect geo: URI, else text::parse with range/locale heuristics")
 }
 
 /// Parse a `geo:` URI per [RFC 5870](https://www.rfc-editor.org/rfc/rfc5870),

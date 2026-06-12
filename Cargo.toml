@@ -3,7 +3,7 @@ name = "geocoordinates"
 version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
-description = "A feature-complete geospatial coordinate library: China datums (GCJ-02/BD-09), geodetic transforms, geodesics, ingestion, and presentation."
+description = "Low-level geospatial coordinate primitives: China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities."
 authors = ["Justin Chung"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/justin13888/geocoordinates-rs"
@@ -25,16 +25,15 @@ default-members = ["."]
 resolver = "3"
 
 [dependencies]
-geo = "0.33.1"
-geo-types = "0.7.19"
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 thiserror = "2.0.18"
-tracing = "0.1.44"
+# The deferred geodesics milestone adds, when it ships (see ROADMAP.md):
+# geographiclib-rs = { version = "0.2", default-features = false } # Karney geodesic engine
 
 [features]
 default = []
-# Enable serde Serialize/Deserialize on this crate's types and on the underlying geo-types.
-serde = ["dep:serde", "geo-types/serde", "geo/serde"]
+# Enable serde Serialize/Deserialize on this crate's value/option/id types.
+serde = ["dep:serde"]
 
 # --- Staged features (see ROADMAP.md) ---
 # The optional capabilities below are commented out until their modules are
@@ -42,6 +41,11 @@ serde = ["dep:serde", "geo-types/serde", "geo/serde"]
 # (alongside the matching `pub mod` in src/lib.rs). They gate nothing while their
 # modules are commented out, so leaving them defined would only advertise
 # panicking APIs.
+#
+# All of these belong to the DEFERRED section of ROADMAP.md (promoted only when a
+# concrete consumer appears). The core path (angles, format, parse, Plus Code)
+# needs no cargo features. EXIF ingestion is out of scope entirely — it lives in
+# a separate library that consumes this crate's primitives.
 #
 # Interchange formats (parsers/writers):
 # geojson = ["serde"] # GeoJSON (lon-lat axis order) — serde_json / geojson crate
@@ -51,7 +55,6 @@ serde = ["dep:serde", "geo-types/serde", "geo/serde"]
 #
 # Sensor / device ingestion:
 # nmea = []           # NMEA 0183 sentences — nmea parser crate
-# exif = []           # EXIF/XMP image GPS metadata — kamadak-exif
 #
 # Heavy / external integrations:
 # proj = []           # PROJ-backed EPSG long tail — proj crate (C dep)
@@ -60,4 +63,4 @@ serde = ["dep:serde", "geo-types/serde", "geo/serde"]
 # s2 = []             # Google S2 indexing — s2 crate
 #
 # Convenience: enable every optional capability (restore entries as they return).
-# full = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "exif", "proj", "geoid", "h3", "s2"]
+# full = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "proj", "geoid", "h3", "s2"]
