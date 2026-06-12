@@ -8,8 +8,11 @@ name: Release (npm)
 #
 # Auth: npm OIDC Trusted Publishing — no token/secret. npm exchanges the GitHub
 # OIDC `id-token` for a short-lived publish credential and auto-attaches provenance.
-# Configure the trusted publisher on npmjs.com (package Settings) for this repo +
-# workflow `release-web.yml`. NOTE: OIDC cannot publish a package's FIRST version
+# Configure the trusted publisher on npmjs.com (the `geocoordinates-rs` package
+# Settings) for this repo + workflow `release-web.yml`. The npm package is named
+# `geocoordinates-rs` (matching PyPI): the bare `geocoordinates` is blocked by
+# npm's name-similarity filter (too close to the existing `geo-coordinates`).
+# NOTE: OIDC cannot publish a package's FIRST version
 # (the package must already exist to host the trusted-publisher config), so v0.1.1
 # was bootstrapped with a one-time local `npm publish`; every release after is OIDC.
 # Requires npm >= 11.5.1 and Node >= 22.14 (handled below).
