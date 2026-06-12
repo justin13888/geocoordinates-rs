@@ -1,0 +1,7 @@
+# Dev tools pinned for reproducible local + CI runs.
+# `.mise.toml` is inert unless mise is installed, so a system-installed `just` is unaffected.
+[tools]
+just = "1.52.0"
+# cargo-mutants has no prebuilt aarch64-apple-darwin asset, so use the cargo backend
+# (compiles from source; cached by mise locally and by mise-action in CI).
+"cargo:cargo-mutants" = "27.1.0"

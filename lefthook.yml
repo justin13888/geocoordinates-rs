@@ -22,3 +22,5 @@ pre-push:
       run: just test
     coverage:
       run: just coverage
+    mutants:
+      run: just mutants
