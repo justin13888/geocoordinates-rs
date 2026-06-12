@@ -26,6 +26,37 @@ test:
 coverage:
     cargo llvm-cov --all-features
 
+# --- Mutation testing (cargo-mutants) ---
+# Central flags shared by both recipes: published crate only, all features.
+mutants_flags := "--package geocoordinates --all-features"
+
+# Mutation-test only the lines changed vs trunk (the gate run by pre-push + CI).
+# Override the base ref with e.g. `just mutants origin/main`.
+mutants base="origin/master":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    base="{{ base }}"
+    if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+        if git rev-parse --verify --quiet "master^{commit}" >/dev/null; then
+            base="master"
+        else
+            echo "mutants: no '$base' or 'master' ref found; skipping." >&2
+            exit 0
+        fi
+    fi
+    diff="$(mktemp)"
+    trap 'rm -f "$diff"' EXIT
+    git diff "$base"...HEAD -- '*.rs' > "$diff"
+    if [ ! -s "$diff" ]; then
+        echo "mutants: no Rust changes vs $base; nothing to test."
+        exit 0
+    fi
+    cargo mutants {{ mutants_flags }} --in-diff "$diff"
+
+# Full-tree mutation test of the published crate (manual deep audit; slow, may report gaps).
+mutants-all:
+    cargo mutants {{ mutants_flags }}
+
 # Build the crate
 build:
     cargo build --all-features
