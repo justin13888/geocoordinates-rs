@@ -57,6 +57,33 @@ mutants base="origin/master":
 mutants-all:
     cargo mutants {{ mutants_flags }}
 
+# --- Commit message linting (Conventional Commits via convco) ---
+
+# Lint a single commit message file (used by the commit-msg hook).
+# --from-stdin reads one message (convco otherwise walks history); --strip drops
+# the comment/whitespace lines git leaves in the message file, like `--cleanup=strip`.
+commit-check file:
+    convco check --from-stdin --strip < "{{ file }}"
+
+# Lint that commits in <range> follow Conventional Commits (pre-push + CI).
+# Defaults to commits on HEAD not yet on origin/master.
+commits-check range="origin/master..HEAD":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    range="{{ range }}"
+    # Resolve a base when origin/master isn't fetched (fresh clone / CI quirks),
+    # mirroring the `mutants` recipe's guard. Explicit ranges (CI) bypass this.
+    if [[ "$range" == "origin/master..HEAD" ]] \
+       && ! git rev-parse --verify --quiet "origin/master^{commit}" >/dev/null; then
+        if git rev-parse --verify --quiet "master^{commit}" >/dev/null; then
+            range="master..HEAD"
+        else
+            echo "commits-check: no origin/master or master ref; skipping." >&2
+            exit 0
+        fi
+    fi
+    convco check "$range"
+
 # Build the crate
 build:
     cargo build --all-features

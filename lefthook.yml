@@ -12,8 +12,16 @@ pre-commit:
       stage_fixed: true
       run: just lint-fix
 
+commit-msg:
+  commands:
+    conventional:
+      # {1} is the commit message file git passes to the hook.
+      run: just commit-check {1}
+
 pre-push:
   commands:
+    commit-lint:
+      run: just commits-check
     format-check:
       run: just fmt-check
     lint-check:

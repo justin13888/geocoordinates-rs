@@ -5,11 +5,31 @@ on:
     branches: [master]
   pull_request:
 
+# Cancel superseded PR runs (a new push to the same PR cancels the in-flight one);
+# never cancel push/master runs so post-merge history stays complete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
 
 jobs:
+  commits:
+    name: Commit messages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the base..head range resolves
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2 # installs `convco` (cargo backend) from .mise.toml
+      - name: Lint commit messages (Conventional Commits)
+        run: just commits-check "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
   fmt:
     name: Format
     runs-on: ubuntu-latest

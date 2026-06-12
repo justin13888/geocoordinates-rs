@@ -74,6 +74,10 @@ workflows and registry setup.
 - [just](https://github.com/casey/just) — command runner
 - [Lefthook](https://github.com/evilmartians/lefthook) — git hooks manager
 - [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov) — code coverage
+- [convco](https://convco.github.io) — Conventional Commits linter
+
+Dev tools (`just`, `cargo-mutants`, `convco`) are pinned in [`.mise.toml`](.mise.toml); run
+`mise install` to provision them, or install them yourself — `.mise.toml` is inert without mise.
 
 ## Quick Start
 
@@ -96,11 +100,11 @@ just check   # fmt-check + clippy + tests
 
 ### Git Hooks
 
-This project uses [Lefthook](https://github.com/evilmartians/lefthook). Pre-commit hooks auto-fix formatting and linting on staged files. Pre-push hooks run format checks, Clippy, tests, and a coverage report.
+This project uses [Lefthook](https://github.com/evilmartians/lefthook). Pre-commit hooks auto-fix formatting and linting on staged files. The commit-msg hook validates each message against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`). Pre-push hooks lint the pushed commits and run format checks, Clippy, tests, and a coverage report.
 
 ### CI/CD
 
-GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests. A separate FFI workflow builds the bindings `cdylib`, generates bindings for all four languages, and runs a Python smoke test.
+GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests, and lints PR commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`). A separate FFI workflow builds the bindings `cdylib`, generates bindings for all four languages, and runs a Python smoke test. Both workflows cancel superseded in-flight runs when a PR is updated.
 
 ### Releases
 
