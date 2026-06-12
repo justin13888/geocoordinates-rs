@@ -1,21 +1,23 @@
 //! Geodetic core: ellipsoids, ECEF, local tangent frames, and geodesic
 //! computations.
 //!
-//! Where [`geo`](https://docs.rs/geo) already implements a routine correctly
-//! (Karney geodesics, haversine, rhumb lines, bearing, area), this module
-//! reuses it directly rather than re-deriving the math. It owns only the parts
-//! `geo` lacks first-class types for (ECEF, ENU/NED/AER, datum/ellipsoid
-//! parameters tied to our [`Crs`](crate::Crs)).
+//! This module owns its math, with one planned exception: exact ellipsoidal
+//! (Karney) geodesics will be delegated to
+//! [`geographiclib-rs`](https://docs.rs/geographiclib-rs) — the validated Rust
+//! port of Karney's GeographicLib (and the same engine the `geo` crate uses) —
+//! rather than re-deriving it. Everything else (haversine, rhumb/loxodrome,
+//! ECEF, ENU/NED/AER, datum/ellipsoid parameters tied to our
+//! [`Crs`](crate::Crs)) is implemented here directly.
 
 pub mod geodesic;
 
 pub use geodesic::haversine_distance;
 
-// --- Released across 0.3–0.5 (see ROADMAP.md) ---
-// pub mod datum;     // 0.5 — Helmert / classic-datum transforms
-// pub mod ecef;      // 0.3 — ECEF geocentric coordinates
-// pub mod ellipsoid; // 0.3 — reference ellipsoid parameters
-// pub mod frames;    // 0.3 — local tangent frames (ENU/NED/AER)
+// --- Deferred: released with the geodesy milestones (see ROADMAP.md) ---
+// pub mod datum;     // Helmert / classic-datum transforms
+// pub mod ecef;      // ECEF geocentric coordinates
+// pub mod ellipsoid; // reference ellipsoid parameters
+// pub mod frames;    // local tangent frames (ENU/NED/AER)
 //
 // pub use datum::{DatumTransform, Helmert};
 // pub use ecef::Ecef;

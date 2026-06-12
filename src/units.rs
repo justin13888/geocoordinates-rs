@@ -31,7 +31,7 @@ impl Length {
         self.meters
     }
 
-    // --- Unit conversions: released in 0.2 (see ROADMAP.md) ---
+    // --- Unit conversions: released with the angles-and-units milestone (see ROADMAP.md) ---
     /*
     /// Construct from a value in the given unit.
     #[must_use]

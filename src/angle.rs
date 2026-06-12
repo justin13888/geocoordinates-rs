@@ -51,7 +51,7 @@ pub struct Ddm {
     pub hemisphere: Hemisphere,
 }
 
-// --- Angle conversions: released in 0.2 (see ROADMAP.md) ---
+// --- Angle conversions: released with the angles-and-units milestone (see ROADMAP.md) ---
 /*
 impl Dd {
     /// Convert to DMS for the given axis (latitude or longitude selects the
@@ -106,7 +106,7 @@ pub enum Axis {
     Longitude,
 }
 
-// --- Angle normalization helpers: released in 0.2 (see ROADMAP.md) ---
+// --- Angle normalization helpers: released with the angles-and-units milestone (see ROADMAP.md) ---
 /*
 /// Wrap a longitude into the half-open range `[-180, 180)`.
 #[must_use]

@@ -1,10 +1,11 @@
 //! UniFFI bindings for [`geocoordinates`](https://docs.rs/geocoordinates).
 //!
-//! This crate exposes a **deliberately curated subset** of the Rust API to
-//! Python, Kotlin, Swift, and TypeScript/WASM (and Java, via the Kotlin/JVM
-//! artifact). The Rust library is intentionally idiomatic, and several of its
-//! idioms cannot cross an FFI boundary, so they are re-expressed here as flat,
-//! language-neutral records and free functions:
+//! This crate exposes the Rust API with **full capability parity** to Python,
+//! Kotlin, Swift, and TypeScript/WASM (and Java, via the Kotlin/JVM artifact):
+//! every public capability of the released `geocoordinates` surface is
+//! reachable here, and the mirror gates each release (see `ROADMAP.md`).
+//! Several Rust idioms cannot cross an FFI boundary, so they are re-expressed
+//! as flat, language-neutral records and free functions:
 //!
 //! | Rust idiom | FFI form here |
 //! |---|---|
@@ -17,9 +18,10 @@
 //! return a bare datum record, while approximate inverses return an `Approx*`
 //! record and keep the `_fast` / `_refined` suffix.
 //!
-//! Intentionally **not** exposed in this release: the `Fix` observation family
-//! (no v0.1 producer; `SystemTime` maps awkwardly), the `LatLon` trait, and
-//! `Length` / `LengthUnit` arithmetic. They return once a release needs them.
+//! Not yet exposed: the `Fix` observation family (no v0.1 producer yet —
+//! UniFFI maps `SystemTime` natively via its builtin `Timestamp`, so nothing
+//! blocks it), the angle types, and `Length` / `LengthUnit` helpers. A catch-up
+//! lands with the angles-and-units milestone (see `ROADMAP.md`).
 
 use geocoordinates as gc;
 
@@ -28,8 +30,9 @@ uniffi::setup_scaffolding!();
 // ===========================================================================
 // Mirror types
 //
-// Hand-written mirrors (rather than `#[uniffi::remote]`) so the FFI surface is a
-// curated, flattened subset — and because `Approx<T>` must be flattened anyway.
+// Hand-written mirrors (rather than `#[uniffi::remote]`) so the FFI surface is
+// flattened into language-neutral forms — and because `Approx<T>` must be
+// flattened anyway.
 // ===========================================================================
 
 /// Coordinate reference system / datum tag — mirror of [`gc::Crs`].

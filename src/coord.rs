@@ -8,8 +8,8 @@
 
 use core::fmt;
 // Re-enabled with the items that use them (see ROADMAP.md):
-// use core::str::FromStr;          // Coordinate: FromStr (0.10, with `parse`)
-// use crate::error::{Error, Result}; // Coordinate::validate (0.2)
+// use core::str::FromStr;          // Coordinate: FromStr (text-parse milestone)
+// use crate::error::{Error, Result}; // Coordinate::validate (angles-and-units milestone)
 
 /// A coordinate reference system / datum tag used for runtime dispatch.
 ///
@@ -123,7 +123,7 @@ impl Coordinate {
         }
     }
 
-    // --- Released in 0.2 (see ROADMAP.md) ---
+    // --- Released with the angles-and-units milestone (see ROADMAP.md) ---
     /*
     /// Validate that latitude ∈ [-90, 90] and longitude ∈ [-180, 180].
     ///
@@ -182,7 +182,7 @@ impl fmt::Display for Crs {
     }
 }
 
-// --- FromStr: released in 0.10 with `parse` (see ROADMAP.md) ---
+// --- FromStr: released with the text-parse milestone (see ROADMAP.md) ---
 /*
 impl FromStr for Coordinate {
     type Err = Error;
@@ -199,7 +199,7 @@ impl FromStr for Coordinate {
 }
 */
 
-// --- Display: released in 0.11 with `format` (see ROADMAP.md) ---
+// --- Display: released with the format milestone (see ROADMAP.md) ---
 /*
 impl fmt::Display for Coordinate {
     /// Render in decimal degrees with default precision. For other

@@ -1,4 +1,11 @@
-//! Sensor/device ingestion: NMEA 0183 sentences and EXIF/XMP image metadata.
+//! Sensor/device ingestion: NMEA 0183 sentences.
+//!
+//! EXIF/XMP image GPS metadata is **out of scope** — it is handled by a
+//! separate library that consumes this crate's primitives (the angle
+//! conversions for GPS rationals, [`Fix`] with its
+//! [`RawSource`](crate::fix::RawSource), and
+//! [`DatumAmbiguity::PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02)
+//! for China-EXIF datum ambiguity).
 
 use crate::error::Result;
 use crate::fix::Fix;
@@ -13,20 +20,4 @@ use crate::fix::Fix;
 #[cfg(feature = "nmea")]
 pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
     todo!("TODO: back with an nmea parser crate")
-}
-
-/// Extract a [`Fix`] from an image's EXIF/XMP GPS metadata.
-///
-/// Reads the GPS IFD (lat/lon rationals + refs, altitude + ref, timestamp,
-/// DOP/accuracy, image direction, map datum). A possible China-EXIF datum
-/// ambiguity is flagged via [`DatumAmbiguity::PossiblyGcj02`] on the returned
-/// [`Fix`]'s [`RawSource`](crate::fix::RawSource).
-///
-/// [`DatumAmbiguity::PossiblyGcj02`]: crate::fix::DatumAmbiguity::PossiblyGcj02
-///
-/// # Errors
-/// Returns [`crate::Error::Parse`] when no usable GPS metadata is present.
-#[cfg(feature = "exif")]
-pub fn from_exif(bytes: &[u8]) -> Result<Fix> {
-    todo!("TODO: back with kamadak-exif; read GPS IFD and XMP; flag datum_ambiguity")
 }
