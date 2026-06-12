@@ -5,3 +5,6 @@ just = "1.52.0"
 # cargo-mutants has no prebuilt aarch64-apple-darwin asset, so use the cargo backend
 # (compiles from source; cached by mise locally and by mise-action in CI).
 "cargo:cargo-mutants" = "27.1.0"
+# convco is not in the mise/aqua registry, so use the cargo backend (same trade-off
+# as above: compiled from source, cached locally + by mise-action in CI).
+"cargo:convco" = "0.6.4"

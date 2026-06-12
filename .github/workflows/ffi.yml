@@ -5,6 +5,12 @@ on:
     branches: [master]
   pull_request:
 
+# Cancel superseded PR runs (a new push to the same PR cancels the in-flight one);
+# never cancel push/master runs so post-merge history stays complete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
