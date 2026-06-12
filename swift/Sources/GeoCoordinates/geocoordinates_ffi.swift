@@ -1182,7 +1182,7 @@ public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     case Other(
         /**
          * The underlying error's display message.
-         */message: String
+         */detail: String
     )
 
     
@@ -1222,7 +1222,7 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
             lon: try FfiConverterDouble.read(from: &buf)
             )
         case 3: return .Other(
-            message: try FfiConverterString.read(from: &buf)
+            detail: try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -1248,9 +1248,9 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
             FfiConverterDouble.write(lon, into: &buf)
             
         
-        case let .Other(message):
+        case let .Other(detail):
             writeInt(&buf, Int32(3))
-            FfiConverterString.write(message, into: &buf)
+            FfiConverterString.write(detail, into: &buf)
             
         }
     }
