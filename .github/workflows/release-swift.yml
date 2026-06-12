@@ -3,8 +3,9 @@ name: Release (SwiftPM)
 # Builds the XCFramework for `geocoordinates` and wires it into the root
 # Package.swift for Swift Package Manager.
 #
-# Trigger: the `v*` GitHub Release that release-plz creates for the core crate.
-# `workflow_dispatch` builds the XCFramework without publishing (dry run).
+# Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
+# `publish=true`). A manual `workflow_dispatch` (publish defaulting to false) builds
+# the XCFramework without publishing (dry run).
 #
 # No external account: SwiftPM resolves from the git tag + the GitHub Release.
 # Because a binaryTarget checksum is self-referential (it depends on the built
@@ -17,8 +18,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Tag to build, e.g. v0.1.0 (dry run; does not publish)"
+        description: "Tag to build, e.g. v0.1.0"
         required: false
+      publish:
+        description: "Upload to the release + re-point the tag (set by release-plz; manual dispatch = dry run)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,10 +42,12 @@ jobs:
         id: xcf
         run: bash crates/geocoordinates-ffi/swift/build-xcframework.sh
       - name: Publish to the release + re-point tag
-        if: github.event_name == 'release'
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+          # On a release event this is the release tag; on a release-plz dispatch the
+          # workflow runs at `--ref <tag>`, so ref_name is that same tag.
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
           CHECKSUM: ${{ steps.xcf.outputs.checksum }}
         run: |
           set -euo pipefail

@@ -16,6 +16,7 @@ jobs:
       contents: write # push tags, create GitHub releases
       pull-requests: read # detect the release PR
       id-token: write # OIDC token exchange for crates.io Trusted Publishing
+      actions: write # dispatch the per-language binding release workflows
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,11 +26,41 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
+        id: release-plz
         uses: release-plz/action@v0.5.130
         with:
           command: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Kick off the per-language binding publishes (release-jvm/python/web/swift).
+      #
+      # We cannot rely on those workflows' `release: published` trigger: GitHub does
+      # not fire workflow events for actions taken with the default GITHUB_TOKEN, so
+      # the release release-plz just created would never start them. Dispatching is the
+      # documented exception — `workflow_dispatch` always creates a run, even from the
+      # default token — so this needs NO PAT or other stored/expiring secret. We pass
+      # the released tag + version (and publish=true) so each workflow publishes the
+      # matching code instead of dry-running.
+      - name: Dispatch binding release workflows
+        if: ${{ steps.release-plz.outputs.releases_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASES: ${{ steps.release-plz.outputs.releases }}
+        run: |
+          set -uo pipefail
+          tag=$(printf '%s' "$RELEASES" | jq -r '.[0].tag')
+          version=$(printf '%s' "$RELEASES" | jq -r '.[0].version')
+          [ -n "$tag" ] && [ "$tag" != "null" ] || { echo "::error::no tag in release output"; exit 1; }
+          echo "Dispatching binding workflows for tag=$tag version=$version"
+          rc=0
+          for wf in release-jvm.yml release-python.yml release-web.yml release-swift.yml; do
+            if gh workflow run "$wf" --ref "$tag" -f version="$version" -f publish=true; then
+              echo "dispatched $wf"
+            else
+              echo "::warning::failed to dispatch $wf"; rc=1
+            fi
+          done
+          exit $rc
 
   # Maintain the release PR (version bump + CHANGELOG) as commits land on master.
   release-plz-pr:

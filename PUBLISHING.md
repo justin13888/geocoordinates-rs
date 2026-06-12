@@ -6,11 +6,22 @@ core Rust crate continues to publish to crates.io via release-plz, untouched.
 
 ## Trigger & versioning
 
-Every binding workflow runs on the **`v*` GitHub Release** that release-plz creates
-when a release PR merges. Each derives the version from the release tag, so the Rust
-crate version is the single source of truth and all packages release in lockstep.
-Each workflow also has a `workflow_dispatch` entry that **builds/packages but does not
-publish** — use it to dry-run a pipeline.
+When a release PR merges, `release-plz.yml` cuts the **`v*` GitHub Release** and then
+**dispatches** the four binding workflows, passing the released tag + version and
+`publish=true`. Each tracks the Rust crate version, so it is the single source of truth
+and all packages release in lockstep. Each workflow also accepts a plain manual
+`workflow_dispatch` (with `publish` defaulting to **false**) that **builds/packages but
+does not publish** — use it to dry-run a pipeline.
+
+> **No tokens to manage.** A GitHub Release created with the default `GITHUB_TOKEN` does
+> not fire `release: published` (GitHub's recursion guard), so the binding workflows
+> can't simply trigger off the release. Rather than introduce a PAT (which GitHub forces
+> to expire), `release-plz.yml` **dispatches** them: `workflow_dispatch` is explicitly
+> exempt from that guard — it runs even when invoked with the default token — so the
+> whole chain needs no stored, expiring secret. (Registry auth is separate and uses
+> trusted publishing / OIDC where the ecosystem supports it; see the table below.)
+> The binding workflows keep a `release: published` trigger too, so manually publishing
+> a GitHub Release still works as an escape hatch.
 
 | Registry | Package | Workflow | Tooling | Auth |
 |---|---|---|---|---|
