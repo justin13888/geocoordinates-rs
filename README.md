@@ -62,12 +62,19 @@ Each language's bindings are published to its registry on every `v*` release, us
 that ecosystem's native tooling. See [PUBLISHING.md](PUBLISHING.md) for the release
 workflows and registry setup.
 
-| Ecosystem | Install |
-|---|---|
-| Python (PyPI) | `pip install geocoordinates-rs` |
-| TypeScript/WASM (npm) | `npm install geocoordinates-rs` |
-| Kotlin / Java (Maven Central) | `io.github.justin13888:geocoordinates` |
-| Swift (SwiftPM) | `.package(url: "https://github.com/justin13888/geocoordinates-rs", from: "0.1.0")` |
+| Language | Registry | Package | Install |
+|---|---|---|---|
+| Python | [PyPI](https://pypi.org/project/geocoordinates-rs/) | `geocoordinates-rs` | `pip install geocoordinates-rs` |
+| TypeScript / WASM | [npm](https://www.npmjs.com/package/geocoordinates-rs) | `geocoordinates-rs` | `npm install geocoordinates-rs` |
+| Kotlin / Java | [Maven Central](https://central.sonatype.com/artifact/io.github.justin13888/geocoordinates)&nbsp;† | `io.github.justin13888:geocoordinates` | add the coordinate to Gradle / Maven |
+| Swift | [GitHub Releases](https://github.com/justin13888/geocoordinates-rs/releases) | `GeoCoordinates` | `.package(url: "https://github.com/justin13888/geocoordinates-rs", from: "0.1.1")` |
+
+> † **Maven Central** publishing is pending registry credentials — the JVM workflow builds the
+> artifact but skips the upload until the Central Portal token and GPG key are configured (see
+> [PUBLISHING.md](PUBLISHING.md)).
+
+> The native Rust crate is published separately to
+> [crates.io](https://crates.io/crates/geocoordinates) (`cargo add geocoordinates`).
 
 ## Prerequisites
 
