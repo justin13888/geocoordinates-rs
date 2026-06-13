@@ -162,28 +162,32 @@ pub enum Axis {
     Longitude,
 }
 
-// --- Angle normalization helpers: released with the angles-and-units milestone (see ROADMAP.md) ---
-/*
 /// Wrap a longitude into the half-open range `[-180, 180)`.
+///
+/// The range is **half-open**: the antimeridian normalizes to the western
+/// edge, so `wrap_longitude(180.0) == -180.0`. Finite input is expected
+/// (a non-finite input propagates as `NaN`).
 #[must_use]
 pub fn wrap_longitude(lon_deg: f64) -> f64 {
-    todo!("normalize longitude across the antimeridian")
+    (lon_deg + 180.0).rem_euclid(360.0) - 180.0
 }
 
-/// Clamp a latitude into `[-90, 90]`.
+/// Clamp a latitude into the closed range `[-90, 90]`.
+///
+/// Both poles are included. Finite input is expected.
 #[must_use]
 pub fn clamp_latitude(lat_deg: f64) -> f64 {
-    todo!("clamp latitude to the poles")
+    lat_deg.clamp(-90.0, 90.0)
 }
 
 /// Normalize an angle (degrees) into `[0, 360)`.
 ///
 /// Use for bearings/azimuths as well — a bearing is just an angle in `[0, 360)`.
+/// Finite input is expected.
 #[must_use]
 pub fn normalize_degrees(deg: f64) -> f64 {
-    todo!("deg.rem_euclid(360.0)")
+    deg.rem_euclid(360.0)
 }
-*/
 
 #[cfg(test)]
 mod tests {
@@ -297,5 +301,38 @@ mod tests {
         assert_close(Hemisphere::East.sign(), 1.0, 0.0);
         assert_close(Hemisphere::South.sign(), -1.0, 0.0);
         assert_close(Hemisphere::West.sign(), -1.0, 0.0);
+    }
+
+    #[test]
+    fn wrap_longitude_is_half_open() {
+        // The antimeridian normalizes to the western edge.
+        assert_close(wrap_longitude(180.0), -180.0, 1e-12);
+        assert_close(wrap_longitude(-180.0), -180.0, 1e-12);
+        assert_close(wrap_longitude(540.0), -180.0, 1e-12);
+        assert_close(wrap_longitude(190.0), -170.0, 1e-12);
+        assert_close(wrap_longitude(-190.0), 170.0, 1e-12);
+        assert_close(wrap_longitude(0.0), 0.0, 1e-12);
+        assert_close(wrap_longitude(179.999), 179.999, 1e-12);
+        // Already-in-range values are unchanged.
+        assert_close(wrap_longitude(-73.5), -73.5, 1e-12);
+    }
+
+    #[test]
+    fn clamp_latitude_includes_poles() {
+        assert_close(clamp_latitude(90.0), 90.0, 1e-12);
+        assert_close(clamp_latitude(-90.0), -90.0, 1e-12);
+        assert_close(clamp_latitude(91.0), 90.0, 1e-12);
+        assert_close(clamp_latitude(-90.5), -90.0, 1e-12);
+        assert_close(clamp_latitude(45.0), 45.0, 1e-12);
+    }
+
+    #[test]
+    fn normalize_degrees_is_zero_to_360() {
+        assert_close(normalize_degrees(0.0), 0.0, 1e-12);
+        assert_close(normalize_degrees(-0.0), 0.0, 1e-12);
+        assert_close(normalize_degrees(360.0), 0.0, 1e-12);
+        assert_close(normalize_degrees(-1.0), 359.0, 1e-12);
+        assert_close(normalize_degrees(720.5), 0.5, 1e-12);
+        assert_close(normalize_degrees(45.0), 45.0, 1e-12);
     }
 }
