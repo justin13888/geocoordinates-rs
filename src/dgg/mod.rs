@@ -126,6 +126,11 @@ mod tests {
                     .decode()
                     .max_error_m()
         );
+        // A resolution-9 cell is ~200 m across — pins the area → radius formula.
+        let bound9 = H3Cell::encode(c(40.7128, -74.006), 9)
+            .decode()
+            .max_error_m();
+        assert!((150.0..260.0).contains(&bound9), "res-9 bound {bound9}");
     }
 
     #[cfg(feature = "s2")]
@@ -153,5 +158,10 @@ mod tests {
                     .decode()
                     .max_error_m()
         );
+        // A level-20 cell is a few meters across — pins the level → radius formula.
+        let bound20 = S2CellId::encode(c(40.7128, -74.006), 20)
+            .decode()
+            .max_error_m();
+        assert!((4.0..12.0).contains(&bound20), "level-20 bound {bound20}");
     }
 }
