@@ -128,16 +128,15 @@ impl PlusCode {
         let mut grid_lat = 0i64;
         let mut grid_lon = 0i64;
 
-        let pair_digits = digits.len().min(PAIR_CODE_LENGTH);
+        let pairs = digits.len().min(PAIR_CODE_LENGTH) / 2;
         let mut place = PAIR_FIRST_PLACE_VALUE;
-        let mut i = 0;
-        while i < pair_digits {
+        for pair in 0..pairs {
+            let i = pair * 2;
             normal_lat += digits[i] * place;
             normal_lon += digits[i + 1] * place;
-            if i < pair_digits - 2 {
+            if pair + 1 < pairs {
                 place /= ENCODING_BASE;
             }
-            i += 2;
         }
         let mut lat_resolution = place as f64 / PAIR_PRECISION as f64;
         let mut lon_resolution = place as f64 / PAIR_PRECISION as f64;
