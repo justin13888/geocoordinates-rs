@@ -61,7 +61,7 @@ gpx = ["dep:gpx"] # GPX track / waypoint files
 kml = ["dep:kml"] # KML placemark documents
 #
 # Sensor / device ingestion:
-# nmea = []           # NMEA 0183 sentences — nmea parser crate
+nmea = [] # NMEA 0183 sentences (GGA/RMC/GLL), hand-rolled — no external dep
 #
 # Heavy / external integrations:
 # proj = []           # PROJ-backed EPSG long tail — proj crate (C dep)

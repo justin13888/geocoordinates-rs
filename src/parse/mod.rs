@@ -24,9 +24,8 @@ pub mod text;
 #[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml"))]
 pub mod interchange;
 
-// Deferred submodules (uncommented with their milestones — see ROADMAP.md):
-// #[cfg(feature = "nmea")]
-// pub mod sensors;
+#[cfg(feature = "nmea")]
+pub mod sensors;
 
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
