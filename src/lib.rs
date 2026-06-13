@@ -57,10 +57,10 @@ pub mod units;
 // Core-path milestones ship first (format, parse, Plus Code); the rest is
 // deferred — ROADMAP.md tracks both.
 //
+pub mod convert;
 pub mod format; // core path — DD/DMS/DDM presentation
 pub mod grids; // core path: Plus Code; deferred: UTM/UPS, MGRS, Geohash, Maidenhead
-pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferred)
-// pub mod convert; // deferred — runtime CRS dispatch
+pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferred) // runtime CRS dispatch (China typed + classic-datum Helmert)
 //
 // /// PROJ-backed transforms for the full EPSG/datum long tail (optional C dep).
 // #[cfg(feature = "proj")]
@@ -103,8 +103,7 @@ pub mod prelude {
     pub use crate::fix::{AxisOrder, DatumAmbiguity};
     pub use crate::geodesy::haversine_distance;
 
-    // Grows with each release (see ROADMAP.md):
-    // pub use crate::convert::{can_convert, convert};
+    pub use crate::convert::{can_convert, convert};
     pub use crate::format::{FormatOptions, Representation, format, format_fix};
     pub use crate::geodesy::{
         Aer, Ecef, Ellipsoid, Enu, Ned, along_track_distance, cross_track_distance, destination,
