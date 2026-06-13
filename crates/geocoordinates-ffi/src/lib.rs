@@ -366,6 +366,16 @@ pub struct FormatOptions {
     pub locale: Option<String>,
 }
 
+/// Options controlling tolerant text parsing — mirror of
+/// [`gc::TextParseOptions`](gc::parse::text::TextParseOptions).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct TextParseOptions {
+    /// Axis order to assume when the range heuristics are inconclusive.
+    pub default_axis_order: AxisOrder,
+    /// Whether to interpret `,` as a decimal separator (European locales).
+    pub decimal_comma: bool,
+}
+
 // ===========================================================================
 // Translation layer (mirror <-> core)
 // ===========================================================================
@@ -841,6 +851,24 @@ impl From<FormatOptions> for gc::format::FormatOptions {
     }
 }
 
+impl From<gc::parse::text::TextParseOptions> for TextParseOptions {
+    fn from(o: gc::parse::text::TextParseOptions) -> Self {
+        TextParseOptions {
+            default_axis_order: o.default_axis_order.into(),
+            decimal_comma: o.decimal_comma,
+        }
+    }
+}
+
+impl From<TextParseOptions> for gc::parse::text::TextParseOptions {
+    fn from(o: TextParseOptions) -> Self {
+        gc::parse::text::TextParseOptions {
+            default_axis_order: o.default_axis_order.into(),
+            decimal_comma: o.decimal_comma,
+        }
+    }
+}
+
 // ===========================================================================
 // Exported API
 // ===========================================================================
@@ -1110,4 +1138,43 @@ pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> 
     let fix: gc::Fix = fix.into();
     let options: gc::format::FormatOptions = options.into();
     gc::format::format_fix(&fix, &options).map_err(GeoError::from)
+}
+
+// --- Coordinate parsing ---
+
+/// Best-effort parse of a single coordinate from arbitrary input (a `geo:` URI,
+/// else free-text DD/DMS/DDM heuristics). The [`Fix`] records the assumed axis
+/// order and parse confidence.
+///
+/// # Errors
+/// Returns a [`GeoError`] when no interpretation is found.
+#[uniffi::export]
+pub fn parse_coordinate(input: String) -> Result<Fix, GeoError> {
+    gc::parse::parse_coordinate(&input)
+        .map(Into::into)
+        .map_err(GeoError::from)
+}
+
+/// Parse a `geo:` URI per RFC 5870 (lat-first; optional altitude; `crs`/`u`
+/// parameters).
+///
+/// # Errors
+/// Returns a [`GeoError`] when the input is not a well-formed `geo:` URI.
+#[uniffi::export]
+pub fn from_geo_uri(input: String) -> Result<Fix, GeoError> {
+    gc::parse::from_geo_uri(&input)
+        .map(Into::into)
+        .map_err(GeoError::from)
+}
+
+/// Parse a free-text coordinate with explicit tolerant-parsing options.
+///
+/// # Errors
+/// Returns a [`GeoError`] when the input cannot be interpreted.
+#[uniffi::export]
+pub fn parse_text_with(input: String, options: TextParseOptions) -> Result<Fix, GeoError> {
+    let options: gc::parse::text::TextParseOptions = options.into();
+    gc::parse::text::parse_with(&input, &options)
+        .map(Into::into)
+        .map_err(GeoError::from)
 }
