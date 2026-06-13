@@ -82,7 +82,7 @@ impl Dd {
     ///
     /// `seconds` is kept full-precision and is **not** pre-rounded, so a round
     /// trip back through [`Dd::from`] is exact. Rounding — and the 60″ carry it
-    /// can imply — is the formatter's responsibility (see [`crate::format`]).
+    /// can imply — is the formatter's responsibility (a later release).
     #[must_use]
     pub fn to_dms(self, axis: Axis) -> Dms {
         let magnitude = self.0.abs();
