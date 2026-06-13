@@ -538,4 +538,30 @@ mod tests {
         // the forward intersection is the ambiguous antipode → None.
         assert!(intersection(&c(10.0, 0.0), 270.0, &c(0.0, 10.0), 0.0).is_none());
     }
+
+    #[test]
+    fn intersection_with_two_oblique_bearings() {
+        // Both paths aim at (15, 25) from off-axis starts, so *both* bearings are
+        // oblique (neither cardinal nor zero) — exercises the second-azimuth and
+        // angular-excess terms a due-north second path leaves untouched.
+        let p = intersection(
+            &c(-20.0, 0.0),
+            36.954_284_175_619_3,
+            &c(40.0, 60.0),
+            240.745_319_307_363_2,
+        )
+        .expect("oblique intersection exists");
+        assert_close(p.lat, 15.0, 1e-4);
+        assert_close(p.lon, 25.0, 1e-4);
+    }
+
+    #[test]
+    fn intersection_with_shared_start_meridian() {
+        // Both starts sit on λ = 0, so Δλ — and `Δλ.sin()` — is exactly zero: the
+        // boundary of the east/west azimuth-assignment split. The forward crossing
+        // (NE from the equator, SE from 10°N) is at ≈(4.98°, 5°).
+        let p = intersection(&c(0.0, 0.0), 45.0, &c(10.0, 0.0), 135.0).expect("crossing exists");
+        assert_close(p.lat, 4.981_069_393_700_199, 1e-4);
+        assert_close(p.lon, 5.0, 1e-4);
+    }
 }
