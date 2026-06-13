@@ -301,4 +301,16 @@ try:
 except gc.GeoError.Other:  # Error::Parse maps to the Other catch-all
     pass
 
+# --- NMEA 0183 sentences ---
+nmea = gc.from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
+assert approx(nmea.coord.lat, 48.0 + 7.038 / 60.0, 1e-9)
+assert approx(nmea.coord.lon, 11.0 + 31.0 / 60.0, 1e-9)
+assert nmea.source.axis_order is None  # NMEA is lat-first
+assert approx(nmea.accuracy.horizontal_m, 0.9 * 5.0, 1e-9)  # HDOP x nominal UERE
+try:
+    gc.from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")  # bad checksum
+    raise AssertionError("expected a checksum error")
+except gc.GeoError.Other:
+    pass
+
 print("python smoke OK")

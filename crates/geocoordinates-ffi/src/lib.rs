@@ -2015,3 +2015,19 @@ pub fn from_kml(input: String) -> Result<Vec<Fix>, GeoError> {
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
 }
+
+// ===========================================================================
+// Sensors — NMEA 0183
+// ===========================================================================
+
+/// Parse a single NMEA 0183 sentence (GGA/RMC/GLL) into a [`Fix`]. The optional
+/// `*HH` checksum is verified when present.
+///
+/// # Errors
+/// `GeoError` on an unrecognized/invalid sentence or a checksum mismatch.
+#[uniffi::export]
+pub fn from_nmea_sentence(sentence: String) -> Result<Fix, GeoError> {
+    gc::parse::sensors::from_nmea_sentence(&sentence)
+        .map(Into::into)
+        .map_err(GeoError::from)
+}
