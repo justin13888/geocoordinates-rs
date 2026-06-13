@@ -1644,3 +1644,129 @@ pub fn intersection(
 ) -> Option<Coordinate> {
     gc::geodesy::intersection(&a.into(), bearing_a_deg, &b.into(), bearing_b_deg).map(Into::into)
 }
+
+// ===========================================================================
+// Classic datums — Helmert (Bursa-Wolf) transforms
+// ===========================================================================
+
+/// The seven Bursa-Wolf parameters of a Helmert transform — mirror of
+/// [`gc::Helmert`](gc::geodesy::Helmert). Translations in meters, rotations in
+/// arc-seconds (position-vector convention), scale in parts-per-million.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct Helmert {
+    /// X-axis translation, meters.
+    pub tx_m: f64,
+    /// Y-axis translation, meters.
+    pub ty_m: f64,
+    /// Z-axis translation, meters.
+    pub tz_m: f64,
+    /// X-axis rotation, arc-seconds (position-vector convention).
+    pub rx_arcsec: f64,
+    /// Y-axis rotation, arc-seconds (position-vector convention).
+    pub ry_arcsec: f64,
+    /// Z-axis rotation, arc-seconds (position-vector convention).
+    pub rz_arcsec: f64,
+    /// Scale difference, parts-per-million.
+    pub scale_ppm: f64,
+}
+
+/// A complete datum transform (source/target ellipsoids + the Helmert shift) —
+/// mirror of [`gc::DatumTransform`](gc::geodesy::DatumTransform).
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct DatumTransform {
+    /// Ellipsoid of the source datum.
+    pub from: Ellipsoid,
+    /// Ellipsoid of the target datum.
+    pub to: Ellipsoid,
+    /// Helmert parameters carrying the source frame to the target frame.
+    pub helmert: Helmert,
+}
+
+impl From<gc::geodesy::Helmert> for Helmert {
+    fn from(h: gc::geodesy::Helmert) -> Self {
+        Helmert {
+            tx_m: h.tx_m,
+            ty_m: h.ty_m,
+            tz_m: h.tz_m,
+            rx_arcsec: h.rx_arcsec,
+            ry_arcsec: h.ry_arcsec,
+            rz_arcsec: h.rz_arcsec,
+            scale_ppm: h.scale_ppm,
+        }
+    }
+}
+impl From<Helmert> for gc::geodesy::Helmert {
+    fn from(h: Helmert) -> Self {
+        gc::geodesy::Helmert {
+            tx_m: h.tx_m,
+            ty_m: h.ty_m,
+            tz_m: h.tz_m,
+            rx_arcsec: h.rx_arcsec,
+            ry_arcsec: h.ry_arcsec,
+            rz_arcsec: h.rz_arcsec,
+            scale_ppm: h.scale_ppm,
+        }
+    }
+}
+impl From<gc::geodesy::DatumTransform> for DatumTransform {
+    fn from(d: gc::geodesy::DatumTransform) -> Self {
+        DatumTransform {
+            from: d.from.into(),
+            to: d.to.into(),
+            helmert: d.helmert.into(),
+        }
+    }
+}
+impl From<DatumTransform> for gc::geodesy::DatumTransform {
+    fn from(d: DatumTransform) -> Self {
+        gc::geodesy::DatumTransform {
+            from: d.from.into(),
+            to: d.to.into(),
+            helmert: d.helmert.into(),
+        }
+    }
+}
+
+/// The identity Helmert transform (no translation, rotation, or scale).
+#[uniffi::export]
+pub fn helmert_identity() -> Helmert {
+    gc::geodesy::Helmert::IDENTITY.into()
+}
+
+/// Apply a Helmert transform to a geocentric (ECEF) position.
+#[uniffi::export]
+pub fn helmert_apply_ecef(helmert: Helmert, ecef: Ecef) -> Ecef {
+    gc::geodesy::Helmert::from(helmert)
+        .apply_ecef(ecef.into())
+        .into()
+}
+
+/// The inverse Helmert transform (negated parameters).
+#[uniffi::export]
+pub fn helmert_inverse(helmert: Helmert) -> Helmert {
+    gc::geodesy::Helmert::from(helmert).inverse().into()
+}
+
+/// The catalogued transform carrying `datum` to WGS-84, or `None` when none is
+/// built in (WGS-84 itself and the China obfuscation systems).
+#[uniffi::export]
+pub fn datum_transform_to_wgs84(datum: Crs) -> Option<DatumTransform> {
+    gc::geodesy::DatumTransform::to_wgs84(datum.into()).map(Into::into)
+}
+
+/// Transform a geodetic coordinate from the source to the target datum, tagging
+/// the result with `to`.
+#[uniffi::export]
+pub fn datum_transform_apply(transform: DatumTransform, coord: Coordinate, to: Crs) -> Coordinate {
+    gc::geodesy::DatumTransform::from(transform)
+        .transform(coord.into(), to.into())
+        .into()
+}
+
+/// The reverse datum transform (swaps ellipsoids, inverts the Helmert shift).
+#[uniffi::export]
+pub fn datum_transform_inverse(transform: DatumTransform) -> DatumTransform {
+    gc::geodesy::DatumTransform::from(transform)
+        .inverse()
+        .into()
+}
