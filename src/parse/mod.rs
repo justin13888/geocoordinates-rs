@@ -31,6 +31,7 @@ pub mod text;
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, Confidence, Fix, RawSource};
+use crate::grids::PlusCode;
 
 /// Axis ordering of a textual/structured coordinate. Re-exported from
 /// [`fix`](crate::fix), where it lives so parsers can record it on a [`Fix`]'s
@@ -54,8 +55,32 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("geo:"))
     {
         from_geo_uri(trimmed)
+    } else if let Ok(code) = PlusCode::try_from(trimmed) {
+        Ok(plus_code_fix(&code, input))
     } else {
         text::parse(trimmed)
+    }
+}
+
+/// Build a [`Fix`] from a decoded Plus Code: the cell center, with the cell's
+/// error bound recorded as horizontal accuracy. Axis order is unambiguous.
+fn plus_code_fix(code: &PlusCode, raw: &str) -> Fix {
+    let area = code.decode();
+    let bound = area.max_error_m();
+    Fix {
+        coord: area.into_inner(),
+        accuracy: Some(Accuracy {
+            horizontal_m: Some(bound),
+            vertical_m: None,
+        }),
+        timestamp: None,
+        source: Some(RawSource {
+            raw: raw.to_string(),
+            confidence: Confidence::new(1.0),
+            axis_order: None,
+            datum_ambiguity: None,
+            notes: Vec::new(),
+        }),
     }
 }
 
@@ -250,5 +275,33 @@ mod tests {
             let parsed = parse_coordinate(&text).unwrap();
             assert_within_meters(&parsed.coord, &c, 0.2);
         }
+    }
+
+    #[test]
+    fn parse_coordinate_detects_plus_code() {
+        let fix = parse_coordinate("8FVC2222+22").unwrap();
+        assert_close(fix.coord.lat, 47.0000625, 1e-6);
+        assert_close(fix.coord.lon, 8.0000625, 1e-6);
+        let s = fix.source.as_ref().unwrap();
+        assert_eq!(s.axis_order, None); // a Plus Code fixes the axis order
+        assert_close(s.confidence.value(), 1.0, 1e-12);
+        // The cell error bound (~8.4 m for a length-10 code) is the accuracy.
+        let acc = fix.accuracy.unwrap().horizontal_m.unwrap();
+        assert!((5.0..15.0).contains(&acc), "{acc}");
+    }
+
+    #[test]
+    fn plus_code_round_trip() {
+        use crate::format::Representation;
+        let c = Coordinate::wgs84(40.7128, -74.006);
+        let options = FormatOptions {
+            representation: Representation::PlusCode,
+            ..FormatOptions::default()
+        };
+        let code = format(&c, &options).unwrap();
+        let fix = parse_coordinate(&code).unwrap();
+        // The original lies within the decoded cell's reported bound.
+        let bound = fix.accuracy.unwrap().horizontal_m.unwrap();
+        assert_within_meters(&fix.coord, &c, bound);
     }
 }

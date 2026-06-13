@@ -9,6 +9,10 @@ use crate::angle::{Axis, Dd};
 use crate::coord::Coordinate;
 use crate::error::Result;
 use crate::fix::Fix;
+use crate::grids::PlusCode;
+
+/// Code length used when rendering a coordinate as a Plus Code (~14 m cells).
+const PLUS_CODE_FORMAT_LENGTH: usize = 10;
 
 /// Target representation for rendering a coordinate.
 ///
@@ -25,6 +29,9 @@ pub enum Representation {
     Dms,
     /// Degrees-decimal-minutes (`40°42.766′N`).
     Ddm,
+    /// Open Location Code / Plus Code (`8FVC2222+22`), at a fixed length-10
+    /// resolution. Precision/symbol/hemisphere options do not apply.
+    PlusCode,
 }
 
 /// Symbol style for DMS/DDM rendering.
@@ -124,16 +131,6 @@ enum AngleKind {
     Ddm,
 }
 
-/// Per-representation default precision when `options.precision` is `None`:
-/// decimal degrees (6 ≈ 0.11 m), DMS seconds (2), DDM minutes (3).
-fn default_precision(rep: Representation) -> u8 {
-    match rep {
-        Representation::DecimalDegrees => 6,
-        Representation::Dms => 2,
-        Representation::Ddm => 3,
-    }
-}
-
 /// Decimal places implied by a horizontal accuracy, so digits finer than the
 /// fix's resolution are not printed. `None` (unusable accuracy) → caller's
 /// default. One degree of latitude ≈ 111,195 m.
@@ -148,12 +145,12 @@ fn precision_for_accuracy(horizontal_m: f64) -> Option<u8> {
 }
 
 fn render(coord: &Coordinate, options: &FormatOptions) -> String {
-    let p = options
-        .precision
-        .unwrap_or_else(|| default_precision(options.representation));
     let comma = uses_decimal_comma(options.locale.as_deref());
+    // Per-representation default precision when none is given: DD 6 (~0.11 m),
+    // DMS seconds 2, DDM minutes 3. Plus Code ignores precision entirely.
     match options.representation {
         Representation::DecimalDegrees => {
+            let p = options.precision.unwrap_or(6);
             let lat = render_dd(coord.lat, Axis::Latitude, options, p, comma);
             let lon = render_dd(coord.lon, Axis::Longitude, options, p, comma);
             // A comma decimal separator collides with a ", " list separator, so
@@ -161,8 +158,17 @@ fn render(coord: &Coordinate, options: &FormatOptions) -> String {
             let sep = if comma { " " } else { ", " };
             format!("{lat}{sep}{lon}")
         }
-        Representation::Dms => render_angle_pair(coord, options, p, comma, AngleKind::Dms),
-        Representation::Ddm => render_angle_pair(coord, options, p, comma, AngleKind::Ddm),
+        Representation::Dms => {
+            let p = options.precision.unwrap_or(2);
+            render_angle_pair(coord, options, p, comma, AngleKind::Dms)
+        }
+        Representation::Ddm => {
+            let p = options.precision.unwrap_or(3);
+            render_angle_pair(coord, options, p, comma, AngleKind::Ddm)
+        }
+        Representation::PlusCode => PlusCode::encode(*coord, PLUS_CODE_FORMAT_LENGTH)
+            .as_str()
+            .to_string(),
     }
 }
 
@@ -612,6 +618,24 @@ mod tests {
                 ),
             ),
             "0°00′00″N 0°00′00″E"
+        );
+    }
+
+    #[test]
+    fn plus_code_representation() {
+        let c = Coordinate::wgs84(47.0000625, 8.0000625);
+        assert_eq!(
+            fmt(
+                &c,
+                &opts(
+                    Representation::PlusCode,
+                    None,
+                    SymbolStyle::Unicode,
+                    HemisphereStyle::Signed,
+                    None,
+                ),
+            ),
+            "8FVC2222+22"
         );
     }
 }
