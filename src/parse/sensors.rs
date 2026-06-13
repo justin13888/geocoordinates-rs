@@ -196,6 +196,8 @@ mod tests {
         let fix = from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1D").unwrap();
         assert_close(fix.coord.lat, 49.0 + 16.45 / 60.0, 1e-9);
         assert_close(fix.coord.lon, -(123.0 + 11.12 / 60.0), 1e-9);
+        // Status "A" is valid, so no void note is attached.
+        assert!(fix.source.unwrap().notes.is_empty());
     }
 
     #[test]
