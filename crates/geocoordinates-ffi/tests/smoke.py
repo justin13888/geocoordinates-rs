@@ -111,4 +111,43 @@ assert approx(fix.coord.lat, WGS[0], 1e-9)
 assert fix.accuracy is None and fix.timestamp is None and fix.source is None
 assert approx(gc.confidence_new(2.0).value, 1.0, 1e-12)  # clamped into [0, 1]
 
+# --- Coordinate formatting (DD / DMS, plus accuracy-derived precision) ---
+dd_opts = gc.FormatOptions(
+    representation=gc.Representation.DECIMAL_DEGREES,
+    precision=6,
+    symbol_style=gc.SymbolStyle.UNICODE,
+    hemisphere_style=gc.HemisphereStyle.SIGNED,
+    locale=None,
+)
+assert (
+    gc.format_coordinate(gc.coordinate_wgs84(40.7128, -74.006), dd_opts)
+    == "40.712800, -74.006000"
+)
+dms_opts = gc.FormatOptions(
+    representation=gc.Representation.DMS,
+    precision=0,
+    symbol_style=gc.SymbolStyle.UNICODE,
+    hemisphere_style=gc.HemisphereStyle.CARDINAL,
+    locale=None,
+)
+assert (
+    gc.format_coordinate(gc.coordinate_wgs84(10.5, 20.25), dms_opts)
+    == "10°30′00″N 20°15′00″E"
+)
+# format_fix derives precision from accuracy when precision is None (~1 km -> 2 dp)
+auto_opts = gc.FormatOptions(
+    representation=gc.Representation.DECIMAL_DEGREES,
+    precision=None,
+    symbol_style=gc.SymbolStyle.UNICODE,
+    hemisphere_style=gc.HemisphereStyle.SIGNED,
+    locale=None,
+)
+km_fix = gc.Fix(
+    coord=gc.coordinate_wgs84(40.7128, -74.006),
+    accuracy=gc.Accuracy(horizontal_m=1000.0, vertical_m=None),
+    timestamp=None,
+    source=None,
+)
+assert gc.format_fix(km_fix, auto_opts) == "40.71, -74.01"
+
 print("python smoke OK")
