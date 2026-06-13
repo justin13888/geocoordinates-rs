@@ -50,18 +50,45 @@ impl Ellipsoid {
     /// Flattening `f`.
     #[must_use]
     pub fn flattening(&self) -> f64 {
-        todo!("1.0 / inverse_flattening")
+        1.0 / self.inverse_flattening
     }
 
     /// Semi-minor axis `b`, in meters.
     #[must_use]
     pub fn semi_minor_m(&self) -> f64 {
-        todo!("a * (1 - f)")
+        self.semi_major_m * (1.0 - self.flattening())
     }
 
-    /// First eccentricity squared `e²`.
+    /// First eccentricity squared `e² = f(2 − f)`.
     #[must_use]
     pub fn eccentricity_sq(&self) -> f64 {
-        todo!("f * (2 - f)")
+        let f = self.flattening();
+        f * (2.0 - f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::assert_close;
+
+    #[test]
+    fn wgs84_derived_quantities() {
+        let e = Ellipsoid::WGS84;
+        assert_close(e.flattening(), 1.0 / 298.257_223_563, 1e-18);
+        assert_close(e.semi_minor_m(), 6_356_752.314_245_18, 1e-6);
+        assert_close(e.eccentricity_sq(), 0.006_694_379_990_141_32, 1e-15);
+    }
+
+    #[test]
+    fn sphere_has_no_flattening() {
+        // A sphere (inverse_flattening = ∞) has f = 0, b = a, e² = 0.
+        let sphere = Ellipsoid {
+            semi_major_m: 1000.0,
+            inverse_flattening: f64::INFINITY,
+        };
+        assert_close(sphere.flattening(), 0.0, 0.0);
+        assert_close(sphere.semi_minor_m(), 1000.0, 1e-12);
+        assert_close(sphere.eccentricity_sq(), 0.0, 0.0);
     }
 }
