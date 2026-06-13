@@ -58,8 +58,8 @@ pub mod units;
 // deferred — ROADMAP.md tracks both.
 //
 pub mod format; // core path — DD/DMS/DDM presentation
+pub mod grids; // core path: Plus Code; deferred: UTM/UPS, MGRS, Geohash, Maidenhead
 pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferred)
-// pub mod grids; // core path: Plus Code; deferred: UTM/UPS, MGRS, Geohash, Maidenhead
 // pub mod convert; // deferred — runtime CRS dispatch
 //
 // /// PROJ-backed transforms for the full EPSG/datum long tail (optional C dep).
@@ -112,6 +112,6 @@ pub mod prelude {
     //     initial_bearing, intermediate, intersection, midpoint, rhumb_bearing,
     //     rhumb_destination, rhumb_distance,
     // };
-    // pub use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
+    pub use crate::grids::PlusCode;
     pub use crate::parse::parse_coordinate;
 }
