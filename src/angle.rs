@@ -142,14 +142,20 @@ impl From<Dms> for Dd {
     fn from(dms: Dms) -> Self {
         let magnitude =
             f64::from(dms.degrees) + f64::from(dms.minutes) / 60.0 + dms.seconds / 3600.0;
-        Dd(magnitude * dms.hemisphere.sign())
+        match dms.hemisphere {
+            Hemisphere::North | Hemisphere::East => Dd(magnitude),
+            Hemisphere::South | Hemisphere::West => Dd(-magnitude),
+        }
     }
 }
 
 impl From<Ddm> for Dd {
     fn from(ddm: Ddm) -> Self {
         let magnitude = f64::from(ddm.degrees) + ddm.minutes / 60.0;
-        Dd(magnitude * ddm.hemisphere.sign())
+        match ddm.hemisphere {
+            Hemisphere::North | Hemisphere::East => Dd(magnitude),
+            Hemisphere::South | Hemisphere::West => Dd(-magnitude),
+        }
     }
 }
 
@@ -169,7 +175,8 @@ pub enum Axis {
 /// (a non-finite input propagates as `NaN`).
 #[must_use]
 pub fn wrap_longitude(lon_deg: f64) -> f64 {
-    (lon_deg + 180.0).rem_euclid(360.0) - 180.0
+    let east = lon_deg.rem_euclid(360.0); // [0, 360)
+    if east >= 180.0 { east - 360.0 } else { east }
 }
 
 /// Clamp a latitude into the closed range `[-90, 90]`.
