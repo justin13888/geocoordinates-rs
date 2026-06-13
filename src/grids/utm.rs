@@ -317,6 +317,9 @@ mod tests {
         // Norway: 5°E across band V belongs to the widened zone 32.
         assert_eq!(zone_for(60.0, 5.0), 32);
         assert_eq!(zone_for(60.0, 2.0), 31); // west of the widening stays 31
+        // Both predicates must hold (not either): a 5°E point south of band V
+        // keeps its normal zone.
+        assert_eq!(zone_for(30.0, 5.0), 31);
         // Svalbard: odd zones 31/33/37 widen, 32/34/36 vanish.
         assert_eq!(zone_for(78.0, 8.0), 31);
         assert_eq!(zone_for(78.0, 20.0), 33);
@@ -351,6 +354,12 @@ mod tests {
         assert_eq!((u.zone, u.hemisphere), (56, Hemisphere::South));
         assert_close(u.easting, 334_900.569_650_6, 1e-3);
         assert_close(u.northing, 6_252_288.752_863_7, 1e-3);
+
+        // The equator is northern (lat == 0 is not "< 0"), so no 10 000 km false
+        // northing is applied.
+        let eq = Utm::try_from_coordinate(c(0.0, 3.0)).unwrap();
+        assert_eq!(eq.hemisphere, Hemisphere::North);
+        assert_close(eq.northing, 0.0, 1e-3);
     }
 
     #[test]

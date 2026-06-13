@@ -318,10 +318,12 @@ mod tests {
         (60.0, 5.0, "32VKM7697958157"),
         (0.0, 0.0, "31NAA6602100000"),
         (-1.0, -1.0, "30MYD2256189402"),
+        (80.0, 20.0, "33XWJ9681385748"), // UTM latitude band X (72°–84°)
         (85.0, 0.0, "ZAB0000044542"),
         (87.0, 45.0, "ZCE3556864431"),
         (-85.0, 30.0, "BCS7772881040"),
         (89.0, -150.0, "YZH4448696151"),
+        (-85.0, -100.0, "ASM5298103545"), // UPS zone A (south-west)
     ];
 
     #[test]
@@ -386,6 +388,42 @@ mod tests {
     fn parsing_accepts_lowercase_and_spaces() {
         let m = Mgrs::try_from("18t wk 00000 27757").expect("normalized");
         assert_eq!(m.as_str(), "18TWK0000027757");
+    }
+
+    #[test]
+    fn decode_coarse_precision_scales_the_digits() {
+        // 100 m precision (3+3 digits): the digit value must be multiplied by the
+        // cell size, not divided — and the result lands within one cell.
+        let m = Mgrs::try_from("31UDQ482119").expect("valid");
+        assert_eq!(m.precision_m(), 100);
+        let approx = m.to_coordinate();
+        assert_eq!(approx.max_error_m(), 50.0);
+        assert_within_meters(approx.value(), &c(48.8584, 2.2945), 100.0);
+        // Polar coarse decode (UPS zone A) likewise.
+        let p = Mgrs::try_from("APL239455").expect("valid");
+        assert_within_meters(p.to_coordinate().value(), &c(-82.0, -100.0), 100.0);
+    }
+
+    #[test]
+    fn decode_bare_hundred_kilometer_square() {
+        // No digits at all: a valid 100 km reference (the trailing length is
+        // exactly the three letters — must not be rejected as too short).
+        let m = Mgrs::try_from("18TWK").expect("valid 100 km ref");
+        assert_eq!(m.precision_m(), 100_000);
+        assert_within_meters(m.to_coordinate().value(), &c(40.0, -75.0), 80_000.0);
+    }
+
+    #[test]
+    fn decode_accepts_single_digit_zone() {
+        // Zone 4 written without the leading zero (split == 1 is valid).
+        let m = Mgrs::try_from("4QFH0460911793").expect("valid");
+        assert_within_meters(m.to_coordinate().value(), &c(20.0, -158.0), 1.0);
+    }
+
+    #[test]
+    fn decode_rejects_three_digit_zone() {
+        // A three-digit zone designator (split > 2) is malformed.
+        assert!(Mgrs::try_from("012TWK0000027757").is_err());
     }
 
     #[test]
