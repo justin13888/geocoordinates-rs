@@ -330,4 +330,32 @@ mod tests {
             Some(AxisOrder::LonLat)
         );
     }
+
+    #[cfg(feature = "kml")]
+    #[test]
+    fn kml_exercises_every_geometry_arm() {
+        // Folders, bare geometries, and placemark-wrapped geometries — covering
+        // every Kml/Geometry variant the walker handles.
+        let doc = r#"<?xml version="1.0"?>
+            <kml xmlns="http://www.opengis.net/kml/2.2"><Folder>
+              <Point><coordinates>1,1</coordinates></Point>
+              <LineString><coordinates>2,2 3,3</coordinates></LineString>
+              <LinearRing><coordinates>4,4 5,5 6,6 4,4</coordinates></LinearRing>
+              <Polygon><outerBoundaryIs><LinearRing>
+                <coordinates>7,7 8,8 9,9 7,7</coordinates></LinearRing></outerBoundaryIs></Polygon>
+              <MultiGeometry><Point><coordinates>10,10</coordinates></Point></MultiGeometry>
+              <Placemark><LineString><coordinates>11,11 12,12</coordinates></LineString></Placemark>
+              <Placemark><Polygon><outerBoundaryIs><LinearRing>
+                <coordinates>13,13 14,14 15,15 13,13</coordinates>
+                </LinearRing></outerBoundaryIs></Polygon></Placemark>
+              <Placemark><MultiGeometry>
+                <Point><coordinates>19,19</coordinates></Point></MultiGeometry></Placemark>
+              <Placemark><LinearRing>
+                <coordinates>20,20 21,21 22,22 20,20</coordinates></LinearRing></Placemark>
+            </Folder></kml>"#;
+        let fixes = from_kml(doc).unwrap();
+        // 1 + 2 + 4 + 4 + 1 (bare) + 2 + 4 + 1 + 4 (placemark) = 23 positions;
+        // every geometry/walk arm contributes, so deleting any one is caught.
+        assert_eq!(fixes.len(), 23);
+    }
 }
