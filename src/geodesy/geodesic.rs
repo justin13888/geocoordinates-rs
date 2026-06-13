@@ -558,10 +558,11 @@ mod tests {
     #[test]
     fn intersection_with_shared_start_meridian() {
         // Both starts sit on λ = 0, so Δλ — and `Δλ.sin()` — is exactly zero: the
-        // boundary of the east/west azimuth-assignment split. The forward crossing
-        // (NE from the equator, SE from 10°N) is at ≈(4.98°, 5°).
-        let p = intersection(&c(0.0, 0.0), 45.0, &c(10.0, 0.0), 135.0).expect("crossing exists");
-        assert_close(p.lat, 4.981_069_393_700_199, 1e-4);
-        assert_close(p.lon, 5.0, 1e-4);
+        // boundary of the east/west azimuth-assignment split. Asymmetric bearings
+        // (60° from the equator, 150° from 30°N) make the two assignment branches
+        // diverge, so the forward crossing ≈(7.19°, 12.63°) pins the correct one.
+        let p = intersection(&c(0.0, 0.0), 60.0, &c(30.0, 0.0), 150.0).expect("crossing exists");
+        assert_close(p.lat, 7.192_933_677_582_753_5, 1e-4);
+        assert_close(p.lon, 12.626_340_872_961_284, 1e-4);
     }
 }
