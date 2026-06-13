@@ -1,7 +1,7 @@
 //! Projected and encoded grid systems.
 //!
-//! Currently: **Plus Codes** (Open Location Code) — see [`encoded`]. UTM/UPS,
-//! MGRS, Geohash, and Maidenhead are scaffolded but deferred (see `ROADMAP.md`).
+//! Currently: **Plus Codes**, **Geohash**, and **Maidenhead** — see
+//! [`encoded`]. UTM/UPS and MGRS are scaffolded but deferred (see `ROADMAP.md`).
 //!
 //! Encoding a point into a cell is exact, but **decoding** yields a cell with
 //! spatial extent — those methods return [`Approx`](crate::Approx) carrying the
@@ -16,7 +16,6 @@ pub mod encoded;
 // pub mod mgrs; // UTM/UPS-backed military grid
 // pub mod utm; // transverse Mercator / polar stereographic
 
-pub use encoded::PlusCode;
-// pub use encoded::{Geohash, Maidenhead};
+pub use encoded::{Geohash, Maidenhead, PlusCode};
 // pub use mgrs::Mgrs;
 // pub use utm::{Ups, Utm};

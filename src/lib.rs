@@ -112,6 +112,6 @@ pub mod prelude {
     //     initial_bearing, intermediate, intersection, midpoint, rhumb_bearing,
     //     rhumb_destination, rhumb_distance,
     // };
-    pub use crate::grids::PlusCode;
+    pub use crate::grids::{Geohash, Maidenhead, PlusCode};
     pub use crate::parse::parse_coordinate;
 }
