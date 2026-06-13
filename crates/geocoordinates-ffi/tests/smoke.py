@@ -192,4 +192,12 @@ assert (
     == "8FVC2222+22"
 )
 
+# --- Geohash and Maidenhead ---
+assert gc.geohash_encode(gc.coordinate_wgs84(42.6, -5.6), 5) == "ezs42"
+gh = gc.geohash_decode("ezs42")
+assert gh.max_error_m > 0.0
+assert gc.maidenhead_encode(gc.coordinate_wgs84(40.5, -75.0), 2) == "FN20"
+mh = gc.maidenhead_decode("FN20")
+assert approx(mh.lat, 40.5, 1e-9) and approx(mh.lon, -75.0, 1e-9)
+
 print("python smoke OK")
