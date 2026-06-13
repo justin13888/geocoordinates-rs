@@ -1,6 +1,6 @@
 [package]
 name = "geocoordinates"
-version = "0.11.0"
+version = "0.12.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Low-level geospatial coordinate primitives: China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities."
@@ -33,7 +33,9 @@ geographiclib-rs = { version = "0.2", default-features = false } # Karney geodes
 geojson = { version = "1.0", optional = true }
 wkt = { version = "0.14", optional = true }
 gpx = { version = "0.10", optional = true }
-kml = { version = "0.13", optional = true }
+# `default-features = false` drops the `zip` (KMZ) backend, which pulls a C zstd
+# dependency that is not wasm-clean; this crate parses text KML, not KMZ.
+kml = { version = "0.13", optional = true, default-features = false }
 
 [features]
 default = []

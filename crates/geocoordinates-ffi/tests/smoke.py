@@ -278,4 +278,27 @@ try:
 except gc.GeoError.Other:  # InvalidGridRef maps to the Other catch-all
     pass
 
+# --- Interchange formats (GeoJSON / WKT / GPX / KML) ---
+gj = gc.from_geojson('{"type":"Point","coordinates":[2.0,9.0,100.0]}')
+assert len(gj) == 1 and approx(gj[0].coord.lat, 9.0, 1e-9) and approx(gj[0].coord.lon, 2.0, 1e-9)
+assert gj[0].source.axis_order == gc.AxisOrder.LON_LAT
+wktfixes = gc.from_wkt("LINESTRING(0 0, 10 20)")
+assert len(wktfixes) == 2 and approx(wktfixes[1].coord.lat, 20.0, 1e-9)
+gpxfixes = gc.from_gpx(
+    '<?xml version="1.0"?><gpx version="1.1" creator="t"'
+    ' xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="48.2" lon="16.3"/></gpx>'
+)
+assert len(gpxfixes) == 1 and approx(gpxfixes[0].coord.lat, 48.2, 1e-9)
+assert gpxfixes[0].source.axis_order == gc.AxisOrder.LAT_LON
+kmlfixes = gc.from_kml(
+    '<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+    "<Placemark><Point><coordinates>16.3,48.2</coordinates></Point></Placemark></Document></kml>"
+)
+assert len(kmlfixes) == 1 and approx(kmlfixes[0].coord.lon, 16.3, 1e-9)
+try:
+    gc.from_geojson("not json")
+    raise AssertionError("expected a parse error")
+except gc.GeoError.Other:  # Error::Parse maps to the Other catch-all
+    pass
+
 print("python smoke OK")
