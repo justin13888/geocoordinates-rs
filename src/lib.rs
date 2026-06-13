@@ -70,9 +70,9 @@ pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferr
 // #[cfg(feature = "geoid")]
 // pub mod height;
 //
-// /// Discrete global grid indexing (H3 / S2), via external crates (optional).
-// #[cfg(any(feature = "h3", feature = "s2"))]
-// pub mod dgg;
+/// Discrete global grid indexing (H3 / S2), via external crates (optional).
+#[cfg(any(feature = "h3", feature = "s2"))]
+pub mod dgg;
 
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]

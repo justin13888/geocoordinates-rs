@@ -37,6 +37,10 @@ gpx = { version = "0.10", optional = true }
 # dependency that is not wasm-clean; this crate parses text KML, not KMZ.
 kml = { version = "0.13", optional = true, default-features = false }
 
+# Discrete global grid indexing (feature-gated — see [features]).
+h3o = { version = "0.10", optional = true }
+s2 = { version = "0.0.13", optional = true }
+
 [features]
 default = []
 # Enable serde Serialize/Deserialize on this crate's value/option/id types.
@@ -63,11 +67,13 @@ kml = ["dep:kml"] # KML placemark documents
 # Sensor / device ingestion:
 nmea = [] # NMEA 0183 sentences (GGA/RMC/GLL), hand-rolled — no external dep
 #
-# Heavy / external integrations:
-# proj = []           # PROJ-backed EPSG long tail — proj crate (C dep)
-# geoid = []          # EGM96/EGM2008 geoid models — bundled/loaded grid data
-# h3 = []             # Uber H3 indexing — h3o crate
-# s2 = []             # Google S2 indexing — s2 crate
+# Discrete global grid indexing:
+h3 = ["dep:h3o"] # Uber H3 indexing
+s2 = ["dep:s2"] # Google S2 indexing
+#
+# Heavy / external integrations (BLOCKED — see dgg module docs / README):
+# proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
+# geoid = []          # EGM96/EGM2008 geoid models — needs multi-MB grid data files
 #
 # Convenience: enable every optional capability (restore entries as they return).
 # full = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "proj", "geoid", "h3", "s2"]
