@@ -17,9 +17,12 @@ use crate::error::{Error, Result};
 /// GCJ-02 and BD-09 are obfuscation transforms rather than true geodetic
 /// datums, but are modeled here as reference systems so the central
 /// `convert` dispatch (a later release) can dispatch over them uniformly.
+///
+/// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
+/// so adding a datum here is a deliberate, compile-forcing change on both sides
+/// (a wildcard fallback would silently mislabel an unknown datum as WGS-84).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
 pub enum Crs {
     /// WGS-84 — the global GNSS reference and library default.
     Wgs84,
