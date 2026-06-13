@@ -324,6 +324,9 @@ mod tests {
         assert_eq!(zone_for(78.0, 8.0), 31);
         assert_eq!(zone_for(78.0, 20.0), 33);
         assert_eq!(zone_for(72.5, 35.0), 37);
+        // The Svalbard widening also needs both predicates: 20°E below the band
+        // keeps its normal zone 34, not the Svalbard zone 33.
+        assert_eq!(zone_for(40.0, 20.0), 34);
         // Antimeridian and prime-meridian extremes.
         assert_eq!(zone_for(0.0, -180.0), 1);
         assert_eq!(zone_for(0.0, 179.999), 60);

@@ -318,7 +318,7 @@ mod tests {
         (60.0, 5.0, "32VKM7697958157"),
         (0.0, 0.0, "31NAA6602100000"),
         (-1.0, -1.0, "30MYD2256189402"),
-        (80.0, 20.0, "33XWJ9681385748"), // UTM latitude band X (72°–84°)
+        (82.0, 20.0, "33XWM7759308183"), // UTM band X, above 80.5° (pins the X decode)
         (85.0, 0.0, "ZAB0000044542"),
         (87.0, 45.0, "ZCE3556864431"),
         (-85.0, 30.0, "BCS7772881040"),
@@ -342,6 +342,12 @@ mod tests {
         let m = Mgrs::from_coordinate(c(40.0, -75.0), 100);
         assert_eq!(m.as_str(), "18TWK000277"); // 3+3 digits
         assert_eq!(m.precision_m(), 100);
+        // A non-zero easting remainder confirms the digits are scaled (divided),
+        // not multiplied: 48 252 m → "482" at 100 m precision.
+        assert_eq!(
+            Mgrs::from_coordinate(c(48.8584, 2.2945), 100).as_str(),
+            "31UDQ482119"
+        );
         // 10 km square (1 digit each), and the bare 100 km square.
         assert_eq!(
             Mgrs::from_coordinate(c(40.0, -75.0), 10_000).as_str(),
@@ -424,6 +430,14 @@ mod tests {
     fn decode_rejects_three_digit_zone() {
         // A three-digit zone designator (split > 2) is malformed.
         assert!(Mgrs::try_from("012TWK0000027757").is_err());
+    }
+
+    #[test]
+    fn decode_near_the_band_upper_edge() {
+        // 47.95°N sits just under band T's 48° ceiling; the latitude-band check
+        // must keep its upper slack (`hi + 0.5`), or this block is rejected.
+        let m = Mgrs::try_from("31TFP4933212678").expect("valid");
+        assert_within_meters(m.to_coordinate().value(), &c(47.95, 5.0), 1.0);
     }
 
     #[test]
