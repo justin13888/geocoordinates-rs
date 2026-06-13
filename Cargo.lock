@@ -199,7 +199,7 @@ dependencies = [
 
 [[package]]
 name = "geocoordinates"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "geographiclib-rs",
  "serde",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "geocoordinates-ffi"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "geocoordinates",
  "thiserror",

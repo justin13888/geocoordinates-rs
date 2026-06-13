@@ -243,4 +243,16 @@ ident = gc.helmert_inverse(gc.helmert_identity())
 e = gc.helmert_apply_ecef(ident, gc.Ecef(x=4_000_000.0, y=-2_000_000.0, z=4_500_000.0))
 assert approx(e.x, 4_000_000.0, 1e-6)
 
+# --- Runtime conversion dispatch ---
+assert gc.can_convert(gc.Crs.BD09, gc.Crs.TOKYO) is True
+# WGS-84 -> GCJ-02 is exact (bound 0); the inverse is approximate (bound > 0).
+fwd = gc.convert(gc.coordinate_wgs84(WGS[0], WGS[1]), gc.Crs.GCJ02)
+assert fwd.max_error_m == 0.0 and fwd.coord.crs == gc.Crs.GCJ02
+assert approx(fwd.coord.lat, GCJ[0], 1e-9)
+inv = gc.convert(gc.coordinate_gcj02(GCJ[0], GCJ[1]), gc.Crs.WGS84)
+assert inv.max_error_m > 0.0 and approx(inv.coord.lat, WGS[0], 1e-5)
+# GCJ-02 -> BD-09 stays exact via the direct path.
+gb = gc.convert(gc.coordinate_gcj02(GCJ[0], GCJ[1]), gc.Crs.BD09)
+assert gb.max_error_m == 0.0 and approx(gb.coord.lat, BD[0], 1e-9)
+
 print("python smoke OK")
