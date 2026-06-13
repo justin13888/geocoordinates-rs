@@ -58,7 +58,7 @@ pub mod units;
 // deferred — ROADMAP.md tracks both.
 //
 pub mod format; // core path — DD/DMS/DDM presentation
-// pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferred)
+pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferred)
 // pub mod grids; // core path: Plus Code; deferred: UTM/UPS, MGRS, Geohash, Maidenhead
 // pub mod convert; // deferred — runtime CRS dispatch
 //
@@ -113,5 +113,5 @@ pub mod prelude {
     //     rhumb_destination, rhumb_distance,
     // };
     // pub use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
-    // pub use crate::parse::parse_coordinate;
+    pub use crate::parse::parse_coordinate;
 }
