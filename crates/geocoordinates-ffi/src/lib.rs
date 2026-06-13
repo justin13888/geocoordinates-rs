@@ -2031,3 +2031,37 @@ pub fn from_nmea_sentence(sentence: String) -> Result<Fix, GeoError> {
         .map(Into::into)
         .map_err(GeoError::from)
 }
+
+// ===========================================================================
+// Discrete global grids — H3
+// ===========================================================================
+//
+// S2 is intentionally not mirrored here: the `s2` crate's `float_extras`
+// dependency does not build for wasm32, so it stays native-Rust only (see the
+// `dgg` module docs). H3 (h3o) is wasm-clean and crosses the boundary.
+
+/// An H3 cell index — mirror of [`gc::H3Cell`](gc::dgg::H3Cell).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct H3Cell {
+    /// The 64-bit H3 cell index.
+    pub value: u64,
+}
+
+/// Encode a coordinate to its H3 cell index at `resolution` (0–15, clamped).
+#[uniffi::export]
+pub fn h3_encode(coord: Coordinate, resolution: u8) -> H3Cell {
+    H3Cell {
+        value: gc::dgg::H3Cell::encode(coord.into(), resolution).0,
+    }
+}
+
+/// Decode an H3 cell to its center, with the cell-radius error bound.
+#[uniffi::export]
+pub fn h3_decode(cell: H3Cell) -> ApproxCoordinate {
+    let approx = gc::dgg::H3Cell(cell.value).decode();
+    let max_error_m = approx.max_error_m();
+    ApproxCoordinate {
+        coord: approx.into_inner().into(),
+        max_error_m,
+    }
+}

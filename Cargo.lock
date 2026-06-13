@@ -394,7 +394,7 @@ dependencies = [
 
 [[package]]
 name = "geocoordinates"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "geographiclib-rs",
  "geojson",
@@ -409,7 +409,7 @@ dependencies = [
 
 [[package]]
 name = "geocoordinates-ffi"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "geocoordinates",
  "thiserror 2.0.18",
