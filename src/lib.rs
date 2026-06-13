@@ -111,8 +111,7 @@ pub mod prelude {
         final_bearing, geodesic_distance, initial_bearing, intermediate, intersection, midpoint,
         rhumb_bearing, rhumb_destination, rhumb_distance,
     };
-    // Deferred (classic-datums milestone — see ROADMAP.md):
-    // pub use crate::geodesy::{DatumTransform, Helmert};
+    pub use crate::geodesy::{DatumTransform, Helmert};
     pub use crate::grids::{Geohash, Maidenhead, PlusCode};
     pub use crate::parse::parse_coordinate;
 }

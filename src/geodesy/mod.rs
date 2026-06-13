@@ -27,6 +27,6 @@ pub use geodesic::{
     rhumb_distance,
 };
 
-// --- Deferred: released with the classic-datums milestone (see ROADMAP.md) ---
-// pub mod datum;     // Helmert / classic-datum transforms
-// pub use datum::{DatumTransform, Helmert};
+pub mod datum; // Helmert / classic-datum transforms
+
+pub use datum::{DatumTransform, Helmert};
