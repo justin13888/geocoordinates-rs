@@ -100,9 +100,11 @@ pub enum AxisOrder {
 /// Some Chinese-market devices/apps embed **GCJ-02** in metadata (e.g. EXIF)
 /// rather than WGS-84, plotting ~50–500 m off. Callers should resolve this
 /// before trusting the datum.
+///
+/// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
+/// so adding one here is a deliberate, compile-forcing change on both sides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
 pub enum DatumAmbiguity {
     /// Coordinate is in China's bounding box; datum may be GCJ-02, not WGS-84.
     PossiblyGcj02,
