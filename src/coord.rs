@@ -218,16 +218,15 @@ impl FromStr for Coordinate {
 }
 */
 
-// --- Display: released with the format milestone (see ROADMAP.md) ---
-/*
 impl fmt::Display for Coordinate {
     /// Render in decimal degrees with default precision. For other
     /// representations, symbols, or locale use [`format`](crate::format::format).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("default decimal-degrees rendering (infallible for DD)")
+        let rendered = crate::format::format(self, &crate::format::FormatOptions::default())
+            .map_err(|_| fmt::Error)?;
+        f.write_str(&rendered)
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
@@ -253,6 +252,12 @@ mod tests {
         assert!(Coordinate::wgs84(0.0, 181.0).validate().is_err());
         assert!(Coordinate::wgs84(f64::NAN, 0.0).validate().is_err());
         assert!(Coordinate::wgs84(0.0, f64::NAN).validate().is_err());
+    }
+
+    #[test]
+    fn display_renders_dd_default() {
+        let c = Coordinate::wgs84(40.7128, -74.006);
+        assert_eq!(format!("{c}"), "40.712800, -74.006000");
     }
 
     #[test]
