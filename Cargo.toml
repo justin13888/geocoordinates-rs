@@ -29,6 +29,12 @@ serde = { version = "1.0.228", features = ["derive"], optional = true }
 thiserror = "2.0.18"
 geographiclib-rs = { version = "0.2", default-features = false } # Karney geodesic engine
 
+# Interchange-format parsers (feature-gated — see [features]).
+geojson = { version = "1.0", optional = true }
+wkt = { version = "0.14", optional = true }
+gpx = { version = "0.10", optional = true }
+kml = { version = "0.13", optional = true }
+
 [features]
 default = []
 # Enable serde Serialize/Deserialize on this crate's value/option/id types.
@@ -46,11 +52,11 @@ serde = ["dep:serde"]
 # needs no cargo features. EXIF ingestion is out of scope entirely — it lives in
 # a separate library that consumes this crate's primitives.
 #
-# Interchange formats (parsers/writers):
-# geojson = ["serde"] # GeoJSON (lon-lat axis order) — serde_json / geojson crate
-# wkt = []            # WKT/WKB — wkt crate
-# gpx = []            # GPX track files — gpx crate
-# kml = []            # KML/KMZ — kml crate
+# Interchange formats (parsers):
+geojson = ["dep:geojson"] # GeoJSON (lon-lat axis order)
+wkt = ["dep:wkt"] # WKT (X-Y axis order)
+gpx = ["dep:gpx"] # GPX track / waypoint files
+kml = ["dep:kml"] # KML placemark documents
 #
 # Sensor / device ingestion:
 # nmea = []           # NMEA 0183 sentences — nmea parser crate
