@@ -147,6 +147,19 @@ pub struct ApproxGcj02 {
     pub max_error_m: f64,
 }
 
+/// The decoded cell of a Plus Code — the WGS-84 cell **center** plus the cell
+/// half-diagonal error bound. The flattened form of `Approx<Coordinate>` for
+/// the (always WGS-84) Open Location Code grid.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct PlusCodeArea {
+    /// Latitude of the cell center, in decimal degrees.
+    pub lat: f64,
+    /// Longitude of the cell center, in decimal degrees.
+    pub lon: f64,
+    /// Estimated maximum positional error (cell half-diagonal), in meters.
+    pub max_error_m: f64,
+}
+
 /// Errors surfaced across the FFI boundary — a flattened mirror of [`gc::Error`].
 ///
 /// Datum-bearing variants carry their reference systems as their canonical
@@ -327,6 +340,8 @@ pub enum Representation {
     Dms,
     /// Degrees-decimal-minutes (`40°42.766′N`).
     Ddm,
+    /// Open Location Code / Plus Code (`8FVC2222+22`).
+    PlusCode,
 }
 
 /// Symbol style for DMS/DDM rendering — mirror of [`gc::format::SymbolStyle`].
@@ -775,6 +790,7 @@ impl From<gc::format::Representation> for Representation {
             gc::format::Representation::DecimalDegrees => Representation::DecimalDegrees,
             gc::format::Representation::Dms => Representation::Dms,
             gc::format::Representation::Ddm => Representation::Ddm,
+            gc::format::Representation::PlusCode => Representation::PlusCode,
         }
     }
 }
@@ -785,6 +801,7 @@ impl From<Representation> for gc::format::Representation {
             Representation::DecimalDegrees => gc::format::Representation::DecimalDegrees,
             Representation::Dms => gc::format::Representation::Dms,
             Representation::Ddm => gc::format::Representation::Ddm,
+            Representation::PlusCode => gc::format::Representation::PlusCode,
         }
     }
 }
@@ -1177,4 +1194,32 @@ pub fn parse_text_with(input: String, options: TextParseOptions) -> Result<Fix, 
     gc::parse::text::parse_with(&input, &options)
         .map(Into::into)
         .map_err(GeoError::from)
+}
+
+// --- Plus Code (Open Location Code) ---
+
+/// Encode a coordinate to an Open Location Code at the given length (clamped to
+/// `[2, 15]`). Returns the canonical code string.
+#[uniffi::export]
+pub fn plus_code_encode(coord: Coordinate, length: u8) -> String {
+    gc::grids::PlusCode::encode(coord.into(), usize::from(length))
+        .as_str()
+        .to_string()
+}
+
+/// Decode an Open Location Code to its cell center and error bound.
+///
+/// # Errors
+/// Returns a [`GeoError`] for a malformed or short code.
+#[uniffi::export]
+pub fn plus_code_decode(code: String) -> Result<PlusCodeArea, GeoError> {
+    let pc = gc::grids::PlusCode::try_from(code.as_str()).map_err(GeoError::from)?;
+    let area = pc.decode();
+    let max_error_m = area.max_error_m();
+    let center = area.into_inner();
+    Ok(PlusCodeArea {
+        lat: center.lat,
+        lon: center.lon,
+        max_error_m,
+    })
 }
