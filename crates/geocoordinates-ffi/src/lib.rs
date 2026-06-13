@@ -1808,3 +1808,161 @@ pub fn convert(coord: Coordinate, to: Crs) -> Result<ApproxCoordinate, GeoError>
 pub fn can_convert(from: Crs, to: Crs) -> bool {
     gc::convert::can_convert(from.into(), to.into())
 }
+
+// ===========================================================================
+// UTM / UPS projections and MGRS
+// ===========================================================================
+
+/// Northern or southern band for a UTM/UPS coordinate — mirror of
+/// [`gc::grids::utm::Hemisphere`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum UtmHemisphere {
+    /// Northern hemisphere.
+    North,
+    /// Southern hemisphere.
+    South,
+}
+
+impl From<gc::grids::utm::Hemisphere> for UtmHemisphere {
+    fn from(h: gc::grids::utm::Hemisphere) -> Self {
+        match h {
+            gc::grids::utm::Hemisphere::North => UtmHemisphere::North,
+            gc::grids::utm::Hemisphere::South => UtmHemisphere::South,
+        }
+    }
+}
+impl From<UtmHemisphere> for gc::grids::utm::Hemisphere {
+    fn from(h: UtmHemisphere) -> Self {
+        match h {
+            UtmHemisphere::North => gc::grids::utm::Hemisphere::North,
+            UtmHemisphere::South => gc::grids::utm::Hemisphere::South,
+        }
+    }
+}
+
+/// A UTM coordinate — mirror of [`gc::Utm`](gc::grids::Utm).
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct Utm {
+    /// Longitude zone number, 1–60.
+    pub zone: u8,
+    /// Hemisphere band.
+    pub hemisphere: UtmHemisphere,
+    /// Easting in meters (false-easting applied).
+    pub easting: f64,
+    /// Northing in meters.
+    pub northing: f64,
+}
+
+/// A UPS (polar) coordinate — mirror of [`gc::Ups`](gc::grids::Ups).
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct Ups {
+    /// North or south polar zone.
+    pub hemisphere: UtmHemisphere,
+    /// Easting in meters.
+    pub easting: f64,
+    /// Northing in meters.
+    pub northing: f64,
+}
+
+impl From<gc::grids::Utm> for Utm {
+    fn from(u: gc::grids::Utm) -> Self {
+        Utm {
+            zone: u.zone,
+            hemisphere: u.hemisphere.into(),
+            easting: u.easting,
+            northing: u.northing,
+        }
+    }
+}
+impl From<Utm> for gc::grids::Utm {
+    fn from(u: Utm) -> Self {
+        gc::grids::Utm {
+            zone: u.zone,
+            hemisphere: u.hemisphere.into(),
+            easting: u.easting,
+            northing: u.northing,
+        }
+    }
+}
+impl From<gc::grids::Ups> for Ups {
+    fn from(u: gc::grids::Ups) -> Self {
+        Ups {
+            hemisphere: u.hemisphere.into(),
+            easting: u.easting,
+            northing: u.northing,
+        }
+    }
+}
+impl From<Ups> for gc::grids::Ups {
+    fn from(u: Ups) -> Self {
+        gc::grids::Ups {
+            hemisphere: u.hemisphere.into(),
+            easting: u.easting,
+            northing: u.northing,
+        }
+    }
+}
+
+/// Geodetic → UTM. Errors in the polar regions (use UPS there).
+#[uniffi::export]
+pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
+    gc::grids::Utm::try_from_coordinate(coord.into())
+        .map(Into::into)
+        .map_err(GeoError::from)
+}
+
+/// UTM → geodetic WGS-84 coordinate (exact inverse).
+#[uniffi::export]
+pub fn utm_to_coordinate(utm: Utm) -> Coordinate {
+    gc::grids::Utm::from(utm).to_coordinate().into()
+}
+
+/// Geodetic → UPS. Errors outside the polar regions (use UTM there).
+#[uniffi::export]
+pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
+    gc::grids::Ups::try_from_coordinate(coord.into())
+        .map(Into::into)
+        .map_err(GeoError::from)
+}
+
+/// UPS → geodetic WGS-84 coordinate (exact inverse).
+#[uniffi::export]
+pub fn ups_to_coordinate(ups: Ups) -> Coordinate {
+    gc::grids::Ups::from(ups).to_coordinate().into()
+}
+
+/// Encode a coordinate to an MGRS string at the given precision in meters
+/// (1 m … 100 km, snapped to a power of ten).
+#[uniffi::export]
+pub fn mgrs_from_coordinate(coord: Coordinate, precision_m: u32) -> String {
+    gc::grids::Mgrs::from_coordinate(coord.into(), precision_m)
+        .as_str()
+        .to_string()
+}
+
+/// Decode an MGRS string to the center of its square, with the half-square
+/// error bound.
+///
+/// # Errors
+/// `GeoError` when the string is not a valid MGRS reference.
+#[uniffi::export]
+pub fn mgrs_to_coordinate(mgrs: String) -> Result<ApproxCoordinate, GeoError> {
+    let parsed = gc::grids::Mgrs::try_from(mgrs.as_str()).map_err(GeoError::from)?;
+    let approx = parsed.to_coordinate();
+    let max_error_m = approx.max_error_m();
+    Ok(ApproxCoordinate {
+        coord: approx.into_inner().into(),
+        max_error_m,
+    })
+}
+
+/// The precision in meters implied by an MGRS string's digit count.
+///
+/// # Errors
+/// `GeoError` when the string is not a valid MGRS reference.
+#[uniffi::export]
+pub fn mgrs_precision_m(mgrs: String) -> Result<u32, GeoError> {
+    gc::grids::Mgrs::try_from(mgrs.as_str())
+        .map(|m| m.precision_m())
+        .map_err(GeoError::from)
+}
