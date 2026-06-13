@@ -375,13 +375,167 @@ mod tests {
         // (-10,0)) at (0, 0); neither endpoint lies on the other path.
         let x =
             intersection(&c(0.0, -10.0), 90.0, &c(-10.0, 0.0), 0.0).expect("intersection exists");
-        assert_close(x.lat, 0.0, 1e-4);
-        assert_close(x.lon, 0.0, 1e-4);
+        assert_close(x.lat, 0.0, 1e-7);
+        assert_close(x.lon, 0.0, 1e-7);
     }
 
     #[test]
     fn coincident_great_circles_have_no_intersection() {
         // Both paths run east along the equator — the same great circle.
         assert!(intersection(&c(0.0, 0.0), 90.0, &c(0.0, 5.0), 90.0).is_none());
+    }
+
+    // ----- Spherical helper references (independent textbook formulas) -----
+
+    #[test]
+    fn shortest_d_lon_is_signed_and_antimeridian_safe() {
+        // Plain eastward difference (well under a half-turn).
+        assert_close(
+            shortest_d_lon(&c(0.0, 0.0), &c(0.0, 10.0)),
+            10.0_f64.to_radians(),
+            1e-12,
+        );
+        // Across the antimeridian the short way is +20° east, not −340°.
+        assert_close(
+            shortest_d_lon(&c(0.0, 170.0), &c(0.0, -170.0)),
+            20.0_f64.to_radians(),
+            1e-12,
+        );
+        // …and signed the other way when reversed.
+        assert_close(
+            shortest_d_lon(&c(0.0, -170.0), &c(0.0, 170.0)),
+            -20.0_f64.to_radians(),
+            1e-12,
+        );
+        // Exactly a half-turn is left as +π (the `> PI` guard is strict).
+        assert_close(shortest_d_lon(&c(0.0, 0.0), &c(0.0, 180.0)), PI, 1e-12);
+    }
+
+    #[test]
+    fn stretched_lat_diff_reference() {
+        use core::f64::consts::{FRAC_PI_3, FRAC_PI_6};
+        // ln(tan(3π/8)) from the equator to 45°.
+        assert_close(
+            stretched_lat_diff(0.0, FRAC_PI_4),
+            0.881_373_587_019_542_9,
+            1e-12,
+        );
+        // A non-zero lower latitude exercises both Mercator terms.
+        assert_close(
+            stretched_lat_diff(FRAC_PI_6, FRAC_PI_3),
+            0.767_651_752_590_761_5,
+            1e-12,
+        );
+        // Identical latitudes stretch to nothing.
+        assert_close(stretched_lat_diff(FRAC_PI_6, FRAC_PI_6), 0.0, 1e-12);
+    }
+
+    #[test]
+    fn spherical_bearing_rad_reference() {
+        // Cardinals are exact.
+        assert_close(
+            spherical_bearing_rad(&c(0.0, 0.0), &c(0.0, 1.0)),
+            FRAC_PI_2,
+            1e-12,
+        ); // east
+        assert_close(
+            spherical_bearing_rad(&c(0.0, 0.0), &c(1.0, 0.0)),
+            0.0,
+            1e-12,
+        ); // north
+        // Off-equator, off-meridian — pins every term of the azimuth formula.
+        assert_close(
+            spherical_bearing_rad(&c(10.0, 20.0), &c(20.0, 40.0)),
+            1.052_036_642_170_326,
+            1e-12,
+        );
+        assert_close(
+            spherical_bearing_rad(&c(0.0, 0.0), &c(1.0, 1.0)),
+            0.785_322_005_176_158_1,
+            1e-12,
+        );
+    }
+
+    #[test]
+    fn angular_distance_rad_reference() {
+        // 1° of arc, and a quarter turn to the pole.
+        assert_close(
+            angular_distance_rad(&c(0.0, 0.0), &c(0.0, 1.0)),
+            1.0_f64.to_radians(),
+            1e-12,
+        );
+        assert_close(
+            angular_distance_rad(&c(0.0, 0.0), &c(90.0, 0.0)),
+            FRAC_PI_2,
+            1e-9,
+        );
+        // A slanted leg pins the haversine cross term.
+        assert_close(
+            angular_distance_rad(&c(10.0, 20.0), &c(20.0, 40.0)),
+            0.379_099_414_611_752_2,
+            1e-12,
+        );
+    }
+
+    // ----- Public-surface edge cases the round-trips miss -----
+
+    #[test]
+    fn final_bearing_is_not_constant_zero() {
+        // The arrival azimuth on a NE geodesic is distinctly non-zero (≈45.4°),
+        // so it cannot be conflated with the due-north `final_bearing == 0`.
+        let fb = final_bearing(&c(0.0, 0.0), &c(10.0, 10.0));
+        assert!(
+            (40.0..50.0).contains(&fb),
+            "final bearing {fb} out of expected band"
+        );
+    }
+
+    #[test]
+    fn rhumb_destination_due_east_holds_latitude() {
+        // A due-east rhumb keeps latitude fixed (d_psi → 0, so q = cos φ₁).
+        let d = rhumb_destination(&c(40.0, 0.0), 90.0, Length::from_meters(100_000.0));
+        assert_close(d.lat, 40.0, 1e-9);
+        assert_close(d.lon, 1.173_979_358_250_968, 1e-9);
+    }
+
+    #[test]
+    fn rhumb_destination_reflects_over_the_poles() {
+        // Pushing north past the pole reflects the latitude back down the far side.
+        let n = rhumb_destination(&c(80.0, 0.0), 0.0, Length::from_meters(1_668_000.0));
+        assert_close(n.lat, 84.999_336_333_074_71, 1e-9);
+        assert_close(n.lon, 0.0, 1e-9);
+        // …and symmetrically over the south pole (the negative reflection arm).
+        let s = rhumb_destination(&c(-80.0, 0.0), 180.0, Length::from_meters(1_668_000.0));
+        assert_close(s.lat, -84.999_336_333_074_71, 1e-9);
+        assert_close(s.lon, 0.0, 1e-9);
+    }
+
+    #[test]
+    fn intersection_second_geometry_and_west_branch() {
+        // A real great circle (east from (10,0)) meets the λ=10 meridian at a
+        // positive latitude — pins the φ₃/λ₃ formulas away from the trivial origin.
+        let x = intersection(&c(10.0, 0.0), 90.0, &c(0.0, 10.0), 0.0).expect("intersection exists");
+        assert_close(x.lat, 9.851_076_116_583_906, 1e-6);
+        assert_close(x.lon, 10.0, 1e-6);
+        // b west of a (Δλ < 0) takes the other azimuth-assignment branch.
+        let w =
+            intersection(&c(0.0, 10.0), 270.0, &c(-10.0, 0.0), 0.0).expect("intersection exists");
+        assert_close(w.lat, 0.0, 1e-6);
+        assert_close(w.lon, 0.0, 1e-6);
+    }
+
+    #[test]
+    fn intersection_coincident_endpoints_short_circuit() {
+        // Identical start points (Δ₁₂ ≈ 0) return that point regardless of bearings.
+        let x = intersection(&c(5.0, 5.0), 10.0, &c(5.0, 5.0), 80.0).expect("coincident point");
+        assert_close(x.lat, 5.0, 1e-12);
+        assert_close(x.lon, 5.0, 1e-12);
+    }
+
+    #[test]
+    fn intersection_behind_a_bearing_is_none() {
+        // The crossing of these great circles lies *behind* the westward path, so
+        // the forward intersection is the ambiguous antipode → None.
+        assert!(intersection(&c(10.0, 0.0), 270.0, &c(0.0, 10.0), 0.0).is_none());
     }
 }
