@@ -51,20 +51,64 @@ pub struct Ddm {
     pub hemisphere: Hemisphere,
 }
 
-// --- Angle conversions: released with the angles-and-units milestone (see ROADMAP.md) ---
-/*
+impl Hemisphere {
+    /// The numeric sign this hemisphere applies: `-1.0` for the negative
+    /// hemispheres (South / West), `+1.0` for the positive ones (North / East).
+    #[must_use]
+    pub fn sign(self) -> f64 {
+        match self {
+            Hemisphere::North | Hemisphere::East => 1.0,
+            Hemisphere::South | Hemisphere::West => -1.0,
+        }
+    }
+}
+
+/// The hemisphere for a signed value on the given axis.
+///
+/// Treats `-0.0` as non-negative (North / East), so a zeroed component never
+/// reads as South / West.
+fn hemisphere_for(axis: Axis, value: f64) -> Hemisphere {
+    match (axis, value >= 0.0) {
+        (Axis::Latitude, true) => Hemisphere::North,
+        (Axis::Latitude, false) => Hemisphere::South,
+        (Axis::Longitude, true) => Hemisphere::East,
+        (Axis::Longitude, false) => Hemisphere::West,
+    }
+}
+
 impl Dd {
     /// Convert to DMS for the given axis (latitude or longitude selects the
     /// hemisphere letters).
+    ///
+    /// `seconds` is kept full-precision and is **not** pre-rounded, so a round
+    /// trip back through [`Dd::from`] is exact. Rounding — and the 60″ carry it
+    /// can imply — is the formatter's responsibility (a later release).
     #[must_use]
     pub fn to_dms(self, axis: Axis) -> Dms {
-        todo!()
+        let magnitude = self.0.abs();
+        let degrees = magnitude.trunc();
+        let rem_minutes = (magnitude - degrees) * 60.0;
+        let minutes = rem_minutes.trunc();
+        let seconds = (rem_minutes - minutes) * 60.0;
+        Dms {
+            degrees: degrees as u16,
+            minutes: minutes as u8,
+            seconds,
+            hemisphere: hemisphere_for(axis, self.0),
+        }
     }
 
     /// Convert to DDM for the given axis.
     #[must_use]
     pub fn to_ddm(self, axis: Axis) -> Ddm {
-        todo!()
+        let magnitude = self.0.abs();
+        let degrees = magnitude.trunc();
+        let minutes = (magnitude - degrees) * 60.0;
+        Ddm {
+            degrees: degrees as u16,
+            minutes,
+            hemisphere: hemisphere_for(axis, self.0),
+        }
     }
 }
 
@@ -72,7 +116,11 @@ impl Dms {
     /// Convert to degrees-decimal-minutes, preserving the hemisphere.
     #[must_use]
     pub fn to_ddm(self) -> Ddm {
-        todo!("minutes = self.minutes + self.seconds/60")
+        Ddm {
+            degrees: self.degrees,
+            minutes: f64::from(self.minutes) + self.seconds / 60.0,
+            hemisphere: self.hemisphere,
+        }
     }
 }
 
@@ -80,22 +128,36 @@ impl Ddm {
     /// Convert to degrees-minutes-seconds, preserving the hemisphere.
     #[must_use]
     pub fn to_dms(self) -> Dms {
-        todo!("seconds = fract(minutes)*60; minutes = trunc(minutes)")
+        let whole = self.minutes.trunc();
+        Dms {
+            degrees: self.degrees,
+            minutes: whole as u8,
+            seconds: (self.minutes - whole) * 60.0,
+            hemisphere: self.hemisphere,
+        }
     }
 }
 
 impl From<Dms> for Dd {
     fn from(dms: Dms) -> Self {
-        todo!("deg + min/60 + sec/3600, signed by hemisphere")
+        let magnitude =
+            f64::from(dms.degrees) + f64::from(dms.minutes) / 60.0 + dms.seconds / 3600.0;
+        match dms.hemisphere {
+            Hemisphere::North | Hemisphere::East => Dd(magnitude),
+            Hemisphere::South | Hemisphere::West => Dd(-magnitude),
+        }
     }
 }
 
 impl From<Ddm> for Dd {
     fn from(ddm: Ddm) -> Self {
-        todo!("deg + min/60, signed by hemisphere")
+        let magnitude = f64::from(ddm.degrees) + ddm.minutes / 60.0;
+        match ddm.hemisphere {
+            Hemisphere::North | Hemisphere::East => Dd(magnitude),
+            Hemisphere::South | Hemisphere::West => Dd(-magnitude),
+        }
     }
 }
-*/
 
 /// Which axis an angle represents — selects N/S vs E/W hemisphere letters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,25 +168,178 @@ pub enum Axis {
     Longitude,
 }
 
-// --- Angle normalization helpers: released with the angles-and-units milestone (see ROADMAP.md) ---
-/*
 /// Wrap a longitude into the half-open range `[-180, 180)`.
+///
+/// The range is **half-open**: the antimeridian normalizes to the western
+/// edge, so `wrap_longitude(180.0) == -180.0`. Finite input is expected
+/// (a non-finite input propagates as `NaN`).
 #[must_use]
 pub fn wrap_longitude(lon_deg: f64) -> f64 {
-    todo!("normalize longitude across the antimeridian")
+    let east = lon_deg.rem_euclid(360.0); // [0, 360)
+    if east >= 180.0 { east - 360.0 } else { east }
 }
 
-/// Clamp a latitude into `[-90, 90]`.
+/// Clamp a latitude into the closed range `[-90, 90]`.
+///
+/// Both poles are included. Finite input is expected.
 #[must_use]
 pub fn clamp_latitude(lat_deg: f64) -> f64 {
-    todo!("clamp latitude to the poles")
+    lat_deg.clamp(-90.0, 90.0)
 }
 
 /// Normalize an angle (degrees) into `[0, 360)`.
 ///
 /// Use for bearings/azimuths as well — a bearing is just an angle in `[0, 360)`.
+/// Finite input is expected.
 #[must_use]
 pub fn normalize_degrees(deg: f64) -> f64 {
-    todo!("deg.rem_euclid(360.0)")
+    deg.rem_euclid(360.0)
 }
-*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::assert_close;
+
+    /// Spread of signed values × axes used for round-trip checks. Includes
+    /// `0.0`/`-0.0`, the poles/antimeridian, and a high-precision fraction.
+    const SAMPLES: &[f64] = &[
+        0.0,
+        -0.0,
+        1.0,
+        -1.0,
+        40.712_775_3,
+        -74.006_0,
+        89.999_999,
+        -89.999_999,
+        179.999_999,
+        -179.999_999,
+        45.123_456_789,
+        -123.456_789,
+    ];
+
+    #[test]
+    fn dd_dms_round_trip_is_exact() {
+        for &v in SAMPLES {
+            for axis in [Axis::Latitude, Axis::Longitude] {
+                let back = Dd::from(Dd(v).to_dms(axis)).0;
+                assert_close(back, v, 1e-12);
+            }
+        }
+    }
+
+    #[test]
+    fn dd_ddm_round_trip_is_exact() {
+        for &v in SAMPLES {
+            for axis in [Axis::Latitude, Axis::Longitude] {
+                let back = Dd::from(Dd(v).to_ddm(axis)).0;
+                assert_close(back, v, 1e-12);
+            }
+        }
+    }
+
+    #[test]
+    fn to_dms_decomposes_components() {
+        let dms = Dd(40.712_775_3).to_dms(Axis::Latitude);
+        assert_eq!(dms.degrees, 40);
+        assert_eq!(dms.minutes, 42);
+        assert_close(dms.seconds, 45.991_08, 1e-3);
+        assert_eq!(dms.hemisphere, Hemisphere::North);
+    }
+
+    #[test]
+    fn negative_zero_is_positive_hemisphere() {
+        assert_eq!(
+            Dd(-0.0).to_dms(Axis::Latitude).hemisphere,
+            Hemisphere::North
+        );
+        assert_eq!(
+            Dd(-0.0).to_ddm(Axis::Longitude).hemisphere,
+            Hemisphere::East
+        );
+        // A positive zero behaves identically.
+        assert_eq!(Dd(0.0).to_dms(Axis::Longitude).hemisphere, Hemisphere::East);
+    }
+
+    #[test]
+    fn axis_selects_hemisphere_letters() {
+        assert_eq!(
+            Dd(10.0).to_dms(Axis::Latitude).hemisphere,
+            Hemisphere::North
+        );
+        assert_eq!(
+            Dd(-10.0).to_dms(Axis::Latitude).hemisphere,
+            Hemisphere::South
+        );
+        assert_eq!(
+            Dd(10.0).to_dms(Axis::Longitude).hemisphere,
+            Hemisphere::East
+        );
+        assert_eq!(
+            Dd(-74.006).to_dms(Axis::Longitude).hemisphere,
+            Hemisphere::West
+        );
+    }
+
+    #[test]
+    fn dms_ddm_inter_conversions_preserve_hemisphere() {
+        let dms = Dms {
+            degrees: 40,
+            minutes: 42,
+            seconds: 46.0,
+            hemisphere: Hemisphere::North,
+        };
+        let ddm = dms.to_ddm();
+        assert_eq!(ddm.degrees, 40);
+        assert_close(ddm.minutes, 42.0 + 46.0 / 60.0, 1e-12);
+        assert_eq!(ddm.hemisphere, Hemisphere::North);
+
+        // Ddm -> Dms recovers whole minutes and seconds.
+        let dms2 = ddm.to_dms();
+        assert_eq!(dms2.degrees, 40);
+        assert_eq!(dms2.minutes, 42);
+        assert_close(dms2.seconds, 46.0, 1e-9);
+        assert_eq!(dms2.hemisphere, Hemisphere::North);
+    }
+
+    #[test]
+    fn hemisphere_sign() {
+        assert_close(Hemisphere::North.sign(), 1.0, 0.0);
+        assert_close(Hemisphere::East.sign(), 1.0, 0.0);
+        assert_close(Hemisphere::South.sign(), -1.0, 0.0);
+        assert_close(Hemisphere::West.sign(), -1.0, 0.0);
+    }
+
+    #[test]
+    fn wrap_longitude_is_half_open() {
+        // The antimeridian normalizes to the western edge.
+        assert_close(wrap_longitude(180.0), -180.0, 1e-12);
+        assert_close(wrap_longitude(-180.0), -180.0, 1e-12);
+        assert_close(wrap_longitude(540.0), -180.0, 1e-12);
+        assert_close(wrap_longitude(190.0), -170.0, 1e-12);
+        assert_close(wrap_longitude(-190.0), 170.0, 1e-12);
+        assert_close(wrap_longitude(0.0), 0.0, 1e-12);
+        assert_close(wrap_longitude(179.999), 179.999, 1e-12);
+        // Already-in-range values are unchanged.
+        assert_close(wrap_longitude(-73.5), -73.5, 1e-12);
+    }
+
+    #[test]
+    fn clamp_latitude_includes_poles() {
+        assert_close(clamp_latitude(90.0), 90.0, 1e-12);
+        assert_close(clamp_latitude(-90.0), -90.0, 1e-12);
+        assert_close(clamp_latitude(91.0), 90.0, 1e-12);
+        assert_close(clamp_latitude(-90.5), -90.0, 1e-12);
+        assert_close(clamp_latitude(45.0), 45.0, 1e-12);
+    }
+
+    #[test]
+    fn normalize_degrees_is_zero_to_360() {
+        assert_close(normalize_degrees(0.0), 0.0, 1e-12);
+        assert_close(normalize_degrees(-0.0), 0.0, 1e-12);
+        assert_close(normalize_degrees(360.0), 0.0, 1e-12);
+        assert_close(normalize_degrees(-1.0), 359.0, 1e-12);
+        assert_close(normalize_degrees(720.5), 0.5, 1e-12);
+        assert_close(normalize_degrees(45.0), 45.0, 1e-12);
+    }
+}

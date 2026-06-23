@@ -31,26 +31,25 @@ impl Length {
         self.meters
     }
 
-    // --- Unit conversions: released with the angles-and-units milestone (see ROADMAP.md) ---
-    /*
     /// Construct from a value in the given unit.
     #[must_use]
     pub fn from_unit(value: f64, unit: LengthUnit) -> Self {
-        todo!("scale `value` by the unit's meter factor")
+        Self::from_meters(value * unit.meters_per_unit())
     }
 
     /// Value in the requested unit.
     #[must_use]
     pub fn to_unit(&self, unit: LengthUnit) -> f64 {
-        todo!("divide meters by the unit's meter factor")
+        self.meters / unit.meters_per_unit()
     }
-    */
 }
 
 /// Supported length units.
+///
+/// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
+/// so adding one here is a deliberate, compile-forcing change on both sides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
 pub enum LengthUnit {
     /// Meter (SI).
     Meter,
@@ -62,6 +61,21 @@ pub enum LengthUnit {
     UsSurveyFoot,
     /// Nautical mile (1852 m).
     NauticalMile,
+}
+
+impl LengthUnit {
+    /// Meters in one of this unit. The US survey foot keeps its defining
+    /// `1200/3937` ratio rather than a pre-divided literal.
+    #[must_use]
+    fn meters_per_unit(self) -> f64 {
+        match self {
+            LengthUnit::Meter => 1.0,
+            LengthUnit::Kilometer => 1000.0,
+            LengthUnit::Foot => 0.3048,
+            LengthUnit::UsSurveyFoot => 1200.0 / 3937.0,
+            LengthUnit::NauticalMile => 1852.0,
+        }
+    }
 }
 
 impl Add for Length {
@@ -88,5 +102,67 @@ impl Mul<f64> for Length {
         Length {
             meters: self.meters * rhs,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::assert_close;
+
+    const UNITS: &[LengthUnit] = &[
+        LengthUnit::Meter,
+        LengthUnit::Kilometer,
+        LengthUnit::Foot,
+        LengthUnit::UsSurveyFoot,
+        LengthUnit::NauticalMile,
+    ];
+
+    #[test]
+    fn unit_round_trip() {
+        for &unit in UNITS {
+            for &v in &[0.0, 1.0, 1234.5, -9.75, 1e6] {
+                assert_close(Length::from_unit(v, unit).to_unit(unit), v, 1e-9);
+            }
+        }
+    }
+
+    #[test]
+    fn known_factors() {
+        assert_close(
+            Length::from_unit(1.0, LengthUnit::Meter).meters(),
+            1.0,
+            1e-12,
+        );
+        assert_close(
+            Length::from_unit(1.0, LengthUnit::Kilometer).meters(),
+            1000.0,
+            1e-12,
+        );
+        assert_close(
+            Length::from_unit(1.0, LengthUnit::Foot).meters(),
+            0.3048,
+            1e-12,
+        );
+        assert_close(
+            Length::from_unit(1.0, LengthUnit::NauticalMile).meters(),
+            1852.0,
+            1e-12,
+        );
+    }
+
+    #[test]
+    fn survey_foot_differs_from_international_foot() {
+        let intl = Length::from_unit(1.0, LengthUnit::Foot).meters();
+        let survey = Length::from_unit(1.0, LengthUnit::UsSurveyFoot).meters();
+        assert!(
+            (intl - survey).abs() > 1e-9,
+            "survey foot must differ from the international foot"
+        );
+        // Over a million feet the gap is meter-scale (~0.6096 m).
+        let gap = (Length::from_unit(1e6, LengthUnit::UsSurveyFoot).meters()
+            - Length::from_unit(1e6, LengthUnit::Foot).meters())
+        .abs();
+        assert_close(gap, 0.6096, 1e-3);
     }
 }

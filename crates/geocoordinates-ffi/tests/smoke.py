@@ -76,4 +76,39 @@ one_deg_north = gc.coordinate_wgs84(WGS[0] + 1.0, WGS[1])
 d = gc.haversine_distance_m(a, one_deg_north)
 assert math.isclose(d, 111194.9, abs_tol=50.0), d  # ~mean-earth-radius * pi/180
 
+# --- Angle conversions: DD <-> DMS decomposition + round trip ---
+dms = gc.dd_to_dms(gc.Dd(value=40.7127753), gc.Axis.LATITUDE)
+assert dms.degrees == 40 and dms.minutes == 42, (dms.degrees, dms.minutes)
+assert approx(dms.seconds, 45.99108, 1e-3), dms.seconds
+assert dms.hemisphere == gc.Hemisphere.NORTH, dms.hemisphere
+assert approx(gc.dms_to_dd(dms).value, 40.7127753, 1e-9)
+# -0.0 reads as the positive hemisphere, never South/West.
+neg_zero = gc.dd_to_dms(gc.Dd(value=-0.0), gc.Axis.LATITUDE)
+assert neg_zero.hemisphere == gc.Hemisphere.NORTH, neg_zero.hemisphere
+
+# --- Angle normalization (antimeridian / poles) ---
+assert approx(gc.wrap_longitude(180.0), -180.0, 1e-9)  # half-open
+assert approx(gc.clamp_latitude(91.0), 90.0, 1e-9)
+assert approx(gc.normalize_degrees(-1.0), 359.0, 1e-9)
+
+# --- Length unit conversions (flattened to meters) ---
+assert approx(gc.length_from_unit(1.0, gc.LengthUnit.KILOMETER), 1000.0, 1e-9)
+assert approx(gc.length_to_unit(1852.0, gc.LengthUnit.NAUTICAL_MILE), 1.0, 1e-9)
+
+# --- Coordinate validation + Null Island ---
+gc.coordinate_validate(gc.coordinate_wgs84(40.0, -74.0))  # in range -> no raise
+try:
+    gc.coordinate_validate(gc.coordinate_wgs84(91.0, 0.0))
+    raise AssertionError("expected OutOfRange for latitude 91")
+except gc.GeoError.OutOfRange:
+    pass
+assert gc.coordinate_is_null_island(gc.coordinate_wgs84(0.0, 0.0)) is True
+assert gc.coordinate_is_null_island(a) is False
+
+# --- Fix observation family (SystemTime maps to a native timestamp) ---
+fix = gc.fix_from_coord(a)
+assert approx(fix.coord.lat, WGS[0], 1e-9)
+assert fix.accuracy is None and fix.timestamp is None and fix.source is None
+assert approx(gc.confidence_new(2.0).value, 1.0, 1e-12)  # clamped into [0, 1]
+
 print("python smoke OK")

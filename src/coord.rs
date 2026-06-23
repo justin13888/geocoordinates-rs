@@ -7,18 +7,22 @@
 //! [`crate::fix::Fix`], populated by the ingestion layer.
 
 use core::fmt;
+
+use crate::error::{Error, Result};
 // Re-enabled with the items that use them (see ROADMAP.md):
 // use core::str::FromStr;          // Coordinate: FromStr (text-parse milestone)
-// use crate::error::{Error, Result}; // Coordinate::validate (angles-and-units milestone)
 
 /// A coordinate reference system / datum tag used for runtime dispatch.
 ///
 /// GCJ-02 and BD-09 are obfuscation transforms rather than true geodetic
 /// datums, but are modeled here as reference systems so the central
 /// `convert` dispatch (a later release) can dispatch over them uniformly.
+///
+/// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
+/// so adding a datum here is a deliberate, compile-forcing change on both sides
+/// (a wildcard fallback would silently mislabel an unknown datum as WGS-84).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
 pub enum Crs {
     /// WGS-84 — the global GNSS reference and library default.
     Wgs84,
@@ -123,29 +127,44 @@ impl Coordinate {
         }
     }
 
-    // --- Released with the angles-and-units milestone (see ROADMAP.md) ---
-    /*
     /// Validate that latitude ∈ [-90, 90] and longitude ∈ [-180, 180].
     ///
-    /// This is a pure range check; it does *not* flag suspicious-but-valid
-    /// values such as "Null Island" — use [`is_null_island`](Self::is_null_island)
-    /// for that.
+    /// This is a pure **closed-range** check (longitude `180` is accepted) and
+    /// does *not* normalize — for that use
+    /// [`angle::wrap_longitude`](crate::angle::wrap_longitude) /
+    /// [`clamp_latitude`](crate::angle::clamp_latitude). It also does not flag
+    /// suspicious-but-valid values such as "Null Island" — use
+    /// [`is_null_island`](Self::is_null_island) for that. A `NaN` component is
+    /// out of range.
     ///
     /// # Errors
     /// Returns [`crate::Error::OutOfRange`] when either component is invalid.
     pub fn validate(&self) -> Result<()> {
-        todo!("range-check lat/lon; see angle::wrap_longitude / clamp_latitude")
+        if (-90.0..=90.0).contains(&self.lat) && (-180.0..=180.0).contains(&self.lon) {
+            Ok(())
+        } else {
+            Err(Error::OutOfRange {
+                lat: self.lat,
+                lon: self.lon,
+            })
+        }
     }
 
     /// Whether this is "Null Island" — latitude and longitude both ~0, the
     /// telltale of a missing or defaulted fix rather than a real position in
     /// the Gulf of Guinea.
+    ///
+    /// True when both components are within `1e-6`° (~0.11 m) of zero.
     #[must_use]
     pub fn is_null_island(&self) -> bool {
-        todo!("true when |lat| and |lon| are within a small epsilon of 0")
+        self.lat.abs() <= NULL_ISLAND_EPS_DEG && self.lon.abs() <= NULL_ISLAND_EPS_DEG
     }
-    */
 }
+
+/// Half-width of the "Null Island" detection window, in degrees (~0.11 m).
+/// Tight enough to exclude any genuine position, loose enough to absorb float
+/// noise in a zeroed fix.
+const NULL_ISLAND_EPS_DEG: f64 = 1e-6;
 
 /// Shared read access to a latitude/longitude pair.
 ///
@@ -209,3 +228,40 @@ impl fmt::Display for Coordinate {
     }
 }
 */
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_accepts_in_range_incl_poles_and_antimeridian() {
+        assert!(Coordinate::wgs84(40.0, -74.0).validate().is_ok());
+        assert!(Coordinate::wgs84(90.0, 0.0).validate().is_ok());
+        assert!(Coordinate::wgs84(-90.0, 0.0).validate().is_ok());
+        // Longitude ±180 is accepted (closed range; validate does not normalize).
+        assert!(Coordinate::wgs84(0.0, 180.0).validate().is_ok());
+        assert!(Coordinate::wgs84(0.0, -180.0).validate().is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_out_of_range_and_nan() {
+        assert!(matches!(
+            Coordinate::wgs84(91.0, 0.0).validate(),
+            Err(crate::Error::OutOfRange { .. })
+        ));
+        assert!(Coordinate::wgs84(-90.5, 0.0).validate().is_err());
+        assert!(Coordinate::wgs84(0.0, 181.0).validate().is_err());
+        assert!(Coordinate::wgs84(f64::NAN, 0.0).validate().is_err());
+        assert!(Coordinate::wgs84(0.0, f64::NAN).validate().is_err());
+    }
+
+    #[test]
+    fn null_island_detection() {
+        assert!(Coordinate::wgs84(0.0, 0.0).is_null_island());
+        assert!(Coordinate::wgs84(0.0, -0.0).is_null_island());
+        assert!(Coordinate::wgs84(1e-7, 1e-7).is_null_island());
+        // ~111 m away is a real position, not Null Island.
+        assert!(!Coordinate::wgs84(0.001, 0.0).is_null_island());
+        assert!(!Coordinate::wgs84(40.0, -74.0).is_null_island());
+    }
+}
