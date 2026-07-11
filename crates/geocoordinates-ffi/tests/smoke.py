@@ -255,4 +255,27 @@ assert inv.max_error_m > 0.0 and approx(inv.coord.lat, WGS[0], 1e-5)
 gb = gc.convert(gc.coordinate_gcj02(GCJ[0], GCJ[1]), gc.Crs.BD09)
 assert gb.max_error_m == 0.0 and approx(gb.coord.lat, BD[0], 1e-9)
 
+# --- UTM / UPS / MGRS ---
+u = gc.utm_from_coordinate(gc.coordinate_wgs84(40.0, -75.0))
+assert u.zone == 18 and u.hemisphere == gc.UtmHemisphere.NORTH
+assert approx(u.easting, 500_000.0, 1e-3) and approx(u.northing, 4_427_757.2188, 1e-3)
+roundtrip = gc.utm_to_coordinate(u)
+assert approx(roundtrip.lat, 40.0, 1e-9) and approx(roundtrip.lon, -75.0, 1e-9)
+try:
+    gc.utm_from_coordinate(gc.coordinate_wgs84(85.0, 0.0))  # polar -> error
+    raise AssertionError("expected OutOfRange for a polar latitude")
+except gc.GeoError.OutOfRange:
+    pass
+ups = gc.ups_from_coordinate(gc.coordinate_wgs84(85.0, 0.0))
+assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_000.0, 1e-3)
+assert gc.mgrs_from_coordinate(gc.coordinate_wgs84(40.0, -75.0), 1) == "18TWK0000027757"
+assert gc.mgrs_precision_m("18TWK000277") == 100
+dec = gc.mgrs_to_coordinate("18TWK0000027757")
+assert dec.max_error_m == 0.5 and approx(dec.coord.lat, 40.0, 1e-3)
+try:
+    gc.mgrs_to_coordinate("not-an-mgrs")
+    raise AssertionError("expected error for a bad MGRS string")
+except gc.GeoError.Other:  # InvalidGridRef maps to the Other catch-all
+    pass
+
 print("python smoke OK")

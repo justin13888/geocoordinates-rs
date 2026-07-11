@@ -111,6 +111,6 @@ pub mod prelude {
         rhumb_bearing, rhumb_destination, rhumb_distance,
     };
     pub use crate::geodesy::{DatumTransform, Helmert};
-    pub use crate::grids::{Geohash, Maidenhead, PlusCode};
+    pub use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
     pub use crate::parse::parse_coordinate;
 }
