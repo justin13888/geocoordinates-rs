@@ -166,4 +166,30 @@ comma = gc.parse_text_with("40,7128 -74,006", comma_opts)
 assert approx(comma.coord.lat, 40.7128, 1e-9)
 assert approx(comma.coord.lon, -74.006, 1e-9)
 
+# --- Plus Code (Open Location Code) ---
+assert gc.plus_code_encode(gc.coordinate_wgs84(47.0000625, 8.0000625), 10) == "8FVC2222+22"
+area = gc.plus_code_decode("8FVC2222+22")
+assert approx(area.lat, 47.0000625, 1e-6) and approx(area.lon, 8.0000625, 1e-6)
+assert 0.0 < area.max_error_m < 20.0
+try:
+    gc.plus_code_decode("not a code")
+    raise AssertionError("expected error for an invalid Plus Code")
+except gc.GeoError.Other:
+    pass
+# parse_coordinate detects a Plus Code; format renders one.
+pc_fix = gc.parse_coordinate("8FVC2222+22")
+assert approx(pc_fix.coord.lat, 47.0000625, 1e-6)
+assert pc_fix.source.axis_order is None
+pc_opts = gc.FormatOptions(
+    representation=gc.Representation.PLUS_CODE,
+    precision=None,
+    symbol_style=gc.SymbolStyle.UNICODE,
+    hemisphere_style=gc.HemisphereStyle.SIGNED,
+    locale=None,
+)
+assert (
+    gc.format_coordinate(gc.coordinate_wgs84(47.0000625, 8.0000625), pc_opts)
+    == "8FVC2222+22"
+)
+
 print("python smoke OK")
