@@ -200,4 +200,16 @@ assert gc.maidenhead_encode(gc.coordinate_wgs84(40.5, -75.0), 2) == "FN20"
 mh = gc.maidenhead_decode("FN20")
 assert approx(mh.lat, 40.5, 1e-9) and approx(mh.lon, -75.0, 1e-9)
 
+# --- Geodesy: ellipsoid, ECEF, ENU/AER ---
+wgs84 = gc.ellipsoid_wgs84()
+assert approx(gc.ellipsoid_semi_minor_m(wgs84), 6_356_752.314_245, 1e-3)
+ecef = gc.ecef_from_coordinate(gc.coordinate_wgs84(0.0, 0.0), wgs84)
+assert approx(ecef.x, 6_378_137.0, 1e-3) and approx(ecef.y, 0.0, 1e-3)
+assert approx(gc.ecef_to_coordinate(ecef, wgs84).lat, 0.0, 1e-9)
+origin = gc.coordinate_wgs84(40.0, -75.0)
+enu = gc.enu_from_coordinate(gc.coordinate_wgs84(40.1, -75.0), origin)
+assert enu.north > 10_000.0
+aer = gc.enu_to_aer(gc.Enu(east=0.0, north=100.0, up=0.0))
+assert approx(aer.azimuth_deg, 0.0, 1e-9) and approx(aer.range_m, 100.0, 1e-9)
+
 print("python smoke OK")
