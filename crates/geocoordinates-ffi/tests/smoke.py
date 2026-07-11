@@ -227,4 +227,20 @@ assert (
     is not None
 )
 
+# --- Classic datums (Helmert / DatumTransform) ---
+assert gc.datum_transform_to_wgs84(gc.Crs.WGS84) is None  # no shift needed
+assert gc.datum_transform_to_wgs84(gc.Crs.GCJ02) is None  # use China typed conversions
+dt = gc.datum_transform_to_wgs84(gc.Crs.NAD27)
+assert dt is not None and approx(dt.helmert.tx_m, -8.0, 1e-12)
+# Translation-only Helmert round-trips exactly.
+nad27 = gc.Coordinate(lat=40.0, lon=-100.0, height=None, crs=gc.Crs.NAD27)
+w = gc.datum_transform_apply(dt, nad27, gc.Crs.WGS84)
+assert w.crs == gc.Crs.WGS84 and approx(w.lat, 40.000_009_482_759, 1e-7)
+back = gc.datum_transform_apply(gc.datum_transform_inverse(dt), w, gc.Crs.NAD27)
+assert back.crs == gc.Crs.NAD27 and approx(back.lat, 40.0, 1e-9) and approx(back.lon, -100.0, 1e-9)
+# apply_ecef + inverse identity at the ECEF level.
+ident = gc.helmert_inverse(gc.helmert_identity())
+e = gc.helmert_apply_ecef(ident, gc.Ecef(x=4_000_000.0, y=-2_000_000.0, z=4_500_000.0))
+assert approx(e.x, 4_000_000.0, 1e-6)
+
 print("python smoke OK")
