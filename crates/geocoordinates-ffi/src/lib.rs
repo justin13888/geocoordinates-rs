@@ -1536,3 +1536,111 @@ pub fn aer_to_enu(aer: Aer) -> Enu {
 pub fn aer_to_ned(aer: Aer) -> Ned {
     gc::geodesy::Aer::from(aer).to_ned().into()
 }
+
+// ===========================================================================
+// Geodesics (distances, bearings, producers)
+// ===========================================================================
+
+/// Exact ellipsoidal (Karney) geodesic distance between two coordinates, in
+/// **meters**.
+#[uniffi::export]
+pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> f64 {
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    gc::geodesy::geodesic_distance(&a, &b).meters()
+}
+
+/// Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
+#[uniffi::export]
+pub fn initial_bearing(a: Coordinate, b: Coordinate) -> f64 {
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    gc::geodesy::initial_bearing(&a, &b)
+}
+
+/// Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`.
+#[uniffi::export]
+pub fn final_bearing(a: Coordinate, b: Coordinate) -> f64 {
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    gc::geodesy::final_bearing(&a, &b)
+}
+
+/// The point reached from `start` along `bearing_deg` for `distance_m` meters
+/// (exact, Karney).
+#[uniffi::export]
+pub fn destination(start: Coordinate, bearing_deg: f64, distance_m: f64) -> Coordinate {
+    gc::geodesy::destination(
+        &start.into(),
+        bearing_deg,
+        gc::Length::from_meters(distance_m),
+    )
+    .into()
+}
+
+/// The geodesic midpoint between `a` and `b`.
+#[uniffi::export]
+pub fn midpoint(a: Coordinate, b: Coordinate) -> Coordinate {
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    gc::geodesy::midpoint(&a, &b).into()
+}
+
+/// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic.
+#[uniffi::export]
+pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Coordinate {
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    gc::geodesy::intermediate(&a, &b, fraction).into()
+}
+
+/// Rhumb-line (loxodrome) distance between two coordinates, in **meters**.
+#[uniffi::export]
+pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> f64 {
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    gc::geodesy::rhumb_distance(&a, &b).meters()
+}
+
+/// Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`.
+#[uniffi::export]
+pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> f64 {
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    gc::geodesy::rhumb_bearing(&a, &b)
+}
+
+/// The point reached from `start` along a constant `bearing_deg` rhumb line for
+/// `distance_m` meters.
+#[uniffi::export]
+pub fn rhumb_destination(start: Coordinate, bearing_deg: f64, distance_m: f64) -> Coordinate {
+    gc::geodesy::rhumb_destination(
+        &start.into(),
+        bearing_deg,
+        gc::Length::from_meters(distance_m),
+    )
+    .into()
+}
+
+/// Signed perpendicular distance (meters) from `point` to the path
+/// `start` → `end` (positive to the right).
+#[uniffi::export]
+pub fn cross_track_distance_m(point: Coordinate, start: Coordinate, end: Coordinate) -> f64 {
+    let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
+        (point.into(), start.into(), end.into());
+    gc::geodesy::cross_track_distance(&point, &start, &end).meters()
+}
+
+/// Along-track distance (meters) from `start` to the foot of the perpendicular
+/// from `point` onto `start` → `end`.
+#[uniffi::export]
+pub fn along_track_distance_m(point: Coordinate, start: Coordinate, end: Coordinate) -> f64 {
+    let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
+        (point.into(), start.into(), end.into());
+    gc::geodesy::along_track_distance(&point, &start, &end).meters()
+}
+
+/// Intersection of two great circles (each a point + initial bearing), or
+/// `None` when they are parallel/coincident or ambiguous.
+#[uniffi::export]
+pub fn intersection(
+    a: Coordinate,
+    bearing_a_deg: f64,
+    b: Coordinate,
+    bearing_b_deg: f64,
+) -> Option<Coordinate> {
+    gc::geodesy::intersection(&a.into(), bearing_a_deg, &b.into(), bearing_b_deg).map(Into::into)
+}

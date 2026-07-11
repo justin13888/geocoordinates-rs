@@ -21,11 +21,12 @@ pub use ecef::Ecef;
 pub use ellipsoid::Ellipsoid;
 pub use frames::{Aer, Enu, Ned};
 
-// --- Deferred: released with the later geodesy milestones (see ROADMAP.md) ---
+pub use geodesic::{
+    along_track_distance, cross_track_distance, destination, final_bearing, geodesic_distance,
+    initial_bearing, intermediate, intersection, midpoint, rhumb_bearing, rhumb_destination,
+    rhumb_distance,
+};
+
+// --- Deferred: released with the classic-datums milestone (see ROADMAP.md) ---
 // pub mod datum;     // Helmert / classic-datum transforms
 // pub use datum::{DatumTransform, Helmert};
-// pub use geodesic::{
-//     along_track_distance, cross_track_distance, destination, final_bearing, geodesic_distance,
-//     initial_bearing, intermediate, intersection, midpoint, rhumb_bearing,
-//     rhumb_destination, rhumb_distance,
-// };

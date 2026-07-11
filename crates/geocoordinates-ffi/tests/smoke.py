@@ -212,4 +212,19 @@ assert enu.north > 10_000.0
 aer = gc.enu_to_aer(gc.Enu(east=0.0, north=100.0, up=0.0))
 assert approx(aer.azimuth_deg, 0.0, 1e-9) and approx(aer.range_m, 100.0, 1e-9)
 
+# --- Geodesics ---
+assert (
+    gc.geodesic_distance_m(gc.coordinate_wgs84(40.7128, -74.006), gc.coordinate_wgs84(51.5074, -0.1278))
+    > 5_000_000.0
+)
+assert approx(
+    gc.initial_bearing(gc.coordinate_wgs84(0.0, 0.0), gc.coordinate_wgs84(0.0, 1.0)), 90.0, 1e-6
+)
+dest = gc.destination(gc.coordinate_wgs84(0.0, 0.0), 90.0, 111_319.49)
+assert approx(dest.lon, 1.0, 1e-4)
+assert (
+    gc.intersection(gc.coordinate_wgs84(0.0, -10.0), 90.0, gc.coordinate_wgs84(-10.0, 0.0), 0.0)
+    is not None
+)
+
 print("python smoke OK")

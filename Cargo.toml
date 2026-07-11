@@ -1,6 +1,6 @@
 [package]
 name = "geocoordinates"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Low-level geospatial coordinate primitives: China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities."
@@ -27,8 +27,7 @@ resolver = "3"
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 thiserror = "2.0.18"
-# The deferred geodesics milestone adds, when it ships (see ROADMAP.md):
-# geographiclib-rs = { version = "0.2", default-features = false } # Karney geodesic engine
+geographiclib-rs = { version = "0.2", default-features = false } # Karney geodesic engine
 
 [features]
 default = []

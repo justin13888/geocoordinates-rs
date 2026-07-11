@@ -106,13 +106,13 @@ pub mod prelude {
     // Grows with each release (see ROADMAP.md):
     // pub use crate::convert::{can_convert, convert};
     pub use crate::format::{FormatOptions, Representation, format, format_fix};
-    pub use crate::geodesy::{Aer, Ecef, Ellipsoid, Enu, Ned};
-    // Deferred (later geodesy milestones — see ROADMAP.md):
-    // pub use crate::geodesy::{
-    //     DatumTransform, Helmert, along_track_distance, cross_track_distance, destination,
-    //     final_bearing, geodesic_distance, initial_bearing, intermediate, intersection,
-    //     midpoint, rhumb_bearing, rhumb_destination, rhumb_distance,
-    // };
+    pub use crate::geodesy::{
+        Aer, Ecef, Ellipsoid, Enu, Ned, along_track_distance, cross_track_distance, destination,
+        final_bearing, geodesic_distance, initial_bearing, intermediate, intersection, midpoint,
+        rhumb_bearing, rhumb_destination, rhumb_distance,
+    };
+    // Deferred (classic-datums milestone — see ROADMAP.md):
+    // pub use crate::geodesy::{DatumTransform, Helmert};
     pub use crate::grids::{Geohash, Maidenhead, PlusCode};
     pub use crate::parse::parse_coordinate;
 }
