@@ -20,8 +20,8 @@ let ffiTarget: Target = useLocalFramework
     // BINARY_TARGET_REMOTE — updated by .github/workflows/release-swift.yml
     : .binaryTarget(
         name: "geocoordinates_ffiFFI",
-        url: "https://github.com/justin13888/geocoordinates-rs/releases/download/v0.0.0/geocoordinates_ffiFFI.xcframework.zip",
-        checksum: "0000000000000000000000000000000000000000000000000000000000000000"
+        url: "https://github.com/justin13888/geocoordinates-rs/releases/download/v0.9.0/geocoordinates_ffiFFI.xcframework.zip",
+        checksum: "a082fd5b09dda36845009dad8105ca54a870ecba9817a55e25beb5ceb44af772"
     )
 
 let package = Package(
