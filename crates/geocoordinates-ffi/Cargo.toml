@@ -1,6 +1,6 @@
 [package]
 name = "geocoordinates-ffi"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 # No `rust-version`: this crate is never published (`publish = false`), and
 # pinning an MSRV below UniFFI's would make the resolver silently downgrade
@@ -26,7 +26,7 @@ crate-type = ["cdylib", "staticlib", "lib"]
 [dependencies]
 # The core crate, by path. Its `serde` feature is intentionally NOT enabled —
 # the translation layer only reads public fields and calls inherent methods.
-geocoordinates = { path = "../..", version = "0.9" }
+geocoordinates = { path = "../..", version = "0.10" }
 uniffi = { version = "0.31", features = ["cli"] }
 thiserror = "2.0"
 

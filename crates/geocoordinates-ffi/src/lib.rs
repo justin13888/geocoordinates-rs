@@ -1770,3 +1770,41 @@ pub fn datum_transform_inverse(transform: DatumTransform) -> DatumTransform {
         .inverse()
         .into()
 }
+
+// ===========================================================================
+// Runtime conversion dispatch
+// ===========================================================================
+
+/// A converted coordinate with its error bound — the flattened FFI form of
+/// `Approx<Coordinate>`. `max_error_m` is `0.0` for exact routes.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct ApproxCoordinate {
+    /// The converted coordinate (carries its target [`Crs`]).
+    pub coord: Coordinate,
+    /// Estimated upper bound on positional error, in meters (`0.0` if exact).
+    pub max_error_m: f64,
+}
+
+/// Convert `coord` from its own reference system to `to`, routing through the
+/// WGS-84 hub (China typed conversions + classic-datum Helmert transforms).
+///
+/// # Errors
+/// `GeoError` when no route is known between the two systems.
+#[uniffi::export]
+pub fn convert(coord: Coordinate, to: Crs) -> Result<ApproxCoordinate, GeoError> {
+    gc::convert::convert(coord.into(), to.into())
+        .map(|a| {
+            let max_error_m = a.max_error_m();
+            ApproxCoordinate {
+                coord: a.into_inner().into(),
+                max_error_m,
+            }
+        })
+        .map_err(GeoError::from)
+}
+
+/// Whether a conversion route exists between two reference systems.
+#[uniffi::export]
+pub fn can_convert(from: Crs, to: Crs) -> bool {
+    gc::convert::can_convert(from.into(), to.into())
+}
