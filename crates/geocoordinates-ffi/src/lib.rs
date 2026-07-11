@@ -147,11 +147,11 @@ pub struct ApproxGcj02 {
     pub max_error_m: f64,
 }
 
-/// The decoded cell of a Plus Code — the WGS-84 cell **center** plus the cell
-/// half-diagonal error bound. The flattened form of `Approx<Coordinate>` for
-/// the (always WGS-84) Open Location Code grid.
+/// The decoded cell of a grid code (Plus Code, geohash, Maidenhead) — the
+/// WGS-84 cell **center** plus the cell half-diagonal error bound. The
+/// flattened form of `Approx<Coordinate>` for the (always WGS-84) grid systems.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
-pub struct PlusCodeArea {
+pub struct GridCell {
     /// Latitude of the cell center, in decimal degrees.
     pub lat: f64,
     /// Longitude of the cell center, in decimal degrees.
@@ -1196,7 +1196,18 @@ pub fn parse_text_with(input: String, options: TextParseOptions) -> Result<Fix, 
         .map_err(GeoError::from)
 }
 
-// --- Plus Code (Open Location Code) ---
+// --- Grid systems (Plus Code, geohash, Maidenhead) ---
+
+/// Flatten a decoded `Approx<Coordinate>` cell into a [`GridCell`] record.
+fn grid_cell(area: gc::Approx<gc::Coordinate>) -> GridCell {
+    let max_error_m = area.max_error_m();
+    let center = area.into_inner();
+    GridCell {
+        lat: center.lat,
+        lon: center.lon,
+        max_error_m,
+    }
+}
 
 /// Encode a coordinate to an Open Location Code at the given length (clamped to
 /// `[2, 15]`). Returns the canonical code string.
@@ -1212,14 +1223,44 @@ pub fn plus_code_encode(coord: Coordinate, length: u8) -> String {
 /// # Errors
 /// Returns a [`GeoError`] for a malformed or short code.
 #[uniffi::export]
-pub fn plus_code_decode(code: String) -> Result<PlusCodeArea, GeoError> {
+pub fn plus_code_decode(code: String) -> Result<GridCell, GeoError> {
     let pc = gc::grids::PlusCode::try_from(code.as_str()).map_err(GeoError::from)?;
-    let area = pc.decode();
-    let max_error_m = area.max_error_m();
-    let center = area.into_inner();
-    Ok(PlusCodeArea {
-        lat: center.lat,
-        lon: center.lon,
-        max_error_m,
-    })
+    Ok(grid_cell(pc.decode()))
+}
+
+/// Encode a coordinate to a geohash of the given character length.
+#[uniffi::export]
+pub fn geohash_encode(coord: Coordinate, length: u8) -> String {
+    gc::grids::Geohash::encode(coord.into(), usize::from(length))
+        .as_str()
+        .to_string()
+}
+
+/// Decode a geohash to its cell center and error bound.
+///
+/// # Errors
+/// Returns a [`GeoError`] for non-base-32 input.
+#[uniffi::export]
+pub fn geohash_decode(code: String) -> Result<GridCell, GeoError> {
+    let gh = gc::grids::Geohash::try_from(code.as_str()).map_err(GeoError::from)?;
+    Ok(grid_cell(gh.decode()))
+}
+
+/// Encode a coordinate to a Maidenhead locator of the given number of pairs
+/// (clamped to 1–3).
+#[uniffi::export]
+pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> String {
+    gc::grids::Maidenhead::encode(coord.into(), usize::from(pairs))
+        .as_str()
+        .to_string()
+}
+
+/// Decode a Maidenhead locator to its grid-square center and error bound.
+///
+/// # Errors
+/// Returns a [`GeoError`] for a malformed locator.
+#[uniffi::export]
+pub fn maidenhead_decode(code: String) -> Result<GridCell, GeoError> {
+    let mh = gc::grids::Maidenhead::try_from(code.as_str()).map_err(GeoError::from)?;
+    Ok(grid_cell(mh.decode()))
 }

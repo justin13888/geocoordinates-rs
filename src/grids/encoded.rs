@@ -1,12 +1,10 @@
-//! Encoded/discrete location systems.
+//! Encoded/discrete location systems: **Plus Codes** (Open Location Code),
+//! **Geohash**, and **Maidenhead** locators.
 //!
-//! Currently: **Plus Codes** (Open Location Code). Geohash and Maidenhead are
-//! scaffolded but deferred — see `ROADMAP.md`.
-//!
-//! Encoding a point into a cell is exact; [`decode`](PlusCode::decode) returns
-//! the cell **center** wrapped in [`Approx`], carrying the
-//! cell's half-diagonal (in meters) as the error bound. Strings are validated
-//! at construction ([`TryFrom<&str>`](PlusCode::try_from) / [`FromStr`]).
+//! Encoding a point into a cell is exact; `decode` returns the cell **center**
+//! wrapped in [`Approx`], carrying the cell's half-diagonal (in meters) as the
+//! error bound. Strings are validated at construction (`TryFrom<&str>` /
+//! [`FromStr`]).
 //!
 //! [`FromStr`]: std::str::FromStr
 
@@ -17,17 +15,15 @@ use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 
-// Deferred (uncommented with the Geohash + Maidenhead milestone — see ROADMAP.md):
-//
-// /// A validated geohash string (base-32), e.g. `dr5regy`.
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-// pub struct Geohash(String);
-//
-// /// A validated Maidenhead locator (amateur radio grid square), e.g. `FN20`.
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-// pub struct Maidenhead(String);
+/// A validated geohash string (base-32), e.g. `dr5regy`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Geohash(String);
+
+/// A validated Maidenhead locator (amateur radio grid square), e.g. `FN20`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Maidenhead(String);
 
 /// A validated Open Location Code / Plus Code, e.g. `87G7X2VV+2V`.
 ///
@@ -291,6 +287,255 @@ fn is_valid_full(code: &str) -> bool {
     first_lon * ENCODING_BASE < 2 * LONGITUDE_MAX as i64
 }
 
+// --- Geohash (base-32) ---
+
+/// Geohash base-32 alphabet (omits `a`, `i`, `l`, `o`).
+const GEOHASH_ALPHABET: &[u8; 32] = b"0123456789bcdefghjkmnpqrstuvwxyz";
+
+impl Geohash {
+    /// Encode a coordinate at the given character length (exact).
+    #[must_use]
+    pub fn encode(coord: Coordinate, length: usize) -> Self {
+        let lat = clamp_latitude(coord.lat);
+        let lon = wrap_longitude(coord.lon);
+        let (mut lat_lo, mut lat_hi) = (-90.0_f64, 90.0_f64);
+        let (mut lon_lo, mut lon_hi) = (-180.0_f64, 180.0_f64);
+        let mut hash = String::with_capacity(length);
+        let mut value = 0usize;
+        for i in 0..(length * 5) {
+            value <<= 1;
+            // Even bit indices refine longitude, odd indices refine latitude.
+            if i % 2 == 0 {
+                let mid = midpoint(lon_lo, lon_hi);
+                if lon >= mid {
+                    value |= 1;
+                    lon_lo = mid;
+                } else {
+                    lon_hi = mid;
+                }
+            } else {
+                let mid = midpoint(lat_lo, lat_hi);
+                if lat >= mid {
+                    value |= 1;
+                    lat_lo = mid;
+                } else {
+                    lat_hi = mid;
+                }
+            }
+            if i % 5 == 4 {
+                hash.push(GEOHASH_ALPHABET[value] as char);
+                value = 0;
+            }
+        }
+        Geohash(hash)
+    }
+
+    /// The canonical geohash string.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Decode to the cell center; error bound is the cell half-diagonal.
+    /// Infallible — validated at construction.
+    #[must_use]
+    pub fn decode(&self) -> Approx<Coordinate> {
+        let (mut lat_lo, mut lat_hi) = (-90.0_f64, 90.0_f64);
+        let (mut lon_lo, mut lon_hi) = (-180.0_f64, 180.0_f64);
+        let mut even = true;
+        for byte in self.0.bytes() {
+            let code = GEOHASH_ALPHABET
+                .iter()
+                .position(|&a| a == byte)
+                .unwrap_or(0);
+            for shift in (0..5).rev() {
+                let bit = (code >> shift) & 1;
+                if even {
+                    let mid = midpoint(lon_lo, lon_hi);
+                    if bit == 1 {
+                        lon_lo = mid;
+                    } else {
+                        lon_hi = mid;
+                    }
+                } else {
+                    let mid = midpoint(lat_lo, lat_hi);
+                    if bit == 1 {
+                        lat_lo = mid;
+                    } else {
+                        lat_hi = mid;
+                    }
+                }
+                even = !even;
+            }
+        }
+        cell_center(lat_lo, lat_hi, lon_lo, lon_hi)
+    }
+}
+
+impl TryFrom<&str> for Geohash {
+    type Error = crate::Error;
+
+    /// # Errors
+    /// Returns [`crate::Error::InvalidGridRef`] for non-base-32 input.
+    fn try_from(s: &str) -> Result<Self> {
+        let lower = s.trim().to_ascii_lowercase();
+        if lower.is_empty() || lower.bytes().any(|b| !GEOHASH_ALPHABET.contains(&b)) {
+            return Err(Error::InvalidGridRef(format!("invalid geohash: {s}")));
+        }
+        Ok(Geohash(lower))
+    }
+}
+
+impl FromStr for Geohash {
+    type Err = crate::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_from(s)
+    }
+}
+
+// --- Maidenhead locator ---
+
+impl Maidenhead {
+    /// Encode a coordinate at the given number of pairs (clamped to 1–3; exact).
+    #[must_use]
+    pub fn encode(coord: Coordinate, pairs: usize) -> Self {
+        let pairs = pairs.clamp(1, 3);
+        let mut lon = wrap_longitude(coord.lon) + 180.0; // [0, 360)
+        let mut lat = clamp_latitude(coord.lat) + 90.0; // [0, 180]
+        let mut s = String::with_capacity(pairs * 2);
+
+        // Field: 18 columns of 20° lon × 10° lat (letters A–R). Latitude is
+        // clamped because the north pole (lat 90) sits on the upper edge.
+        let lon_field = (lon / 20.0) as usize;
+        let lat_field = ((lat / 10.0) as usize).min(17);
+        push_offset(&mut s, b'A', lon_field);
+        push_offset(&mut s, b'A', lat_field);
+        lon -= lon_field as f64 * 20.0;
+        lat -= lat_field as f64 * 10.0;
+
+        if pairs >= 2 {
+            // Square: 10 columns of 2° lon × 1° lat (digits 0–9).
+            let lon_sq = (lon / 2.0) as usize;
+            let lat_sq = (lat as usize).min(9);
+            push_offset(&mut s, b'0', lon_sq);
+            push_offset(&mut s, b'0', lat_sq);
+            lon -= lon_sq as f64 * 2.0;
+            lat -= lat_sq as f64;
+
+            if pairs >= 3 {
+                // Subsquare: 24 columns of 5′ lon × 2.5′ lat (letters a–x).
+                let lon_sub = (lon * 12.0) as usize;
+                let lat_sub = ((lat * 24.0) as usize).min(23);
+                push_offset(&mut s, b'a', lon_sub);
+                push_offset(&mut s, b'a', lat_sub);
+            }
+        }
+        Maidenhead(s)
+    }
+
+    /// The canonical Maidenhead locator string.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Decode to the grid-square center wrapped in [`Approx`]. Infallible —
+    /// validated at construction.
+    #[must_use]
+    pub fn decode(&self) -> Approx<Coordinate> {
+        let bytes = self.0.as_bytes();
+        let mut lon = -180.0 + f64::from(bytes[0].to_ascii_uppercase() - b'A') * 20.0;
+        let mut lat = -90.0 + f64::from(bytes[1].to_ascii_uppercase() - b'A') * 10.0;
+        let mut lon_size = 20.0;
+        let mut lat_size = 10.0;
+        if bytes.len() >= 4 {
+            lon += f64::from(bytes[2] - b'0') * 2.0;
+            lat += f64::from(bytes[3] - b'0');
+            lon_size = 2.0;
+            lat_size = 1.0;
+            if bytes.len() >= 6 {
+                lon += f64::from(bytes[4].to_ascii_lowercase() - b'a') * (2.0 / 24.0);
+                lat += f64::from(bytes[5].to_ascii_lowercase() - b'a') * (1.0 / 24.0);
+                lon_size = 2.0 / 24.0;
+                lat_size = 1.0 / 24.0;
+            }
+        }
+        cell_center(lat, lat + lat_size, lon, lon + lon_size)
+    }
+}
+
+impl TryFrom<&str> for Maidenhead {
+    type Error = crate::Error;
+
+    /// # Errors
+    /// Returns [`crate::Error::InvalidGridRef`] for malformed locators.
+    fn try_from(s: &str) -> Result<Self> {
+        let t = s.trim();
+        let bytes = t.as_bytes();
+        let field = |b: u8| (b'A'..=b'R').contains(&b.to_ascii_uppercase());
+        let sub = |b: u8| (b'a'..=b'x').contains(&b.to_ascii_lowercase());
+        let ok = match bytes.len() {
+            2 => field(bytes[0]) && field(bytes[1]),
+            4 => {
+                field(bytes[0])
+                    && field(bytes[1])
+                    && bytes[2].is_ascii_digit()
+                    && bytes[3].is_ascii_digit()
+            }
+            6 => {
+                field(bytes[0])
+                    && field(bytes[1])
+                    && bytes[2].is_ascii_digit()
+                    && bytes[3].is_ascii_digit()
+                    && sub(bytes[4])
+                    && sub(bytes[5])
+            }
+            _ => false,
+        };
+        if !ok {
+            return Err(Error::InvalidGridRef(format!(
+                "invalid Maidenhead locator: {s}"
+            )));
+        }
+        // Canonical form: field uppercase, square digits, subsquare lowercase.
+        let mut c: Vec<u8> = t.bytes().collect();
+        c[0] = c[0].to_ascii_uppercase();
+        c[1] = c[1].to_ascii_uppercase();
+        if c.len() >= 6 {
+            c[4] = c[4].to_ascii_lowercase();
+            c[5] = c[5].to_ascii_lowercase();
+        }
+        Ok(Maidenhead(String::from_utf8(c).unwrap_or_default()))
+    }
+}
+
+impl FromStr for Maidenhead {
+    type Err = crate::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_from(s)
+    }
+}
+
+/// Midpoint of a `[lo, hi]` range.
+fn midpoint(lo: f64, hi: f64) -> f64 {
+    (lo + hi) / 2.0
+}
+
+/// Push `base + index` (as an ASCII byte) onto `s`.
+fn push_offset(s: &mut String, base: u8, index: usize) {
+    s.push((base + index as u8) as char);
+}
+
+/// The center of a `[lat_lo, lat_hi] × [lon_lo, lon_hi]` cell, with the
+/// half-diagonal (meters, at the cell latitude) as the error bound.
+fn cell_center(lat_lo: f64, lat_hi: f64, lon_lo: f64, lon_hi: f64) -> Approx<Coordinate> {
+    let lat = midpoint(lat_lo, lat_hi);
+    let lon = midpoint(lon_lo, lon_hi);
+    let lat_half_m = (lat_hi - lat_lo) / 2.0 * METERS_PER_DEGREE;
+    let lon_half_m = (lon_hi - lon_lo) / 2.0 * METERS_PER_DEGREE * lat.to_radians().cos();
+    Approx::new(Coordinate::wgs84(lat, lon), lat_half_m.hypot(lon_half_m))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -460,5 +705,114 @@ mod tests {
         // First latitude digit must be ≤ 8 and longitude ≤ 17 (range limits).
         assert!(PlusCode::try_from("F2222222+").is_err()); // first lat digit = 9
         assert!(PlusCode::try_from("2W222222+").is_err()); // first lon digit = 18
+    }
+
+    // --- Geohash ---
+
+    #[test]
+    fn geohash_reference_vectors() {
+        assert_eq!(
+            Geohash::encode(Coordinate::wgs84(42.6, -5.6), 5).as_str(),
+            "ezs42"
+        );
+        assert_eq!(
+            Geohash::encode(Coordinate::wgs84(57.64911, 10.40744), 11).as_str(),
+            "u4pruydqqvj"
+        );
+    }
+
+    #[test]
+    fn geohash_round_trip_within_bound() {
+        for c in [
+            Coordinate::wgs84(40.7128, -74.006),
+            Coordinate::wgs84(-33.8688, 151.2093),
+            Coordinate::wgs84(0.0, 0.0),
+            Coordinate::wgs84(89.9, 179.9),
+        ] {
+            for len in [6, 8, 10] {
+                let area = Geohash::encode(c, len).decode();
+                assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
+            }
+        }
+    }
+
+    #[test]
+    fn geohash_decode_matches_known_cell() {
+        let area = Geohash::try_from("ezs42").unwrap().decode();
+        // Fixed ~5 km bound (the cell is ~5 km): a decode that fails to
+        // alternate lon/lat would land thousands of km away.
+        assert_within_meters(&Coordinate::wgs84(42.605, -5.603), &*area, 5000.0);
+        assert!(area.max_error_m() > 0.0);
+    }
+
+    #[test]
+    fn geohash_validation() {
+        assert!(Geohash::try_from("dr5regy").is_ok());
+        assert!(Geohash::try_from("DR5REGY").is_ok()); // case-insensitive
+        assert!(Geohash::try_from("ezs42a").is_err()); // 'a' is excluded
+        assert!(Geohash::try_from("ezs4i").is_err()); // 'i' is excluded
+        assert!(Geohash::try_from("").is_err());
+    }
+
+    // --- Maidenhead ---
+
+    #[test]
+    fn maidenhead_reference_and_decode() {
+        assert_eq!(
+            Maidenhead::encode(Coordinate::wgs84(40.5, -75.0), 2).as_str(),
+            "FN20"
+        );
+        let area = Maidenhead::try_from("FN20").unwrap().decode();
+        assert_close(area.lat, 40.5, 1e-9);
+        assert_close(area.lon, -75.0, 1e-9);
+        // The half-diagonal bound of the 2°×1° cell, pinned exactly.
+        let lat_half: f64 = 0.5 * 111_320.0;
+        let lon_half: f64 = 111_320.0 * 40.5_f64.to_radians().cos();
+        assert_close(area.max_error_m(), lat_half.hypot(lon_half), 1e-6);
+    }
+
+    #[test]
+    fn maidenhead_subsquare_decode() {
+        // JN58td: field J/N, square 5/8, subsquare t(19)/d(3).
+        // SW corner (48.125, 11.583…); subsquare cell (2/24°)×(1/24°).
+        let area = Maidenhead::try_from("JN58td").unwrap().decode();
+        assert_close(area.lat, 48.125 + (1.0 / 24.0) / 2.0, 1e-9);
+        assert_close(area.lon, 10.0 + 19.0 / 12.0 + (2.0 / 24.0) / 2.0, 1e-9);
+    }
+
+    #[test]
+    fn maidenhead_three_pairs_round_trip() {
+        let c = Coordinate::wgs84(48.146, 11.605);
+        let mh = Maidenhead::encode(c, 3);
+        assert_eq!(mh.as_str().len(), 6);
+        let area = mh.decode();
+        assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
+    }
+
+    #[test]
+    fn maidenhead_pole_does_not_panic() {
+        let area = Maidenhead::encode(Coordinate::wgs84(90.0, 180.0), 3).decode();
+        assert!(area.lat <= 90.0 && area.lon < 180.0);
+    }
+
+    #[test]
+    fn maidenhead_validation() {
+        assert!(Maidenhead::try_from("FN").is_ok()); // 2-char field-only locator
+        assert!(Maidenhead::try_from("FN20").is_ok());
+        assert!(Maidenhead::try_from("JN58td").is_ok());
+        assert!(Maidenhead::try_from("fn20").is_ok()); // case-insensitive field
+        assert!(Maidenhead::try_from("FN2").is_err()); // odd length
+        assert!(Maidenhead::try_from("").is_err()); // empty
+        // 2-char: each field validated (second field invalid here).
+        assert!(Maidenhead::try_from("F0").is_err());
+        assert!(Maidenhead::try_from("SN20").is_err()); // 'S' is past R
+        // 6-char: each component validated individually.
+        assert!(Maidenhead::try_from("0N58td").is_err()); // field 1 invalid
+        assert!(Maidenhead::try_from("J058td").is_err()); // field 2 invalid
+        assert!(Maidenhead::try_from("JNX8td").is_err()); // square 1 non-digit
+        assert!(Maidenhead::try_from("JN5Xtd").is_err()); // square 2 non-digit
+        assert!(Maidenhead::try_from("JN580d").is_err()); // sub 1 past x ('0')
+        assert!(Maidenhead::try_from("JN58t0").is_err()); // sub 2 past x ('0')
+        assert!(Maidenhead::try_from("FN20zz").is_err()); // 'z' is past x
     }
 }
