@@ -1,6 +1,6 @@
 [package]
 name = "geocoordinates"
-version = "0.12.0"
+version = "0.13.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Low-level geospatial coordinate primitives: China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities."
@@ -61,7 +61,7 @@ gpx = ["dep:gpx"] # GPX track / waypoint files
 kml = ["dep:kml"] # KML placemark documents
 #
 # Sensor / device ingestion:
-# nmea = []           # NMEA 0183 sentences — nmea parser crate
+nmea = [] # NMEA 0183 sentences (GGA/RMC/GLL), hand-rolled — no external dep
 #
 # Heavy / external integrations:
 # proj = []           # PROJ-backed EPSG long tail — proj crate (C dep)
