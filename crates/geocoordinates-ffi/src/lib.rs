@@ -1966,3 +1966,52 @@ pub fn mgrs_precision_m(mgrs: String) -> Result<u32, GeoError> {
         .map(|m| m.precision_m())
         .map_err(GeoError::from)
 }
+
+// ===========================================================================
+// Structured interchange formats (GeoJSON / WKT / GPX / KML)
+// ===========================================================================
+
+/// Parse positions from a GeoJSON document (lon-lat order) — one [`Fix`] per
+/// position (a line of *n* vertices yields *n* fixes).
+///
+/// # Errors
+/// `GeoError` on malformed GeoJSON.
+#[uniffi::export]
+pub fn from_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
+    gc::parse::interchange::from_geojson(&input)
+        .map(|v| v.into_iter().map(Into::into).collect())
+        .map_err(GeoError::from)
+}
+
+/// Parse positions from a WKT string (X-Y order).
+///
+/// # Errors
+/// `GeoError` on malformed WKT.
+#[uniffi::export]
+pub fn from_wkt(input: String) -> Result<Vec<Fix>, GeoError> {
+    gc::parse::interchange::from_wkt(&input)
+        .map(|v| v.into_iter().map(Into::into).collect())
+        .map_err(GeoError::from)
+}
+
+/// Parse track / route / waypoint positions from a GPX document.
+///
+/// # Errors
+/// `GeoError` on malformed GPX.
+#[uniffi::export]
+pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
+    gc::parse::interchange::from_gpx(&input)
+        .map(|v| v.into_iter().map(Into::into).collect())
+        .map_err(GeoError::from)
+}
+
+/// Parse placemark positions from a KML document (lon,lat,alt order).
+///
+/// # Errors
+/// `GeoError` on malformed KML.
+#[uniffi::export]
+pub fn from_kml(input: String) -> Result<Vec<Fix>, GeoError> {
+    gc::parse::interchange::from_kml(&input)
+        .map(|v| v.into_iter().map(Into::into).collect())
+        .map_err(GeoError::from)
+}
