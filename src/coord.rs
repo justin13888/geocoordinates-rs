@@ -7,10 +7,9 @@
 //! [`crate::fix::Fix`], populated by the ingestion layer.
 
 use core::fmt;
+use core::str::FromStr;
 
 use crate::error::{Error, Result};
-// Re-enabled with the items that use them (see ROADMAP.md):
-// use core::str::FromStr;          // Coordinate: FromStr (text-parse milestone)
 
 /// A coordinate reference system / datum tag used for runtime dispatch.
 ///
@@ -201,8 +200,6 @@ impl fmt::Display for Crs {
     }
 }
 
-// --- FromStr: released with the text-parse milestone (see ROADMAP.md) ---
-/*
 impl FromStr for Coordinate {
     type Err = Error;
 
@@ -213,10 +210,9 @@ impl FromStr for Coordinate {
     /// # Errors
     /// Returns [`Error::Parse`] when the input cannot be interpreted.
     fn from_str(s: &str) -> Result<Self> {
-        todo!("delegate to parse::parse_coordinate(s)?.coord")
+        Ok(crate::parse::parse_coordinate(s)?.coord)
     }
 }
-*/
 
 impl fmt::Display for Coordinate {
     /// Render in decimal degrees with default precision. For other

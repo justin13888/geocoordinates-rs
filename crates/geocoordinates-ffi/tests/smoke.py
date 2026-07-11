@@ -150,4 +150,20 @@ km_fix = gc.Fix(
 )
 assert gc.format_fix(km_fix, auto_opts) == "40.71, -74.01"
 
+# --- Parsing (geo: URI, free text, explicit options) ---
+geo = gc.parse_coordinate("geo:48.2,16.3,183;crs=wgs84;u=40")
+assert approx(geo.coord.lat, 48.2, 1e-9) and approx(geo.coord.lon, 16.3, 1e-9)
+assert geo.source.axis_order is None  # RFC 5870 fixes lat-first
+assert geo.accuracy.horizontal_m == 40.0
+text = gc.parse_coordinate("40.7128, -74.006")
+assert approx(text.coord.lat, 40.7128, 1e-9)
+assert text.source.axis_order is not None  # free text records the assumed order
+# Explicit options: European decimal comma, whitespace-separated.
+comma_opts = gc.TextParseOptions(
+    default_axis_order=gc.AxisOrder.LAT_LON, decimal_comma=True
+)
+comma = gc.parse_text_with("40,7128 -74,006", comma_opts)
+assert approx(comma.coord.lat, 40.7128, 1e-9)
+assert approx(comma.coord.lon, -74.006, 1e-9)
+
 print("python smoke OK")
