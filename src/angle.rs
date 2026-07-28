@@ -161,6 +161,7 @@ impl From<Ddm> for Dd {
 
 /// Which axis an angle represents — selects N/S vs E/W hemisphere letters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Axis {
     /// Latitude (N/S).
     Latitude,
