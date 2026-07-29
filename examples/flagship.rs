@@ -831,8 +831,10 @@ fn boundaries_and_typed_errors() -> DemoResult {
     assert!(Mgrs::try_from_coordinate(NEW_YORK, 250).is_err());
     assert!(Mgrs::try_from("18TWK000000277577").is_err());
     assert!(H3Cell::encode(NEW_YORK, 16).is_err());
+    assert!(H3Cell::encode(Coordinate::gcj02(40.0, -75.0), 9).is_err());
     assert!(H3Cell(0).decode().is_err());
     assert!(S2CellId::encode(NEW_YORK, 31).is_err());
+    assert!(S2CellId::encode(Coordinate::bd09(40.0, -75.0), 20).is_err());
     assert!(S2CellId(0).decode().is_err());
     assert!(matches!(
         parse_coordinate("not a coordinate"),

@@ -6,8 +6,19 @@
 //! representative point returns [`Approx`](crate::Approx).
 //!
 use crate::approx::Approx;
-use crate::coord::Coordinate;
+use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
+
+fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
+    coord.validate()?;
+    if coord.crs != Crs::Wgs84 {
+        return Err(Error::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: coord.crs,
+        });
+    }
+    Ok(())
+}
 
 /// An H3 cell index at a given resolution (0–15).
 #[cfg(feature = "h3")]
@@ -21,7 +32,7 @@ impl H3Cell {
     pub fn encode(coord: Coordinate, resolution: u8) -> Result<Self> {
         use h3o::{LatLng, Resolution};
 
-        coord.validate()?;
+        validate_encoding_coordinate(coord)?;
         let res = Resolution::try_from(resolution).map_err(|_| Error::InvalidValue {
             field: "H3 resolution",
             detail: "must be in 0..=15".into(),
@@ -76,7 +87,7 @@ impl S2CellId {
         use s2::cellid::CellID;
         use s2::latlng::LatLng;
 
-        coord.validate()?;
+        validate_encoding_coordinate(coord)?;
         if level > 30 {
             return Err(Error::InvalidValue {
                 field: "S2 level",
@@ -222,11 +233,25 @@ mod tests {
         {
             assert!(H3Cell::encode(c(0.0, 0.0), 16).is_err());
             assert!(H3Cell(0).decode().is_err());
+            assert!(matches!(
+                H3Cell::encode(Coordinate::gcj02(39.9, 116.4), 9),
+                Err(Error::CrsMismatch {
+                    expected: crate::Crs::Wgs84,
+                    found: crate::Crs::Gcj02,
+                })
+            ));
         }
         #[cfg(feature = "s2")]
         {
             assert!(S2CellId::encode(c(0.0, 0.0), 31).is_err());
             assert!(S2CellId(0).decode().is_err());
+            assert!(matches!(
+                S2CellId::encode(Coordinate::bd09(39.9, 116.4), 20),
+                Err(Error::CrsMismatch {
+                    expected: crate::Crs::Wgs84,
+                    found: crate::Crs::Bd09,
+                })
+            ));
         }
     }
 }
