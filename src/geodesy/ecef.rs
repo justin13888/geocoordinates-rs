@@ -5,14 +5,17 @@
 //! inverse uses Bowring's well-converged formula), so it implements [`From`].
 
 use super::ellipsoid::Ellipsoid;
-use crate::coord::{Coordinate, Height};
+use crate::coord::{Coordinate, Crs, Height};
+use crate::error::{Error, Result};
 
-/// The height value in meters, treating an orthometric height as ellipsoidal
-/// (the geoid undulation that separates them is a later milestone).
-fn height_meters(coord: Coordinate) -> f64 {
+fn height_meters(coord: Coordinate) -> Result<f64> {
     match coord.height {
-        Some(Height::Ellipsoidal(h) | Height::Orthometric(h)) => h,
-        None => 0.0,
+        Some(Height::Ellipsoidal(h)) => Ok(h),
+        Some(Height::Orthometric(_)) => Err(Error::InvalidValue {
+            field: "height",
+            detail: "ECEF conversion requires ellipsoidal height".into(),
+        }),
+        None => Ok(0.0),
     }
 }
 
@@ -41,8 +44,14 @@ impl Ecef {
     /// The result carries no [`Crs`](crate::Crs) tag of its own — ECEF is
     /// datum-agnostic; the caller is responsible for tagging the coordinate
     /// with the reference system the `ellipsoid` belongs to.
-    #[must_use]
-    pub fn to_coordinate(self, ellipsoid: Ellipsoid) -> Coordinate {
+    pub fn try_to_coordinate(self, ellipsoid: Ellipsoid, crs: Crs) -> Result<Coordinate> {
+        ellipsoid.validate()?;
+        if !self.x.is_finite() || !self.y.is_finite() || !self.z.is_finite() {
+            return Err(Error::InvalidValue {
+                field: "ECEF",
+                detail: "x, y, and z must be finite".into(),
+            });
+        }
         let a = ellipsoid.semi_major_m;
         let b = ellipsoid.semi_minor_m();
         let e2 = ellipsoid.eccentricity_sq();
@@ -61,26 +70,30 @@ impl Ecef {
         let w = (1.0 - e2 * sin_lat * sin_lat).sqrt();
         let h = p * cos_lat + self.z * sin_lat - a * w;
 
-        Coordinate::wgs84(lat.to_degrees(), lon).with_height(Height::Ellipsoidal(h))
+        let result =
+            Coordinate::new(lat.to_degrees(), lon, crs).with_height(Height::Ellipsoidal(h));
+        result.validate()?;
+        Ok(result)
     }
 
     /// Geodetic [`Coordinate`] → ECEF on the given ellipsoid (exact, closed
     /// form). Height is taken as ellipsoidal.
-    #[must_use]
-    pub fn from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Self {
+    pub fn try_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<Self> {
+        coord.validate()?;
+        ellipsoid.validate()?;
         let phi = coord.lat.to_radians();
         let lambda = coord.lon.to_radians();
-        let h = height_meters(coord);
+        let h = height_meters(coord)?;
         let a = ellipsoid.semi_major_m;
         let e2 = ellipsoid.eccentricity_sq();
         let sin_phi = phi.sin();
         let cos_phi = phi.cos();
         let n = a / (1.0 - e2 * sin_phi * sin_phi).sqrt();
-        Ecef {
+        Ok(Ecef {
             x: (n + h) * cos_phi * lambda.cos(),
             y: (n + h) * cos_phi * lambda.sin(),
             z: (n * (1.0 - e2) + h) * sin_phi,
-        }
+        })
     }
 }
 
@@ -95,7 +108,7 @@ mod tests {
     #[test]
     fn forward_reference_points() {
         let e = Ellipsoid::WGS84;
-        let at = |lat, lon| Ecef::from_coordinate(Coordinate::wgs84(lat, lon), e);
+        let at = |lat, lon| Ecef::try_from_coordinate(Coordinate::wgs84(lat, lon), e).unwrap();
         let p = at(0.0, 0.0);
         assert_close(p.x, WGS84_A, 1e-3);
         assert_close(p.y, 0.0, 1e-3);
@@ -119,7 +132,10 @@ mod tests {
             (-89.9, 179.9, 50.0),
         ] {
             let c = Coordinate::wgs84(lat, lon).with_height(Height::Ellipsoidal(h));
-            let back = Ecef::from_coordinate(c, e).to_coordinate(e);
+            let back = Ecef::try_from_coordinate(c, e)
+                .unwrap()
+                .try_to_coordinate(e, Crs::Wgs84)
+                .unwrap();
             assert_close(back.lat, lat, 1e-9);
             // Longitude is undefined at the exact pole; skip it there.
             if lat.abs() < 90.0 {
@@ -130,5 +146,21 @@ mod tests {
                 other => panic!("expected ellipsoidal height, got {other:?}"),
             }
         }
+    }
+
+    #[test]
+    fn invalid_inputs_and_orthometric_heights_are_rejected() {
+        assert!(
+            Ecef::try_from_coordinate(
+                Coordinate::wgs84(0.0, 0.0).with_height(Height::Orthometric(1.0)),
+                Ellipsoid::WGS84,
+            )
+            .is_err()
+        );
+        assert!(
+            Ecef::new(f64::NAN, 0.0, 0.0)
+                .try_to_coordinate(Ellipsoid::WGS84, Crs::Wgs84)
+                .is_err()
+        );
     }
 }

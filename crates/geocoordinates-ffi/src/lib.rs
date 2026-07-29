@@ -1045,10 +1045,12 @@ pub fn out_of_china(lat: f64, lon: f64) -> bool {
 /// `Length` and its operators do not cross the FFI boundary, so the scalar
 /// meters value is returned directly.
 #[uniffi::export]
-pub fn haversine_distance_m(a: Coordinate, b: Coordinate) -> f64 {
+pub fn haversine_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let a: gc::Coordinate = a.into();
     let b: gc::Coordinate = b.into();
-    gc::geodesy::haversine_distance(&a, &b).meters()
+    gc::geodesy::haversine_distance(&a, &b)
+        .map(|length| length.meters())
+        .map_err(Into::into)
 }
 
 // --- Angle conversions ---
@@ -1507,28 +1509,38 @@ pub fn ellipsoid_eccentricity_sq(ellipsoid: Ellipsoid) -> f64 {
 
 /// Geodetic [`Coordinate`] → ECEF on the given ellipsoid.
 #[uniffi::export]
-pub fn ecef_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Ecef {
-    gc::geodesy::Ecef::from_coordinate(coord.into(), ellipsoid.into()).into()
+pub fn ecef_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<Ecef, GeoError> {
+    gc::geodesy::Ecef::try_from_coordinate(coord.into(), ellipsoid.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
-/// ECEF → geodetic [`Coordinate`] on the given ellipsoid (tagged WGS-84).
+/// ECEF → geodetic [`Coordinate`] on the given ellipsoid and reference system.
 #[uniffi::export]
-pub fn ecef_to_coordinate(ecef: Ecef, ellipsoid: Ellipsoid) -> Coordinate {
+pub fn ecef_to_coordinate(
+    ecef: Ecef,
+    ellipsoid: Ellipsoid,
+    crs: Crs,
+) -> Result<Coordinate, GeoError> {
     gc::geodesy::Ecef::from(ecef)
-        .to_coordinate(ellipsoid.into())
-        .into()
+        .try_to_coordinate(ellipsoid.into(), crs.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// The ENU offset of `target` relative to `origin` (WGS-84).
 #[uniffi::export]
-pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Enu {
-    gc::geodesy::Enu::from_coordinate(target.into(), origin.into()).into()
+pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Enu, GeoError> {
+    gc::geodesy::Enu::try_from_coordinate(target.into(), origin.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 /// Recover the absolute coordinate of an ENU offset about `origin`.
 #[uniffi::export]
-pub fn enu_to_coordinate(enu: Enu, origin: Coordinate) -> Coordinate {
+pub fn enu_to_coordinate(enu: Enu, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Enu::from(enu)
-        .to_coordinate(origin.into())
-        .into()
+        .try_to_coordinate(origin.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 /// ENU → NED.
 #[uniffi::export]
@@ -1543,15 +1555,18 @@ pub fn enu_to_aer(enu: Enu) -> Aer {
 
 /// The NED offset of `target` relative to `origin` (WGS-84).
 #[uniffi::export]
-pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Ned {
-    gc::geodesy::Ned::from_coordinate(target.into(), origin.into()).into()
+pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Ned, GeoError> {
+    gc::geodesy::Ned::try_from_coordinate(target.into(), origin.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 /// Recover the absolute coordinate of a NED offset about `origin`.
 #[uniffi::export]
-pub fn ned_to_coordinate(ned: Ned, origin: Coordinate) -> Coordinate {
+pub fn ned_to_coordinate(ned: Ned, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Ned::from(ned)
-        .to_coordinate(origin.into())
-        .into()
+        .try_to_coordinate(origin.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 /// NED → ENU.
 #[uniffi::export]
@@ -1566,15 +1581,18 @@ pub fn ned_to_aer(ned: Ned) -> Aer {
 
 /// The azimuth/elevation/range of `target` relative to `origin` (WGS-84).
 #[uniffi::export]
-pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Aer {
-    gc::geodesy::Aer::from_coordinate(target.into(), origin.into()).into()
+pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Aer, GeoError> {
+    gc::geodesy::Aer::try_from_coordinate(target.into(), origin.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 /// Recover the absolute coordinate of an AER offset about `origin`.
 #[uniffi::export]
-pub fn aer_to_coordinate(aer: Aer, origin: Coordinate) -> Coordinate {
+pub fn aer_to_coordinate(aer: Aer, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Aer::from(aer)
-        .to_coordinate(origin.into())
-        .into()
+        .try_to_coordinate(origin.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 /// AER → ENU.
 #[uniffi::export]
@@ -1594,93 +1612,123 @@ pub fn aer_to_ned(aer: Aer) -> Ned {
 /// Exact ellipsoidal (Karney) geodesic distance between two coordinates, in
 /// **meters**.
 #[uniffi::export]
-pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> f64 {
+pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
-    gc::geodesy::geodesic_distance(&a, &b).meters()
+    gc::geodesy::geodesic_distance(&a, &b)
+        .map(|length| length.meters())
+        .map_err(Into::into)
 }
 
 /// Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
 #[uniffi::export]
-pub fn initial_bearing(a: Coordinate, b: Coordinate) -> f64 {
+pub fn initial_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
-    gc::geodesy::initial_bearing(&a, &b)
+    gc::geodesy::initial_bearing(&a, &b).map_err(Into::into)
 }
 
 /// Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`.
 #[uniffi::export]
-pub fn final_bearing(a: Coordinate, b: Coordinate) -> f64 {
+pub fn final_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
-    gc::geodesy::final_bearing(&a, &b)
+    gc::geodesy::final_bearing(&a, &b).map_err(Into::into)
 }
 
 /// The point reached from `start` along `bearing_deg` for `distance_m` meters
 /// (exact, Karney).
 #[uniffi::export]
-pub fn destination(start: Coordinate, bearing_deg: f64, distance_m: f64) -> Coordinate {
+pub fn destination(
+    start: Coordinate,
+    bearing_deg: f64,
+    distance_m: f64,
+) -> Result<Coordinate, GeoError> {
     gc::geodesy::destination(
         &start.into(),
         bearing_deg,
         gc::Length::from_meters(distance_m),
     )
-    .into()
+    .map(Into::into)
+    .map_err(Into::into)
 }
 
 /// The geodesic midpoint between `a` and `b`.
 #[uniffi::export]
-pub fn midpoint(a: Coordinate, b: Coordinate) -> Coordinate {
+pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
-    gc::geodesy::midpoint(&a, &b).into()
+    gc::geodesy::midpoint(&a, &b)
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic.
 #[uniffi::export]
-pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Coordinate {
+pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Result<Coordinate, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
-    gc::geodesy::intermediate(&a, &b, fraction).into()
+    gc::geodesy::intermediate(&a, &b, fraction)
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Rhumb-line (loxodrome) distance between two coordinates, in **meters**.
 #[uniffi::export]
-pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> f64 {
+pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
-    gc::geodesy::rhumb_distance(&a, &b).meters()
+    gc::geodesy::rhumb_distance(&a, &b)
+        .map(|length| length.meters())
+        .map_err(Into::into)
 }
 
 /// Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`.
 #[uniffi::export]
-pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> f64 {
+pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
-    gc::geodesy::rhumb_bearing(&a, &b)
+    gc::geodesy::rhumb_bearing(&a, &b).map_err(Into::into)
 }
 
 /// The point reached from `start` along a constant `bearing_deg` rhumb line for
 /// `distance_m` meters.
 #[uniffi::export]
-pub fn rhumb_destination(start: Coordinate, bearing_deg: f64, distance_m: f64) -> Coordinate {
+pub fn rhumb_destination(
+    start: Coordinate,
+    bearing_deg: f64,
+    distance_m: f64,
+) -> Result<Coordinate, GeoError> {
     gc::geodesy::rhumb_destination(
         &start.into(),
         bearing_deg,
         gc::Length::from_meters(distance_m),
     )
-    .into()
+    .map(Into::into)
+    .map_err(Into::into)
 }
 
 /// Signed perpendicular distance (meters) from `point` to the path
 /// `start` → `end` (positive to the right).
 #[uniffi::export]
-pub fn cross_track_distance_m(point: Coordinate, start: Coordinate, end: Coordinate) -> f64 {
+pub fn cross_track_distance_m(
+    point: Coordinate,
+    start: Coordinate,
+    end: Coordinate,
+) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.into(), start.into(), end.into());
-    gc::geodesy::cross_track_distance(&point, &start, &end).meters()
+    gc::geodesy::cross_track_distance(&point, &start, &end)
+        .map(|length| length.meters())
+        .map_err(Into::into)
 }
 
 /// Along-track distance (meters) from `start` to the foot of the perpendicular
 /// from `point` onto `start` → `end`.
 #[uniffi::export]
-pub fn along_track_distance_m(point: Coordinate, start: Coordinate, end: Coordinate) -> f64 {
+pub fn along_track_distance_m(
+    point: Coordinate,
+    start: Coordinate,
+    end: Coordinate,
+) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.into(), start.into(), end.into());
-    gc::geodesy::along_track_distance(&point, &start, &end).meters()
+    gc::geodesy::along_track_distance(&point, &start, &end)
+        .map(|length| length.meters())
+        .map_err(Into::into)
 }
 
 /// Intersection of two great circles (each a point + initial bearing), or
@@ -1691,8 +1739,10 @@ pub fn intersection(
     bearing_a_deg: f64,
     b: Coordinate,
     bearing_b_deg: f64,
-) -> Option<Coordinate> {
-    gc::geodesy::intersection(&a.into(), bearing_a_deg, &b.into(), bearing_b_deg).map(Into::into)
+) -> Result<Option<Coordinate>, GeoError> {
+    gc::geodesy::intersection(&a.into(), bearing_a_deg, &b.into(), bearing_b_deg)
+        .map(|point| point.map(Into::into))
+        .map_err(Into::into)
 }
 
 // ===========================================================================
@@ -1724,6 +1774,10 @@ pub struct Helmert {
 /// mirror of [`gc::DatumTransform`](gc::geodesy::DatumTransform).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct DatumTransform {
+    /// Source reference system.
+    pub from_crs: Crs,
+    /// Target reference system.
+    pub to_crs: Crs,
     /// Ellipsoid of the source datum.
     pub from: Ellipsoid,
     /// Ellipsoid of the target datum.
@@ -1761,6 +1815,8 @@ impl From<Helmert> for gc::geodesy::Helmert {
 impl From<gc::geodesy::DatumTransform> for DatumTransform {
     fn from(d: gc::geodesy::DatumTransform) -> Self {
         DatumTransform {
+            from_crs: d.from_crs.into(),
+            to_crs: d.to_crs.into(),
             from: d.from.into(),
             to: d.to.into(),
             helmert: d.helmert.into(),
@@ -1770,6 +1826,8 @@ impl From<gc::geodesy::DatumTransform> for DatumTransform {
 impl From<DatumTransform> for gc::geodesy::DatumTransform {
     fn from(d: DatumTransform) -> Self {
         gc::geodesy::DatumTransform {
+            from_crs: d.from_crs.into(),
+            to_crs: d.to_crs.into(),
             from: d.from.into(),
             to: d.to.into(),
             helmert: d.helmert.into(),
@@ -1807,10 +1865,14 @@ pub fn datum_transform_to_wgs84(datum: Crs) -> Option<DatumTransform> {
 /// Transform a geodetic coordinate from the source to the target datum, tagging
 /// the result with `to`.
 #[uniffi::export]
-pub fn datum_transform_apply(transform: DatumTransform, coord: Coordinate, to: Crs) -> Coordinate {
+pub fn datum_transform_apply(
+    transform: DatumTransform,
+    coord: Coordinate,
+) -> Result<Coordinate, GeoError> {
     gc::geodesy::DatumTransform::from(transform)
-        .transform(coord.into(), to.into())
-        .into()
+        .transform(coord.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// The reverse datum transform (swaps ellipsoids, inverts the Helmert shift).

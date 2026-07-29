@@ -47,6 +47,26 @@ impl Ellipsoid {
         inverse_flattening: 294.978_698_2,
     };
 
+    /// Validate the ellipsoid parameters.
+    pub fn validate(&self) -> crate::Result<()> {
+        if !self.semi_major_m.is_finite() || self.semi_major_m <= 0.0 {
+            return Err(crate::Error::InvalidValue {
+                field: "ellipsoid semi-major axis",
+                detail: "must be finite and positive".into(),
+            });
+        }
+        if self.inverse_flattening.is_nan()
+            || self.inverse_flattening <= 1.0
+            || self.inverse_flattening == f64::NEG_INFINITY
+        {
+            return Err(crate::Error::InvalidValue {
+                field: "ellipsoid inverse flattening",
+                detail: "must be greater than one (or positive infinity for a sphere)".into(),
+            });
+        }
+        Ok(())
+    }
+
     /// Flattening `f`.
     #[must_use]
     pub fn flattening(&self) -> f64 {

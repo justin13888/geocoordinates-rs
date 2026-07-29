@@ -183,6 +183,8 @@ pub trait LatLon {
     fn lat(&self) -> f64;
     /// Longitude in decimal degrees.
     fn lon(&self) -> f64;
+    /// Reference system of the position.
+    fn crs(&self) -> Crs;
 }
 
 impl LatLon for Coordinate {
@@ -191,6 +193,9 @@ impl LatLon for Coordinate {
     }
     fn lon(&self) -> f64 {
         self.lon
+    }
+    fn crs(&self) -> Crs {
+        self.crs
     }
 }
 

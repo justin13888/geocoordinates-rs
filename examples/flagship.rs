@@ -60,7 +60,9 @@ fn assert_close(actual: f64, expected: f64, tolerance: f64) {
 }
 
 fn assert_within_meters(actual: &impl LatLon, expected: &impl LatLon, max_m: f64) {
-    let distance = geodesic_distance(actual, expected).meters();
+    let distance = geodesic_distance(actual, expected)
+        .expect("flagship compares valid positions in one CRS")
+        .meters();
     assert!(
         distance <= max_m + 1e-6,
         "points are {distance} m apart, beyond {max_m} m"
@@ -503,28 +505,28 @@ fn geodesics_and_local_frames() -> DemoResult {
     let equator_start = Coordinate::wgs84(0.0, 0.0);
     let equator_end = Coordinate::wgs84(0.0, 1.0);
     assert_close(
-        geodesic_distance(&equator_start, &equator_end).meters(),
+        geodesic_distance(&equator_start, &equator_end)?.meters(),
         111_319.49,
         0.5,
     );
     assert_close(
-        haversine_distance(&equator_start, &equator_end).meters(),
+        haversine_distance(&equator_start, &equator_end)?.meters(),
         111_195.0,
         1.0,
     );
-    assert_close(initial_bearing(&equator_start, &equator_end), 90.0, 1e-9);
-    assert_close(final_bearing(&equator_start, &equator_end), 90.0, 1e-9);
+    assert_close(initial_bearing(&equator_start, &equator_end)?, 90.0, 1e-9);
+    assert_close(final_bearing(&equator_start, &equator_end)?, 90.0, 1e-9);
 
     let route_start = Coordinate::wgs84(40.0, -75.0);
     let route_end = Coordinate::wgs84(41.0, -73.0);
     let direct = destination(
         &route_start,
-        initial_bearing(&route_start, &route_end),
-        geodesic_distance(&route_start, &route_end),
-    );
+        initial_bearing(&route_start, &route_end)?,
+        geodesic_distance(&route_start, &route_end)?,
+    )?;
     assert_within_meters(&direct, &route_end, 0.2);
     assert_close(
-        midpoint(&Coordinate::wgs84(0.0, 0.0), &Coordinate::wgs84(0.0, 2.0)).lon,
+        midpoint(&Coordinate::wgs84(0.0, 0.0), &Coordinate::wgs84(0.0, 2.0))?.lon,
         1.0,
         1e-6,
     );
@@ -533,7 +535,7 @@ fn geodesics_and_local_frames() -> DemoResult {
             &Coordinate::wgs84(0.0, 0.0),
             &Coordinate::wgs84(0.0, 10.0),
             0.25,
-        )
+        )?
         .lon,
         2.5,
         1e-6,
@@ -541,17 +543,17 @@ fn geodesics_and_local_frames() -> DemoResult {
     let rhumb_end = Coordinate::wgs84(45.0, -70.0);
     let rhumb = rhumb_destination(
         &route_start,
-        rhumb_bearing(&route_start, &rhumb_end),
-        rhumb_distance(&route_start, &rhumb_end),
-    );
+        rhumb_bearing(&route_start, &rhumb_end)?,
+        rhumb_distance(&route_start, &rhumb_end)?,
+    )?;
     assert_within_meters(&rhumb, &rhumb_end, 0.2);
 
     let path_start = Coordinate::wgs84(0.0, 0.0);
     let path_end = Coordinate::wgs84(0.0, 10.0);
     let off_path = Coordinate::wgs84(1.0, 5.0);
-    assert!(cross_track_distance(&off_path, &path_start, &path_end).meters() < 0.0);
+    assert!(cross_track_distance(&off_path, &path_start, &path_end)?.meters() < 0.0);
     assert_close(
-        along_track_distance(&off_path, &path_start, &path_end).meters(),
+        along_track_distance(&off_path, &path_start, &path_end)?.meters(),
         5.0 * 111_195.0,
         2_000.0,
     );
@@ -560,7 +562,7 @@ fn geodesics_and_local_frames() -> DemoResult {
         90.0,
         &Coordinate::wgs84(-10.0, 0.0),
         0.0,
-    )
+    )?
     .expect("equator and prime meridian intersect");
     assert_within_meters(&crossing, &Coordinate::wgs84(0.0, 0.0), 0.02);
 
@@ -579,23 +581,27 @@ fn geodesics_and_local_frames() -> DemoResult {
 
     let origin = Coordinate::wgs84(40.0, -75.0).with_height(Height::Ellipsoidal(100.0));
     let target = Coordinate::wgs84(40.001, -74.999).with_height(Height::Ellipsoidal(125.0));
-    let ecef = Ecef::from_coordinate(origin, Ellipsoid::WGS84);
-    assert_within_meters(&ecef.to_coordinate(Ellipsoid::WGS84), &origin, 0.001);
+    let ecef = Ecef::try_from_coordinate(origin, Ellipsoid::WGS84)?;
+    assert_within_meters(
+        &ecef.try_to_coordinate(Ellipsoid::WGS84, Crs::Wgs84)?,
+        &origin,
+        0.001,
+    );
     let rebuilt = Ecef::new(ecef.x, ecef.y, ecef.z);
     assert_eq!(rebuilt, ecef);
 
-    let enu = Enu::from_coordinate(target, origin);
-    assert_within_meters(&enu.to_coordinate(origin), &target, 0.001);
+    let enu = Enu::try_from_coordinate(target, origin)?;
+    assert_within_meters(&enu.try_to_coordinate(origin)?, &target, 0.001);
     let ned = enu.to_ned();
     let aer = enu.to_aer();
     assert_eq!(ned.to_enu(), enu);
-    assert_within_meters(&ned.to_coordinate(origin), &target, 0.001);
-    assert_within_meters(&aer.to_coordinate(origin), &target, 0.001);
+    assert_within_meters(&ned.try_to_coordinate(origin)?, &target, 0.001);
+    assert_within_meters(&aer.try_to_coordinate(origin)?, &target, 0.001);
     assert_enu_close(aer.to_enu(), enu);
     assert_ned_close(aer.to_ned(), ned);
     assert_aer_close(ned.to_aer(), aer);
-    assert_eq!(Ned::from_coordinate(target, origin), ned);
-    assert_aer_close(Aer::from_coordinate(target, origin), aer);
+    assert_eq!(Ned::try_from_coordinate(target, origin)?, ned);
+    assert_aer_close(Aer::try_from_coordinate(target, origin)?, aer);
     let via_from_ned: Ned = enu.into();
     let via_from_aer: Aer = enu.into();
     let via_from_enu: Enu = via_from_ned.into();
@@ -614,8 +620,8 @@ fn classic_datums_and_projected_grids() -> DemoResult {
     for datum in [Crs::Nad27, Crs::Tokyo, Crs::Pulkovo42] {
         let transform = DatumTransform::to_wgs84(datum).expect("classic datum is catalogued");
         let source = Coordinate::new(40.0, -100.0, datum).with_height(Height::Ellipsoidal(0.0));
-        let wgs = transform.transform(source, Crs::Wgs84);
-        let restored = transform.inverse().transform(wgs, datum);
+        let wgs = transform.transform(source)?;
+        let restored = transform.inverse().transform(wgs)?;
         assert_eq!(restored.crs, datum);
         assert_within_meters(&restored, &source, 0.001);
     }
@@ -734,13 +740,13 @@ fn boundaries_and_typed_errors() -> DemoResult {
     let antimeridian_distance = geodesic_distance(
         &Coordinate::wgs84(0.0, 179.9),
         &Coordinate::wgs84(0.0, -179.9),
-    );
+    )?;
     assert!(antimeridian_distance.meters() < 25_000.0);
     let reflected = rhumb_destination(
         &Coordinate::wgs84(80.0, 0.0),
         0.0,
         Length::from_meters(1_668_000.0),
-    );
+    )?;
     assert!((80.0..90.0).contains(&reflected.lat));
 
     for polar in [

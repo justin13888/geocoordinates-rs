@@ -96,7 +96,7 @@ pub struct Bd09 {
 }
 
 macro_rules! impl_latlon {
-    ($($t:ty),*) => {$(
+    ($($t:ty => $crs:expr),*) => {$(
         impl $t {
             /// Construct from latitude/longitude in decimal degrees.
             #[must_use]
@@ -110,10 +110,11 @@ macro_rules! impl_latlon {
         impl crate::coord::LatLon for $t {
             fn lat(&self) -> f64 { self.lat }
             fn lon(&self) -> f64 { self.lon }
+            fn crs(&self) -> Crs { $crs }
         }
     )*};
 }
-impl_latlon!(Wgs84, Gcj02, Bd09);
+impl_latlon!(Wgs84 => Crs::Wgs84, Gcj02 => Crs::Gcj02, Bd09 => Crs::Bd09);
 
 // --- Bridges to the canonical `Coordinate` ---
 //

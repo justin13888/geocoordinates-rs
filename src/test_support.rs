@@ -23,7 +23,7 @@ use crate::{Bd09, Gcj02, Wgs84};
 /// Works on any [`LatLon`] — `Coordinate` and the datum newtypes alike.
 #[track_caller]
 pub(crate) fn assert_within_meters(a: &impl LatLon, b: &impl LatLon, max_m: f64) {
-    let d = haversine_distance(a, b).meters();
+    let d = haversine_distance(a, b).unwrap().meters();
     assert!(
         d <= max_m,
         "expected within {max_m} m, got {d:.4} m \

@@ -85,7 +85,7 @@ fn to_wgs84(coord: Coordinate) -> Result<Approx<Coordinate>> {
             .map(|w| carry(coord, w.lat, w.lon, Crs::Wgs84)),
         Crs::Nad27 | Crs::Tokyo | Crs::Pulkovo42 => {
             let dt = DatumTransform::to_wgs84(coord.crs).expect("classic datum is catalogued");
-            Approx::new(dt.transform(coord, Crs::Wgs84), 0.0)
+            Approx::new(dt.transform(coord)?, 0.0)
         }
     })
 }
@@ -104,7 +104,7 @@ fn from_wgs84(wgs: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
         }
         Crs::Nad27 | Crs::Tokyo | Crs::Pulkovo42 => {
             let dt = DatumTransform::to_wgs84(to).expect("classic datum is catalogued");
-            Approx::new(dt.inverse().transform(wgs, to), 0.0)
+            Approx::new(dt.inverse().transform(wgs)?, 0.0)
         }
     })
 }
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(r.crs, Crs::Gcj02);
         // Equals the explicit two-step route.
         let dt = DatumTransform::to_wgs84(Crs::Nad27).unwrap();
-        let w = dt.transform(nad27, Crs::Wgs84);
+        let w = dt.transform(nad27).unwrap();
         let g = Wgs84::new(w.lat, w.lon).try_to_gcj02().unwrap();
         assert_close(r.lat, g.lat, 1e-12);
         assert_close(r.lon, g.lon, 1e-12);
@@ -243,7 +243,8 @@ mod tests {
         let dt = DatumTransform::to_wgs84(Crs::Tokyo).unwrap();
         let tokyo = dt
             .inverse()
-            .transform(Coordinate::wgs84(w.lat, w.lon), Crs::Tokyo);
+            .transform(Coordinate::wgs84(w.lat, w.lon))
+            .unwrap();
         assert_eq!(r.crs, Crs::Tokyo);
         assert_close(r.max_error_m(), w.max_error_m(), 1e-12);
         assert_close(r.lat, tokyo.lat, 1e-9);
