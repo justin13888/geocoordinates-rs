@@ -34,6 +34,18 @@ fn position_fix(lon: f64, lat: f64, alt: Option<f64>, axis: AxisOrder, raw: &str
     }
 }
 
+fn validate_positions(mut positions: Vec<Fix>, input: &str, format: &str) -> Result<Vec<Fix>> {
+    for fix in &mut positions {
+        fix.coord
+            .validate()
+            .map_err(|e| Error::Parse(format!("{format}: invalid position: {e}")))?;
+        if let Some(source) = &mut fix.source {
+            source.raw = input.to_string();
+        }
+    }
+    Ok(positions)
+}
+
 /// Parse one or more positions from a GeoJSON value (lon-lat order).
 ///
 /// Walks the whole structure — features, geometry collections, and every
@@ -92,7 +104,7 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
             }
         }),
     }
-    Ok(out)
+    validate_positions(out, input, "geojson")
 }
 
 /// Parse a coordinate/geometry from a WKT string (X Y order).
@@ -142,7 +154,7 @@ pub fn from_wkt(input: &str) -> Result<Vec<Fix>> {
     let parsed = Wkt::<f64>::from_str(input).map_err(|e| Error::Parse(format!("wkt: {e}")))?;
     let mut out = Vec::new();
     geometry(&parsed, &mut out);
-    Ok(out)
+    validate_positions(out, input, "wkt")
 }
 
 /// Parse track/route/waypoint positions from a GPX document.
@@ -179,7 +191,7 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
             push(wp, &mut out);
         }
     }
-    Ok(out)
+    validate_positions(out, input, "gpx")
 }
 
 /// Parse placemark positions from a KML document.
@@ -238,7 +250,7 @@ pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
     let parsed = Kml::<f64>::from_str(input).map_err(|e| Error::Parse(format!("kml: {e}")))?;
     let mut out = Vec::new();
     walk(&parsed, &mut out);
-    Ok(out)
+    validate_positions(out, input, "kml")
 }
 
 #[cfg(test)]
@@ -259,6 +271,7 @@ mod tests {
         let src = pt[0].source.as_ref().unwrap();
         assert_eq!(src.axis_order, Some(AxisOrder::LonLat));
         assert_close(src.confidence.value(), 1.0, 1e-12);
+        assert_eq!(src.raw, r#"{"type":"Point","coordinates":[2.0,9.0,100.0]}"#);
         // A FeatureCollection with a 3-vertex LineString yields three fixes.
         let fc = r#"{"type":"FeatureCollection","features":[
             {"type":"Feature","geometry":{"type":"LineString",
@@ -268,6 +281,7 @@ mod tests {
         assert_close(line[2].coord.lat, 3.0, 1e-12);
         assert_close(line[2].coord.lon, 2.0, 1e-12);
         assert!(from_geojson("not json").is_err());
+        assert!(from_geojson(r#"{"type":"Point","coordinates":[2.0,91.0]}"#).is_err());
     }
 
     #[cfg(feature = "wkt")]
@@ -286,6 +300,7 @@ mod tests {
         assert_close(line[1].coord.lat, 20.0, 1e-12);
         assert_close(line[1].coord.lon, 10.0, 1e-12);
         assert!(from_wkt("CIRCLE(0 0 5)").is_err());
+        assert!(from_wkt("POINT(181 0)").is_err());
     }
 
     #[cfg(feature = "gpx")]

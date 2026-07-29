@@ -38,6 +38,9 @@ pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
         None => (body, None),
     };
     if let Some(cs) = checksum {
+        if cs.len() != 2 || !cs.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(Error::Parse(format!("bad NMEA checksum field: {sentence}")));
+        }
         let expected = u8::from_str_radix(cs, 16)
             .map_err(|_| Error::Parse(format!("bad NMEA checksum field: {sentence}")))?;
         let actual = data.bytes().fold(0u8, |acc, b| acc ^ b);
@@ -110,6 +113,20 @@ fn field<'a>(fields: &[&'a str], i: usize) -> &'a str {
     fields.get(i).copied().unwrap_or("")
 }
 
+fn optional_number(value: &str, name: &str, raw: &str) -> Result<Option<f64>> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+    let parsed = value
+        .parse::<f64>()
+        .map_err(|_| Error::Parse(format!("bad NMEA {name}: {raw}")))?;
+    if !parsed.is_finite() {
+        return Err(Error::Parse(format!("non-finite NMEA {name}: {raw}")));
+    }
+    Ok(Some(parsed))
+}
+
 /// Assemble a [`Fix`] with the shared NMEA provenance (lat-first, confident).
 fn base_fix(coord: Coordinate, accuracy: Option<Accuracy>, notes: Vec<String>, raw: &str) -> Fix {
     Fix {
@@ -130,16 +147,26 @@ fn base_fix(coord: Coordinate, accuracy: Option<Accuracy>, notes: Vec<String>, r
 fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
     let mut coord = coordinate(field(f, 2), field(f, 3), field(f, 4), field(f, 5), raw)?;
     let mut notes = Vec::new();
-    if let Ok(alt) = field(f, 9).trim().parse::<f64>() {
+    if let Some(alt) = optional_number(field(f, 9), "altitude", raw)? {
         coord = coord.with_height(Height::Orthometric(alt));
     }
-    if let Ok(sep) = field(f, 11).trim().parse::<f64>() {
+    if let Some(sep) = optional_number(field(f, 11), "geoid separation", raw)? {
         notes.push(format!("geoid separation {sep} m"));
     }
-    let accuracy = field(f, 8).trim().parse::<f64>().ok().map(|hdop| Accuracy {
-        horizontal_m: Some(hdop * NOMINAL_UERE_M),
-        vertical_m: None,
-    });
+    let accuracy = optional_number(field(f, 8), "HDOP", raw)?
+        .map(|hdop| {
+            if hdop < 0.0 {
+                return Err(Error::Parse(format!("negative NMEA HDOP: {raw}")));
+            }
+            Ok(Accuracy {
+                horizontal_m: Some(hdop * NOMINAL_UERE_M),
+                vertical_m: None,
+            })
+        })
+        .transpose()?;
+    coord
+        .validate()
+        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))?;
     Ok(base_fix(coord, accuracy, notes, raw))
 }
 
@@ -210,6 +237,7 @@ mod tests {
     fn checksum_is_verified() {
         // Flip a digit so the stored checksum no longer matches.
         assert!(from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E").is_err());
+        assert!(from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1").is_err());
         // …but a sentence with no `*HH` suffix is accepted.
         assert!(from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A").is_ok());
     }
@@ -219,5 +247,7 @@ mod tests {
         assert!(from_nmea_sentence("$GPVTG,054.7,T,034.4,M,005.5,N,010.2,K*48").is_err());
         assert!(from_nmea_sentence("$GPGGA,,,N,,E,,,,,,,,,").is_err()); // empty coordinate
         assert!(from_nmea_sentence("$GPGLL,4916.45,X,12311.12,W,225444,A").is_err()); // bad hemi
+        assert!(from_nmea_sentence("$GPGLL,4960.00,N,12311.12,W,225444,A").is_err());
+        assert!(from_nmea_sentence("$GPGGA,0,4807.0,N,01131.0,E,1,8,NaN,0,M,0,M").is_err());
     }
 }
