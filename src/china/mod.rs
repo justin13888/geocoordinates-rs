@@ -8,15 +8,16 @@
 //!
 //! | Direction | Nature | API |
 //! |---|---|---|
-//! | WGS-84 → GCJ-02 | exact forward offset | [`From`] / [`Wgs84::to_gcj02`] |
-//! | GCJ-02 → BD-09 | exact (empirical) forward | [`From`] / [`Gcj02::to_bd09`] |
-//! | WGS-84 → BD-09 | exact composition | [`From`] / [`Wgs84::to_bd09`] |
-//! | GCJ-02 → WGS-84 | **approximate** inverse | [`Gcj02::to_wgs84_refined`] → [`Approx`](crate::Approx) |
-//! | BD-09 → GCJ-02 | **approximate** inverse | [`Bd09::to_gcj02_refined`] → [`Approx`](crate::Approx) |
-//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::to_wgs84_refined`] → [`Approx`](crate::Approx) |
+//! | WGS-84 → GCJ-02 | exact forward offset | [`Wgs84::try_to_gcj02`] / [`TryFrom`] |
+//! | GCJ-02 → BD-09 | exact (empirical) forward | [`Gcj02::try_to_bd09`] / [`TryFrom`] |
+//! | WGS-84 → BD-09 | exact composition | [`Wgs84::try_to_bd09`] / [`TryFrom`] |
+//! | GCJ-02 → WGS-84 | **approximate** inverse | [`Gcj02::try_to_wgs84_refined`] → [`Approx`](crate::Approx) |
+//! | BD-09 → GCJ-02 | **approximate** inverse | [`Bd09::try_to_gcj02_refined`] → [`Approx`](crate::Approx) |
+//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::try_to_wgs84_refined`] → [`Approx`](crate::Approx) |
 //!
 //! Outside China (see [`out_of_china`]) every conversion is the identity. This
-//! creates a documented discontinuity at the border.
+//! creates a documented discontinuity at the border. All conversion methods
+//! validate finite, in-range coordinates before applying the transform.
 
 mod baidu_mercator;
 mod bd09;

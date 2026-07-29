@@ -11,11 +11,10 @@
 //!
 //! The model is explicit in the function name, so the accuracy is obvious
 //! without reading docs. Measurement functions (distances, bearings) take any
-//! [`LatLon`], so they work on `Coordinate` and the per-datum newtypes alike — a
-//! scalar result has no reference system to mislabel. Producer functions will
-//! take `&Coordinate` and propagate its CRS to the result; that ellipsoidal math
-//! assumes a WGS-84 / true-datum input, so feeding an obfuscated GCJ-02 / BD-09
-//! position is a logic error.
+//! [`LatLon`], so they work on `Coordinate` and the per-datum newtypes alike;
+//! every multi-point operation rejects mixed CRS values. Producer functions
+//! take `&Coordinate`, require WGS-84 inputs, and return WGS-84 coordinates, so
+//! an obfuscated GCJ-02 / BD-09 position cannot silently enter true-datum math.
 
 use core::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 

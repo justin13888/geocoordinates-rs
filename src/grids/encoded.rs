@@ -65,9 +65,9 @@ impl PlusCode {
     /// Encode a coordinate at the given code length (exact).
     ///
     /// `length` is the number of significant digits (the canonical values are
-    /// 2, 4, 6, 8, 10, and 11–15); it is clamped to `[2, 15]` and rounded up to
-    /// an even length below 10. Longitude is wrapped and latitude clamped, so
-    /// the antimeridian and poles are handled.
+    /// 2, 4, 6, 8, 10, and 11–15); all other values are rejected. The
+    /// coordinate must be valid WGS-84. Longitude is wrapped and the valid
+    /// north-pole endpoint is nudged into the final encodable cell.
     pub fn encode(coord: Coordinate, length: usize) -> Result<Self> {
         validate_encoding_coordinate(coord)?;
         if !matches!(length, 2 | 4 | 6 | 8 | 10..=15) {
@@ -395,7 +395,7 @@ impl FromStr for Geohash {
 // --- Maidenhead locator ---
 
 impl Maidenhead {
-    /// Encode a coordinate at the given number of pairs (clamped to 1–3; exact).
+    /// Encode a WGS-84 coordinate at exactly 1–3 character pairs.
     pub fn encode(coord: Coordinate, pairs: usize) -> Result<Self> {
         validate_encoding_coordinate(coord)?;
         if !(1..=3).contains(&pairs) {

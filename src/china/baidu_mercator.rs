@@ -5,10 +5,11 @@
 //! latitude / value bands ([`LLBAND`] / [`MCBAND`]) select one of six
 //! coefficient rows in [`LL2MC`] (forward) or [`MC2LL`] (inverse).
 //!
-//! Both directions are deterministic, so they implement [`From`] and are modeled
-//! as **exact** (like a UTM projection). The two coefficient tables are
-//! independent empirical fits, so a `from_bd09(p).to_bd09()` round-trip is stable
-//! to sub-meter, not bit-identical.
+//! Both directions are deterministic and modeled as **exact** (like a UTM
+//! projection), but remain fallible because their numeric and projection
+//! domains are validated. The two coefficient tables are independent empirical
+//! fits, so a `try_from_bd09(p)?.try_to_bd09()?` round-trip is stable to
+//! sub-meter, not bit-identical.
 //!
 //! The geographic side is always [`Bd09`]; chain the [`china`](crate::china) datum
 //! methods (BD-09 → GCJ-02 → WGS-84) to reach real GPS, which are honest about
@@ -205,7 +206,8 @@ fn poly(factors: &[f64], x: f64) -> f64 {
 /// A Baidu Web Mercator position, in projected meters.
 ///
 /// `x` is the easting (longitude axis), `y` the northing (latitude axis). The
-/// underlying geographic datum is **BD-09** — see [`BaiduMercator::to_bd09`].
+/// underlying geographic datum is **BD-09** — see
+/// [`BaiduMercator::try_to_bd09`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BaiduMercator {

@@ -3,7 +3,7 @@
 //! EXIF/XMP image GPS metadata is **out of scope** — it is handled by a
 //! separate library that consumes this crate's primitives (the angle
 //! conversions for GPS rationals, [`Fix`] with its
-//! [`RawSource`](crate::fix::RawSource), and
+//! [`RawSource`], and
 //! [`DatumAmbiguity::PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02)
 //! for China-EXIF datum ambiguity).
 //!

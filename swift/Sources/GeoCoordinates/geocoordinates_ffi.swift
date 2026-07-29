@@ -5007,7 +5007,7 @@ public func h3Decode(cell: H3Cell)throws  -> ApproxCoordinate  {
 })
 }
 /**
- * Encode a coordinate to its H3 cell index at `resolution` (0–15, clamped).
+ * Encode a WGS-84 coordinate to its H3 cell index at `resolution` (0–15).
  */
 public func h3Encode(coord: Coordinate, resolution: UInt8)throws  -> H3Cell  {
     return try  FfiConverterTypeH3Cell_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5368,7 +5368,7 @@ public func s2Decode(cell: S2CellId)throws  -> ApproxCoordinate  {
 })
 }
 /**
- * Encode a coordinate to its S2 cell id at `level` (0–30).
+ * Encode a WGS-84 coordinate to its S2 cell id at `level` (0–30).
  */
 public func s2Encode(coord: Coordinate, level: UInt8)throws  -> S2CellId  {
     return try  FfiConverterTypeS2CellId_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5656,7 +5656,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_h3_decode() != 5922) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_h3_encode() != 22112) {
+    if (uniffi_geocoordinates_ffi_checksum_func_h3_encode() != 41697) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_haversine_distance_m() != 12330) {
@@ -5749,7 +5749,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_s2_decode() != 41313) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_s2_encode() != 7560) {
+    if (uniffi_geocoordinates_ffi_checksum_func_s2_encode() != 24229) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 33273) {

@@ -2,7 +2,9 @@
 //!
 //! These are defined relative to a reference origin, so they are expressed as
 //! methods taking the origin rather than `From` impls. The math is **exact**
-//! (a rotation of the ECEF difference vector), so results are bare types.
+//! (a rotation of the ECEF difference vector), while construction remains
+//! fallible so both positions must be valid WGS-84 coordinates with compatible
+//! ellipsoidal heights.
 
 use super::ecef::Ecef;
 use super::ellipsoid::Ellipsoid;

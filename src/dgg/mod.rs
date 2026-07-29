@@ -28,7 +28,8 @@ pub struct H3Cell(pub u64);
 
 #[cfg(feature = "h3")]
 impl H3Cell {
-    /// Encode (index) a coordinate to its H3 cell at `resolution` (0–15).
+    /// Encode (index) a WGS-84 coordinate to its H3 cell at `resolution`
+    /// (0–15).
     pub fn encode(coord: Coordinate, resolution: u8) -> Result<Self> {
         use h3o::{LatLng, Resolution};
 
@@ -82,7 +83,7 @@ pub struct S2CellId(pub u64);
 
 #[cfg(feature = "s2")]
 impl S2CellId {
-    /// Encode (index) a coordinate to its S2 cell at `level` (0–30).
+    /// Encode (index) a WGS-84 coordinate to its S2 cell at `level` (0–30).
     pub fn encode(coord: Coordinate, level: u8) -> Result<Self> {
         use s2::cellid::CellID;
         use s2::latlng::LatLng;
@@ -98,8 +99,8 @@ impl S2CellId {
         Ok(S2CellId(leaf.parent(u64::from(level)).0))
     }
 
-    /// Decode to the cell's center coordinate; the error bound is a conservative
-    /// cell radius from the average cell area at this level.
+    /// Decode to the cell's center coordinate; the error bound is the greatest
+    /// spherical distance from the center to the cell's four actual vertices.
     pub fn decode(self) -> Result<Approx<Coordinate>> {
         use s2::cell::Cell;
         use s2::cellid::CellID;
@@ -175,8 +176,7 @@ mod tests {
                     .unwrap()
                     .max_error_m()
         );
-        // A resolution-9 cell's circumradius is ≈ 201.8 m — a tight band pins the
-        // exact area → radius formula (the `3√3` denominator included).
+        // A resolution-9 cell's farthest boundary vertex is ≈ 205 m away.
         let bound9 = H3Cell::encode(c(40.7128, -74.006), 9)
             .unwrap()
             .decode()
@@ -217,8 +217,7 @@ mod tests {
                     .unwrap()
                     .max_error_m()
         );
-        // A level-20 cell's radius is ≈ 7.44 m — a tight band pins the exact
-        // level → radius formula (both factors and the √(2/3) included).
+        // A level-20 cell's farthest corner is ≈ 6–7 m away.
         let bound20 = S2CellId::encode(c(40.7128, -74.006), 20)
             .unwrap()
             .decode()

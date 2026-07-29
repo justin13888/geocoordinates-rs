@@ -63,8 +63,8 @@ impl Bd09 {
 
     /// BD-09 → GCJ-02, refined fixed-point inverse (sub-meter).
     ///
-    /// Tightens [`to_gcj02_fast`](Self::to_gcj02_fast) by iterating against the
-    /// exact forward [`Gcj02::to_bd09`].
+    /// Tightens [`try_to_gcj02_fast`](Self::try_to_gcj02_fast) by iterating
+    /// against the exact forward [`Gcj02::try_to_bd09`].
     pub fn try_to_gcj02_refined(self) -> Result<Approx<Gcj02>> {
         self.validate()?;
         let mut gcj = self.try_to_gcj02_fast()?.into_inner();

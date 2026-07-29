@@ -2,7 +2,8 @@
 //!
 //! ECEF is the bridge format for almost every datum transformation. The
 //! geodetic ↔ ECEF conversion is closed-form and treated as **exact** (the
-//! inverse uses Bowring's well-converged formula), so it implements [`From`].
+//! inverse uses Bowring's well-converged formula). Named fallible methods
+//! validate the ellipsoid, numeric inputs, and ellipsoidal height semantics.
 
 use super::ellipsoid::Ellipsoid;
 use crate::coord::{Coordinate, Crs, Height};
@@ -41,9 +42,8 @@ impl Ecef {
     /// ECEF → geodetic [`Coordinate`] (lat/lon/height) on the given ellipsoid
     /// (exact, Bowring closed-form inverse).
     ///
-    /// The result carries no [`Crs`](crate::Crs) tag of its own — ECEF is
-    /// datum-agnostic; the caller is responsible for tagging the coordinate
-    /// with the reference system the `ellipsoid` belongs to.
+    /// ECEF is datum-agnostic, so `crs` explicitly tags the output with the
+    /// reference system to which `ellipsoid` belongs.
     pub fn try_to_coordinate(self, ellipsoid: Ellipsoid, crs: Crs) -> Result<Coordinate> {
         ellipsoid.validate()?;
         if !self.x.is_finite() || !self.y.is_finite() || !self.z.is_finite() {
@@ -77,7 +77,8 @@ impl Ecef {
     }
 
     /// Geodetic [`Coordinate`] → ECEF on the given ellipsoid (exact, closed
-    /// form). Height is taken as ellipsoidal.
+    /// form). Missing height means zero ellipsoidal height; orthometric height
+    /// is rejected because no geoid model is available.
     pub fn try_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<Self> {
         coord.validate()?;
         ellipsoid.validate()?;

@@ -4,9 +4,9 @@
 //! empirical polynomial + sinusoids — exact within the published algorithm. The
 //! inverse (GCJ-02 → WGS-84) has no closed form:
 //!
-//! - [`Gcj02::to_wgs84_fast`] subtracts the offset computed at the wrong point
+//! - [`Gcj02::try_to_wgs84_fast`] subtracts the offset computed at the wrong point
 //!   (~1–2 m error).
-//! - [`Gcj02::to_wgs84_refined`] uses fixed-point iteration
+//! - [`Gcj02::try_to_wgs84_refined`] uses fixed-point iteration
 //!   (`wgs += target − wgs2gcj(wgs)`), converging to < 0.5 m. Preferred over the
 //!   30-iteration binary search used by older ports.
 
