@@ -748,6 +748,7 @@ fn boundaries_and_typed_errors() -> DemoResult {
         Length::from_meters(1_668_000.0),
     )?;
     assert!((80.0..90.0).contains(&reflected.lat));
+    assert_eq!(reflected.lon, -180.0);
 
     for polar in [
         Coordinate::wgs84(90.0, 180.0),
@@ -766,6 +767,30 @@ fn boundaries_and_typed_errors() -> DemoResult {
         Err(Error::OutOfRange { .. })
     ));
     assert!(matches!(
+        Dd(f64::NAN).try_to_dms(Axis::Latitude),
+        Err(Error::InvalidValue { .. })
+    ));
+    assert!(matches!(
+        Dms {
+            degrees: 40,
+            minutes: 60,
+            seconds: 0.0,
+            hemisphere: AngleHemisphere::North,
+        }
+        .try_to_dd(),
+        Err(Error::InvalidValue { .. })
+    ));
+    assert!(
+        format(
+            &NEW_YORK,
+            &FormatOptions {
+                precision: Some(16),
+                ..FormatOptions::default()
+            }
+        )
+        .is_err()
+    );
+    assert!(matches!(
         BaiduMercator::try_from_coordinate(Coordinate::wgs84(39.915, 116.404)),
         Err(Error::CrsMismatch { .. })
     ));
@@ -773,14 +798,49 @@ fn boundaries_and_typed_errors() -> DemoResult {
         Wgs84::try_from(Coordinate::gcj02(39.915, 116.404)),
         Err(Error::CrsMismatch { .. })
     ));
+    assert!(Wgs84::new(f64::NAN, 116.404).try_to_gcj02().is_err());
+    assert!(geodesic_distance(&Coordinate::wgs84(0.0, 0.0), &Coordinate::gcj02(0.0, 1.0)).is_err());
+    assert!(destination(&Coordinate::gcj02(0.0, 0.0), 90.0, Length::from_meters(1.0)).is_err());
+    assert!(
+        Ecef::try_from_coordinate(
+            Coordinate::wgs84(0.0, 0.0).with_height(Height::Orthometric(10.0)),
+            Ellipsoid::WGS84
+        )
+        .is_err()
+    );
+    assert!(
+        Enu::try_from_coordinate(
+            Coordinate::gcj02(40.0, -75.0),
+            Coordinate::wgs84(40.0, -75.0)
+        )
+        .is_err()
+    );
+    let nad27_transform = DatumTransform::to_wgs84(Crs::Nad27).expect("catalogued");
+    assert!(
+        nad27_transform
+            .transform(Coordinate::wgs84(40.0, -100.0))
+            .is_err()
+    );
     assert!(matches!(
         PlusCode::try_from("not-a-plus-code"),
         Err(Error::InvalidGridRef(_))
     ));
+    assert!(PlusCode::encode(NEW_YORK, 3).is_err());
+    assert!(Geohash::encode(NEW_YORK, 23).is_err());
+    assert!(Maidenhead::encode(NEW_YORK, 0).is_err());
+    assert!(Mgrs::try_from_coordinate(NEW_YORK, 250).is_err());
+    assert!(Mgrs::try_from("18TWK000000277577").is_err());
+    assert!(H3Cell::encode(NEW_YORK, 16).is_err());
+    assert!(H3Cell(0).decode().is_err());
+    assert!(S2CellId::encode(NEW_YORK, 31).is_err());
+    assert!(S2CellId(0).decode().is_err());
     assert!(matches!(
         parse_coordinate("not a coordinate"),
         Err(Error::Parse(_))
     ));
+    assert!(from_geo_uri("geo:1,2;u=-1").is_err());
+    assert!(from_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
+    assert!(parse_text("40 60 N 74 0 W").is_err());
     assert!(matches!(
         Utm::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)),
         Err(Error::OutOfRange { .. })
@@ -789,6 +849,16 @@ fn boundaries_and_typed_errors() -> DemoResult {
         Ups::try_from_coordinate(Coordinate::wgs84(40.0, -75.0)),
         Err(Error::OutOfRange { .. })
     ));
+    assert!(
+        Utm {
+            zone: 0,
+            hemisphere: GridHemisphere::North,
+            easting: 500_000.0,
+            northing: 0.0,
+        }
+        .try_to_coordinate()
+        .is_err()
+    );
     assert!(matches!(
         from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"),
         Err(Error::Parse(_))
