@@ -11,7 +11,7 @@
 //! grammar is small and parsing it here keeps the dependency surface (and the
 //! wasm build) clean.
 
-use crate::angle::{Dd, Ddm, Hemisphere};
+use crate::angle::{Ddm, Hemisphere};
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, Confidence, Fix, RawSource};
@@ -73,30 +73,36 @@ fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f6
     let minutes: f64 = min_str
         .parse()
         .map_err(|_| Error::Parse(format!("bad NMEA minutes: {raw}")))?;
-    let hemisphere = match hemi.trim() {
-        "N" => Hemisphere::North,
-        "S" => Hemisphere::South,
-        "E" => Hemisphere::East,
-        "W" => Hemisphere::West,
+    let hemisphere = match (deg_digits, hemi.trim()) {
+        (2, "N") => Hemisphere::North,
+        (2, "S") => Hemisphere::South,
+        (3, "E") => Hemisphere::East,
+        (3, "W") => Hemisphere::West,
         other => {
             return Err(Error::Parse(format!(
-                "bad NMEA hemisphere '{other}': {raw}"
+                "bad NMEA axis/hemisphere '{other:?}': {raw}"
             )));
         }
     };
-    Ok(Dd::from(Ddm {
+    Ddm {
         degrees,
         minutes,
         hemisphere,
-    })
-    .0)
+    }
+    .try_to_dd()
+    .map(|value| value.0)
+    .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))
 }
 
 /// Latitude (2 degree digits) + longitude (3 degree digits) → coordinate.
 fn coordinate(lat: &str, ns: &str, lon: &str, ew: &str, raw: &str) -> Result<Coordinate> {
     let lat = parse_ddm(lat, ns, 2, raw)?;
     let lon = parse_ddm(lon, ew, 3, raw)?;
-    Ok(Coordinate::wgs84(lat, lon))
+    let coord = Coordinate::wgs84(lat, lon);
+    coord
+        .validate()
+        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))?;
+    Ok(coord)
 }
 
 /// The `i`-th comma-separated field, or `""` when absent.

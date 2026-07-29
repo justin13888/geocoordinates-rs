@@ -914,20 +914,29 @@ pub fn coordinate_bd09(lat: f64, lon: f64) -> Coordinate {
 
 /// WGS-84 → GCJ-02. **Exact** forward offset (identity outside China).
 #[uniffi::export]
-pub fn wgs84_to_gcj02(p: Wgs84) -> Gcj02 {
-    gc::Wgs84::from(p).to_gcj02().into()
+pub fn wgs84_to_gcj02(p: Wgs84) -> Result<Gcj02, GeoError> {
+    gc::Wgs84::from(p)
+        .try_to_gcj02()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// WGS-84 → BD-09. **Exact** composition through GCJ-02.
 #[uniffi::export]
-pub fn wgs84_to_bd09(p: Wgs84) -> Bd09 {
-    gc::Wgs84::from(p).to_bd09().into()
+pub fn wgs84_to_bd09(p: Wgs84) -> Result<Bd09, GeoError> {
+    gc::Wgs84::from(p)
+        .try_to_bd09()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// GCJ-02 → BD-09. **Exact** forward nudge.
 #[uniffi::export]
-pub fn gcj02_to_bd09(p: Gcj02) -> Bd09 {
-    gc::Gcj02::from(p).to_bd09().into()
+pub fn gcj02_to_bd09(p: Gcj02) -> Result<Bd09, GeoError> {
+    gc::Gcj02::from(p)
+        .try_to_bd09()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 // --- China datum conversions (approximate inverse) ---
@@ -935,56 +944,79 @@ pub fn gcj02_to_bd09(p: Gcj02) -> Bd09 {
 /// GCJ-02 → WGS-84, fast single-step inverse (~1–2 m). **Approximate**: the
 /// returned record carries `max_error_m`.
 #[uniffi::export]
-pub fn gcj02_to_wgs84_fast(p: Gcj02) -> ApproxWgs84 {
-    gc::Gcj02::from(p).to_wgs84_fast().into()
+pub fn gcj02_to_wgs84_fast(p: Gcj02) -> Result<ApproxWgs84, GeoError> {
+    gc::Gcj02::from(p)
+        .try_to_wgs84_fast()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// GCJ-02 → WGS-84, refined fixed-point inverse (< 0.5 m). **Approximate**: the
 /// returned record carries `max_error_m`.
 #[uniffi::export]
-pub fn gcj02_to_wgs84_refined(p: Gcj02) -> ApproxWgs84 {
-    gc::Gcj02::from(p).to_wgs84_refined().into()
+pub fn gcj02_to_wgs84_refined(p: Gcj02) -> Result<ApproxWgs84, GeoError> {
+    gc::Gcj02::from(p)
+        .try_to_wgs84_refined()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// BD-09 → GCJ-02, fast single-step inverse. **Approximate**: the returned
 /// record carries `max_error_m`.
 #[uniffi::export]
-pub fn bd09_to_gcj02_fast(p: Bd09) -> ApproxGcj02 {
-    gc::Bd09::from(p).to_gcj02_fast().into()
+pub fn bd09_to_gcj02_fast(p: Bd09) -> Result<ApproxGcj02, GeoError> {
+    gc::Bd09::from(p)
+        .try_to_gcj02_fast()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// BD-09 → GCJ-02, refined fixed-point inverse (sub-meter). **Approximate**:
 /// the returned record carries `max_error_m`.
 #[uniffi::export]
-pub fn bd09_to_gcj02_refined(p: Bd09) -> ApproxGcj02 {
-    gc::Bd09::from(p).to_gcj02_refined().into()
+pub fn bd09_to_gcj02_refined(p: Bd09) -> Result<ApproxGcj02, GeoError> {
+    gc::Bd09::from(p)
+        .try_to_gcj02_refined()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// BD-09 → WGS-84, refined composition through GCJ-02. **Approximate**: the
 /// returned record carries the summed `max_error_m`.
 #[uniffi::export]
-pub fn bd09_to_wgs84_refined(p: Bd09) -> ApproxWgs84 {
-    gc::Bd09::from(p).to_wgs84_refined().into()
+pub fn bd09_to_wgs84_refined(p: Bd09) -> Result<ApproxWgs84, GeoError> {
+    gc::Bd09::from(p)
+        .try_to_wgs84_refined()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 // --- Baidu Web Mercator (exact, both ways) ---
 
 /// BD-09 lat/lon → Baidu Web Mercator (exact forward projection).
 #[uniffi::export]
-pub fn baidu_mercator_from_bd09(p: Bd09) -> BaiduMercator {
-    gc::BaiduMercator::from_bd09(gc::Bd09::from(p)).into()
+pub fn baidu_mercator_from_bd09(p: Bd09) -> Result<BaiduMercator, GeoError> {
+    gc::BaiduMercator::try_from_bd09(gc::Bd09::from(p))
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Baidu Web Mercator → BD-09 lat/lon (exact inverse projection).
 #[uniffi::export]
-pub fn baidu_mercator_to_bd09(m: BaiduMercator) -> Bd09 {
-    gc::BaiduMercator::from(m).to_bd09().into()
+pub fn baidu_mercator_to_bd09(m: BaiduMercator) -> Result<Bd09, GeoError> {
+    gc::BaiduMercator::from(m)
+        .try_to_bd09()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Baidu Web Mercator → canonical [`Coordinate`], tagged BD-09 (exact).
 #[uniffi::export]
-pub fn baidu_mercator_to_coordinate(m: BaiduMercator) -> Coordinate {
-    gc::BaiduMercator::from(m).to_coordinate().into()
+pub fn baidu_mercator_to_coordinate(m: BaiduMercator) -> Result<Coordinate, GeoError> {
+    gc::BaiduMercator::from(m)
+        .try_to_coordinate()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Canonical [`Coordinate`] → Baidu Web Mercator.
@@ -1019,42 +1051,60 @@ pub fn haversine_distance_m(a: Coordinate, b: Coordinate) -> f64 {
     gc::geodesy::haversine_distance(&a, &b).meters()
 }
 
-// --- Angle conversions (mirror of `From`/`to_*` on the angle types) ---
+// --- Angle conversions ---
 
 /// Decimal degrees → degrees/minutes/seconds for the given axis.
 #[uniffi::export]
-pub fn dd_to_dms(dd: Dd, axis: Axis) -> Dms {
-    gc::angle::Dd::from(dd).to_dms(axis.into()).into()
+pub fn dd_to_dms(dd: Dd, axis: Axis) -> Result<Dms, GeoError> {
+    gc::angle::Dd::from(dd)
+        .try_to_dms(axis.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Decimal degrees → degrees/decimal-minutes for the given axis.
 #[uniffi::export]
-pub fn dd_to_ddm(dd: Dd, axis: Axis) -> Ddm {
-    gc::angle::Dd::from(dd).to_ddm(axis.into()).into()
+pub fn dd_to_ddm(dd: Dd, axis: Axis) -> Result<Ddm, GeoError> {
+    gc::angle::Dd::from(dd)
+        .try_to_ddm(axis.into())
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Degrees/minutes/seconds → degrees/decimal-minutes (preserves hemisphere).
 #[uniffi::export]
-pub fn dms_to_ddm(dms: Dms) -> Ddm {
-    gc::angle::Dms::from(dms).to_ddm().into()
+pub fn dms_to_ddm(dms: Dms) -> Result<Ddm, GeoError> {
+    gc::angle::Dms::from(dms)
+        .try_to_ddm()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Degrees/decimal-minutes → degrees/minutes/seconds (preserves hemisphere).
 #[uniffi::export]
-pub fn ddm_to_dms(ddm: Ddm) -> Dms {
-    gc::angle::Ddm::from(ddm).to_dms().into()
+pub fn ddm_to_dms(ddm: Ddm) -> Result<Dms, GeoError> {
+    gc::angle::Ddm::from(ddm)
+        .try_to_dms()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Degrees/minutes/seconds → decimal degrees (signed by hemisphere).
 #[uniffi::export]
-pub fn dms_to_dd(dms: Dms) -> Dd {
-    gc::angle::Dd::from(gc::angle::Dms::from(dms)).into()
+pub fn dms_to_dd(dms: Dms) -> Result<Dd, GeoError> {
+    gc::angle::Dms::from(dms)
+        .try_to_dd()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Degrees/decimal-minutes → decimal degrees (signed by hemisphere).
 #[uniffi::export]
-pub fn ddm_to_dd(ddm: Ddm) -> Dd {
-    gc::angle::Dd::from(gc::angle::Ddm::from(ddm)).into()
+pub fn ddm_to_dd(ddm: Ddm) -> Result<Dd, GeoError> {
+    gc::angle::Ddm::from(ddm)
+        .try_to_dd()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// The numeric sign a hemisphere applies (`-1.0` for South/West, else `+1.0`).

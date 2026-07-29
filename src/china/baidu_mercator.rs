@@ -223,32 +223,44 @@ impl BaiduMercator {
     }
 
     /// Baidu Web Mercator → BD-09 lat/lon (exact inverse projection, `MC2LL`).
-    #[must_use]
-    pub fn to_bd09(self) -> Bd09 {
+    pub fn try_to_bd09(self) -> Result<Bd09> {
+        if !self.x.is_finite() || !self.y.is_finite() {
+            return Err(Error::InvalidValue {
+                field: "baidu mercator",
+                detail: "x and y must be finite".into(),
+            });
+        }
         let Some(row) = lookup(&MCBAND, &MC2LL, self.y) else {
-            return Bd09::new(f64::NAN, f64::NAN);
+            return Err(Error::InvalidValue {
+                field: "baidu mercator",
+                detail: "northing is outside the projection domain".into(),
+            });
         };
         let lon = row[0] + row[1] * self.x.abs();
         let lat = poly(&row[2..9], self.y.abs() / row[9]);
-        Bd09::new(lat.copysign(self.y), lon.copysign(self.x))
+        let result = Bd09::new(lat.copysign(self.y), lon.copysign(self.x));
+        result.validate()?;
+        Ok(result)
     }
 
     /// BD-09 lat/lon → Baidu Web Mercator (exact forward projection, `LL2MC`).
-    #[must_use]
-    pub fn from_bd09(p: Bd09) -> Self {
+    pub fn try_from_bd09(p: Bd09) -> Result<Self> {
+        p.validate()?;
         let Some(row) = lookup(&LLBAND, &LL2MC, p.lat) else {
-            return Self::new(f64::NAN, f64::NAN);
+            return Err(Error::InvalidValue {
+                field: "BD-09 latitude",
+                detail: "outside the Baidu Mercator projection domain".into(),
+            });
         };
         let x = row[0] + row[1] * p.lon.abs();
         let y = poly(&row[2..9], p.lat.abs() / row[9]);
-        Self::new(x.copysign(p.lon), y.copysign(p.lat))
+        Ok(Self::new(x.copysign(p.lon), y.copysign(p.lat)))
     }
 
     /// Baidu Web Mercator → canonical [`Coordinate`], tagged [`Crs::Bd09`](crate::Crs)
     /// (exact). Height is left unset — the projection is 2-D.
-    #[must_use]
-    pub fn to_coordinate(self) -> Coordinate {
-        self.to_bd09().into()
+    pub fn try_to_coordinate(self) -> Result<Coordinate> {
+        Ok(self.try_to_bd09()?.into())
     }
 
     /// Canonical [`Coordinate`] → Baidu Web Mercator.
@@ -258,28 +270,25 @@ impl BaiduMercator {
     /// non-BD-09 coordinate must be converted to BD-09 first, never silently
     /// reprojected.
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
-        Ok(Self::from_bd09(Bd09::try_from(coord)?))
+        Self::try_from_bd09(Bd09::try_from(coord)?)
     }
 }
 
-impl From<Bd09> for BaiduMercator {
+impl TryFrom<Bd09> for BaiduMercator {
+    type Error = Error;
+
     /// Exact forward projection.
-    fn from(p: Bd09) -> Self {
-        Self::from_bd09(p)
+    fn try_from(p: Bd09) -> Result<Self> {
+        Self::try_from_bd09(p)
     }
 }
 
-impl From<BaiduMercator> for Bd09 {
+impl TryFrom<BaiduMercator> for Bd09 {
+    type Error = Error;
+
     /// Exact inverse projection.
-    fn from(m: BaiduMercator) -> Self {
-        m.to_bd09()
-    }
-}
-
-impl From<BaiduMercator> for Coordinate {
-    /// Exact; tags the result [`Crs::Bd09`](crate::Crs).
-    fn from(m: BaiduMercator) -> Self {
-        m.to_coordinate()
+    fn try_from(m: BaiduMercator) -> Result<Self> {
+        m.try_to_bd09()
     }
 }
 
@@ -305,7 +314,9 @@ mod tests {
 
     #[test]
     fn mercator_to_bd09_matches_reference() {
-        let bd = BaiduMercator::new(REF_XY.0, REF_XY.1).to_bd09();
+        let bd = BaiduMercator::new(REF_XY.0, REF_XY.1)
+            .try_to_bd09()
+            .unwrap();
         assert_close(bd.lat, REF_BD09_LAT, 1e-5);
         assert_close(bd.lon, REF_BD09_LON, 1e-5);
     }
@@ -313,7 +324,7 @@ mod tests {
     #[test]
     fn mercator_round_trip_sub_meter() {
         let m = BaiduMercator::new(REF_XY.0, REF_XY.1);
-        let back = BaiduMercator::from_bd09(m.to_bd09());
+        let back = BaiduMercator::try_from_bd09(m.try_to_bd09().unwrap()).unwrap();
         // Independent forward/inverse fits: stable to well under a meter.
         assert_close(back.x, m.x, 0.5);
         assert_close(back.y, m.y, 0.5);
@@ -322,9 +333,15 @@ mod tests {
     #[test]
     fn coordinate_bridge_round_trips_and_checks_crs() {
         let m = BaiduMercator::new(REF_XY.0, REF_XY.1);
-        let coord = m.to_coordinate();
+        let coord = m.try_to_coordinate().unwrap();
         assert_eq!(coord.crs, Crs::Bd09);
         // A non-BD-09 coordinate must be rejected, not silently reprojected.
         assert!(BaiduMercator::try_from(Coordinate::wgs84(REF_BD09_LAT, REF_BD09_LON)).is_err());
+    }
+
+    #[test]
+    fn invalid_projection_inputs_are_rejected() {
+        assert!(BaiduMercator::new(f64::NAN, 0.0).try_to_bd09().is_err());
+        assert!(BaiduMercator::try_from_bd09(Bd09::new(91.0, 0.0)).is_err());
     }
 }

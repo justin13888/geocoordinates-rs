@@ -25,7 +25,7 @@ mod gcj02;
 pub use baidu_mercator::BaiduMercator;
 
 use crate::coord::{Coordinate, Crs};
-use crate::error::Error;
+use crate::error::{Error, Result};
 
 /// Semi-major axis `a` of the **Krasovsky 1940** ellipsoid, in meters.
 ///
@@ -101,6 +101,11 @@ macro_rules! impl_latlon {
             /// Construct from latitude/longitude in decimal degrees.
             #[must_use]
             pub fn new(lat: f64, lon: f64) -> Self { Self { lat, lon } }
+
+            /// Validate that latitude and longitude are finite and in range.
+            pub fn validate(&self) -> Result<()> {
+                Coordinate::new(self.lat, self.lon, Crs::Wgs84).validate()
+            }
         }
         impl crate::coord::LatLon for $t {
             fn lat(&self) -> f64 { self.lat }
@@ -140,7 +145,8 @@ impl TryFrom<Coordinate> for Wgs84 {
     type Error = Error;
 
     /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Wgs84`].
-    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+    fn try_from(coord: Coordinate) -> Result<Self> {
+        coord.validate()?;
         match coord.crs {
             Crs::Wgs84 => Ok(Wgs84 {
                 lat: coord.lat,
@@ -158,7 +164,8 @@ impl TryFrom<Coordinate> for Gcj02 {
     type Error = Error;
 
     /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Gcj02`].
-    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+    fn try_from(coord: Coordinate) -> Result<Self> {
+        coord.validate()?;
         match coord.crs {
             Crs::Gcj02 => Ok(Gcj02 {
                 lat: coord.lat,
@@ -176,7 +183,8 @@ impl TryFrom<Coordinate> for Bd09 {
     type Error = Error;
 
     /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Bd09`].
-    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+    fn try_from(coord: Coordinate) -> Result<Self> {
+        coord.validate()?;
         match coord.crs {
             Crs::Bd09 => Ok(Bd09 {
                 lat: coord.lat,

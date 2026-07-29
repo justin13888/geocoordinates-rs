@@ -22,6 +22,25 @@ pub enum Error {
         lon: f64,
     },
 
+    /// A caller-provided option or numeric value was outside the operation's
+    /// supported domain.
+    #[error("invalid value for `{field}`: {detail}")]
+    InvalidValue {
+        /// Name of the invalid field or option.
+        field: &'static str,
+        /// Human-readable description of the required domain.
+        detail: String,
+    },
+
+    /// A discrete global-grid identifier was not valid for its grid system.
+    #[error("invalid {grid} cell id: {value}")]
+    InvalidCellId {
+        /// Grid system name, such as `H3` or `S2`.
+        grid: &'static str,
+        /// Offending numeric identifier.
+        value: u64,
+    },
+
     /// Free-text / structured input could not be parsed into a coordinate.
     #[error("could not parse coordinate: {0}")]
     Parse(String),

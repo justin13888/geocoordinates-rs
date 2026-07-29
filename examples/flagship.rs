@@ -152,15 +152,15 @@ fn primitives_and_serde() -> DemoResult {
     assert_close(coordinate.lon(), -74.006, 1e-12);
 
     let dd = Dd(-73.9857);
-    let dms = dd.to_dms(Axis::Longitude);
+    let dms = dd.try_to_dms(Axis::Longitude)?;
     assert_eq!(dms.hemisphere, AngleHemisphere::West);
-    assert_close(Dd::from(dms).0, dd.0, 1e-12);
-    let ddm = dms.to_ddm();
-    assert_eq!(dd.to_ddm(Axis::Longitude), ddm);
-    assert_close(Dd::from(ddm).0, dd.0, 1e-12);
-    assert_eq!(ddm.to_dms().hemisphere, AngleHemisphere::West);
+    assert_close(dms.try_to_dd()?.0, dd.0, 1e-12);
+    let ddm = dms.try_to_ddm()?;
+    assert_eq!(dd.try_to_ddm(Axis::Longitude)?, ddm);
+    assert_close(ddm.try_to_dd()?.0, dd.0, 1e-12);
+    assert_eq!(ddm.try_to_dms()?.hemisphere, AngleHemisphere::West);
     assert_eq!(
-        Dd(40.0).to_dms(Axis::Latitude).hemisphere,
+        Dd(40.0).try_to_dms(Axis::Latitude)?.hemisphere,
         AngleHemisphere::North
     );
     assert_eq!(AngleHemisphere::North.sign(), 1.0);
@@ -429,46 +429,46 @@ fn china_datums_and_dispatch() -> DemoResult {
         lon: 116.416_627_243_787_33,
     };
 
-    let gcj = WGS.to_gcj02();
+    let gcj = WGS.try_to_gcj02()?;
     assert_eq!(Wgs84::new(WGS.lat, WGS.lon), WGS);
     assert_eq!(Coordinate::gcj02(gcj.lat, gcj.lon).crs, Crs::Gcj02);
     assert_close(gcj.lat, EXPECTED_GCJ.lat, 1e-9);
     assert_close(gcj.lon, EXPECTED_GCJ.lon, 1e-9);
-    let gcj_from: Gcj02 = WGS.into();
+    let gcj_from = Gcj02::try_from(WGS)?;
     assert_eq!(gcj_from, gcj);
-    let bd = WGS.to_bd09();
+    let bd = WGS.try_to_bd09()?;
     assert_eq!(Bd09::new(bd.lat, bd.lon), bd);
     assert_eq!(Coordinate::bd09(bd.lat, bd.lon).crs, Crs::Bd09);
     assert_close(bd.lat, EXPECTED_BD.lat, 1e-9);
     assert_close(bd.lon, EXPECTED_BD.lon, 1e-9);
-    let bd_from_gcj: Bd09 = gcj.into();
-    assert_eq!(bd_from_gcj, gcj.to_bd09());
+    let bd_from_gcj = Bd09::try_from(gcj)?;
+    assert_eq!(bd_from_gcj, gcj.try_to_bd09()?);
 
-    let fast_wgs = gcj.to_wgs84_fast();
-    let refined_wgs = gcj.to_wgs84_refined();
+    let fast_wgs = gcj.try_to_wgs84_fast()?;
+    let refined_wgs = gcj.try_to_wgs84_refined()?;
     assert!(fast_wgs.max_error_m() > refined_wgs.max_error_m());
     assert_within_meters(&*fast_wgs, &WGS, fast_wgs.max_error_m());
     assert_within_meters(&*refined_wgs, &WGS, refined_wgs.max_error_m());
-    let fast_gcj = bd.to_gcj02_fast();
-    let refined_gcj = bd.to_gcj02_refined();
+    let fast_gcj = bd.try_to_gcj02_fast()?;
+    let refined_gcj = bd.try_to_gcj02_refined()?;
     assert_within_meters(&*fast_gcj, &gcj, fast_gcj.max_error_m());
     assert_within_meters(&*refined_gcj, &gcj, refined_gcj.max_error_m());
-    let refined_from_bd = bd.to_wgs84_refined();
+    let refined_from_bd = bd.try_to_wgs84_refined()?;
     assert_within_meters(&*refined_from_bd, &WGS, refined_from_bd.max_error_m());
 
-    let mercator = BaiduMercator::from_bd09(bd);
+    let mercator = BaiduMercator::try_from_bd09(bd)?;
     assert_eq!(BaiduMercator::new(mercator.x, mercator.y), mercator);
-    let mercator_from: BaiduMercator = bd.into();
+    let mercator_from = BaiduMercator::try_from(bd)?;
     assert_eq!(mercator_from, mercator);
-    assert_within_meters(&mercator.to_bd09(), &bd, 1.0);
-    let tagged = mercator.to_coordinate();
+    assert_within_meters(&mercator.try_to_bd09()?, &bd, 1.0);
+    let tagged = mercator.try_to_coordinate()?;
     assert_eq!(tagged.crs, Crs::Bd09);
     assert_mercator_close(BaiduMercator::try_from_coordinate(tagged)?, mercator, 0.02);
     assert_mercator_close(BaiduMercator::try_from(tagged)?, mercator, 0.02);
 
     let london = Wgs84::new(51.5074, -0.1278);
     assert!(out_of_china(london.lat, london.lon));
-    assert_eq!(london.to_gcj02(), Gcj02::new(london.lat, london.lon));
+    assert_eq!(london.try_to_gcj02()?, Gcj02::new(london.lat, london.lon));
 
     let systems = [
         Crs::Wgs84,
