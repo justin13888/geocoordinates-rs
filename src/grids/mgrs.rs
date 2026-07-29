@@ -33,7 +33,7 @@ const UPS_COL_B: &str = "ABCFGHJKLPQR";
 const UPS_ROW: &str = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 /// A validated MGRS reference. Construct via [`TryFrom<&str>`](Mgrs::try_from),
-/// [`FromStr`], or [`Mgrs::from_coordinate`].
+/// [`FromStr`], or [`Mgrs::try_from_coordinate`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Mgrs {
@@ -55,28 +55,43 @@ impl Mgrs {
     }
 
     /// Decode to a coordinate at the square's center; the error bound is half
-    /// the square width. Infallible — the reference was validated at
+    /// the square diagonal. Infallible — the reference was validated at
     /// construction.
     #[must_use]
     pub fn to_coordinate(&self) -> Approx<Coordinate> {
         let (coord, _) = decode(&self.text).expect("MGRS was validated at construction");
-        Approx::new(coord, f64::from(self.precision_m) / 2.0)
+        Approx::new(
+            coord,
+            f64::from(self.precision_m) * core::f64::consts::FRAC_1_SQRT_2,
+        )
     }
 
-    /// Encode a coordinate to MGRS at the given precision in meters (snapped to
-    /// the nearest finer power of ten, 1 m … 100 km).
-    #[must_use]
-    pub fn from_coordinate(coord: Coordinate, precision_m: u32) -> Self {
-        let digits = 5 - precision_m.clamp(1, 100_000).ilog10();
+    /// Encode a WGS-84 coordinate to MGRS at a power-of-ten precision from
+    /// 1 meter through 100 kilometers.
+    pub fn try_from_coordinate(coord: Coordinate, precision_m: u32) -> Result<Self> {
+        coord.validate()?;
+        if coord.crs != crate::Crs::Wgs84 {
+            return Err(Error::CrsMismatch {
+                expected: crate::Crs::Wgs84,
+                found: coord.crs,
+            });
+        }
+        if !matches!(precision_m, 1 | 10 | 100 | 1_000 | 10_000 | 100_000) {
+            return Err(Error::InvalidValue {
+                field: "MGRS precision",
+                detail: "must be 1, 10, 100, 1000, 10000, or 100000 meters".into(),
+            });
+        }
+        let digits = 5 - precision_m.ilog10();
         let text = if (-80.0..84.0).contains(&coord.lat) {
             encode_utm(coord, digits)
         } else {
             encode_ups(coord, digits)
         };
-        Mgrs {
+        Ok(Mgrs {
             text,
             precision_m: 10u32.pow(5 - digits),
-        }
+        })
     }
 }
 
@@ -200,7 +215,7 @@ fn decode(input: &str) -> Result<(Coordinate, u32)> {
 
 /// Split the trailing easting/northing digits into `(half_count, e, n)`.
 fn split_digits(digits: &str, bad: impl Fn() -> Error) -> Result<(u32, f64, f64)> {
-    if digits.len() % 2 != 0 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+    if digits.len() % 2 != 0 || digits.len() > 10 || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return Err(bad());
     }
     let k = (digits.len() / 2) as u32;
@@ -261,7 +276,7 @@ fn decode_utm(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
             easting,
             northing,
         }
-        .to_coordinate();
+        .try_to_coordinate()?;
         if lo - 0.5 <= coord.lat && coord.lat <= hi + 0.5 {
             return Ok((coord, 10u32.pow(5 - k)));
         }
@@ -297,14 +312,14 @@ fn decode_ups(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
         easting,
         northing,
     }
-    .to_coordinate();
+    .try_to_coordinate()?;
     Ok((coord, 10u32.pow(5 - k)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::assert_within_meters;
+    use crate::test_support::{assert_close, assert_within_meters};
 
     fn c(lat: f64, lon: f64) -> Coordinate {
         Coordinate::wgs84(lat, lon)
@@ -330,7 +345,7 @@ mod tests {
     fn encode_reference_strings() {
         for &(lat, lon, expected) in REFS {
             assert_eq!(
-                Mgrs::from_coordinate(c(lat, lon), 1).as_str(),
+                Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap().as_str(),
                 expected,
                 "({lat},{lon})"
             );
@@ -339,29 +354,31 @@ mod tests {
 
     #[test]
     fn encode_precision_levels() {
-        let m = Mgrs::from_coordinate(c(40.0, -75.0), 100);
+        let m = Mgrs::try_from_coordinate(c(40.0, -75.0), 100).unwrap();
         assert_eq!(m.as_str(), "18TWK000277"); // 3+3 digits
         assert_eq!(m.precision_m(), 100);
         // A non-zero easting remainder confirms the digits are scaled (divided),
         // not multiplied: 48 252 m → "482" at 100 m precision.
         assert_eq!(
-            Mgrs::from_coordinate(c(48.8584, 2.2945), 100).as_str(),
+            Mgrs::try_from_coordinate(c(48.8584, 2.2945), 100)
+                .unwrap()
+                .as_str(),
             "31UDQ482119"
         );
         // 10 km square (1 digit each), and the bare 100 km square.
         assert_eq!(
-            Mgrs::from_coordinate(c(40.0, -75.0), 10_000).as_str(),
+            Mgrs::try_from_coordinate(c(40.0, -75.0), 10_000)
+                .unwrap()
+                .as_str(),
             "18TWK02"
         );
         assert_eq!(
-            Mgrs::from_coordinate(c(40.0, -75.0), 100_000).as_str(),
+            Mgrs::try_from_coordinate(c(40.0, -75.0), 100_000)
+                .unwrap()
+                .as_str(),
             "18TWK"
         );
-        // A non-power-of-ten request snaps to the finer decade.
-        assert_eq!(
-            Mgrs::from_coordinate(c(40.0, -75.0), 250).precision_m(),
-            100
-        );
+        assert!(Mgrs::try_from_coordinate(c(40.0, -75.0), 250).is_err());
     }
 
     #[test]
@@ -369,7 +386,7 @@ mod tests {
         for &(lat, lon, s) in REFS {
             let m = Mgrs::try_from(s).expect("valid MGRS");
             let approx = m.to_coordinate();
-            assert_eq!(approx.max_error_m(), 0.5); // half of the 1 m cell
+            assert_eq!(approx.max_error_m(), core::f64::consts::FRAC_1_SQRT_2);
             assert_within_meters(approx.value(), &c(lat, lon), 1.0);
         }
     }
@@ -377,7 +394,7 @@ mod tests {
     #[test]
     fn from_str_round_trips_through_encode() {
         for &(lat, lon, _) in REFS {
-            let m = Mgrs::from_coordinate(c(lat, lon), 1);
+            let m = Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap();
             let back = m.to_coordinate();
             assert_within_meters(back.value(), &c(lat, lon), 1.0);
         }
@@ -385,9 +402,13 @@ mod tests {
 
     #[test]
     fn coarser_cells_have_larger_bounds() {
-        let m = Mgrs::from_coordinate(c(48.8584, 2.2945), 1000);
+        let m = Mgrs::try_from_coordinate(c(48.8584, 2.2945), 1000).unwrap();
         assert_eq!(m.precision_m(), 1000);
-        assert_eq!(m.to_coordinate().max_error_m(), 500.0);
+        assert_close(
+            m.to_coordinate().max_error_m(),
+            1000.0 * core::f64::consts::FRAC_1_SQRT_2,
+            1e-12,
+        );
     }
 
     #[test]
@@ -403,7 +424,11 @@ mod tests {
         let m = Mgrs::try_from("31UDQ482119").expect("valid");
         assert_eq!(m.precision_m(), 100);
         let approx = m.to_coordinate();
-        assert_eq!(approx.max_error_m(), 50.0);
+        assert_close(
+            approx.max_error_m(),
+            100.0 * core::f64::consts::FRAC_1_SQRT_2,
+            1e-12,
+        );
         assert_within_meters(approx.value(), &c(48.8584, 2.2945), 100.0);
         // Polar coarse decode (UPS zone A) likewise.
         let p = Mgrs::try_from("APL239455").expect("valid");
@@ -449,5 +474,6 @@ mod tests {
         assert!(Mgrs::try_from("18TWK000002775").is_err()); // odd digit count
         assert!(Mgrs::try_from("QWK0000027757").is_err()); // Q is not a UPS zone letter
         assert!(Mgrs::try_from("18TIK0000027757").is_err()); // I not a column letter
+        assert!(Mgrs::try_from("18TWK000000277577").is_err()); // more than 5+5 digits
     }
 }

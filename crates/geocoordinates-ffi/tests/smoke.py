@@ -318,6 +318,10 @@ h3 = gc.h3_encode(gc.coordinate_wgs84(40.7128, -74.006), 9)
 assert h3.value == 617733151020810239  # canonical H3 index
 h3dec = gc.h3_decode(h3)
 assert h3dec.max_error_m > 0.0
+s2 = gc.s2_encode(gc.coordinate_wgs84(40.7128, -74.006), 20)
+assert s2.value == 9_926_595_630_970_437_632
+s2dec = gc.s2_decode(s2)
+assert s2dec.max_error_m > 0.0
 assert approx(h3dec.coord.lat, 40.7128, 0.01) and approx(h3dec.coord.lon, -74.006, 0.01)
 
 print("python smoke OK")

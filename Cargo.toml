@@ -39,7 +39,7 @@ kml = { version = "0.13", optional = true, default-features = false }
 
 # Discrete global grid indexing (feature-gated — see [features]).
 h3o = { version = "0.10", optional = true }
-s2 = { version = "0.0.13", optional = true }
+s2 = { version = "0.0.13", optional = true, default-features = false }
 
 [dev-dependencies]
 serde_json = "1.0.150"

@@ -178,7 +178,7 @@ fn render(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
             let p = options.precision.unwrap_or(3);
             render_angle_pair(coord, options, p, comma, AngleKind::Ddm)
         }
-        Representation::PlusCode => Ok(PlusCode::encode(*coord, PLUS_CODE_FORMAT_LENGTH)
+        Representation::PlusCode => Ok(PlusCode::encode(*coord, PLUS_CODE_FORMAT_LENGTH)?
             .as_str()
             .to_string()),
     }

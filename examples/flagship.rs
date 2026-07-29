@@ -638,7 +638,7 @@ fn classic_datums_and_projected_grids() -> DemoResult {
     assert_eq!(utm.hemisphere, GridHemisphere::North);
     assert_close(utm.easting, 500_000.0, 0.001);
     assert_close(utm.northing, 4_427_757.218_8, 0.001);
-    assert_within_meters(&utm.to_coordinate(), &philadelphia, 0.001);
+    assert_within_meters(&utm.try_to_coordinate()?, &philadelphia, 0.001);
     assert_eq!(Utm::try_from(philadelphia)?, utm);
     assert_eq!(
         Utm::try_from_coordinate(Coordinate::wgs84(-40.0, -75.0))?.hemisphere,
@@ -648,28 +648,28 @@ fn classic_datums_and_projected_grids() -> DemoResult {
     let north_polar = Coordinate::wgs84(85.0, 0.0);
     let ups = Ups::try_from_coordinate(north_polar)?;
     assert_eq!(ups.hemisphere, GridHemisphere::North);
-    assert_within_meters(&ups.to_coordinate(), &north_polar, 0.001);
+    assert_within_meters(&ups.try_to_coordinate()?, &north_polar, 0.001);
     assert_eq!(Ups::try_from(north_polar)?, ups);
     assert_eq!(
         Ups::try_from_coordinate(Coordinate::wgs84(-85.0, 0.0))?.hemisphere,
         GridHemisphere::South
     );
 
-    let mgrs = Mgrs::from_coordinate(philadelphia, 1);
+    let mgrs = Mgrs::try_from_coordinate(philadelphia, 1)?;
     assert_eq!(mgrs.as_str(), "18TWK0000027757");
     assert_eq!(mgrs.precision_m(), 1);
     let parsed: Mgrs = "18t wk 00000 27757".parse()?;
     assert_eq!(parsed, mgrs);
     assert_eq!(Mgrs::try_from("18TWK0000027757")?, mgrs);
     let decoded = mgrs.to_coordinate();
-    assert_eq!(decoded.max_error_m(), 0.5);
+    assert_eq!(decoded.max_error_m(), core::f64::consts::FRAC_1_SQRT_2);
     assert_within_meters(decoded.value(), &philadelphia, 1.0);
 
     Ok("classic datums and projected grids")
 }
 
 fn encoded_and_global_grids() -> DemoResult {
-    let plus = PlusCode::encode(Coordinate::wgs84(47.000_062_5, 8.000_062_5), 10);
+    let plus = PlusCode::encode(Coordinate::wgs84(47.000_062_5, 8.000_062_5), 10)?;
     assert_eq!(plus.as_str(), "8FVC2222+22");
     assert_eq!(PlusCode::try_from("8FVC2222+22")?, plus);
     assert_eq!("8FVC2222+22".parse::<PlusCode>()?, plus);
@@ -686,7 +686,7 @@ fn encoded_and_global_grids() -> DemoResult {
     let inner = plus_area.into_inner();
     assert!(inner.lat.is_finite() && inner.lon.is_finite());
 
-    let geohash = Geohash::encode(Coordinate::wgs84(42.6, -5.6), 5);
+    let geohash = Geohash::encode(Coordinate::wgs84(42.6, -5.6), 5)?;
     assert_eq!(geohash.as_str(), "ezs42");
     assert_eq!(Geohash::try_from("EZS42")?, geohash);
     assert_eq!("ezs42".parse::<Geohash>()?, geohash);
@@ -697,7 +697,7 @@ fn encoded_and_global_grids() -> DemoResult {
         geohash_area.max_error_m(),
     );
 
-    let maidenhead = Maidenhead::encode(Coordinate::wgs84(40.5, -75.0), 2);
+    let maidenhead = Maidenhead::encode(Coordinate::wgs84(40.5, -75.0), 2)?;
     assert_eq!(maidenhead.as_str(), "FN20");
     assert_eq!(Maidenhead::try_from("fn20")?, maidenhead);
     assert_eq!("FN20".parse::<Maidenhead>()?, maidenhead);
@@ -708,24 +708,24 @@ fn encoded_and_global_grids() -> DemoResult {
         maidenhead_area.max_error_m(),
     );
 
-    let h3 = H3Cell::encode(NEW_YORK, 9);
+    let h3 = H3Cell::encode(NEW_YORK, 9)?;
     assert_eq!(h3.0, 617_733_151_020_810_239);
-    let h3_area = h3.decode();
-    assert!((200.0..204.0).contains(&h3_area.max_error_m()));
+    let h3_area = h3.decode()?;
+    assert!((205.0..206.0).contains(&h3_area.max_error_m()));
     assert_within_meters(h3_area.value(), &NEW_YORK, h3_area.max_error_m());
     assert!(
-        H3Cell::encode(NEW_YORK, 12).decode().max_error_m()
-            < H3Cell::encode(NEW_YORK, 5).decode().max_error_m()
+        H3Cell::encode(NEW_YORK, 12)?.decode()?.max_error_m()
+            < H3Cell::encode(NEW_YORK, 5)?.decode()?.max_error_m()
     );
 
-    let s2 = S2CellId::encode(NEW_YORK, 20);
+    let s2 = S2CellId::encode(NEW_YORK, 20)?;
     assert_eq!(s2.0, 9_926_595_630_970_437_632);
-    let s2_area = s2.decode();
-    assert!((7.0..8.0).contains(&s2_area.max_error_m()));
+    let s2_area = s2.decode()?;
+    assert!((6.0..7.0).contains(&s2_area.max_error_m()));
     assert_within_meters(s2_area.value(), &NEW_YORK, s2_area.max_error_m());
     assert!(
-        S2CellId::encode(NEW_YORK, 25).decode().max_error_m()
-            < S2CellId::encode(NEW_YORK, 5).decode().max_error_m()
+        S2CellId::encode(NEW_YORK, 25)?.decode()?.max_error_m()
+            < S2CellId::encode(NEW_YORK, 5)?.decode()?.max_error_m()
     );
 
     Ok("encoded and global grids")
@@ -753,11 +753,11 @@ fn boundaries_and_typed_errors() -> DemoResult {
         Coordinate::wgs84(90.0, 180.0),
         Coordinate::wgs84(-90.0, -180.0),
     ] {
-        let plus = PlusCode::encode(polar, 10).decode();
+        let plus = PlusCode::encode(polar, 10)?.decode();
         assert!(plus.lat.is_finite() && plus.lon.is_finite());
-        let h3 = H3Cell::encode(polar, 9).decode();
+        let h3 = H3Cell::encode(polar, 9)?.decode()?;
         assert!(h3.lat.is_finite() && h3.lon.is_finite());
-        let s2 = S2CellId::encode(polar, 20).decode();
+        let s2 = S2CellId::encode(polar, 20)?.decode()?;
         assert!(s2.lat.is_finite() && s2.lon.is_finite());
     }
 

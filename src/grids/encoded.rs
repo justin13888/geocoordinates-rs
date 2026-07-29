@@ -68,9 +68,14 @@ impl PlusCode {
     /// 2, 4, 6, 8, 10, and 11–15); it is clamped to `[2, 15]` and rounded up to
     /// an even length below 10. Longitude is wrapped and latitude clamped, so
     /// the antimeridian and poles are handled.
-    #[must_use]
-    pub fn encode(coord: Coordinate, length: usize) -> Self {
-        let length = normalize_length(length);
+    pub fn encode(coord: Coordinate, length: usize) -> Result<Self> {
+        validate_encoding_coordinate(coord)?;
+        if !matches!(length, 2 | 4 | 6 | 8 | 10..=15) {
+            return Err(Error::InvalidValue {
+                field: "Plus Code length",
+                detail: "must be 2, 4, 6, 8, or 10 through 15".into(),
+            });
+        }
         let mut lat = clamp_latitude(coord.lat);
         let lon = wrap_longitude(coord.lon);
         // Latitude 90 must drop just below so the code can be decoded.
@@ -97,7 +102,7 @@ impl PlusCode {
             lon_val /= ENCODING_BASE;
         }
 
-        PlusCode(assemble(&digits, length))
+        Ok(PlusCode(assemble(&digits, length)))
     }
 
     /// The canonical Plus Code string.
@@ -195,18 +200,6 @@ impl FromStr for PlusCode {
     }
 }
 
-/// Clamp the requested code length to `[2, 15]`, rounding an odd length below 10
-/// up to the next even value (only even pair lengths are valid below 10).
-fn normalize_length(length: usize) -> usize {
-    match length.clamp(2, MAX_DIGIT_COUNT) {
-        3 => 4,
-        5 => 6,
-        7 => 8,
-        9 => 10,
-        other => other,
-    }
-}
-
 /// The latitude resolution (degrees) of a code of the given length — used only
 /// to nudge latitude 90 below the maximum.
 fn latitude_precision(length: usize) -> f64 {
@@ -294,8 +287,14 @@ const GEOHASH_ALPHABET: &[u8; 32] = b"0123456789bcdefghjkmnpqrstuvwxyz";
 
 impl Geohash {
     /// Encode a coordinate at the given character length (exact).
-    #[must_use]
-    pub fn encode(coord: Coordinate, length: usize) -> Self {
+    pub fn encode(coord: Coordinate, length: usize) -> Result<Self> {
+        validate_encoding_coordinate(coord)?;
+        if !(1..=22).contains(&length) {
+            return Err(Error::InvalidValue {
+                field: "geohash length",
+                detail: "must be in 1..=22".into(),
+            });
+        }
         let lat = clamp_latitude(coord.lat);
         let lon = wrap_longitude(coord.lon);
         let (mut lat_lo, mut lat_hi) = (-90.0_f64, 90.0_f64);
@@ -327,7 +326,7 @@ impl Geohash {
                 value = 0;
             }
         }
-        Geohash(hash)
+        Ok(Geohash(hash))
     }
 
     /// The canonical geohash string.
@@ -397,9 +396,14 @@ impl FromStr for Geohash {
 
 impl Maidenhead {
     /// Encode a coordinate at the given number of pairs (clamped to 1–3; exact).
-    #[must_use]
-    pub fn encode(coord: Coordinate, pairs: usize) -> Self {
-        let pairs = pairs.clamp(1, 3);
+    pub fn encode(coord: Coordinate, pairs: usize) -> Result<Self> {
+        validate_encoding_coordinate(coord)?;
+        if !(1..=3).contains(&pairs) {
+            return Err(Error::InvalidValue {
+                field: "Maidenhead pairs",
+                detail: "must be in 1..=3".into(),
+            });
+        }
         let mut lon = wrap_longitude(coord.lon) + 180.0; // [0, 360)
         let mut lat = clamp_latitude(coord.lat) + 90.0; // [0, 180]
         let mut s = String::with_capacity(pairs * 2);
@@ -430,7 +434,7 @@ impl Maidenhead {
                 push_offset(&mut s, b'a', lat_sub);
             }
         }
-        Maidenhead(s)
+        Ok(Maidenhead(s))
     }
 
     /// The canonical Maidenhead locator string.
@@ -462,6 +466,17 @@ impl Maidenhead {
         }
         cell_center(lat, lat + lat_size, lon, lon + lon_size)
     }
+}
+
+fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
+    coord.validate()?;
+    if coord.crs != crate::Crs::Wgs84 {
+        return Err(Error::CrsMismatch {
+            expected: crate::Crs::Wgs84,
+            found: coord.crs,
+        });
+    }
+    Ok(())
 }
 
 impl TryFrom<&str> for Maidenhead {
@@ -545,11 +560,15 @@ mod tests {
     fn encode_reference_vectors() {
         // Canonical Open Location Code test vectors.
         assert_eq!(
-            PlusCode::encode(Coordinate::wgs84(20.375, 2.775), 6).as_str(),
+            PlusCode::encode(Coordinate::wgs84(20.375, 2.775), 6)
+                .unwrap()
+                .as_str(),
             "7FG49Q00+"
         );
         assert_eq!(
-            PlusCode::encode(Coordinate::wgs84(47.0000625, 8.0000625), 10).as_str(),
+            PlusCode::encode(Coordinate::wgs84(47.0000625, 8.0000625), 10)
+                .unwrap()
+                .as_str(),
             "8FVC2222+22"
         );
     }
@@ -575,7 +594,7 @@ mod tests {
         ];
         for c in coords {
             for length in [10, 11, 12] {
-                let code = PlusCode::encode(c, length);
+                let code = PlusCode::encode(c, length).unwrap();
                 let area = code.decode();
                 assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
             }
@@ -585,7 +604,7 @@ mod tests {
     #[test]
     fn antimeridian_and_pole_do_not_panic() {
         // lat 90 / lon 180 must clamp/wrap and round-trip without panicking.
-        let code = PlusCode::encode(Coordinate::wgs84(90.0, 180.0), 10);
+        let code = PlusCode::encode(Coordinate::wgs84(90.0, 180.0), 10).unwrap();
         let area = code.decode();
         assert!(area.lat <= 90.0 && area.lon < 180.0);
     }
@@ -593,7 +612,9 @@ mod tests {
     #[test]
     fn shorter_lengths_pad() {
         assert_eq!(
-            PlusCode::encode(Coordinate::wgs84(47.0000625, 8.0000625), 4).as_str(),
+            PlusCode::encode(Coordinate::wgs84(47.0000625, 8.0000625), 4)
+                .unwrap()
+                .as_str(),
             "8FVC0000+"
         );
     }
@@ -613,7 +634,7 @@ mod tests {
 
     #[test]
     fn try_from_round_trips_canonical_string() {
-        let code = PlusCode::encode(Coordinate::wgs84(40.7128, -74.006), 11);
+        let code = PlusCode::encode(Coordinate::wgs84(40.7128, -74.006), 11).unwrap();
         let reparsed = PlusCode::try_from(code.as_str()).unwrap();
         assert_eq!(code, reparsed);
     }
@@ -628,24 +649,21 @@ mod tests {
     }
 
     #[test]
-    fn normalize_length_maps_to_valid() {
-        assert_eq!(normalize_length(0), 2); // clamp low
-        assert_eq!(normalize_length(99), 15); // clamp high
-        assert_eq!(normalize_length(3), 4); // odd below 10 rounds up
-        assert_eq!(normalize_length(5), 6);
-        assert_eq!(normalize_length(7), 8);
-        assert_eq!(normalize_length(9), 10);
-        assert_eq!(normalize_length(8), 8); // even stays
-        assert_eq!(normalize_length(10), 10);
-        assert_eq!(normalize_length(11), 11); // odd at/above 10 is valid
+    fn invalid_encoding_configuration_is_rejected() {
+        let c = Coordinate::wgs84(0.0, 0.0);
+        assert!(PlusCode::encode(c, 3).is_err());
+        assert!(Geohash::encode(c, 0).is_err());
+        assert!(Geohash::encode(c, 23).is_err());
+        assert!(Maidenhead::encode(c, 0).is_err());
+        assert!(PlusCode::encode(Coordinate::gcj02(0.0, 0.0), 10).is_err());
     }
 
     #[test]
     fn latitude_90_is_nudged_below_max() {
         // Encoding latitude 90 nudges it just below the maximum — identical to
         // encoding the nudged value directly.
-        let at_pole = PlusCode::encode(Coordinate::wgs84(90.0, 0.0), 10);
-        let nudged = PlusCode::encode(Coordinate::wgs84(90.0 - 0.000125, 0.0), 10);
+        let at_pole = PlusCode::encode(Coordinate::wgs84(90.0, 0.0), 10).unwrap();
+        let nudged = PlusCode::encode(Coordinate::wgs84(90.0 - 0.000125, 0.0), 10).unwrap();
         assert_eq!(at_pole, nudged);
     }
 
@@ -687,7 +705,7 @@ mod tests {
             Coordinate::wgs84(40.7128, -74.006),
             Coordinate::wgs84(-33.8688, 151.2093),
         ] {
-            let area = PlusCode::encode(c, 10).decode();
+            let area = PlusCode::encode(c, 10).unwrap().decode();
             assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, 20.0);
         }
     }
@@ -712,11 +730,15 @@ mod tests {
     #[test]
     fn geohash_reference_vectors() {
         assert_eq!(
-            Geohash::encode(Coordinate::wgs84(42.6, -5.6), 5).as_str(),
+            Geohash::encode(Coordinate::wgs84(42.6, -5.6), 5)
+                .unwrap()
+                .as_str(),
             "ezs42"
         );
         assert_eq!(
-            Geohash::encode(Coordinate::wgs84(57.64911, 10.40744), 11).as_str(),
+            Geohash::encode(Coordinate::wgs84(57.64911, 10.40744), 11)
+                .unwrap()
+                .as_str(),
             "u4pruydqqvj"
         );
     }
@@ -730,7 +752,7 @@ mod tests {
             Coordinate::wgs84(89.9, 179.9),
         ] {
             for len in [6, 8, 10] {
-                let area = Geohash::encode(c, len).decode();
+                let area = Geohash::encode(c, len).unwrap().decode();
                 assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
             }
         }
@@ -759,7 +781,9 @@ mod tests {
     #[test]
     fn maidenhead_reference_and_decode() {
         assert_eq!(
-            Maidenhead::encode(Coordinate::wgs84(40.5, -75.0), 2).as_str(),
+            Maidenhead::encode(Coordinate::wgs84(40.5, -75.0), 2)
+                .unwrap()
+                .as_str(),
             "FN20"
         );
         let area = Maidenhead::try_from("FN20").unwrap().decode();
@@ -783,7 +807,7 @@ mod tests {
     #[test]
     fn maidenhead_three_pairs_round_trip() {
         let c = Coordinate::wgs84(48.146, 11.605);
-        let mh = Maidenhead::encode(c, 3);
+        let mh = Maidenhead::encode(c, 3).unwrap();
         assert_eq!(mh.as_str().len(), 6);
         let area = mh.decode();
         assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
@@ -791,7 +815,9 @@ mod tests {
 
     #[test]
     fn maidenhead_pole_does_not_panic() {
-        let area = Maidenhead::encode(Coordinate::wgs84(90.0, 180.0), 3).decode();
+        let area = Maidenhead::encode(Coordinate::wgs84(90.0, 180.0), 3)
+            .unwrap()
+            .decode();
         assert!(area.lat <= 90.0 && area.lon < 180.0);
     }
 

@@ -1261,13 +1261,12 @@ fn grid_cell(area: gc::Approx<gc::Coordinate>) -> GridCell {
     }
 }
 
-/// Encode a coordinate to an Open Location Code at the given length (clamped to
-/// `[2, 15]`). Returns the canonical code string.
+/// Encode a coordinate to an Open Location Code at a valid length.
 #[uniffi::export]
-pub fn plus_code_encode(coord: Coordinate, length: u8) -> String {
+pub fn plus_code_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
     gc::grids::PlusCode::encode(coord.into(), usize::from(length))
-        .as_str()
-        .to_string()
+        .map(|code| code.as_str().to_string())
+        .map_err(Into::into)
 }
 
 /// Decode an Open Location Code to its cell center and error bound.
@@ -1282,10 +1281,10 @@ pub fn plus_code_decode(code: String) -> Result<GridCell, GeoError> {
 
 /// Encode a coordinate to a geohash of the given character length.
 #[uniffi::export]
-pub fn geohash_encode(coord: Coordinate, length: u8) -> String {
+pub fn geohash_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
     gc::grids::Geohash::encode(coord.into(), usize::from(length))
-        .as_str()
-        .to_string()
+        .map(|code| code.as_str().to_string())
+        .map_err(Into::into)
 }
 
 /// Decode a geohash to its cell center and error bound.
@@ -1299,12 +1298,12 @@ pub fn geohash_decode(code: String) -> Result<GridCell, GeoError> {
 }
 
 /// Encode a coordinate to a Maidenhead locator of the given number of pairs
-/// (clamped to 1–3).
+/// (1–3).
 #[uniffi::export]
-pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> String {
+pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoError> {
     gc::grids::Maidenhead::encode(coord.into(), usize::from(pairs))
-        .as_str()
-        .to_string()
+        .map(|code| code.as_str().to_string())
+        .map_err(Into::into)
 }
 
 /// Decode a Maidenhead locator to its grid-square center and error bound.
@@ -2025,8 +2024,11 @@ pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
 
 /// UTM → geodetic WGS-84 coordinate (exact inverse).
 #[uniffi::export]
-pub fn utm_to_coordinate(utm: Utm) -> Coordinate {
-    gc::grids::Utm::from(utm).to_coordinate().into()
+pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
+    gc::grids::Utm::from(utm)
+        .try_to_coordinate()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Geodetic → UPS. Errors outside the polar regions (use UTM there).
@@ -2039,17 +2041,20 @@ pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
 
 /// UPS → geodetic WGS-84 coordinate (exact inverse).
 #[uniffi::export]
-pub fn ups_to_coordinate(ups: Ups) -> Coordinate {
-    gc::grids::Ups::from(ups).to_coordinate().into()
+pub fn ups_to_coordinate(ups: Ups) -> Result<Coordinate, GeoError> {
+    gc::grids::Ups::from(ups)
+        .try_to_coordinate()
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Encode a coordinate to an MGRS string at the given precision in meters
-/// (1 m … 100 km, snapped to a power of ten).
+/// (1 m … 100 km, as a power of ten).
 #[uniffi::export]
-pub fn mgrs_from_coordinate(coord: Coordinate, precision_m: u32) -> String {
-    gc::grids::Mgrs::from_coordinate(coord.into(), precision_m)
-        .as_str()
-        .to_string()
+pub fn mgrs_from_coordinate(coord: Coordinate, precision_m: u32) -> Result<String, GeoError> {
+    gc::grids::Mgrs::try_from_coordinate(coord.into(), precision_m)
+        .map(|mgrs| mgrs.as_str().to_string())
+        .map_err(Into::into)
 }
 
 /// Decode an MGRS string to the center of its square, with the half-square
@@ -2145,12 +2150,8 @@ pub fn from_nmea_sentence(sentence: String) -> Result<Fix, GeoError> {
 }
 
 // ===========================================================================
-// Discrete global grids — H3
+// Discrete global grids — H3 and S2
 // ===========================================================================
-//
-// S2 is intentionally not mirrored here: the `s2` crate's `float_extras`
-// dependency does not build for wasm32, so it stays native-Rust only (see the
-// `dgg` module docs). H3 (h3o) is wasm-clean and crosses the boundary.
 
 /// An H3 cell index — mirror of [`gc::H3Cell`](gc::dgg::H3Cell).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
@@ -2161,19 +2162,49 @@ pub struct H3Cell {
 
 /// Encode a coordinate to its H3 cell index at `resolution` (0–15, clamped).
 #[uniffi::export]
-pub fn h3_encode(coord: Coordinate, resolution: u8) -> H3Cell {
-    H3Cell {
-        value: gc::dgg::H3Cell::encode(coord.into(), resolution).0,
-    }
+pub fn h3_encode(coord: Coordinate, resolution: u8) -> Result<H3Cell, GeoError> {
+    gc::dgg::H3Cell::encode(coord.into(), resolution)
+        .map(|cell| H3Cell { value: cell.0 })
+        .map_err(Into::into)
 }
 
 /// Decode an H3 cell to its center, with the cell-radius error bound.
 #[uniffi::export]
-pub fn h3_decode(cell: H3Cell) -> ApproxCoordinate {
-    let approx = gc::dgg::H3Cell(cell.value).decode();
+pub fn h3_decode(cell: H3Cell) -> Result<ApproxCoordinate, GeoError> {
+    let approx = gc::dgg::H3Cell(cell.value)
+        .decode()
+        .map_err(GeoError::from)?;
     let max_error_m = approx.max_error_m();
-    ApproxCoordinate {
+    Ok(ApproxCoordinate {
         coord: approx.into_inner().into(),
         max_error_m,
-    }
+    })
+}
+
+/// An S2 cell id — mirror of [`gc::S2CellId`](gc::dgg::S2CellId).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct S2CellId {
+    /// The 64-bit S2 cell id.
+    pub value: u64,
+}
+
+/// Encode a coordinate to its S2 cell id at `level` (0–30).
+#[uniffi::export]
+pub fn s2_encode(coord: Coordinate, level: u8) -> Result<S2CellId, GeoError> {
+    gc::dgg::S2CellId::encode(coord.into(), level)
+        .map(|cell| S2CellId { value: cell.0 })
+        .map_err(Into::into)
+}
+
+/// Decode an S2 cell to its center, with the maximum corner-distance bound.
+#[uniffi::export]
+pub fn s2_decode(cell: S2CellId) -> Result<ApproxCoordinate, GeoError> {
+    let approx = gc::dgg::S2CellId(cell.value)
+        .decode()
+        .map_err(GeoError::from)?;
+    let max_error_m = approx.max_error_m();
+    Ok(ApproxCoordinate {
+        coord: approx.into_inner().into(),
+        max_error_m,
+    })
 }

@@ -44,8 +44,8 @@ The API is exposed to **Python, Kotlin, Swift, and TypeScript** with full
 capability parity via [UniFFI](https://mozilla.github.io/uniffi-rs/), generated
 from the separate `geocoordinates-ffi` crate (Java consumes the Kotlin/JVM
 artifact directly). The bindings track the released surface and gate each
-release. Every public capability has a canonical FFI form except S2, whose
-dependency is not wasm-compatible; H3 is the FFI-exposed discrete global grid.
+release. Every public capability has a canonical FFI form, including both H3
+and S2 discrete global grids.
 
 Because the Rust API is idiomatic, the FFI surface is deliberately flattened:
 generics (`Approx<T>`), traits, `Deref`, and operator overloads do not cross the
