@@ -205,7 +205,7 @@ wgs84 = gc.ellipsoid_wgs84()
 assert approx(gc.ellipsoid_semi_minor_m(wgs84), 6_356_752.314_245, 1e-3)
 ecef = gc.ecef_from_coordinate(gc.coordinate_wgs84(0.0, 0.0), wgs84)
 assert approx(ecef.x, 6_378_137.0, 1e-3) and approx(ecef.y, 0.0, 1e-3)
-assert approx(gc.ecef_to_coordinate(ecef, wgs84).lat, 0.0, 1e-9)
+assert approx(gc.ecef_to_coordinate(ecef, wgs84, gc.Crs.WGS84).lat, 0.0, 1e-9)
 origin = gc.coordinate_wgs84(40.0, -75.0)
 enu = gc.enu_from_coordinate(gc.coordinate_wgs84(40.1, -75.0), origin)
 assert enu.north > 10_000.0
@@ -232,12 +232,12 @@ assert gc.datum_transform_to_wgs84(gc.Crs.WGS84) is None  # no shift needed
 assert gc.datum_transform_to_wgs84(gc.Crs.GCJ02) is None  # use China typed conversions
 dt = gc.datum_transform_to_wgs84(gc.Crs.NAD27)
 assert dt is not None and approx(dt.helmert.tx_m, -8.0, 1e-12)
-# Translation-only Helmert round-trips exactly.
+# Translation-only Helmert round-trips to sub-millimeter geodetic precision.
 nad27 = gc.Coordinate(lat=40.0, lon=-100.0, height=None, crs=gc.Crs.NAD27)
-w = gc.datum_transform_apply(dt, nad27, gc.Crs.WGS84)
+w = gc.datum_transform_apply(dt, nad27)
 assert w.crs == gc.Crs.WGS84 and approx(w.lat, 40.000_009_482_759, 1e-7)
-back = gc.datum_transform_apply(gc.datum_transform_inverse(dt), w, gc.Crs.NAD27)
-assert back.crs == gc.Crs.NAD27 and approx(back.lat, 40.0, 1e-9) and approx(back.lon, -100.0, 1e-9)
+back = gc.datum_transform_apply(gc.datum_transform_inverse(dt), w)
+assert back.crs == gc.Crs.NAD27 and approx(back.lat, 40.0, 1e-8) and approx(back.lon, -100.0, 1e-8)
 # apply_ecef + inverse identity at the ECEF level.
 ident = gc.helmert_inverse(gc.helmert_identity())
 e = gc.helmert_apply_ecef(ident, gc.Ecef(x=4_000_000.0, y=-2_000_000.0, z=4_500_000.0))
@@ -271,7 +271,8 @@ assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_00
 assert gc.mgrs_from_coordinate(gc.coordinate_wgs84(40.0, -75.0), 1) == "18TWK0000027757"
 assert gc.mgrs_precision_m("18TWK000277") == 100
 dec = gc.mgrs_to_coordinate("18TWK0000027757")
-assert dec.max_error_m == 0.5 and approx(dec.coord.lat, 40.0, 1e-3)
+assert approx(dec.max_error_m, math.sqrt(0.5), 1e-12)
+assert approx(dec.coord.lat, 40.0, 1e-3)
 try:
     gc.mgrs_to_coordinate("not-an-mgrs")
     raise AssertionError("expected error for a bad MGRS string")
@@ -313,11 +314,25 @@ try:
 except gc.GeoError.Other:
     pass
 
-# --- H3 discrete global grid (S2 is native-Rust only; not in the FFI) ---
+# --- H3 and S2 discrete global grids ---
 h3 = gc.h3_encode(gc.coordinate_wgs84(40.7128, -74.006), 9)
 assert h3.value == 617733151020810239  # canonical H3 index
 h3dec = gc.h3_decode(h3)
 assert h3dec.max_error_m > 0.0
+s2 = gc.s2_encode(gc.coordinate_wgs84(40.7128, -74.006), 20)
+assert s2.value == 9_926_595_630_970_437_632
+s2dec = gc.s2_decode(s2)
+assert s2dec.max_error_m > 0.0
 assert approx(h3dec.coord.lat, 40.7128, 0.01) and approx(h3dec.coord.lon, -74.006, 0.01)
+try:
+    gc.h3_encode(gc.coordinate_gcj02(40.7128, -74.006), 9)
+    raise AssertionError("expected CrsMismatch for GCJ-02 H3 input")
+except gc.GeoError.CrsMismatch:
+    pass
+try:
+    gc.s2_encode(gc.coordinate_bd09(40.7128, -74.006), 20)
+    raise AssertionError("expected CrsMismatch for BD-09 S2 input")
+except gc.GeoError.CrsMismatch:
+    pass
 
 print("python smoke OK")

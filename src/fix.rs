@@ -122,12 +122,28 @@ impl Confidence {
     /// Construct a confidence, clamping into the valid `0.0–1.0` range.
     #[must_use]
     pub fn new(value: f64) -> Self {
-        Self(value.clamp(0.0, 1.0))
+        Self(if value.is_nan() {
+            0.0
+        } else {
+            value.clamp(0.0, 1.0)
+        })
     }
 
     /// The confidence value, in `0.0–1.0`.
     #[must_use]
     pub fn value(self) -> f64 {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Confidence;
+
+    #[test]
+    fn confidence_is_always_in_range() {
+        assert_eq!(Confidence::new(f64::NAN).value(), 0.0);
+        assert_eq!(Confidence::new(f64::NEG_INFINITY).value(), 0.0);
+        assert_eq!(Confidence::new(f64::INFINITY).value(), 1.0);
     }
 }

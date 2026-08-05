@@ -233,6 +233,9 @@ fn parse_component(component: &str) -> Option<Component> {
         None => (body.strip_prefix('+').map_or(body, str::trim_start), false),
     };
     if signed_negative {
+        if matches!(hemi, Some(Hemisphere::North | Hemisphere::East)) {
+            return None;
+        }
         negative = true;
     }
     let magnitude = parse_magnitude(body)?;
@@ -274,20 +277,35 @@ fn parse_magnitude(body: &str) -> Option<f64> {
     match fields.as_slice() {
         [single] => {
             let value: f64 = single.parse().ok()?;
+            if !value.is_finite() || value < 0.0 {
+                return None;
+            }
             if integer_digits(single) >= 4 {
-                Some(nmea_decode(value)) // concatenated DDMM.mmm
+                nmea_decode(value) // concatenated DDMM.mmm
             } else {
                 Some(value)
             }
         }
-        [deg, min] => Some(deg.parse::<f64>().ok()? + min.parse::<f64>().ok()? / 60.0),
-        [deg, min, sec] => Some(
-            deg.parse::<f64>().ok()?
-                + min.parse::<f64>().ok()? / 60.0
-                + sec.parse::<f64>().ok()? / 3600.0,
-        ),
+        [deg, min] => components_to_degrees(deg, min, None),
+        [deg, min, sec] => components_to_degrees(deg, min, Some(sec)),
         _ => None,
     }
+}
+
+fn components_to_degrees(deg: &str, min: &str, sec: Option<&&str>) -> Option<f64> {
+    let degrees = deg.parse::<f64>().ok()?;
+    let minutes = min.parse::<f64>().ok()?;
+    let seconds = sec.map_or(Some(0.0), |s| s.parse::<f64>().ok())?;
+    if !degrees.is_finite()
+        || degrees < 0.0
+        || !minutes.is_finite()
+        || !(0.0..60.0).contains(&minutes)
+        || !seconds.is_finite()
+        || !(0.0..60.0).contains(&seconds)
+    {
+        return None;
+    }
+    Some(degrees + minutes / 60.0 + seconds / 3600.0)
 }
 
 /// Count the digits before the decimal point (leading sign stripped).
@@ -302,10 +320,10 @@ fn integer_digits(s: &str) -> usize {
 }
 
 /// Decode a concatenated NMEA value: `DDMM.mmm` → decimal degrees.
-fn nmea_decode(value: f64) -> f64 {
+fn nmea_decode(value: f64) -> Option<f64> {
     let degrees = (value / 100.0).trunc();
     let minutes = value - degrees * 100.0;
-    degrees + minutes / 60.0
+    (minutes < 60.0).then_some(degrees + minutes / 60.0)
 }
 
 /// Resolve which component is latitude vs longitude, recording how it was
@@ -511,6 +529,11 @@ mod tests {
         assert!(parse("hello world").is_err()); // not numeric
         assert!(parse("42").is_err()); // only one component
         assert!(parse("").is_err()); // empty
+        assert!(parse("40 60 N 74 0 W").is_err()); // invalid minutes
+        assert!(parse("40 0 60 N 74 0 0 W").is_err()); // invalid seconds
+        assert!(parse("4060.0N 07400.0W").is_err()); // invalid NMEA minutes
+        assert!(parse("-40N 74W").is_err()); // sign contradicts hemisphere
+        assert!(parse("NaN, 0").is_err());
     }
 
     #[test]

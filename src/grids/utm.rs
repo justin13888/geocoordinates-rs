@@ -128,6 +128,13 @@ impl Utm {
     /// [`Error::OutOfRange`] for latitudes outside the UTM band (south of 80°S
     /// or north of 84°N).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Utm> {
+        coord.validate()?;
+        if coord.crs != crate::Crs::Wgs84 {
+            return Err(Error::CrsMismatch {
+                expected: crate::Crs::Wgs84,
+                found: coord.crs,
+            });
+        }
         let (lat, lon) = (coord.lat, coord.lon);
         if !(-80.0..84.0).contains(&lat) {
             return Err(Error::OutOfRange { lat, lon });
@@ -167,8 +174,18 @@ impl Utm {
     }
 
     /// UTM → geodetic WGS-84 coordinate (exact inverse projection).
-    #[must_use]
-    pub fn to_coordinate(self) -> Coordinate {
+    pub fn try_to_coordinate(self) -> Result<Coordinate> {
+        if !(1..=60).contains(&self.zone)
+            || !self.easting.is_finite()
+            || !(100_000.0..=900_000.0).contains(&self.easting)
+            || !self.northing.is_finite()
+            || !(0.0..=10_000_000.0).contains(&self.northing)
+        {
+            return Err(Error::InvalidValue {
+                field: "UTM",
+                detail: "zone/easting/northing are outside the UTM domain".into(),
+            });
+        }
         let lon0 = central_meridian_deg(self.zone);
         let n0 = match self.hemisphere {
             Hemisphere::North => 0.0,
@@ -192,7 +209,9 @@ impl Utm {
             lat += DELTA[j - 1] * (2.0 * jf * chi).sin();
         }
         let lon = lon0.to_radians() + eta_p.sinh().atan2(xi_p.cos());
-        Coordinate::wgs84(lat.to_degrees(), lon.to_degrees())
+        let result = Coordinate::wgs84(lat.to_degrees(), lon.to_degrees());
+        result.validate()?;
+        Ok(result)
     }
 }
 
@@ -214,6 +233,13 @@ impl Ups {
     /// [`Error::OutOfRange`] for latitudes outside the polar zones (between 80°S
     /// and 84°N, which are UTM territory).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Ups> {
+        coord.validate()?;
+        if coord.crs != crate::Crs::Wgs84 {
+            return Err(Error::CrsMismatch {
+                expected: crate::Crs::Wgs84,
+                found: coord.crs,
+            });
+        }
         let (lat, lon) = (coord.lat, coord.lon);
         let north = lat >= 0.0;
         if (north && lat < 84.0) || (!north && lat > -80.0) {
@@ -232,11 +258,22 @@ impl Ups {
     }
 
     /// UPS → geodetic WGS-84 coordinate (exact inverse polar stereographic).
-    #[must_use]
-    pub fn to_coordinate(self) -> Coordinate {
+    pub fn try_to_coordinate(self) -> Result<Coordinate> {
+        if !self.easting.is_finite()
+            || !(0.0..=4_000_000.0).contains(&self.easting)
+            || !self.northing.is_finite()
+            || !(0.0..=4_000_000.0).contains(&self.northing)
+        {
+            return Err(Error::InvalidValue {
+                field: "UPS",
+                detail: "easting/northing are outside the UPS domain".into(),
+            });
+        }
         let north = self.hemisphere == Hemisphere::North;
         let (lat, lon) = ups_inverse(self.easting, self.northing, north);
-        Coordinate::wgs84(lat, lon)
+        let result = Coordinate::wgs84(lat, lon);
+        result.validate()?;
+        Ok(result)
     }
 }
 
@@ -377,7 +414,8 @@ mod tests {
         ] {
             let back = Utm::try_from_coordinate(c(lat, lon))
                 .unwrap()
-                .to_coordinate();
+                .try_to_coordinate()
+                .unwrap();
             assert_close(back.lat, lat, 1e-9);
             assert_close(back.lon, lon, 1e-9);
         }
@@ -426,7 +464,8 @@ mod tests {
         ] {
             let back = Ups::try_from_coordinate(c(lat, lon))
                 .unwrap()
-                .to_coordinate();
+                .try_to_coordinate()
+                .unwrap();
             assert_close(back.lat, lat, 1e-9);
             assert_close(back.lon, lon, 1e-9);
         }
@@ -439,5 +478,29 @@ mod tests {
         assert!(Ups::try_from_coordinate(c(-79.0, 0.0)).is_err());
         assert!(Ups::try_from_coordinate(c(84.0, 0.0)).is_ok());
         assert!(Ups::try_from_coordinate(c(-80.0, 0.0)).is_ok());
+    }
+
+    #[test]
+    fn projections_reject_wrong_crs_and_invalid_records() {
+        assert!(Utm::try_from_coordinate(Coordinate::gcj02(40.0, -75.0)).is_err());
+        assert!(
+            Utm {
+                zone: 0,
+                hemisphere: Hemisphere::North,
+                easting: 500_000.0,
+                northing: 0.0,
+            }
+            .try_to_coordinate()
+            .is_err()
+        );
+        assert!(
+            Ups {
+                hemisphere: Hemisphere::North,
+                easting: f64::NAN,
+                northing: 2_000_000.0,
+            }
+            .try_to_coordinate()
+            .is_err()
+        );
     }
 }

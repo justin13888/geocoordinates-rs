@@ -118,28 +118,44 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
     }
 
     let mut horizontal_m = None;
+    let mut seen_crs = false;
+    let mut seen_u = false;
     let mut notes = Vec::new();
     for param in parts {
         let param = param.trim();
         if param.is_empty() {
-            continue; // tolerate a trailing ';'
+            return Err(Error::Parse(format!("empty geo: parameter: {input}")));
         }
         let (key, value) = param.split_once('=').unwrap_or((param, ""));
         match key.trim().to_ascii_lowercase().as_str() {
             "crs" => {
+                if seen_crs || seen_u {
+                    return Err(Error::Parse(format!(
+                        "crs must appear once and before u: {input}"
+                    )));
+                }
+                seen_crs = true;
                 if !value.trim().eq_ignore_ascii_case("wgs84") {
-                    notes.push(format!("unknown crs '{}'; assuming WGS-84", value.trim()));
+                    return Err(Error::Parse(format!(
+                        "unsupported geo: CRS '{}': {input}",
+                        value.trim()
+                    )));
                 }
             }
             "u" => {
-                if let Ok(u) = value.trim().parse::<f64>() {
-                    horizontal_m = Some(u);
-                } else {
-                    notes.push(format!(
-                        "ignored unparseable uncertainty '{}'",
-                        value.trim()
-                    ));
+                if seen_u {
+                    return Err(Error::Parse(format!(
+                        "duplicate geo: uncertainty parameter: {input}"
+                    )));
                 }
+                seen_u = true;
+                let u = parse_number(Some(value), input)?;
+                if u < 0.0 {
+                    return Err(Error::Parse(format!(
+                        "geo: uncertainty must be nonnegative: {input}"
+                    )));
+                }
+                horizontal_m = Some(u);
             }
             _ => notes.push(format!("ignored unknown parameter '{key}'")),
         }
@@ -152,6 +168,9 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
     if let Some(alt) = altitude {
         coord = coord.with_height(Height::Ellipsoidal(alt));
     }
+    coord
+        .validate()
+        .map_err(|_| Error::Parse(format!("geo: coordinate out of range: {input}")))?;
 
     Ok(Fix {
         coord,
@@ -172,11 +191,17 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
 
 /// Parse a required `f64` field of a `geo:` URI, erroring with context.
 fn parse_number(field: Option<&str>, input: &str) -> Result<f64> {
-    field
+    let value = field
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .and_then(|s| s.parse::<f64>().ok())
-        .ok_or_else(|| Error::Parse(format!("invalid geo: URI: {input}")))
+        .ok_or_else(|| Error::Parse(format!("invalid geo: URI: {input}")))?;
+    if !value.is_finite() {
+        return Err(Error::Parse(format!(
+            "geo: numeric fields must be finite: {input}"
+        )));
+    }
+    Ok(value)
 }
 
 #[cfg(test)]
@@ -222,16 +247,7 @@ mod tests {
         let known = from_geo_uri("geo:1,2;crs=wgs84").unwrap();
         let notes = &known.source.unwrap().notes;
         assert!(notes.iter().all(|n| !n.contains("crs")), "{notes:?}");
-        // An unrecognized crs is noted; the coordinate stays WGS-84.
-        let unknown = from_geo_uri("geo:1,2;crs=epsg:7030").unwrap();
-        assert!(
-            unknown
-                .source
-                .unwrap()
-                .notes
-                .iter()
-                .any(|n| n.contains("unknown crs"))
-        );
+        assert!(from_geo_uri("geo:1,2;crs=epsg:7030").is_err());
     }
 
     #[test]
@@ -240,6 +256,12 @@ mod tests {
         assert!(from_geo_uri("geo:abc").is_err());
         assert!(from_geo_uri("geo:91,0").is_err()); // out of range
         assert!(from_geo_uri("http:1,2").is_err()); // wrong scheme
+        assert!(from_geo_uri("geo:1,2;u=-1").is_err());
+        assert!(from_geo_uri("geo:1,2;u=NaN").is_err());
+        assert!(from_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
+        assert!(from_geo_uri("geo:1,2;u=1;u=2").is_err());
+        assert!(from_geo_uri("geo:1,2;").is_err());
+        assert!(from_geo_uri("geo:1,2,inf").is_err());
     }
 
     #[test]

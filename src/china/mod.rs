@@ -8,15 +8,16 @@
 //!
 //! | Direction | Nature | API |
 //! |---|---|---|
-//! | WGS-84 → GCJ-02 | exact forward offset | [`From`] / [`Wgs84::to_gcj02`] |
-//! | GCJ-02 → BD-09 | exact (empirical) forward | [`From`] / [`Gcj02::to_bd09`] |
-//! | WGS-84 → BD-09 | exact composition | [`From`] / [`Wgs84::to_bd09`] |
-//! | GCJ-02 → WGS-84 | **approximate** inverse | [`Gcj02::to_wgs84_refined`] → [`Approx`](crate::Approx) |
-//! | BD-09 → GCJ-02 | **approximate** inverse | [`Bd09::to_gcj02_refined`] → [`Approx`](crate::Approx) |
-//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::to_wgs84_refined`] → [`Approx`](crate::Approx) |
+//! | WGS-84 → GCJ-02 | exact forward offset | [`Wgs84::try_to_gcj02`] / [`TryFrom`] |
+//! | GCJ-02 → BD-09 | exact (empirical) forward | [`Gcj02::try_to_bd09`] / [`TryFrom`] |
+//! | WGS-84 → BD-09 | exact composition | [`Wgs84::try_to_bd09`] / [`TryFrom`] |
+//! | GCJ-02 → WGS-84 | **approximate** inverse | [`Gcj02::try_to_wgs84_refined`] → [`Approx`](crate::Approx) |
+//! | BD-09 → GCJ-02 | **approximate** inverse | [`Bd09::try_to_gcj02_refined`] → [`Approx`](crate::Approx) |
+//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::try_to_wgs84_refined`] → [`Approx`](crate::Approx) |
 //!
 //! Outside China (see [`out_of_china`]) every conversion is the identity. This
-//! creates a documented discontinuity at the border.
+//! creates a documented discontinuity at the border. All conversion methods
+//! validate finite, in-range coordinates before applying the transform.
 
 mod baidu_mercator;
 mod bd09;
@@ -25,7 +26,7 @@ mod gcj02;
 pub use baidu_mercator::BaiduMercator;
 
 use crate::coord::{Coordinate, Crs};
-use crate::error::Error;
+use crate::error::{Error, Result};
 
 /// Semi-major axis `a` of the **Krasovsky 1940** ellipsoid, in meters.
 ///
@@ -96,19 +97,25 @@ pub struct Bd09 {
 }
 
 macro_rules! impl_latlon {
-    ($($t:ty),*) => {$(
+    ($($t:ty => $crs:expr),*) => {$(
         impl $t {
             /// Construct from latitude/longitude in decimal degrees.
             #[must_use]
             pub fn new(lat: f64, lon: f64) -> Self { Self { lat, lon } }
+
+            /// Validate that latitude and longitude are finite and in range.
+            pub fn validate(&self) -> Result<()> {
+                Coordinate::new(self.lat, self.lon, Crs::Wgs84).validate()
+            }
         }
         impl crate::coord::LatLon for $t {
             fn lat(&self) -> f64 { self.lat }
             fn lon(&self) -> f64 { self.lon }
+            fn crs(&self) -> Crs { $crs }
         }
     )*};
 }
-impl_latlon!(Wgs84, Gcj02, Bd09);
+impl_latlon!(Wgs84 => Crs::Wgs84, Gcj02 => Crs::Gcj02, Bd09 => Crs::Bd09);
 
 // --- Bridges to the canonical `Coordinate` ---
 //
@@ -140,7 +147,8 @@ impl TryFrom<Coordinate> for Wgs84 {
     type Error = Error;
 
     /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Wgs84`].
-    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+    fn try_from(coord: Coordinate) -> Result<Self> {
+        coord.validate()?;
         match coord.crs {
             Crs::Wgs84 => Ok(Wgs84 {
                 lat: coord.lat,
@@ -158,7 +166,8 @@ impl TryFrom<Coordinate> for Gcj02 {
     type Error = Error;
 
     /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Gcj02`].
-    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+    fn try_from(coord: Coordinate) -> Result<Self> {
+        coord.validate()?;
         match coord.crs {
             Crs::Gcj02 => Ok(Gcj02 {
                 lat: coord.lat,
@@ -176,7 +185,8 @@ impl TryFrom<Coordinate> for Bd09 {
     type Error = Error;
 
     /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Bd09`].
-    fn try_from(coord: Coordinate) -> Result<Self, Error> {
+    fn try_from(coord: Coordinate) -> Result<Self> {
+        coord.validate()?;
         match coord.crs {
             Crs::Bd09 => Ok(Bd09 {
                 lat: coord.lat,

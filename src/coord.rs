@@ -137,16 +137,25 @@ impl Coordinate {
     /// out of range.
     ///
     /// # Errors
-    /// Returns [`crate::Error::OutOfRange`] when either component is invalid.
+    /// Returns [`crate::Error::OutOfRange`] when either horizontal component is
+    /// invalid, or [`crate::Error::InvalidValue`] when a height is non-finite.
     pub fn validate(&self) -> Result<()> {
-        if (-90.0..=90.0).contains(&self.lat) && (-180.0..=180.0).contains(&self.lon) {
-            Ok(())
-        } else {
-            Err(Error::OutOfRange {
+        if !(-90.0..=90.0).contains(&self.lat) || !(-180.0..=180.0).contains(&self.lon) {
+            return Err(Error::OutOfRange {
                 lat: self.lat,
                 lon: self.lon,
-            })
+            });
         }
+        let height = self.height.map(|height| match height {
+            Height::Ellipsoidal(value) | Height::Orthometric(value) => value,
+        });
+        if height.is_some_and(|value| !value.is_finite()) {
+            return Err(Error::InvalidValue {
+                field: "height",
+                detail: "must be finite".to_string(),
+            });
+        }
+        Ok(())
     }
 
     /// Whether this is "Null Island" — latitude and longitude both ~0, the
@@ -174,6 +183,8 @@ pub trait LatLon {
     fn lat(&self) -> f64;
     /// Longitude in decimal degrees.
     fn lon(&self) -> f64;
+    /// Reference system of the position.
+    fn crs(&self) -> Crs;
 }
 
 impl LatLon for Coordinate {
@@ -182,6 +193,9 @@ impl LatLon for Coordinate {
     }
     fn lon(&self) -> f64 {
         self.lon
+    }
+    fn crs(&self) -> Crs {
+        self.crs
     }
 }
 
@@ -248,6 +262,12 @@ mod tests {
         assert!(Coordinate::wgs84(0.0, 181.0).validate().is_err());
         assert!(Coordinate::wgs84(f64::NAN, 0.0).validate().is_err());
         assert!(Coordinate::wgs84(0.0, f64::NAN).validate().is_err());
+        assert!(
+            Coordinate::wgs84(0.0, 0.0)
+                .with_height(Height::Ellipsoidal(f64::INFINITY))
+                .validate()
+                .is_err()
+        );
     }
 
     #[test]

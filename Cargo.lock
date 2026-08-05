@@ -132,7 +132,6 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
- "serde",
 ]
 
 [[package]]
@@ -316,15 +315,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28a80e3145d8ad11ba0995949bbcf48b9df2be62772b3d351ef017dff6ecb853"
 
 [[package]]
-name = "float_extras"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b22b70f8649ea2315955f1a36d964b0e4da482dfaa5f0d04df0d1fb7c338ab7a"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "foldhash"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -403,6 +393,7 @@ dependencies = [
  "kml",
  "s2",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "wkt",
 ]
@@ -911,10 +902,8 @@ checksum = "23434007bcef0196e3f083834576ac004241f354001a22c61d2f2208c780e8df"
 dependencies = [
  "bigdecimal",
  "cgmath",
- "float_extras",
  "lazy_static",
  "libm",
- "serde",
 ]
 
 [[package]]

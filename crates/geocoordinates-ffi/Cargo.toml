@@ -26,7 +26,7 @@ crate-type = ["cdylib", "staticlib", "lib"]
 [dependencies]
 # The core crate, by path. Its `serde` feature is intentionally NOT enabled —
 # the translation layer only reads public fields and calls inherent methods.
-geocoordinates = { path = "../..", version = "0.14", features = ["geojson", "wkt", "gpx", "kml", "nmea", "h3"] }
+geocoordinates = { path = "../..", version = "0.14", features = ["geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2"] }
 uniffi = { version = "0.31", features = ["cli"] }
 thiserror = "2.0"
 

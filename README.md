@@ -6,14 +6,37 @@ Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-
 
 ## What's available now
 
-The current release ships the core data model and the China datums:
+- **Coordinate primitives:** datum-tagged coordinates, explicit height surfaces,
+  angle encodings, length units, observation metadata, typed errors, and
+  approximation bounds.
+- **China datums:** WGS-84 ↔ GCJ-02 ↔ BD-09, including Baidu Web Mercator and
+  explicit fast/refined inverse accuracy.
+- **Presentation and ingestion:** DD/DMS/DDM/Plus Code formatting, tolerant text
+  parsing, `geo:` URIs, GeoJSON, WKT, GPX, KML, and NMEA 0183.
+- **Geodesy and datums:** Karney geodesics, spherical/rhumb/track utilities,
+  ECEF and ENU/NED/AER frames, Helmert transforms, and runtime CRS dispatch.
+- **Projected and encoded grids:** UTM, UPS, MGRS, Plus Code, Geohash,
+  Maidenhead, H3, and S2.
+- Optional serde support for public value/configuration types.
 
-- **Coordinate model:** `Coordinate`, `Crs`, `Height`, `LatLon`; `Approx<T>`; typed `Error`/`Result`; `Length`/`LengthUnit`; angle encodings (`Dd`/`Dms`/`Ddm`); `Fix` observation metadata.
-- **China datums:** `Wgs84` ↔ `Gcj02` ↔ `Bd09` (exact forward transforms, approximate inverses with explicit error bounds) and `BaiduMercator`.
-- **Distance:** spherical `haversine_distance`.
-- Optional `serde` support (`serde` feature).
+PROJ-backed EPSG conversion and geoid grid models remain deferred because they
+require system libraries or external data. EXIF extraction and polygon/line
+geometry operations are intentionally out of scope.
 
-The core path ships next: angle/unit conversions, DD/DMS/DDM formatting, text + `geo:`-URI parsing, and Plus Code. Geodesy (ECEF/frames/Karney geodesics/Helmert datums), the remaining grids (UTM/MGRS/Geohash/Maidenhead), interchange ingestion (GeoJSON/WKT/GPX/KML, NMEA), and runtime CRS conversion are scaffolded but deferred — see [ROADMAP.md](ROADMAP.md). EXIF GPS extraction is out of scope: it belongs to a separate library that consumes this crate's primitives.
+## Full-surface example
+
+The flagship example is executable documentation and a self-verifying downstream
+API test. It uses embedded reference vectors and no network or external files:
+
+```bash
+cargo run --all-features --example flagship
+cargo test --all-features --example flagship
+```
+
+It demonstrates every shipped Rust capability, including exact versus
+approximate conversion semantics, axis order, antimeridian/pole behavior,
+interchange and sensor ingestion, classic and China datums, geodesics, frames,
+projected/encoded grids, serde round trips, and typed failures.
 
 ## Language bindings (FFI)
 
@@ -21,8 +44,8 @@ The API is exposed to **Python, Kotlin, Swift, and TypeScript** with full
 capability parity via [UniFFI](https://mozilla.github.io/uniffi-rs/), generated
 from the separate `geocoordinates-ffi` crate (Java consumes the Kotlin/JVM
 artifact directly). The bindings track the released surface and gate each
-release; today that covers the China-datum core: WGS-84 ↔ GCJ-02 ↔ BD-09
-conversions, Baidu Web Mercator, `out_of_china`, and haversine distance.
+release. Every public capability has a canonical FFI form, including both H3
+and S2 discrete global grids.
 
 Because the Rust API is idiomatic, the FFI surface is deliberately flattened:
 generics (`Approx<T>`), traits, `Deref`, and operator overloads do not cross the

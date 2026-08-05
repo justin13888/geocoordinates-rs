@@ -11,18 +11,18 @@
 //!
 //! The model is explicit in the function name, so the accuracy is obvious
 //! without reading docs. Measurement functions (distances, bearings) take any
-//! [`LatLon`], so they work on `Coordinate` and the per-datum newtypes alike — a
-//! scalar result has no reference system to mislabel. Producer functions will
-//! take `&Coordinate` and propagate its CRS to the result; that ellipsoidal math
-//! assumes a WGS-84 / true-datum input, so feeding an obfuscated GCJ-02 / BD-09
-//! position is a logic error.
+//! [`LatLon`], so they work on `Coordinate` and the per-datum newtypes alike;
+//! every multi-point operation rejects mixed CRS values. Producer functions
+//! take `&Coordinate`, require WGS-84 inputs, and return WGS-84 coordinates, so
+//! an obfuscated GCJ-02 / BD-09 position cannot silently enter true-datum math.
 
 use core::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
 use geographiclib_rs::{DirectGeodesic, Geodesic, InverseGeodesic};
 
 use crate::angle::{normalize_degrees, wrap_longitude};
-use crate::coord::{Coordinate, LatLon};
+use crate::coord::{Coordinate, Crs, LatLon};
+use crate::error::{Error, Result};
 use crate::units::Length;
 
 /// IUGG mean Earth radius R1 = (2a + b) / 3, in meters, used by the spherical
@@ -32,18 +32,18 @@ const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 /// Exact ellipsoidal (Karney geodesic) distance between two points.
 ///
 /// Preferred over Vincenty, which fails to converge for near-antipodal points.
-#[must_use]
-pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
+pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
+    validate_pair(a, b)?;
     let s12: f64 = Geodesic::wgs84().inverse(a.lat(), a.lon(), b.lat(), b.lon());
-    Length::from_meters(s12)
+    Ok(Length::from_meters(s12))
 }
 
 /// Cheap spherical (haversine) distance — approximate, named for clarity.
 ///
 /// Uses the IUGG mean Earth radius. The `atan2` form is numerically robust for
 /// the full range of separations, including near-antipodal points.
-#[must_use]
-pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
+pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
+    validate_pair(a, b)?;
     /// IUGG mean Earth radius R1 = (2a + b) / 3, in meters.
     const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 
@@ -54,57 +54,64 @@ pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
 
     let h = (d_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
     let c = 2.0 * h.sqrt().atan2((1.0 - h).max(0.0).sqrt());
-    Length::from_meters(MEAN_EARTH_RADIUS_M * c)
+    Ok(Length::from_meters(MEAN_EARTH_RADIUS_M * c))
 }
 
 /// Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
-#[must_use]
-pub fn initial_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
+pub fn initial_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
+    validate_pair(a, b)?;
     // geographiclib-rs returns the 3-tuple as (azi1, azi2, a12).
     let (azi1, _, _): (f64, f64, f64) =
         Geodesic::wgs84().inverse(a.lat(), a.lon(), b.lat(), b.lon());
-    normalize_degrees(azi1)
+    Ok(normalize_degrees(azi1))
 }
 
 /// Final bearing (azimuth on arrival) of the geodesic from `a` to `b`, in
 /// degrees `[0, 360)`. Differs from [`initial_bearing`] on the ellipsoid.
-#[must_use]
-pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
+pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
+    validate_pair(a, b)?;
     // The 3-tuple is (azi1, azi2, a12); the final azimuth is the second element.
     let (_, azi2, _): (f64, f64, f64) =
         Geodesic::wgs84().inverse(a.lat(), a.lon(), b.lat(), b.lon());
-    normalize_degrees(azi2)
+    Ok(normalize_degrees(azi2))
 }
 
 /// Direct geodesic problem: the point reached from `start` by traveling
 /// `distance` along `bearing_deg` (exact, Karney). Carries `start.crs`.
-#[must_use]
-pub fn destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Coordinate {
+pub fn destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Result<Coordinate> {
+    validate_wgs84(start)?;
+    validate_bearing_and_distance(bearing_deg, distance)?;
     let (lat2, lon2): (f64, f64) =
         Geodesic::wgs84().direct(start.lat, start.lon, bearing_deg, distance.meters());
-    Coordinate::new(lat2, lon2, start.crs)
+    Ok(Coordinate::new(lat2, lon2, start.crs))
 }
 
 /// The geodesic midpoint between `a` and `b`. Carries `a.crs`.
-#[must_use]
-pub fn midpoint(a: &Coordinate, b: &Coordinate) -> Coordinate {
+pub fn midpoint(a: &Coordinate, b: &Coordinate) -> Result<Coordinate> {
     intermediate(a, b, 0.5)
 }
 
 /// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic
 /// from `a` to `b`. Carries `a.crs`.
-#[must_use]
-pub fn intermediate(a: &Coordinate, b: &Coordinate, fraction: f64) -> Coordinate {
+pub fn intermediate(a: &Coordinate, b: &Coordinate, fraction: f64) -> Result<Coordinate> {
+    validate_pair(a, b)?;
+    validate_wgs84(a)?;
+    if !fraction.is_finite() || !(0.0..=1.0).contains(&fraction) {
+        return Err(Error::InvalidValue {
+            field: "fraction",
+            detail: "must be finite and in [0, 1]".into(),
+        });
+    }
     let g = Geodesic::wgs84();
     // The 4-tuple is (s12, azi1, azi2, a12); travel `fraction · s12` along azi1.
     let (s12, azi1, _, _): (f64, f64, f64, f64) = g.inverse(a.lat, a.lon, b.lat, b.lon);
     let (lat, lon): (f64, f64) = g.direct(a.lat, a.lon, azi1, s12 * fraction);
-    Coordinate::new(lat, lon, a.crs)
+    Ok(Coordinate::new(lat, lon, a.crs))
 }
 
 /// Rhumb-line (loxodrome / constant-bearing) distance, on a sphere.
-#[must_use]
-pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
+pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
+    validate_pair(a, b)?;
     let phi1 = a.lat().to_radians();
     let phi2 = b.lat().to_radians();
     let d_phi = phi2 - phi1;
@@ -116,28 +123,36 @@ pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Length {
         phi1.cos()
     };
     let dist = (d_phi * d_phi + q * q * d_lon * d_lon).sqrt() * MEAN_EARTH_RADIUS_M;
-    Length::from_meters(dist)
+    Ok(Length::from_meters(dist))
 }
 
 /// Rhumb-line (loxodrome / constant) bearing from `a` to `b`, in degrees
 /// `[0, 360)`.
-#[must_use]
-pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> f64 {
+pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
+    validate_pair(a, b)?;
     let d_psi = stretched_lat_diff(a.lat().to_radians(), b.lat().to_radians());
-    normalize_degrees(shortest_d_lon(a, b).atan2(d_psi).to_degrees())
+    Ok(normalize_degrees(
+        shortest_d_lon(a, b).atan2(d_psi).to_degrees(),
+    ))
 }
 
 /// The point reached from `start` by traveling `distance` along a constant
 /// `bearing_deg` rhumb line. Carries `start.crs`.
-#[must_use]
-pub fn rhumb_destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Coordinate {
+pub fn rhumb_destination(
+    start: &Coordinate,
+    bearing_deg: f64,
+    distance: Length,
+) -> Result<Coordinate> {
+    validate_wgs84(start)?;
+    validate_bearing_and_distance(bearing_deg, distance)?;
     let theta = bearing_deg.to_radians();
     let delta = distance.meters() / MEAN_EARTH_RADIUS_M;
     let phi1 = start.lat.to_radians();
     let d_phi = delta * theta.cos();
     let mut phi2 = phi1 + d_phi;
     // Crossing a pole flips to the far side.
-    if phi2.abs() > FRAC_PI_2 {
+    let crossed_pole = phi2.abs() > FRAC_PI_2;
+    if crossed_pole {
         phi2 = if phi2 > 0.0 { PI - phi2 } else { -PI - phi2 };
     }
     let d_psi = stretched_lat_diff(phi1, phi2);
@@ -147,46 +162,63 @@ pub fn rhumb_destination(start: &Coordinate, bearing_deg: f64, distance: Length)
         phi1.cos()
     };
     let d_lon = (delta * theta.sin() / q).to_degrees();
-    Coordinate::new(
+    Ok(Coordinate::new(
         phi2.to_degrees(),
-        wrap_longitude(start.lon + d_lon),
+        wrap_longitude(start.lon + d_lon + if crossed_pole { 180.0 } else { 0.0 }),
         start.crs,
-    )
+    ))
 }
 
 /// Signed perpendicular distance from `point` to the great-circle path
 /// `start` → `end` (positive to the right, negative to the left).
-#[must_use]
-pub fn cross_track_distance(point: &impl LatLon, start: &impl LatLon, end: &impl LatLon) -> Length {
+pub fn cross_track_distance(
+    point: &impl LatLon,
+    start: &impl LatLon,
+    end: &impl LatLon,
+) -> Result<Length> {
+    validate_pair(point, start)?;
+    validate_pair(start, end)?;
     let d13 = angular_distance_rad(start, point);
     let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
     let xt = (d13.sin() * bearing_diff.sin()).asin();
-    Length::from_meters(xt * MEAN_EARTH_RADIUS_M)
+    Ok(Length::from_meters(xt * MEAN_EARTH_RADIUS_M))
 }
 
 /// Distance from `start` to the foot of the perpendicular from `point` onto the
 /// great-circle path `start` → `end` (the along-track component; negative when
 /// the foot lies behind `start`).
-#[must_use]
-pub fn along_track_distance(point: &impl LatLon, start: &impl LatLon, end: &impl LatLon) -> Length {
+pub fn along_track_distance(
+    point: &impl LatLon,
+    start: &impl LatLon,
+    end: &impl LatLon,
+) -> Result<Length> {
+    validate_pair(point, start)?;
+    validate_pair(start, end)?;
     let d13 = angular_distance_rad(start, point);
     let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
     let xt = (d13.sin() * bearing_diff.sin()).asin();
     let at = (d13.cos() / xt.cos()).clamp(-1.0, 1.0).acos();
     let signed = at * bearing_diff.cos().signum();
-    Length::from_meters(signed * MEAN_EARTH_RADIUS_M)
+    Ok(Length::from_meters(signed * MEAN_EARTH_RADIUS_M))
 }
 
 /// Intersection of two great circles, each given by a point and an initial
 /// bearing. `None` when the paths are parallel/coincident or ambiguous. Carries
 /// `a.crs`.
-#[must_use]
 pub fn intersection(
     a: &Coordinate,
     bearing_a_deg: f64,
     b: &Coordinate,
     bearing_b_deg: f64,
-) -> Option<Coordinate> {
+) -> Result<Option<Coordinate>> {
+    validate_pair(a, b)?;
+    validate_wgs84(a)?;
+    if !bearing_a_deg.is_finite() || !bearing_b_deg.is_finite() {
+        return Err(Error::InvalidValue {
+            field: "bearing",
+            detail: "must be finite".into(),
+        });
+    }
     let (phi1, lam1) = (a.lat.to_radians(), a.lon.to_radians());
     let (phi2, lam2) = (b.lat.to_radians(), b.lon.to_radians());
     let theta13 = bearing_a_deg.to_radians();
@@ -199,7 +231,7 @@ pub fn intersection(
             .sqrt()
             .asin();
     if delta12 < 1e-12 {
-        return Some(*a); // coincident endpoints
+        return Ok(Some(*a)); // coincident endpoints
     }
 
     let theta_a = ((phi2.sin() - phi1.sin() * delta12.cos()) / (delta12.sin() * phi1.cos()))
@@ -217,10 +249,10 @@ pub fn intersection(
     let alpha1 = theta13 - theta12;
     let alpha2 = theta21 - theta23;
     if alpha1.sin().abs() < 1e-12 && alpha2.sin().abs() < 1e-12 {
-        return None; // same great circle — infinitely many intersections
+        return Ok(None); // same great circle — infinitely many intersections
     }
     if alpha1.sin() * alpha2.sin() < 0.0 {
-        return None; // ambiguous (the antipodal intersection)
+        return Ok(None); // ambiguous (the antipodal intersection)
     }
 
     let cos_alpha3 = -alpha1.cos() * alpha2.cos() + alpha1.sin() * alpha2.sin() * delta12.cos();
@@ -232,7 +264,50 @@ pub fn intersection(
     let d_lam13 =
         (theta13.sin() * delta13.sin() * phi1.cos()).atan2(delta13.cos() - phi1.sin() * phi3.sin());
     let lon3 = wrap_longitude((lam1 + d_lam13).to_degrees());
-    Some(Coordinate::new(phi3.to_degrees(), lon3, a.crs))
+    Ok(Some(Coordinate::new(phi3.to_degrees(), lon3, a.crs)))
+}
+
+fn validate_position(position: &impl LatLon) -> Result<()> {
+    Coordinate::new(position.lat(), position.lon(), position.crs()).validate()
+}
+
+fn validate_pair(a: &impl LatLon, b: &impl LatLon) -> Result<()> {
+    validate_position(a)?;
+    validate_position(b)?;
+    if a.crs() != b.crs() {
+        return Err(Error::CrsMismatch {
+            expected: a.crs(),
+            found: b.crs(),
+        });
+    }
+    Ok(())
+}
+
+fn validate_wgs84(position: &Coordinate) -> Result<()> {
+    position.validate()?;
+    if position.crs != Crs::Wgs84 {
+        return Err(Error::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: position.crs,
+        });
+    }
+    Ok(())
+}
+
+fn validate_bearing_and_distance(bearing_deg: f64, distance: Length) -> Result<()> {
+    if !bearing_deg.is_finite() {
+        return Err(Error::InvalidValue {
+            field: "bearing",
+            detail: "must be finite".into(),
+        });
+    }
+    if !distance.meters().is_finite() || distance.meters() < 0.0 {
+        return Err(Error::InvalidValue {
+            field: "distance",
+            detail: "must be finite and nonnegative".into(),
+        });
+    }
+    Ok(())
 }
 
 /// The shorter signed longitude difference `b − a`, in radians (antimeridian-safe).
@@ -287,7 +362,9 @@ mod tests {
     fn geodesic_distance_equator_reference() {
         // 1° along the equator on WGS-84 (a · π/180).
         assert_close(
-            geodesic_distance(&c(0.0, 0.0), &c(0.0, 1.0)).meters(),
+            geodesic_distance(&c(0.0, 0.0), &c(0.0, 1.0))
+                .unwrap()
+                .meters(),
             111_319.49,
             0.5,
         );
@@ -295,9 +372,21 @@ mod tests {
 
     #[test]
     fn bearings_are_cardinal() {
-        assert_close(initial_bearing(&c(0.0, 0.0), &c(0.0, 1.0)), 90.0, 1e-6); // east
-        assert_close(initial_bearing(&c(0.0, 0.0), &c(1.0, 0.0)), 0.0, 1e-6); // north
-        assert_close(final_bearing(&c(0.0, 0.0), &c(1.0, 0.0)), 0.0, 1e-6);
+        assert_close(
+            initial_bearing(&c(0.0, 0.0), &c(0.0, 1.0)).unwrap(),
+            90.0,
+            1e-6,
+        );
+        assert_close(
+            initial_bearing(&c(0.0, 0.0), &c(1.0, 0.0)).unwrap(),
+            0.0,
+            1e-6,
+        );
+        assert_close(
+            final_bearing(&c(0.0, 0.0), &c(1.0, 0.0)).unwrap(),
+            0.0,
+            1e-6,
+        );
     }
 
     #[test]
@@ -305,30 +394,33 @@ mod tests {
         let (start, end) = (c(40.0, -75.0), c(41.0, -73.0));
         let d = destination(
             &start,
-            initial_bearing(&start, &end),
-            geodesic_distance(&start, &end),
-        );
+            initial_bearing(&start, &end).unwrap(),
+            geodesic_distance(&start, &end).unwrap(),
+        )
+        .unwrap();
         assert_close(d.lat, 41.0, 1e-6);
         assert_close(d.lon, -73.0, 1e-6);
     }
 
     #[test]
-    fn destination_carries_crs() {
-        let d = destination(
-            &Coordinate::gcj02(0.0, 0.0),
-            90.0,
-            Length::from_meters(100_000.0),
+    fn destination_rejects_non_wgs84() {
+        assert!(
+            destination(
+                &Coordinate::gcj02(0.0, 0.0),
+                90.0,
+                Length::from_meters(100_000.0),
+            )
+            .is_err()
         );
-        assert_eq!(d.crs, crate::Crs::Gcj02);
     }
 
     #[test]
     fn midpoint_and_intermediate() {
-        let mid = midpoint(&c(0.0, 0.0), &c(0.0, 2.0));
+        let mid = midpoint(&c(0.0, 0.0), &c(0.0, 2.0)).unwrap();
         assert_close(mid.lat, 0.0, 1e-6);
         assert_close(mid.lon, 1.0, 1e-6);
         assert_close(
-            intermediate(&c(0.0, 0.0), &c(0.0, 10.0), 0.25).lon,
+            intermediate(&c(0.0, 0.0), &c(0.0, 10.0), 0.25).unwrap().lon,
             2.5,
             1e-6,
         );
@@ -338,12 +430,20 @@ mod tests {
     fn rhumb_references() {
         // Along the equator the rhumb line is the equator (q = cos 0 = 1).
         assert_close(
-            rhumb_distance(&c(0.0, 0.0), &c(0.0, 1.0)).meters(),
+            rhumb_distance(&c(0.0, 0.0), &c(0.0, 1.0)).unwrap().meters(),
             111_195.0,
             1.0,
         );
-        assert_close(rhumb_bearing(&c(0.0, 0.0), &c(0.0, 10.0)), 90.0, 1e-9); // east
-        assert_close(rhumb_bearing(&c(0.0, 0.0), &c(10.0, 0.0)), 0.0, 1e-9); // north
+        assert_close(
+            rhumb_bearing(&c(0.0, 0.0), &c(0.0, 10.0)).unwrap(),
+            90.0,
+            1e-9,
+        );
+        assert_close(
+            rhumb_bearing(&c(0.0, 0.0), &c(10.0, 0.0)).unwrap(),
+            0.0,
+            1e-9,
+        );
     }
 
     #[test]
@@ -351,9 +451,10 @@ mod tests {
         let (start, end) = (c(40.0, -75.0), c(45.0, -70.0));
         let d = rhumb_destination(
             &start,
-            rhumb_bearing(&start, &end),
-            rhumb_distance(&start, &end),
-        );
+            rhumb_bearing(&start, &end).unwrap(),
+            rhumb_distance(&start, &end).unwrap(),
+        )
+        .unwrap();
         assert_close(d.lat, 45.0, 1e-6);
         assert_close(d.lon, -70.0, 1e-6);
     }
@@ -362,10 +463,10 @@ mod tests {
     fn cross_and_along_track() {
         // Path east along the equator; a point 1° north at lon 5.
         let (start, end, point) = (c(0.0, 0.0), c(0.0, 10.0), c(1.0, 5.0));
-        let xt = cross_track_distance(&point, &start, &end).meters();
+        let xt = cross_track_distance(&point, &start, &end).unwrap().meters();
         assert!(xt < 0.0); // north of an eastward path is to the left
         assert_close(xt.abs(), 111_195.0, 2_000.0);
-        let at = along_track_distance(&point, &start, &end).meters();
+        let at = along_track_distance(&point, &start, &end).unwrap().meters();
         assert_close(at, 5.0 * 111_195.0, 2_000.0); // foot at lon 5
     }
 
@@ -373,8 +474,9 @@ mod tests {
     fn intersection_of_equator_and_meridian() {
         // Equator (east from (0,-10)) meets the prime meridian (north from
         // (-10,0)) at (0, 0); neither endpoint lies on the other path.
-        let x =
-            intersection(&c(0.0, -10.0), 90.0, &c(-10.0, 0.0), 0.0).expect("intersection exists");
+        let x = intersection(&c(0.0, -10.0), 90.0, &c(-10.0, 0.0), 0.0)
+            .unwrap()
+            .expect("intersection exists");
         assert_close(x.lat, 0.0, 1e-7);
         assert_close(x.lon, 0.0, 1e-7);
     }
@@ -382,7 +484,11 @@ mod tests {
     #[test]
     fn coincident_great_circles_have_no_intersection() {
         // Both paths run east along the equator — the same great circle.
-        assert!(intersection(&c(0.0, 0.0), 90.0, &c(0.0, 5.0), 90.0).is_none());
+        assert!(
+            intersection(&c(0.0, 0.0), 90.0, &c(0.0, 5.0), 90.0)
+                .unwrap()
+                .is_none()
+        );
     }
 
     // ----- Spherical helper references (independent textbook formulas) -----
@@ -483,7 +589,7 @@ mod tests {
     fn final_bearing_is_not_constant_zero() {
         // The arrival azimuth on a NE geodesic is distinctly non-zero (≈45.4°),
         // so it cannot be conflated with the due-north `final_bearing == 0`.
-        let fb = final_bearing(&c(0.0, 0.0), &c(10.0, 10.0));
+        let fb = final_bearing(&c(0.0, 0.0), &c(10.0, 10.0)).unwrap();
         assert!(
             (40.0..50.0).contains(&fb),
             "final bearing {fb} out of expected band"
@@ -493,7 +599,7 @@ mod tests {
     #[test]
     fn rhumb_destination_due_east_holds_latitude() {
         // A due-east rhumb keeps latitude fixed (d_psi → 0, so q = cos φ₁).
-        let d = rhumb_destination(&c(40.0, 0.0), 90.0, Length::from_meters(100_000.0));
+        let d = rhumb_destination(&c(40.0, 0.0), 90.0, Length::from_meters(100_000.0)).unwrap();
         assert_close(d.lat, 40.0, 1e-9);
         assert_close(d.lon, 1.173_979_358_250_968, 1e-9);
     }
@@ -501,25 +607,28 @@ mod tests {
     #[test]
     fn rhumb_destination_reflects_over_the_poles() {
         // Pushing north past the pole reflects the latitude back down the far side.
-        let n = rhumb_destination(&c(80.0, 0.0), 0.0, Length::from_meters(1_668_000.0));
+        let n = rhumb_destination(&c(80.0, 0.0), 0.0, Length::from_meters(1_668_000.0)).unwrap();
         assert_close(n.lat, 84.999_336_333_074_71, 1e-9);
-        assert_close(n.lon, 0.0, 1e-9);
+        assert_close(n.lon, -180.0, 1e-9);
         // …and symmetrically over the south pole (the negative reflection arm).
-        let s = rhumb_destination(&c(-80.0, 0.0), 180.0, Length::from_meters(1_668_000.0));
+        let s = rhumb_destination(&c(-80.0, 0.0), 180.0, Length::from_meters(1_668_000.0)).unwrap();
         assert_close(s.lat, -84.999_336_333_074_71, 1e-9);
-        assert_close(s.lon, 0.0, 1e-9);
+        assert_close(s.lon, -180.0, 1e-9);
     }
 
     #[test]
     fn intersection_second_geometry_and_west_branch() {
         // A real great circle (east from (10,0)) meets the λ=10 meridian at a
         // positive latitude — pins the φ₃/λ₃ formulas away from the trivial origin.
-        let x = intersection(&c(10.0, 0.0), 90.0, &c(0.0, 10.0), 0.0).expect("intersection exists");
+        let x = intersection(&c(10.0, 0.0), 90.0, &c(0.0, 10.0), 0.0)
+            .unwrap()
+            .expect("intersection exists");
         assert_close(x.lat, 9.851_076_116_583_906, 1e-6);
         assert_close(x.lon, 10.0, 1e-6);
         // b west of a (Δλ < 0) takes the other azimuth-assignment branch.
-        let w =
-            intersection(&c(0.0, 10.0), 270.0, &c(-10.0, 0.0), 0.0).expect("intersection exists");
+        let w = intersection(&c(0.0, 10.0), 270.0, &c(-10.0, 0.0), 0.0)
+            .unwrap()
+            .expect("intersection exists");
         assert_close(w.lat, 0.0, 1e-6);
         assert_close(w.lon, 0.0, 1e-6);
     }
@@ -527,7 +636,9 @@ mod tests {
     #[test]
     fn intersection_coincident_endpoints_short_circuit() {
         // Identical start points (Δ₁₂ ≈ 0) return that point regardless of bearings.
-        let x = intersection(&c(5.0, 5.0), 10.0, &c(5.0, 5.0), 80.0).expect("coincident point");
+        let x = intersection(&c(5.0, 5.0), 10.0, &c(5.0, 5.0), 80.0)
+            .unwrap()
+            .expect("coincident point");
         assert_close(x.lat, 5.0, 1e-12);
         assert_close(x.lon, 5.0, 1e-12);
     }
@@ -536,7 +647,11 @@ mod tests {
     fn intersection_behind_a_bearing_is_none() {
         // The crossing of these great circles lies *behind* the westward path, so
         // the forward intersection is the ambiguous antipode → None.
-        assert!(intersection(&c(10.0, 0.0), 270.0, &c(0.0, 10.0), 0.0).is_none());
+        assert!(
+            intersection(&c(10.0, 0.0), 270.0, &c(0.0, 10.0), 0.0)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -550,6 +665,7 @@ mod tests {
             &c(40.0, 60.0),
             240.745_319_307_363_2,
         )
+        .unwrap()
         .expect("oblique intersection exists");
         assert_close(p.lat, 15.0, 1e-4);
         assert_close(p.lon, 25.0, 1e-4);
@@ -561,8 +677,20 @@ mod tests {
         // boundary of the east/west azimuth-assignment split. Asymmetric bearings
         // (60° from the equator, 150° from 30°N) make the two assignment branches
         // diverge, so the forward crossing ≈(7.19°, 12.63°) pins the correct one.
-        let p = intersection(&c(0.0, 0.0), 60.0, &c(30.0, 0.0), 150.0).expect("crossing exists");
+        let p = intersection(&c(0.0, 0.0), 60.0, &c(30.0, 0.0), 150.0)
+            .unwrap()
+            .expect("crossing exists");
         assert_close(p.lat, 7.192_933_677_582_753_5, 1e-4);
         assert_close(p.lon, 12.626_340_872_961_284, 1e-4);
+    }
+
+    #[test]
+    fn public_geodesics_reject_mixed_crs_and_invalid_parameters() {
+        assert!(
+            geodesic_distance(&Coordinate::wgs84(0.0, 0.0), &Coordinate::gcj02(0.0, 1.0)).is_err()
+        );
+        assert!(intermediate(&c(0.0, 0.0), &c(0.0, 1.0), 1.1).is_err());
+        assert!(destination(&c(0.0, 0.0), f64::NAN, Length::from_meters(1.0)).is_err());
+        assert!(rhumb_destination(&c(0.0, 0.0), 0.0, Length::from_meters(-1.0)).is_err());
     }
 }

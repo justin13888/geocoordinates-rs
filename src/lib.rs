@@ -11,9 +11,6 @@
 //! The guarantee of every conversion is visible at the call site, without
 //! reading docs:
 //!
-//! - **Exact & total** (deterministic, lossless within the model) implement
-//!   [`From`]/[`Into`] and offer an inherent `to_x()` returning the bare type.
-//!   If `let g: Gcj02 = wgs.into();` compiles, the conversion is exact.
 //! - **Exact but fallible** (bad range / unparseable input) use
 //!   [`TryFrom`]/[`TryInto`] and `try_to_x()`, returning [`Result`].
 //! - **Approximate** (lossy/iterative inverse, secret-algorithm inverse, or
@@ -22,9 +19,9 @@
 //!   suffix where multiple precisions exist.
 //!
 //! ```ignore
-//! let gcj: Gcj02 = wgs.into();              // exact forward offset
-//! let bd:  Bd09  = wgs.to_bd09();           // exact composition
-//! let w:   Approx<Wgs84> = gcj.to_wgs84_refined(); // approximate inverse
+//! let gcj: Gcj02 = wgs.try_to_gcj02()?; // exact forward offset
+//! let bd:  Bd09  = wgs.try_to_bd09()?; // exact composition
+//! let w:   Approx<Wgs84> = gcj.try_to_wgs84_refined()?; // approximate inverse
 //! println!("{} ± {} m", w.lat(), w.max_error_m());
 //! ```
 //!

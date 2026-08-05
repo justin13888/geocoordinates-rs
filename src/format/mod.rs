@@ -7,12 +7,14 @@
 
 use crate::angle::{Axis, Dd};
 use crate::coord::Coordinate;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::fix::Fix;
 use crate::grids::PlusCode;
 
 /// Code length used when rendering a coordinate as a Plus Code (~14 m cells).
 const PLUS_CODE_FORMAT_LENGTH: usize = 10;
+/// Highest useful decimal precision for an IEEE-754 `f64`.
+const MAX_PRECISION: u8 = 15;
 
 /// Target representation for rendering a coordinate.
 ///
@@ -93,7 +95,17 @@ impl Default for FormatOptions {
 /// coordinate — e.g. a future UTM representation at the poles (see
 /// [`crate::Error::InvalidGridRef`]). The DD/DMS/DDM representations never fail.
 pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
-    Ok(render(coord, options))
+    coord.validate()?;
+    if options
+        .precision
+        .is_some_and(|precision| precision > MAX_PRECISION)
+    {
+        return Err(Error::InvalidValue {
+            field: "format precision",
+            detail: format!("must be no greater than {MAX_PRECISION}"),
+        });
+    }
+    render(coord, options)
 }
 
 /// Render a [`Fix`] to a string, deriving display precision from its
@@ -144,7 +156,7 @@ fn precision_for_accuracy(horizontal_m: f64) -> Option<u8> {
     Some(places as u8)
 }
 
-fn render(coord: &Coordinate, options: &FormatOptions) -> String {
+fn render(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
     let comma = uses_decimal_comma(options.locale.as_deref());
     // Per-representation default precision when none is given: DD 6 (~0.11 m),
     // DMS seconds 2, DDM minutes 3. Plus Code ignores precision entirely.
@@ -156,7 +168,7 @@ fn render(coord: &Coordinate, options: &FormatOptions) -> String {
             // A comma decimal separator collides with a ", " list separator, so
             // switch to whitespace (which the text parser splits on) there.
             let sep = if comma { " " } else { ", " };
-            format!("{lat}{sep}{lon}")
+            Ok(format!("{lat}{sep}{lon}"))
         }
         Representation::Dms => {
             let p = options.precision.unwrap_or(2);
@@ -166,9 +178,9 @@ fn render(coord: &Coordinate, options: &FormatOptions) -> String {
             let p = options.precision.unwrap_or(3);
             render_angle_pair(coord, options, p, comma, AngleKind::Ddm)
         }
-        Representation::PlusCode => PlusCode::encode(*coord, PLUS_CODE_FORMAT_LENGTH)
+        Representation::PlusCode => Ok(PlusCode::encode(*coord, PLUS_CODE_FORMAT_LENGTH)?
             .as_str()
-            .to_string(),
+            .to_string()),
     }
 }
 
@@ -189,10 +201,10 @@ fn render_angle_pair(
     p: u8,
     comma: bool,
     kind: AngleKind,
-) -> String {
-    let lat = render_angle(coord.lat, Axis::Latitude, options, p, comma, kind);
-    let lon = render_angle(coord.lon, Axis::Longitude, options, p, comma, kind);
-    format!("{lat} {lon}")
+) -> Result<String> {
+    let lat = render_angle(coord.lat, Axis::Latitude, options, p, comma, kind)?;
+    let lon = render_angle(coord.lon, Axis::Longitude, options, p, comma, kind)?;
+    Ok(format!("{lat} {lon}"))
 }
 
 fn render_angle(
@@ -202,23 +214,23 @@ fn render_angle(
     p: u8,
     comma: bool,
     kind: AngleKind,
-) -> String {
+) -> Result<String> {
     let (deg_sym, min_sym, sec_sym) = symbols(options.symbol_style);
     let core = match kind {
         AngleKind::Dms => {
-            let dms = Dd(value).to_dms(axis);
+            let dms = Dd(value).try_to_dms(axis)?;
             let (deg, min, sec) = round_carry_dms(dms.degrees, dms.minutes, dms.seconds, p);
             let sec_str = decimalize(&pad_two(sec, p), comma);
             format!("{deg}{deg_sym}{min:02}{min_sym}{sec_str}{sec_sym}")
         }
         AngleKind::Ddm => {
-            let ddm = Dd(value).to_ddm(axis);
+            let ddm = Dd(value).try_to_ddm(axis)?;
             let (deg, min) = round_carry_ddm(ddm.degrees, ddm.minutes, p);
             let min_str = decimalize(&pad_two(min, p), comma);
             format!("{deg}{deg_sym}{min_str}{min_sym}")
         }
     };
-    apply_sign(core, axis, value, options.hemisphere_style)
+    Ok(apply_sign(core, axis, value, options.hemisphere_style))
 }
 
 /// Round DMS seconds to `p` places, carrying 60″ → minute and 60′ → degree so a
