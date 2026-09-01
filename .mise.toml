@@ -1,18 +1,16 @@
 # Dev tools pinned for reproducible local + CI runs, plus every project task.
 # `.mise.toml` is inert unless mise is installed, so a system-installed toolchain
-# is unaffected. Run `mise install` to provision the tools, `mise tasks` to list
-# the tasks, and `mise run <task>` to invoke one.
+# is unaffected. Run `mise install` to provision the tools and the git hooks,
+# `mise tasks` to list the tasks, and `mise run <task>` to invoke one.
+
+# Tools every invocation needs. cargo-mutants and convco are deliberately not
+# here: neither has a usable prebuilt asset, so both compile from source, and a
+# global pin would make every CI job pay for them. They are declared on the
+# tasks that use them instead, and install on first run.
 [tools]
-just = "1.52.0"
 # Git hooks manager. The matching `amends` URL in `hk.pkl` embeds this same
 # version, so bump both together.
 hk = "1.57.0"
-# cargo-mutants has no prebuilt aarch64-apple-darwin asset, so use the cargo backend
-# (compiles from source; cached by mise locally and by mise-action in CI).
-"cargo:cargo-mutants" = "27.1.0"
-# convco is not in the mise/aqua registry, so use the cargo backend (same trade-off
-# as above: compiled from source, cached locally + by mise-action in CI).
-"cargo:convco" = "0.6.4"
 
 [env]
 # Wrap the generated git hooks in `mise x`, so they resolve the pinned tools
@@ -83,6 +81,7 @@ run = ["mise run fmt-check", "mise run lint", "mise run test"]
 
 [tasks.mutants]
 description = "Mutation-test only the lines changed vs trunk (pre-push + CI gate)"
+tools = { "cargo:cargo-mutants" = "27.1.0" }
 usage = 'arg "[base]" help="Base ref to diff against" default="origin/master"'
 run = '''
 #!/usr/bin/env bash
@@ -108,6 +107,7 @@ cargo mutants {{ vars.mutants_flags }} --in-diff "$diff"
 
 [tasks.mutants-all]
 description = "Full-tree mutation test of the published crate (slow, may report gaps)"
+tools = { "cargo:cargo-mutants" = "27.1.0" }
 run = "cargo mutants {{ vars.mutants_flags }}"
 
 # --- Commit message linting (Conventional Commits via convco) ---
@@ -116,6 +116,7 @@ run = "cargo mutants {{ vars.mutants_flags }}"
 # drops the comment/whitespace lines git leaves in the message file.
 [tasks.commit-check]
 description = "Lint a single commit message file (used by the commit-msg hook)"
+tools = { "cargo:convco" = "0.6.4" }
 usage = 'arg "<file>" help="Path to the commit message file"'
 run = '''
 #!/usr/bin/env bash
@@ -125,6 +126,7 @@ convco check --from-stdin --strip < "$usage_file"
 
 [tasks.commits-check]
 description = "Lint that commits in <range> follow Conventional Commits (pre-push + CI)"
+tools = { "cargo:convco" = "0.6.4" }
 usage = 'arg "[range]" help="Commit range to lint" default="origin/master..HEAD"'
 run = '''
 #!/usr/bin/env bash
