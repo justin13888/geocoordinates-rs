@@ -25,16 +25,20 @@
 //! println!("{} ± {} m", w.lat(), w.max_error_m());
 //! ```
 //!
-//! See `AGENTS.md` for design constraints, and `ROADMAP.md` for the staged
-//! release plan.
+//! See `AGENTS.md` for design constraints, and `STABILIZATION.md` for the
+//! stabilization ledger and what remains before the 1.0 API freeze.
 //!
 //! ## Released surface
 //!
-//! This crate is shipped incrementally. The modules declared below are the
-//! implemented, working surface; the remainder of the planned API
-//! (full geodesy, grids, ingestion, formatting, runtime conversion, and the
-//! optional `proj`/`geoid`/`dgg` integrations) is commented out and lands one
-//! release at a time. `ROADMAP.md` tracks the order.
+//! Every module declared below is implemented, tested, and released. The
+//! surface spans the core primitives, the China datums, formatting and
+//! parsing, interchange and sensor ingestion, geodesy, projected and encoded
+//! grids, and runtime CRS dispatch. `README.md` tabulates it by subsystem,
+//! together with the FFI parity status of each entry.
+//!
+//! Two capabilities remain deliberately unreleased because they need a system
+//! library or multi-megabyte external data: PROJ-backed EPSG transforms and
+//! geoid height models. `STABILIZATION.md` records that decision.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -47,23 +51,20 @@ pub mod fix;
 pub mod geodesy;
 pub mod units;
 
-// --- Not yet released (see ROADMAP.md) ---
-// Each module below is implemented behind `todo!()` stubs and is uncommented one
-// release at a time. The stub source stays on disk; only its `mod` declaration,
-// re-exports, prelude entries, and Cargo feature are commented out for now.
-// Core-path milestones ship first (format, parse, Plus Code); the rest is
-// deferred — ROADMAP.md tracks both.
-//
 pub mod convert; // runtime CRS dispatch (China typed + classic-datum Helmert)
-pub mod format; // core path — DD/DMS/DDM presentation
-pub mod grids; // core path: Plus Code; deferred: UTM/UPS, MGRS, Geohash, Maidenhead
-pub mod parse; // core path — free-text + geo: URI (interchange/sensors deferred)
+pub mod format; // DD/DMS/DDM/Plus Code presentation
+pub mod grids; // Plus Code, Geohash, Maidenhead, UTM/UPS, MGRS
+pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
+
+// --- Deferred: blocked on an external dependency (see STABILIZATION.md) ---
+// Neither ships in 0.x. `proj` needs the system libproj C library; `geoid`
+// needs multi-megabyte EGM grid data files. Their `pub mod` declarations and
+// Cargo features stay commented out, so nothing in the released surface can
+// reach the unimplemented bodies.
 //
-// /// PROJ-backed transforms for the full EPSG/datum long tail (optional C dep).
 // #[cfg(feature = "proj")]
 // pub mod proj;
 //
-// /// Geoid models for ellipsoidal ↔ orthometric height (optional, needs data).
 // #[cfg(feature = "geoid")]
 // pub mod height;
 //
@@ -87,9 +88,8 @@ pub use units::{Length, LengthUnit};
 /// Common imports for typical use: `use geocoordinates::prelude::*;`.
 ///
 /// Brings in the canonical types, the China datums, the angle encodings, the
-/// `Fix` metadata, and `haversine_distance`. As later releases land (see
-/// `ROADMAP.md`), this set grows to include the geodesy, grid, formatting,
-/// parsing, and conversion items.
+/// `Fix` metadata, and the geodesy, grid, formatting, parsing, and conversion
+/// items. Anything outside this working set is reached by its module path.
 pub mod prelude {
     pub use crate::{
         Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Error, Fix, Gcj02,

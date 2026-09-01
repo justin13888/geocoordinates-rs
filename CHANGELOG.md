@@ -4,8 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-Versions are `0.x`; each minor may make breaking changes until `1.0`. Releases ship
-incrementally — see [ROADMAP.md](ROADMAP.md) for the planned order.
+Versions are `0.x`; each minor may make breaking changes until `1.0`. See
+[STABILIZATION.md](STABILIZATION.md) for the stabilization ledger and the road to
+the 1.0 API freeze.
 
 ## [0.14.0](https://github.com/justin13888/geocoordinates-rs/compare/v0.13.0...v0.14.0) - 2026-07-11
 

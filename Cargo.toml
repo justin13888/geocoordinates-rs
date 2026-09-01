@@ -12,7 +12,7 @@ keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
 categories = ["science::geo", "mathematics", "parser-implementations"]
 # Contributor-facing files and the Swift package (which lives at the repo root for
 # SwiftPM) are not part of the published crate.
-exclude = ["AGENTS.md", "CLAUDE.md", "ROADMAP.md", "PUBLISHING.md", "Package.swift", "swift"]
+exclude = ["AGENTS.md", "CLAUDE.md", "STABILIZATION.md", "PUBLISHING.md", "Package.swift", "swift"]
 
 # The repo is a workspace so the FFI bindings live in their own crate
 # (`geocoordinates-ffi`) without touching this published, pure-`rlib` crate.
@@ -49,17 +49,11 @@ default = []
 # Enable serde Serialize/Deserialize on this crate's value/option/id types.
 serde = ["dep:serde"]
 
-# --- Staged features (see ROADMAP.md) ---
-# The optional capabilities below are commented out until their modules are
-# implemented and released. Uncomment each line as its ROADMAP milestone lands
-# (alongside the matching `pub mod` in src/lib.rs). They gate nothing while their
-# modules are commented out, so leaving them defined would only advertise
-# panicking APIs.
-#
-# All of these belong to the DEFERRED section of ROADMAP.md (promoted only when a
-# concrete consumer appears). The core path (angles, format, parse, Plus Code)
-# needs no cargo features. EXIF ingestion is out of scope entirely — it lives in
-# a separate library that consumes this crate's primitives.
+# --- Optional capabilities (see STABILIZATION.md) ---
+# Each feature below is implemented, tested and released. The core path (angles,
+# format, parse, Plus Code) needs no cargo features at all. EXIF ingestion is out
+# of scope entirely — it lives in a separate library that consumes this crate's
+# primitives.
 #
 # Interchange formats (parsers):
 geojson = ["dep:geojson"] # GeoJSON (lon-lat axis order)
@@ -74,7 +68,7 @@ nmea = [] # NMEA 0183 sentences (GGA/RMC/GLL), hand-rolled — no external dep
 h3 = ["dep:h3o"] # Uber H3 indexing
 s2 = ["dep:s2"] # Google S2 indexing
 #
-# Heavy / external integrations (BLOCKED — see dgg module docs / README):
+# Heavy / external integrations (BLOCKED — see STABILIZATION.md):
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
 # geoid = []          # EGM96/EGM2008 geoid models — needs multi-MB grid data files
 #

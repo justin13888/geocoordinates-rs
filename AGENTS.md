@@ -26,6 +26,11 @@ just ffi-check       # FFI crate clippy (the mirror gates every release)
 just coverage        # coverage report (no threshold enforced yet)
 ```
 
+`STABILIZATION.md` is the ledger for the 0.15.0 API stabilization: the five-point
+bar every public item must meet, the open findings with their source anchors, and
+the delivery sequence. Check it before changing a public signature, and record any
+new finding there.
+
 ## Project Conventions
 
 - Prioritize intuitive, language-idiomatic APIs that leverage compile-time checks to enforce correct usage without unnecessary restriction, supplemented by concise inline documentation to resolve any remaining ambiguity.

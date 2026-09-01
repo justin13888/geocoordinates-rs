@@ -40,9 +40,9 @@ pub use crate::fix::AxisOrder;
 /// Best-effort parse of a single coordinate from arbitrary input.
 ///
 /// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]); then falls back
-/// to free-text DD/DMS/DDM heuristics (see [`text`]). Grid-token detection
-/// (UTM / MGRS / Plus Code / geohash) is added as each grid milestone ships —
-/// see `ROADMAP.md`. The returned [`Fix`] records parse confidence and the
+/// to free-text DD/DMS/DDM heuristics (see [`text`]). Plus Code tokens are
+/// detected; the remaining grid tokens (UTM / MGRS / geohash / Maidenhead) are
+/// not yet — see `STABILIZATION.md`. The returned [`Fix`] records confidence and the
 /// assumed [`AxisOrder`] in its [`RawSource`].
 ///
 /// # Errors
