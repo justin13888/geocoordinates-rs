@@ -8,6 +8,34 @@ Versions are `0.x`; each minor may make breaking changes until `1.0`. See
 [STABILIZATION.md](STABILIZATION.md) for the stabilization ledger and the road to
 the 1.0 API freeze.
 
+## [0.14.1](https://github.com/justin13888/geocoordinates-rs/compare/v0.14.0...v0.14.1) - 2026-09-01
+
+### Added
+
+- *(china)* add named Coordinate bridges to the datum newtypes
+
+### Fixed
+
+- *(dgg)* preserve datum semantics when indexing
+- *(grids)* make spatial indexes total and bounds honest
+- *(geodesy)* enforce datum and height semantics
+- *(parse)* enforce coordinate format invariants
+- *(core)* reject invalid numeric domain inputs
+- *(angle)* add serde support for axis
+
+### Other
+
+- retarget tooling docs at mise and hk
+- remove just and the justfile
+- run every gate through mise tasks
+- *(hk)* replace lefthook with hk for git hooks
+- *(mise)* port justfile recipes to mise tasks
+- consolidate repo state into a surface table and a ledger
+- *(api)* align fallible conversion contracts
+- *(example)* exercise adversarial API boundaries
+- *(example)* add verified full-surface flagship
+- *(changelog)* backfill release notes for 0.2.0 through 0.14.0
+
 ## [0.14.0](https://github.com/justin13888/geocoordinates-rs/compare/v0.13.0...v0.14.0) - 2026-07-11
 
 ### Added
