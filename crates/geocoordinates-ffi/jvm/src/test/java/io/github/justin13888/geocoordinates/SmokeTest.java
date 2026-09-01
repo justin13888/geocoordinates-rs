@@ -12,12 +12,13 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
 import org.junit.jupiter.api.Test;
 import uniffi.geocoordinates_ffi.ApproxWgs84;
 import uniffi.geocoordinates_ffi.Gcj02;
+import uniffi.geocoordinates_ffi.GeoException;
 import uniffi.geocoordinates_ffi.Wgs84;
 
 /** Proves the Kotlin/JNA bindings are callable idiomatically from Java. */
 class SmokeTest {
     @Test
-    void chinaDatumRoundTripFromJava() {
+    void chinaDatumRoundTripFromJava() throws GeoException {
         Wgs84 wgs = new Wgs84(39.915, 116.404);
         Gcj02 gcj = wgs84ToGcj02(wgs);
 
