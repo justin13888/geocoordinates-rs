@@ -104,98 +104,206 @@ macro_rules! impl_latlon {
             pub fn new(lat: f64, lon: f64) -> Self { Self { lat, lon } }
 
             /// Validate that latitude and longitude are finite and in range.
+            ///
+            /// # Errors
+            ///
+            /// Returns [`Error::OutOfRange`] when latitude falls outside ±90°,
+            /// longitude outside ±180°, or either is not finite.
             pub fn validate(&self) -> Result<()> {
-                Coordinate::new(self.lat, self.lon, Crs::Wgs84).validate()
+                Coordinate::new(self.lat, self.lon, $crs).validate()
+            }
+
+            /// Convert to the canonical [`Coordinate`], tagged with this
+            /// datum's [`Crs`].
+            ///
+            /// Exact and total. Height is left unset.
+            #[must_use]
+            pub fn to_coordinate(self) -> Coordinate {
+                Coordinate::new(self.lat, self.lon, $crs)
+            }
+
+            /// Extract this datum from a canonical [`Coordinate`].
+            ///
+            /// Any height is dropped: GCJ-02 and BD-09 are 2D obfuscations
+            /// with no vertical datum.
+            ///
+            /// # Errors
+            ///
+            /// Returns [`Error::CrsMismatch`] unless `coord.crs` matches this
+            /// datum, so a datum is never silently laundered, plus whatever
+            /// [`Coordinate::validate`] reports for an out-of-range input.
+            pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
+                coord.validate()?;
+                if coord.crs == $crs {
+                    Ok(Self { lat: coord.lat, lon: coord.lon })
+                } else {
+                    Err(Error::CrsMismatch { expected: $crs, found: coord.crs })
+                }
             }
         }
+
         impl crate::coord::LatLon for $t {
             fn lat(&self) -> f64 { self.lat }
             fn lon(&self) -> f64 { self.lon }
             fn crs(&self) -> Crs { $crs }
         }
+
+        /// Thin sugar over the named `to_coordinate` method.
+        impl From<$t> for Coordinate {
+            fn from(p: $t) -> Self { p.to_coordinate() }
+        }
+
+        /// Thin sugar over the named `try_from_coordinate` method.
+        impl TryFrom<Coordinate> for $t {
+            type Error = Error;
+
+            fn try_from(coord: Coordinate) -> Result<Self> {
+                Self::try_from_coordinate(coord)
+            }
+        }
     )*};
 }
-impl_latlon!(Wgs84 => Crs::Wgs84, Gcj02 => Crs::Gcj02, Bd09 => Crs::Bd09);
 
 // --- Bridges to the canonical `Coordinate` ---
 //
-// Datum newtype → `Coordinate` is exact and total: it injects the correct
-// [`Crs`] tag and leaves height unset. `Coordinate` → newtype is fallible: the
-// coordinate's [`Crs`] must match (so a datum is never silently laundered), and
-// any height is dropped (GCJ-02 / BD-09 are 2D obfuscations with no vertical
-// datum).
+// Datum newtype → `Coordinate` is exact and total: `to_coordinate` injects the
+// correct [`Crs`] tag and leaves height unset. `Coordinate` → newtype is
+// fallible: `try_from_coordinate` requires the coordinate's [`Crs`] to match,
+// so a datum is never silently laundered.
+//
+// The named inherent methods are the access path that crosses FFI; the `From` /
+// `TryFrom` impls above are one-line sugar over them (see AGENTS.md).
+impl_latlon!(Wgs84 => Crs::Wgs84, Gcj02 => Crs::Gcj02, Bd09 => Crs::Bd09);
 
-impl From<Wgs84> for Coordinate {
-    fn from(p: Wgs84) -> Self {
-        Coordinate::wgs84(p.lat, p.lon)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The named method and its `From` sugar must agree, and must tag the
+    /// coordinate with this datum's CRS.
+    #[test]
+    fn to_coordinate_tags_the_datum_and_matches_its_sugar() {
+        let cases = [
+            (Wgs84::new(39.915, 116.404).to_coordinate(), Crs::Wgs84),
+            (Gcj02::new(39.915, 116.404).to_coordinate(), Crs::Gcj02),
+            (Bd09::new(39.915, 116.404).to_coordinate(), Crs::Bd09),
+        ];
+        for (coord, expected) in cases {
+            assert_eq!(coord.crs, expected);
+            assert_eq!(coord.lat, 39.915);
+            assert_eq!(coord.lon, 116.404);
+            assert!(coord.height.is_none(), "height must be left unset");
+        }
+
+        assert_eq!(
+            Coordinate::from(Wgs84::new(1.0, 2.0)),
+            Wgs84::new(1.0, 2.0).to_coordinate()
+        );
+        assert_eq!(
+            Coordinate::from(Gcj02::new(1.0, 2.0)),
+            Gcj02::new(1.0, 2.0).to_coordinate()
+        );
+        assert_eq!(
+            Coordinate::from(Bd09::new(1.0, 2.0)),
+            Bd09::new(1.0, 2.0).to_coordinate()
+        );
     }
-}
 
-impl From<Gcj02> for Coordinate {
-    fn from(p: Gcj02) -> Self {
-        Coordinate::gcj02(p.lat, p.lon)
+    /// Newtype → `Coordinate` → newtype must round-trip exactly.
+    #[test]
+    fn coordinate_round_trip_is_exact() {
+        let w = Wgs84::new(39.915, 116.404);
+        assert_eq!(Wgs84::try_from_coordinate(w.to_coordinate()).unwrap(), w);
+
+        let g = Gcj02::new(39.915, 116.404);
+        assert_eq!(Gcj02::try_from_coordinate(g.to_coordinate()).unwrap(), g);
+
+        let b = Bd09::new(39.915, 116.404);
+        assert_eq!(Bd09::try_from_coordinate(b.to_coordinate()).unwrap(), b);
     }
-}
 
-impl From<Bd09> for Coordinate {
-    fn from(p: Bd09) -> Self {
-        Coordinate::bd09(p.lat, p.lon)
-    }
-}
-
-impl TryFrom<Coordinate> for Wgs84 {
-    type Error = Error;
-
-    /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Wgs84`].
-    fn try_from(coord: Coordinate) -> Result<Self> {
-        coord.validate()?;
-        match coord.crs {
-            Crs::Wgs84 => Ok(Wgs84 {
-                lat: coord.lat,
-                lon: coord.lon,
-            }),
-            found => Err(Error::CrsMismatch {
+    /// A datum must never be silently laundered: every wrong-CRS extraction
+    /// reports `CrsMismatch` naming both the expected and the found datum.
+    #[test]
+    fn extracting_the_wrong_datum_is_a_crs_mismatch() {
+        let gcj = Coordinate::gcj02(39.915, 116.404);
+        assert!(matches!(
+            Wgs84::try_from_coordinate(gcj),
+            Err(Error::CrsMismatch {
                 expected: Crs::Wgs84,
-                found,
-            }),
-        }
-    }
-}
+                found: Crs::Gcj02
+            })
+        ));
 
-impl TryFrom<Coordinate> for Gcj02 {
-    type Error = Error;
-
-    /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Gcj02`].
-    fn try_from(coord: Coordinate) -> Result<Self> {
-        coord.validate()?;
-        match coord.crs {
-            Crs::Gcj02 => Ok(Gcj02 {
-                lat: coord.lat,
-                lon: coord.lon,
-            }),
-            found => Err(Error::CrsMismatch {
+        let bd = Coordinate::bd09(39.915, 116.404);
+        assert!(matches!(
+            Gcj02::try_from_coordinate(bd),
+            Err(Error::CrsMismatch {
                 expected: Crs::Gcj02,
-                found,
-            }),
-        }
-    }
-}
+                found: Crs::Bd09
+            })
+        ));
 
-impl TryFrom<Coordinate> for Bd09 {
-    type Error = Error;
-
-    /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Bd09`].
-    fn try_from(coord: Coordinate) -> Result<Self> {
-        coord.validate()?;
-        match coord.crs {
-            Crs::Bd09 => Ok(Bd09 {
-                lat: coord.lat,
-                lon: coord.lon,
-            }),
-            found => Err(Error::CrsMismatch {
+        let wgs = Coordinate::wgs84(39.915, 116.404);
+        assert!(matches!(
+            Bd09::try_from_coordinate(wgs),
+            Err(Error::CrsMismatch {
                 expected: Crs::Bd09,
-                found,
-            }),
-        }
+                found: Crs::Wgs84
+            })
+        ));
+
+        // A classic datum is rejected too, not just the sibling China datums.
+        let nad27 = Coordinate::new(39.915, 116.404, Crs::Nad27);
+        assert!(matches!(
+            Wgs84::try_from_coordinate(nad27),
+            Err(Error::CrsMismatch {
+                expected: Crs::Wgs84,
+                found: Crs::Nad27
+            })
+        ));
+    }
+
+    /// Extraction validates before it inspects the CRS, so an out-of-range
+    /// coordinate fails on range rather than being reported as a mismatch.
+    #[test]
+    fn extraction_rejects_out_of_range_before_checking_crs() {
+        let bad = Coordinate::new(91.0, 0.0, Crs::Gcj02);
+        assert!(matches!(
+            Wgs84::try_from_coordinate(bad),
+            Err(Error::OutOfRange { .. })
+        ));
+    }
+
+    /// `TryFrom` is sugar and must agree with the named method exactly.
+    #[test]
+    fn try_from_sugar_matches_the_named_method() {
+        let coord = Coordinate::wgs84(39.915, 116.404);
+        assert_eq!(
+            Wgs84::try_from(coord).unwrap(),
+            Wgs84::try_from_coordinate(coord).unwrap()
+        );
+
+        let mismatched = Coordinate::bd09(39.915, 116.404);
+        assert_eq!(
+            Wgs84::try_from(mismatched).unwrap_err().to_string(),
+            Wgs84::try_from_coordinate(mismatched)
+                .unwrap_err()
+                .to_string()
+        );
+    }
+
+    /// The datum newtypes validate their own ranges.
+    #[test]
+    fn newtype_validate_checks_range() {
+        assert!(Wgs84::new(39.915, 116.404).validate().is_ok());
+        assert!(matches!(
+            Gcj02::new(0.0, 181.0).validate(),
+            Err(Error::OutOfRange { .. })
+        ));
+        assert!(matches!(
+            Bd09::new(f64::NAN, 0.0).validate(),
+            Err(Error::OutOfRange { .. })
+        ));
     }
 }

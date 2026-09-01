@@ -3,7 +3,7 @@
 //! This crate exposes the Rust API with **full capability parity** to Python,
 //! Kotlin, Swift, and TypeScript/WASM (and Java, via the Kotlin/JVM artifact):
 //! every public capability of the released `geocoordinates` surface is
-//! reachable here, and the mirror gates each release (see `ROADMAP.md`).
+//! reachable here, and the mirror gates each release (see `STABILIZATION.md`).
 //! Several Rust idioms cannot cross an FFI boundary, so they are re-expressed
 //! as flat, language-neutral records and free functions:
 //!

@@ -18,8 +18,9 @@ const MAX_PRECISION: u8 = 15;
 
 /// Target representation for rendering a coordinate.
 ///
-/// Grid representations (Plus Code, then UTM / MGRS / geohash) are added as
-/// their grid milestones ship — see `ROADMAP.md`. Exhaustive (no
+/// Covers decimal degrees, DMS, DDM and Plus Code. The remaining grid
+/// representations (UTM / MGRS / geohash / Maidenhead) are not renderable yet
+/// even though those types ship — see `STABILIZATION.md`. Exhaustive (no
 /// `#[non_exhaustive]`): adding a variant compile-forces both the `format`
 /// dispatch and the FFI mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

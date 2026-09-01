@@ -2,26 +2,37 @@
 
 Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities. The crate abstracts only geo-related complexity, as primitives for higher-level libraries to consume.
 
-> **Status:** Early development, released incrementally. The public API is `0.x` and may change between minor versions. See [ROADMAP.md](ROADMAP.md) for the planned release order.
+> **Status:** The public API is `0.x` and may change between minor versions.
+> **0.15.0 is the internal stabilization target** — the surface below is being
+> audited subsystem by subsystem before the 1.0 freeze. See
+> [STABILIZATION.md](STABILIZATION.md) for the ledger and what remains.
 
-## What's available now
+## API surface
 
-- **Coordinate primitives:** datum-tagged coordinates, explicit height surfaces,
-  angle encodings, length units, observation metadata, typed errors, and
-  approximation bounds.
-- **China datums:** WGS-84 ↔ GCJ-02 ↔ BD-09, including Baidu Web Mercator and
-  explicit fast/refined inverse accuracy.
-- **Presentation and ingestion:** DD/DMS/DDM/Plus Code formatting, tolerant text
-  parsing, `geo:` URIs, GeoJSON, WKT, GPX, KML, and NMEA 0183.
-- **Geodesy and datums:** Karney geodesics, spherical/rhumb/track utilities,
-  ECEF and ENU/NED/AER frames, Helmert transforms, and runtime CRS dispatch.
-- **Projected and encoded grids:** UTM, UPS, MGRS, Plus Code, Geohash,
-  Maidenhead, H3, and S2.
-- Optional serde support for public value/configuration types.
+The whole public surface, by subsystem. **Rust** and **FFI** track whether that
+subsystem meets the five-point stabilization bar defined in
+[STABILIZATION.md](STABILIZATION.md); a ⚠️ links to the specific open finding.
 
-PROJ-backed EPSG conversion and geoid grid models remain deferred because they
-require system libraries or external data. EXIF extraction and polygon/line
-geometry operations are intentionally out of scope.
+| Subsystem | Public surface | Rust | FFI |
+|---|---|:--:|:--:|
+| **Core types** | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Fix`, `Accuracy`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ⚠️ G4 |
+| **Angles & units** | `Dd`, `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees`, `Length`, `LengthUnit` | ✅ | ⚠️ G5 |
+| **China datums** | `Wgs84`, `Gcj02`, `Bd09` (exact forward, `_fast` / `_refined` inverses), `BaiduMercator`, `out_of_china` | ✅ | ⚠️ G3, G5 |
+| **Runtime dispatch** | `convert`, `can_convert` | ✅ | ✅ |
+| **Format** | `format`, `format_fix`, `FormatOptions`, `Representation`, `SymbolStyle`, `HemisphereStyle` | ⚠️ G16 | ✅ |
+| **Parse** | `parse_coordinate`, `from_geo_uri`, `text::parse`, `text::parse_with`, `TextParseOptions` | ⚠️ G16 | ✅ |
+| **Interchange & sensors** *(feature-gated)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
+| **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate`, `intersection`, rhumb and cross/along-track utilities, `Helmert`, `DatumTransform` | ⚠️ G9 | ⚠️ G5 |
+| **Projected grids** | `Utm`, `Ups`, `Mgrs`, `zone_for`, `central_meridian_deg` | ⚠️ G10 | ⚠️ G6 |
+| **Encoded grids** | `PlusCode`, `Geohash`, `Maidenhead` | ⚠️ G7 | ✅ |
+| **Discrete global grids** *(feature-gated)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
+
+Optional serde `Serialize` / `Deserialize` is derived on every public value,
+option and id type under the `serde` feature.
+
+**Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
+a system library or multi-megabyte external data. **Out of scope:** EXIF
+extraction and polygon/line geometry operations.
 
 ## Full-surface example
 
@@ -145,7 +156,7 @@ release-plz maintains a **release PR** that bumps the version and updates
 [`CHANGELOG.md`](CHANGELOG.md). Merging that PR cuts the release: it tags `vX.Y.Z`, creates
 a GitHub release, and publishes to [crates.io](https://crates.io/crates/geocoordinates).
 
-To honor the staged [ROADMAP](ROADMAP.md), the release PR is merged at milestone boundaries
+To honor the staged [stabilization plan](STABILIZATION.md), the release PR is merged at milestone boundaries
 rather than on every commit. Publishing uses crates.io
 [Trusted Publishing](https://crates.io/docs/trusted-publishing) (OIDC) — no API token is
 stored in the repository.
