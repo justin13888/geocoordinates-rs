@@ -4,12 +4,25 @@
 # the tasks, and `mise run <task>` to invoke one.
 [tools]
 just = "1.52.0"
+# Git hooks manager. The matching `amends` URL in `hk.pkl` embeds this same
+# version, so bump both together.
+hk = "1.57.0"
 # cargo-mutants has no prebuilt aarch64-apple-darwin asset, so use the cargo backend
 # (compiles from source; cached by mise locally and by mise-action in CI).
 "cargo:cargo-mutants" = "27.1.0"
 # convco is not in the mise/aqua registry, so use the cargo backend (same trade-off
 # as above: compiled from source, cached locally + by mise-action in CI).
 "cargo:convco" = "0.6.4"
+
+[env]
+# Wrap the generated git hooks in `mise x`, so they resolve the pinned tools
+# even when the shell has no mise activation.
+HK_MISE = "1"
+
+[hooks]
+# Install the git hooks as part of `mise install`, so a fresh clone is gated
+# after a single command.
+postinstall = "hk install --mise"
 
 [vars]
 # Central flags shared by both mutation tasks: published crate only, all features.
