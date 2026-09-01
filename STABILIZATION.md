@@ -103,9 +103,9 @@ frozen.
 0.15.0 is not cut until all of these hold:
 
 - [ ] Every ledger finding above is closed or explicitly deferred here with a reason.
-- [ ] `just check` and `just ffi-check` green.
+- [ ] `mise run check` and `mise run ffi-check` green.
 - [ ] `cargo test --all-features --doc` executes a non-zero number of doctests.
-- [ ] `just bindings` regenerates cleanly for all four languages.
+- [ ] `mise run bindings` regenerates cleanly for all four languages.
 - [ ] `cargo run --all-features --example flagship` passes and exercises the full surface.
 - [ ] Coverage threshold enabled in CI and met.
 - [ ] `cargo semver-checks` output reconciled against `CHANGELOG.md` — every break recorded.

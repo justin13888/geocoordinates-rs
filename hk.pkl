@@ -1,0 +1,106 @@
+// Git hooks for geocoordinates-rs.
+//
+// Every step shells into `mise run <task>`, so each gate is defined exactly
+// once (in `.mise.toml`) and the hooks stay a thin scheduling layer. hk does
+// not read mise tasks natively; this is the documented integration.
+//
+// The version is pinned twice — here and as `hk` in `.mise.toml`. Bump both
+// together (`hk migrate` handles the amends URL).
+amends "package://github.com/jdx/hk/releases/download/v1.57.0/hk@1.57.0#/Config.pkl"
+
+min_hk_version = "1.57.0"
+
+// Every step below invokes cargo, which serializes on the target-dir lock
+// anyway; running one at a time keeps the output readable.
+jobs = 1
+
+hooks {
+    // Auto-fix formatting and linting on staged Rust files.
+    //
+    // `stash = "git"` scopes the fix to staged content: both `cargo fmt` and
+    // `cargo clippy --fix` rewrite the whole tree, and hk stages what they
+    // fixed, so without stashing an unrelated unstaged edit would be
+    // reformatted and pulled into the commit.
+    //
+    // Fixed files are staged automatically (the hook-level `stage` defaults to
+    // true), so no step runs `git add` itself.
+    ["pre-commit"] {
+        fix = true
+        stash = "git"
+        steps {
+            ["fmt"] {
+                glob = "**/*.rs"
+                fix = "mise run fmt"
+            }
+            ["lint-fix"] {
+                glob = "**/*.rs"
+                fix = "mise run lint-fix"
+                // clippy must see already-formatted source.
+                depends = "fmt"
+            }
+        }
+    }
+
+    // Validate the message against Conventional Commits (via convco).
+    ["commit-msg"] {
+        steps {
+            ["conventional"] {
+                check = "mise run commit-check {{commit_msg_file}}"
+            }
+        }
+    }
+
+    // Full gate set before anything leaves the machine.
+    ["pre-push"] {
+        steps {
+            ["commits"] {
+                check = "mise run commits-check"
+            }
+            ["fmt"] {
+                check = "mise run fmt-check"
+            }
+            ["lint"] {
+                check = "mise run lint"
+            }
+            ["test"] {
+                check = "mise run test"
+            }
+            ["coverage"] {
+                check = "mise run coverage"
+            }
+            ["mutants"] {
+                check = "mise run mutants"
+            }
+        }
+    }
+
+    // `hk check` / `hk fix` — the CI-parity gates, runnable on demand.
+    ["check"] {
+        steps {
+            ["fmt"] {
+                check = "mise run fmt-check"
+            }
+            ["lint"] {
+                check = "mise run lint"
+            }
+            ["test"] {
+                check = "mise run test"
+            }
+        }
+    }
+
+    ["fix"] {
+        fix = true
+        steps {
+            ["fmt"] {
+                glob = "**/*.rs"
+                fix = "mise run fmt"
+            }
+            ["lint-fix"] {
+                glob = "**/*.rs"
+                fix = "mise run lint-fix"
+                depends = "fmt"
+            }
+        }
+    }
+}

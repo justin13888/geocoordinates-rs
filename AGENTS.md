@@ -19,11 +19,11 @@ library built on this one).
 Validate changes:
 
 ```bash
-just test            # correctness
-just fmt-check       # formatting
-just lint            # clippy with warnings denied
-just ffi-check       # FFI crate clippy (the mirror gates every release)
-just coverage        # coverage report (no threshold enforced yet)
+mise run test         # correctness
+mise run fmt-check    # formatting
+mise run lint         # clippy with warnings denied
+mise run ffi-check    # FFI crate clippy (the mirror gates every release)
+mise run coverage     # coverage report (no threshold enforced yet)
 ```
 
 `STABILIZATION.md` is the ledger for the 0.15.0 API stabilization: the five-point

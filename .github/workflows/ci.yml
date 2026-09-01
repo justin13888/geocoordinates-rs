@@ -15,6 +15,8 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
 
+# Every job runs its gate through `mise run <task>`, so the commands here and the
+# ones contributors run locally are the same definitions (see .mise.toml).
 jobs:
   commits:
     name: Commit messages
@@ -26,9 +28,9 @@ jobs:
           fetch-depth: 0 # full history so the base..head range resolves
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: jdx/mise-action@v2 # installs `convco` (cargo backend) from .mise.toml
+      - uses: jdx/mise-action@v2
       - name: Lint commit messages (Conventional Commits)
-        run: just commits-check "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+        run: mise run commits-check "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
 
   fmt:
     name: Format
@@ -38,8 +40,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      - uses: jdx/mise-action@v2
       - name: Check formatting
-        run: cargo fmt --check
+        run: mise run fmt-check
 
   clippy:
     name: Clippy
@@ -50,8 +53,9 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: mise run lint
 
   test:
     name: Test
@@ -60,8 +64,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
       - name: Test
-        run: cargo test --all-features
+        run: mise run test
 
   coverage:
     name: Coverage
@@ -73,11 +78,10 @@ jobs:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: jdx/mise-action@v2
       # No --fail-under-lines threshold yet; this reports coverage only.
       - name: Generate coverage report
-        run: cargo llvm-cov --all-features --lcov --output-path lcov.info
-      - name: Coverage summary
-        run: cargo llvm-cov report --summary-only
+        run: mise run coverage-lcov
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
@@ -96,6 +100,6 @@ jobs:
           fetch-depth: 0 # full history so merge-base / --in-diff works
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: jdx/mise-action@v2 # installs `just` + `cargo-mutants` from .mise.toml
+      - uses: jdx/mise-action@v2
       - name: Mutation-test changed lines
-        run: just mutants "origin/${{ github.base_ref || 'master' }}"
+        run: mise run mutants "origin/${{ github.base_ref || 'master' }}"

@@ -1,10 +1,207 @@
-# Dev tools pinned for reproducible local + CI runs.
-# `.mise.toml` is inert unless mise is installed, so a system-installed `just` is unaffected.
+# Dev tools pinned for reproducible local + CI runs, plus every project task.
+# `.mise.toml` is inert unless mise is installed, so a system-installed toolchain
+# is unaffected. Run `mise install` to provision the tools and the git hooks,
+# `mise tasks` to list the tasks, and `mise run <task>` to invoke one.
+
+# Tools every invocation needs. cargo-mutants and convco are deliberately not
+# here: neither has a usable prebuilt asset, so both compile from source, and a
+# global pin would make every CI job pay for them. They are declared on the
+# tasks that use them instead, and install on first run.
 [tools]
-just = "1.52.0"
-# cargo-mutants has no prebuilt aarch64-apple-darwin asset, so use the cargo backend
-# (compiles from source; cached by mise locally and by mise-action in CI).
-"cargo:cargo-mutants" = "27.1.0"
-# convco is not in the mise/aqua registry, so use the cargo backend (same trade-off
-# as above: compiled from source, cached locally + by mise-action in CI).
-"cargo:convco" = "0.6.4"
+# Git hooks manager. The matching `amends` URL in `hk.pkl` embeds this same
+# version, so bump both together.
+hk = "1.57.0"
+
+[env]
+# Wrap the generated git hooks in `mise x`, so they resolve the pinned tools
+# even when the shell has no mise activation.
+HK_MISE = "1"
+
+[hooks]
+# Install the git hooks as part of `mise install`, so a fresh clone is gated
+# after a single command.
+postinstall = "hk install --mise"
+
+[vars]
+# Central flags shared by both mutation tasks: published crate only, all features.
+mutants_flags = "--package geocoordinates --all-features"
+
+[tasks.default]
+description = "List available tasks"
+run = "mise tasks"
+
+# --- Formatting, linting, tests ---
+
+[tasks.fmt]
+description = "Format all code"
+run = "cargo fmt"
+
+[tasks.fmt-check]
+description = "Check formatting without modifying files"
+run = "cargo fmt --check"
+
+[tasks.lint]
+description = "Lint with clippy (warnings denied)"
+run = "cargo clippy --all-targets --all-features -- -D warnings"
+
+[tasks.lint-fix]
+description = "Lint and auto-fix where possible"
+run = "cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features"
+
+[tasks.test]
+description = "Run the test suite"
+run = "cargo test --all-features"
+
+[tasks.coverage]
+description = "Report code coverage (no enforced threshold yet)"
+run = "cargo llvm-cov --all-features"
+
+# CI's two-step form: an lcov artifact plus a human-readable summary.
+[tasks.coverage-lcov]
+description = "Report coverage as lcov.info plus a summary (CI)"
+run = [
+    "cargo llvm-cov --all-features --lcov --output-path lcov.info",
+    "cargo llvm-cov report --summary-only",
+]
+
+[tasks.build]
+description = "Build the crate"
+run = "cargo build --all-features"
+
+[tasks.doc]
+description = "Build documentation"
+run = "cargo doc --no-deps --all-features"
+
+# Run in series: parallel cargo invocations contend on the target-dir lock.
+[tasks.check]
+description = "fmt-check + lint + test (CI parity)"
+run = ["mise run fmt-check", "mise run lint", "mise run test"]
+
+# --- Mutation testing (cargo-mutants) ---
+
+[tasks.mutants]
+description = "Mutation-test only the lines changed vs trunk (pre-push + CI gate)"
+tools = { "cargo:cargo-mutants" = "27.1.0" }
+usage = 'arg "[base]" help="Base ref to diff against" default="origin/master"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+base="${usage_base:-origin/master}"
+if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+    if git rev-parse --verify --quiet "master^{commit}" >/dev/null; then
+        base="master"
+    else
+        echo "mutants: no '$base' or 'master' ref found; skipping." >&2
+        exit 0
+    fi
+fi
+diff="$(mktemp)"
+trap 'rm -f "$diff"' EXIT
+git diff "$base"...HEAD -- '*.rs' > "$diff"
+if [ ! -s "$diff" ]; then
+    echo "mutants: no Rust changes vs $base; nothing to test."
+    exit 0
+fi
+cargo mutants {{ vars.mutants_flags }} --in-diff "$diff"
+'''
+
+[tasks.mutants-all]
+description = "Full-tree mutation test of the published crate (slow, may report gaps)"
+tools = { "cargo:cargo-mutants" = "27.1.0" }
+run = "cargo mutants {{ vars.mutants_flags }}"
+
+# --- Commit message linting (Conventional Commits via convco) ---
+
+# `--from-stdin` reads one message (convco otherwise walks history); `--strip`
+# drops the comment/whitespace lines git leaves in the message file.
+[tasks.commit-check]
+description = "Lint a single commit message file (used by the commit-msg hook)"
+tools = { "cargo:convco" = "0.6.4" }
+usage = 'arg "<file>" help="Path to the commit message file"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+convco check --from-stdin --strip < "$usage_file"
+'''
+
+[tasks.commits-check]
+description = "Lint that commits in <range> follow Conventional Commits (pre-push + CI)"
+tools = { "cargo:convco" = "0.6.4" }
+usage = 'arg "[range]" help="Commit range to lint" default="origin/master..HEAD"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+range="${usage_range:-origin/master..HEAD}"
+# Resolve a base when origin/master isn't fetched (fresh clone / CI quirks),
+# mirroring the `mutants` task's guard. Explicit ranges (CI) bypass this.
+if [[ "$range" == "origin/master..HEAD" ]] \
+   && ! git rev-parse --verify --quiet "origin/master^{commit}" >/dev/null; then
+    if git rev-parse --verify --quiet "master^{commit}" >/dev/null; then
+        range="master..HEAD"
+    else
+        echo "commits-check: no origin/master or master ref; skipping." >&2
+        exit 0
+    fi
+fi
+convco check "$range"
+'''
+
+# --- FFI bindings (geocoordinates-ffi) ---
+# The tasks above are scoped to the published crate via `default-members`;
+# the FFI crate is built/linted explicitly here.
+
+[tasks.ffi-check]
+description = "Lint the FFI bindings crate (warnings denied)"
+run = "cargo clippy -p geocoordinates-ffi --all-targets -- -D warnings"
+
+[tasks.bindings-build]
+description = "Build the release cdylib the bindings are generated from"
+run = "cargo build --release -p geocoordinates-ffi"
+
+[tasks.bindings-generate]
+description = "Generate <lang> bindings from the built cdylib (UniFFI library mode)"
+hide = true
+usage = 'arg "<lang>" help="UniFFI backend to generate"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+# Shared library the bindings are generated from (OS-specific extension).
+case "$(uname -s)" in
+    Darwin) lib="target/release/libgeocoordinates_ffi.dylib" ;;
+    *)      lib="target/release/libgeocoordinates_ffi.so" ;;
+esac
+cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
+    generate --library "$lib" --language "$usage_lang" --out-dir "bindings/$usage_lang"
+'''
+
+[tasks.bindings-python]
+description = "Generate the Python bindings"
+depends = ["bindings-build"]
+run = "mise run bindings-generate python"
+
+[tasks.bindings-kotlin]
+description = "Generate the Kotlin bindings"
+depends = ["bindings-build"]
+run = "mise run bindings-generate kotlin"
+
+[tasks.bindings-swift]
+description = "Generate the Swift bindings"
+depends = ["bindings-build"]
+run = "mise run bindings-generate swift"
+
+# Not a built-in UniFFI backend: builds the crate to wasm32 via wasm-pack.
+# Requires the `wasm32-unknown-unknown` target, `wasm-pack`, and Node.js.
+[tasks.bindings-web]
+description = "Generate the TypeScript / WebAssembly bindings (uniffi-bindgen-react-native)"
+dir = "{{ config_root }}/crates/geocoordinates-ffi/web"
+run = ["npm install", "npm run build"]
+
+# Java is served by the Kotlin/JVM artifact, so it has no separate generation.
+[tasks.bindings]
+description = "Generate bindings for every target language"
+run = [
+    "mise run bindings-python",
+    "mise run bindings-kotlin",
+    "mise run bindings-swift",
+    "mise run bindings-web",
+]

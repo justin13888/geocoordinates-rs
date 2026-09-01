@@ -73,11 +73,11 @@ build from their own `cdylib`/`staticlib` crate.
 > [`crates/geocoordinates-ffi/web/`](crates/geocoordinates-ffi/web/)).
 
 Generate the bindings (needs the [Rust toolchain](https://rustup.rs) and
-[just](https://github.com/casey/just)):
+[mise](https://mise.jdx.dev)):
 
 ```bash
-just bindings           # all languages -> bindings/<lang>/
-just bindings-python    # a single language
+mise run bindings           # all languages -> bindings/<lang>/
+mise run bindings-python    # a single language
 ```
 
 Python example:
@@ -113,36 +113,64 @@ workflows and registry setup.
 ## Prerequisites
 
 - [Rust (rustup)](https://rustup.rs) — toolchain (pinned via `rust-toolchain.toml`)
-- [just](https://github.com/casey/just) — command runner
-- [Lefthook](https://github.com/evilmartians/lefthook) — git hooks manager
+- [mise](https://mise.jdx.dev) — tool manager and task runner
 - [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov) — code coverage
-- [convco](https://convco.github.io) — Conventional Commits linter
 
-Dev tools (`just`, `cargo-mutants`, `convco`) are pinned in [`.mise.toml`](.mise.toml); run
-`mise install` to provision them, or install them yourself — `.mise.toml` is inert without mise.
+Everything else is pinned in [`.mise.toml`](.mise.toml) and provisioned for you:
+
+```bash
+mise install
+```
+
+That installs [hk](https://hk.jdx.dev) (git hooks) and wires the hooks into this clone.
+[cargo-mutants](https://github.com/sourcefrog/cargo-mutants) and
+[convco](https://convco.github.io) are declared on the tasks that use them, so they install
+on first use rather than up front. `.mise.toml` is inert without mise, so a system-installed
+toolchain is unaffected.
 
 ## Quick Start
 
 ```bash
 cargo build
-just check   # fmt-check + clippy + tests
+mise run check   # fmt-check + clippy + tests
 ```
 
 ## Development
 
-| Command          | Description                       |
-| ---------------- | -------------------------------- |
-| `cargo build`    | Build the crate                  |
-| `just test`      | Run tests                        |
-| `just fmt`       | Format code                      |
-| `just lint-fix`  | Lint and auto-fix                |
-| `just coverage`  | Report code coverage             |
-| `just check`     | fmt-check + lint + test (CI parity) |
-| `just bindings`  | Generate FFI bindings (all languages) |
+`mise tasks` lists everything; the common ones are:
+
+| Command                 | Description                           |
+| ----------------------- | ------------------------------------- |
+| `cargo build`           | Build the crate                       |
+| `mise run test`         | Run tests                             |
+| `mise run fmt`          | Format code                           |
+| `mise run lint-fix`     | Lint and auto-fix                     |
+| `mise run coverage`     | Report code coverage                  |
+| `mise run check`        | fmt-check + lint + test (CI parity)   |
+| `mise run bindings`     | Generate FFI bindings (all languages) |
+
+Each gate is defined once, in [`.mise.toml`](.mise.toml). CI and the git hooks both
+invoke these same tasks, so there is nothing to keep in sync by hand.
 
 ### Git Hooks
 
-This project uses [Lefthook](https://github.com/evilmartians/lefthook). Pre-commit hooks auto-fix formatting and linting on staged files. The commit-msg hook validates each message against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`). Pre-push hooks lint the pushed commits and run format checks, Clippy, tests, and a coverage report.
+This project uses [hk](https://hk.jdx.dev), configured in [`hk.pkl`](hk.pkl). `mise install`
+installs the hooks; `hk install` re-runs that step on its own.
+
+Pre-commit auto-fixes formatting and linting on staged Rust files. The commit-msg hook
+validates each message against [Conventional Commits](https://www.conventionalcommits.org)
+(via `convco`). Pre-push lints the pushed commits and runs format checks, Clippy, tests, a
+coverage report, and mutation tests on the changed lines.
+
+Run them on demand without committing:
+
+```bash
+hk check --all           # fmt-check + lint + test
+hk fix --all             # apply the pre-commit fixes
+hk run pre-push          # the full pre-push gate set
+```
+
+Set `HK=0` to skip hooks for a single git invocation.
 
 ### CI/CD
 
@@ -166,7 +194,7 @@ stored in the repository.
 This project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for LLVM-based code coverage. No minimum threshold is enforced yet — tests and a threshold are added once the API stabilizes.
 
 ```bash
-just coverage
+mise run coverage
 ```
 
 ## License

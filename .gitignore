@@ -14,9 +14,12 @@ target
 # Contains mutation testing data
 **/mutants.out*/
 
+# Coverage report written by `mise run coverage-lcov` (uploaded as a CI artifact)
+lcov.info
+
 # === FFI ===
 # UniFFI-generated language bindings (reproducible from the cdylib via
-# `just bindings`; distributed via PyPI/Maven/SwiftPM, not committed here).
+# `mise run bindings`; distributed via PyPI/Maven/SwiftPM, not committed here).
 /bindings/
 
 # Swift XCFramework build outputs (reproducible; the zip ships on the GitHub
