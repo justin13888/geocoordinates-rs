@@ -342,7 +342,7 @@ fn decode_ups(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{assert_close, assert_within_meters};
+    use crate::test_support::{assert_close, assert_within_geodesic_meters};
 
     fn c(lat: f64, lon: f64) -> Coordinate {
         Coordinate::wgs84(lat, lon)
@@ -419,7 +419,9 @@ mod tests {
                 core::f64::consts::FRAC_1_SQRT_2 / k_min,
                 1e-12,
             );
-            assert_within_meters(approx.value(), &c(lat, lon), 1.0);
+            // The published bound is a ground distance on the ellipsoid, so it
+            // is checked with the geodesic oracle, not a spherical one.
+            assert_within_geodesic_meters(approx.value(), &c(lat, lon), approx.max_error_m());
         }
     }
 
@@ -500,7 +502,7 @@ mod tests {
         for &(lat, lon, _) in REFS {
             let m = Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap();
             let back = m.to_coordinate();
-            assert_within_meters(back.value(), &c(lat, lon), 1.0);
+            assert_within_geodesic_meters(back.value(), &c(lat, lon), back.max_error_m());
         }
     }
 
@@ -533,10 +535,10 @@ mod tests {
             100.0 * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
             1e-10,
         );
-        assert_within_meters(approx.value(), &c(48.8584, 2.2945), 100.0);
+        assert_within_geodesic_meters(approx.value(), &c(48.8584, 2.2945), 100.0);
         // Polar coarse decode (UPS zone A) likewise.
         let p = Mgrs::try_from("APL239455").expect("valid");
-        assert_within_meters(p.to_coordinate().value(), &c(-82.0, -100.0), 100.0);
+        assert_within_geodesic_meters(p.to_coordinate().value(), &c(-82.0, -100.0), 100.0);
     }
 
     #[test]
@@ -545,14 +547,14 @@ mod tests {
         // exactly the three letters — must not be rejected as too short).
         let m = Mgrs::try_from("18TWK").expect("valid 100 km ref");
         assert_eq!(m.precision_m(), 100_000);
-        assert_within_meters(m.to_coordinate().value(), &c(40.0, -75.0), 80_000.0);
+        assert_within_geodesic_meters(m.to_coordinate().value(), &c(40.0, -75.0), 80_000.0);
     }
 
     #[test]
     fn decode_accepts_single_digit_zone() {
         // Zone 4 written without the leading zero (split == 1 is valid).
         let m = Mgrs::try_from("4QFH0460911793").expect("valid");
-        assert_within_meters(m.to_coordinate().value(), &c(20.0, -158.0), 1.0);
+        assert_within_geodesic_meters(m.to_coordinate().value(), &c(20.0, -158.0), 1.0);
     }
 
     #[test]
@@ -566,7 +568,7 @@ mod tests {
         // 47.95°N sits just under band T's 48° ceiling; the latitude-band check
         // must keep its upper slack (`hi + 0.5`), or this block is rejected.
         let m = Mgrs::try_from("31TFP4933212678").expect("valid");
-        assert_within_meters(m.to_coordinate().value(), &c(47.95, 5.0), 1.0);
+        assert_within_geodesic_meters(m.to_coordinate().value(), &c(47.95, 5.0), 1.0);
     }
 
     #[test]
