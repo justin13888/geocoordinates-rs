@@ -69,6 +69,7 @@ jobs:
     permissions:
       contents: write # push to the release PR branch
       pull-requests: write # create/update the release PR
+      actions: write # dispatch CI + FFI on the release PR branch
     concurrency:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
@@ -81,8 +82,35 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Run release-plz
+        id: release-plz
         uses: release-plz/action@v0.5.130
         with:
           command: release-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Run CI + FFI on the release PR's head commit.
+      #
+      # The release PR is opened and pushed with the default GITHUB_TOKEN, so the
+      # `pull_request` runs it triggers are held at `action_required` (actor
+      # github-actions[bot]) and never execute a job. Dispatching is the same
+      # documented exception the release job relies on: it runs at once, needs no PAT,
+      # and its check runs land on the branch head, so they show on the PR.
+      - name: Dispatch CI and FFI on the release PR branch
+        if: ${{ steps.release-plz.outputs.prs_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.release-plz.outputs.pr }}
+        run: |
+          set -uo pipefail
+          branch=$(printf '%s' "$PR" | jq -r '.head_branch')
+          [ -n "$branch" ] && [ "$branch" != "null" ] || { echo "::error::no head_branch in release-plz pr output"; exit 1; }
+          echo "Dispatching CI and FFI on $branch"
+          rc=0
+          for wf in ci.yml ffi.yml; do
+            if gh workflow run "$wf" --ref "$branch"; then
+              echo "dispatched $wf"
+            else
+              echo "::warning::failed to dispatch $wf"; rc=1
+            fi
+          done
+          exit $rc
