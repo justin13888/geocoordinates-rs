@@ -139,10 +139,17 @@ impl S2CellId {
 mod tests {
     #![allow(unused_imports)]
     use super::*;
-    use crate::test_support::assert_within_meters;
 
     fn c(lat: f64, lon: f64) -> Coordinate {
         Coordinate::wgs84(lat, lon)
+    }
+
+    /// Asserts `a` and `b` are within `max_m` on the WGS-84 ellipsoid, the
+    /// measure the decode bounds are stated in.
+    #[cfg(any(feature = "h3", feature = "s2"))]
+    fn assert_within_geodesic(a: &Coordinate, b: &Coordinate, max_m: f64) {
+        let d = crate::geodesy::geodesic_distance(a, b).unwrap().meters();
+        assert!(d <= max_m, "expected within {max_m} m, got {d:.4} m");
     }
 
     #[cfg(feature = "h3")]
@@ -163,7 +170,7 @@ mod tests {
                 .decode()
                 .unwrap();
             assert!(approx.max_error_m() > 0.0);
-            assert_within_meters(approx.value(), &c(40.7128, -74.006), approx.max_error_m());
+            assert_within_geodesic(approx.value(), &c(40.7128, -74.006), approx.max_error_m());
         }
         // Finer resolutions give tighter bounds.
         assert!(
@@ -187,6 +194,46 @@ mod tests {
         assert!((205.0..206.0).contains(&bound9), "res-9 bound {bound9}");
     }
 
+    /// Asserts `bound` covers the ellipsoidal distance from `center` to every
+    /// vertex, and that a spherical measure would have fallen short of it.
+    #[cfg(any(feature = "h3", feature = "s2"))]
+    fn assert_bound_is_ellipsoidal(center: &Coordinate, vertices: &[Coordinate], bound: f64) {
+        use crate::geodesy::{geodesic_distance, haversine_distance};
+
+        let farthest = |distance: fn(&Coordinate, &Coordinate) -> Result<crate::Length>| {
+            vertices
+                .iter()
+                .map(|vertex| distance(center, vertex).unwrap().meters())
+                .fold(0.0, f64::max)
+        };
+        let ellipsoidal = farthest(|a, b| geodesic_distance(a, b));
+        let spherical = farthest(|a, b| haversine_distance(a, b));
+        assert!(
+            bound >= ellipsoidal,
+            "bound {bound} < geodesic {ellipsoidal}"
+        );
+        assert!(
+            spherical < ellipsoidal,
+            "spherical {spherical} does not under-state geodesic {ellipsoidal}"
+        );
+    }
+
+    #[cfg(feature = "h3")]
+    #[test]
+    fn h3_bound_covers_the_ellipsoidal_vertex_distance() {
+        // Near the pole the ellipsoid's meridional curvature radius exceeds the
+        // mean sphere's by about 0.5%, so a haversine bound falls short there.
+        let cell = H3Cell::encode(c(89.5, 10.0), 5).unwrap();
+        let approx = cell.decode().unwrap();
+        let vertices: Vec<_> = h3o::CellIndex::try_from(cell.0)
+            .unwrap()
+            .boundary()
+            .iter()
+            .map(|vertex| c(vertex.lat(), vertex.lng()))
+            .collect();
+        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error_m());
+    }
+
     #[cfg(feature = "s2")]
     #[test]
     fn s2_matches_the_reference_id() {
@@ -205,7 +252,7 @@ mod tests {
                 .decode()
                 .unwrap();
             assert!(approx.max_error_m() > 0.0);
-            assert_within_meters(approx.value(), &c(40.7128, -74.006), approx.max_error_m());
+            assert_within_geodesic(approx.value(), &c(40.7128, -74.006), approx.max_error_m());
         }
         assert!(
             S2CellId::encode(c(40.7128, -74.006), 25)
@@ -226,6 +273,28 @@ mod tests {
             .unwrap()
             .max_error_m();
         assert!((6.0..7.0).contains(&bound20), "level-20 bound {bound20}");
+    }
+
+    #[cfg(feature = "s2")]
+    #[test]
+    fn s2_bound_covers_the_ellipsoidal_vertex_distance() {
+        use s2::cell::Cell;
+        use s2::cellid::CellID;
+        use s2::latlng::LatLng;
+
+        // Near the pole the ellipsoid's meridional curvature radius exceeds the
+        // mean sphere's by about 0.5%, so a haversine bound falls short there.
+        let cell = S2CellId::encode(c(89.5, 10.0), 12).unwrap();
+        let approx = cell.decode().unwrap();
+        let vertices: Vec<_> = Cell::from(CellID(cell.0))
+            .vertices()
+            .iter()
+            .map(|vertex| {
+                let vertex = LatLng::from(*vertex);
+                c(vertex.lat.deg(), vertex.lng.deg())
+            })
+            .collect();
+        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error_m());
     }
 
     #[test]
