@@ -991,9 +991,11 @@ pub fn bd09_to_wgs84_refined(p: Bd09) -> Result<ApproxWgs84, GeoError> {
         .map_err(Into::into)
 }
 
-// --- Baidu Web Mercator (exact, both ways) ---
+// --- Baidu Web Mercator (Baidu's published fits, both ways) ---
 
-/// BD-09 lat/lon → Baidu Web Mercator (exact forward projection).
+/// BD-09 lat/lon → Baidu Web Mercator by Baidu's `LL2MC` polynomial fit. The
+/// two directions are independent fits, not exact inverses: a round trip drifts
+/// by up to about 0.25 m below 60° latitude and up to about 7 m above it.
 #[uniffi::export]
 pub fn baidu_mercator_from_bd09(p: Bd09) -> Result<BaiduMercator, GeoError> {
     gc::BaiduMercator::try_from_bd09(gc::Bd09::from(p))
@@ -1001,7 +1003,8 @@ pub fn baidu_mercator_from_bd09(p: Bd09) -> Result<BaiduMercator, GeoError> {
         .map_err(Into::into)
 }
 
-/// Baidu Web Mercator → BD-09 lat/lon (exact inverse projection).
+/// Baidu Web Mercator → BD-09 lat/lon by Baidu's `MC2LL` polynomial fit. Not an
+/// exact inverse of [`baidu_mercator_from_bd09`] (see its round-trip drift).
 #[uniffi::export]
 pub fn baidu_mercator_to_bd09(m: BaiduMercator) -> Result<Bd09, GeoError> {
     gc::BaiduMercator::from(m)
@@ -1010,7 +1013,8 @@ pub fn baidu_mercator_to_bd09(m: BaiduMercator) -> Result<Bd09, GeoError> {
         .map_err(Into::into)
 }
 
-/// Baidu Web Mercator → canonical [`Coordinate`], tagged BD-09 (exact).
+/// Baidu Web Mercator → canonical [`Coordinate`], tagged BD-09, via
+/// [`baidu_mercator_to_bd09`].
 #[uniffi::export]
 pub fn baidu_mercator_to_coordinate(m: BaiduMercator) -> Result<Coordinate, GeoError> {
     gc::BaiduMercator::from(m)
@@ -1513,7 +1517,10 @@ pub fn ecef_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<E
         .map(Into::into)
         .map_err(Into::into)
 }
-/// ECEF → geodetic [`Coordinate`] on the given ellipsoid and reference system.
+/// ECEF → geodetic [`Coordinate`] on the given ellipsoid and reference system,
+/// by Bowring's single-step inverse. Not exact: the latitude error is about a
+/// micrometer within ±10 km of the surface, about 7 mm at 1,000 km, and up to
+/// about 0.3 m at GNSS and geostationary altitudes.
 #[uniffi::export]
 pub fn ecef_to_coordinate(
     ecef: Ecef,
@@ -1608,8 +1615,14 @@ pub fn aer_to_ned(aer: Aer) -> Ned {
 // Geodesics (distances, bearings, producers)
 // ===========================================================================
 
-/// Exact ellipsoidal (Karney) geodesic distance between two coordinates, in
-/// **meters**.
+/// Ellipsoidal (Karney) geodesic distance between two coordinates, in
+/// **meters**, measured on the **WGS-84** ellipsoid whatever their shared CRS.
+///
+/// Accurate to round-off for WGS-84 points. Two classic-datum points (NAD27,
+/// Tokyo, Pulkovo-1942) are off by up to about 1.3e-4 of the distance, because
+/// their own ellipsoid is not WGS-84. Two GCJ-02 or BD-09 points carry the
+/// difference of their obfuscation offsets; convert them to WGS-84 first for a
+/// true distance.
 #[uniffi::export]
 pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
@@ -1848,7 +1861,10 @@ pub fn helmert_apply_ecef(helmert: Helmert, ecef: Ecef) -> Ecef {
         .into()
 }
 
-/// The inverse Helmert transform (negated parameters).
+/// The inverse Helmert transform (negated parameters). Exact for
+/// translation-only transforms, as every catalogued one is; otherwise
+/// first-order, leaving about a centimeter of round-trip residual for a full
+/// seven-parameter set such as WGS-84 → OSGB36.
 #[uniffi::export]
 pub fn helmert_inverse(helmert: Helmert) -> Helmert {
     gc::geodesy::Helmert::from(helmert).inverse().into()
@@ -1863,6 +1879,11 @@ pub fn datum_transform_to_wgs84(datum: Crs) -> Option<DatumTransform> {
 
 /// Transform a geodetic coordinate from the source to the target datum, tagging
 /// the result with `to`.
+///
+/// Not exact. The computation adds well under a millimeter at terrestrial
+/// heights, and the result is only as accurate as the Helmert parameters: the
+/// catalogued ones are regional mean, translation-only shifts good to several
+/// meters.
 #[uniffi::export]
 pub fn datum_transform_apply(
     transform: DatumTransform,
@@ -1887,12 +1908,18 @@ pub fn datum_transform_inverse(transform: DatumTransform) -> DatumTransform {
 // ===========================================================================
 
 /// A converted coordinate with its error bound — the flattened FFI form of
-/// `Approx<Coordinate>`. `max_error_m` is `0.0` for exact routes.
+/// `Approx<Coordinate>`.
+///
+/// `max_error_m` bounds only the error of the iterative GCJ-02 / BD-09
+/// inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
+/// legs that `0.0` is not a claim of exactness: the catalogued mean shifts are
+/// good to only several meters, which the bound leaves out.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct ApproxCoordinate {
     /// The converted coordinate (carries its target [`Crs`]).
     pub coord: Coordinate,
-    /// Estimated upper bound on positional error, in meters (`0.0` if exact).
+    /// Estimated upper bound on the GCJ-02 / BD-09 inversion error, in meters
+    /// (`0.0` when the route inverts neither).
     pub max_error_m: f64,
 }
 
@@ -2022,7 +2049,8 @@ pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
         .map_err(GeoError::from)
 }
 
-/// UTM → geodetic WGS-84 coordinate (exact inverse).
+/// UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
+/// series (sub-millimeter within the UTM domain; not exact).
 #[uniffi::export]
 pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
     gc::grids::Utm::from(utm)
@@ -2039,7 +2067,9 @@ pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
         .map_err(GeoError::from)
 }
 
-/// UPS → geodetic WGS-84 coordinate (exact inverse).
+/// UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
+/// projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
+/// exact).
 #[uniffi::export]
 pub fn ups_to_coordinate(ups: Ups) -> Result<Coordinate, GeoError> {
     gc::grids::Ups::from(ups)
