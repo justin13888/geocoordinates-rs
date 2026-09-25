@@ -4297,6 +4297,20 @@ public func baiduMercatorFromBd09(p: Bd09)throws  -> BaiduMercator  {
 })
 }
 /**
+ * Canonical [`Coordinate`] → Baidu Web Mercator.
+ *
+ * Errors with [`GeoError::CrsMismatch`] unless the coordinate is BD-09 — a
+ * non-BD-09 coordinate must be converted to BD-09 first, never silently
+ * reprojected.
+ */
+public func baiduMercatorFromCoordinate(coord: Coordinate)throws  -> BaiduMercator  {
+    return try  FfiConverterTypeBaiduMercator_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_baidu_mercator_from_coordinate(
+        FfiConverterTypeCoordinate_lower(coord),$0
+    )
+})
+}
+/**
  * Baidu Web Mercator → BD-09 lat/lon by Baidu's `MC2LL` polynomial fit. Not an
  * exact inverse of [`baidu_mercator_from_bd09`] (see its round-trip drift).
  */
@@ -4315,20 +4329,6 @@ public func baiduMercatorToCoordinate(m: BaiduMercator)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_baidu_mercator_to_coordinate(
         FfiConverterTypeBaiduMercator_lower(m),$0
-    )
-})
-}
-/**
- * Canonical [`Coordinate`] → Baidu Web Mercator.
- *
- * Errors with [`GeoError::CrsMismatch`] unless the coordinate is BD-09 — a
- * non-BD-09 coordinate must be converted to BD-09 first, never silently
- * reprojected.
- */
-public func baiduMercatorTryFromCoordinate(coord: Coordinate)throws  -> BaiduMercator  {
-    return try  FfiConverterTypeBaiduMercator_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_baidu_mercator_try_from_coordinate(
-        FfiConverterTypeCoordinate_lower(coord),$0
     )
 })
 }
@@ -5478,13 +5478,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_bd09() != 5637) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_coordinate() != 36215) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_bd09() != 3300) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_coordinate() != 11601) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_try_from_coordinate() != 8208) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_fast() != 11615) {
