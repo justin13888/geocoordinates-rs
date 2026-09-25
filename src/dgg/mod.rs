@@ -139,17 +139,10 @@ impl S2CellId {
 mod tests {
     #![allow(unused_imports)]
     use super::*;
+    use crate::test_support::assert_within_geodesic_meters;
 
     fn c(lat: f64, lon: f64) -> Coordinate {
         Coordinate::wgs84(lat, lon)
-    }
-
-    /// Asserts `a` and `b` are within `max_m` on the WGS-84 ellipsoid, the
-    /// measure the decode bounds are stated in.
-    #[cfg(any(feature = "h3", feature = "s2"))]
-    fn assert_within_geodesic(a: &Coordinate, b: &Coordinate, max_m: f64) {
-        let d = crate::geodesy::geodesic_distance(a, b).unwrap().meters();
-        assert!(d <= max_m, "expected within {max_m} m, got {d:.4} m");
     }
 
     #[cfg(feature = "h3")]
@@ -170,7 +163,11 @@ mod tests {
                 .decode()
                 .unwrap();
             assert!(approx.max_error_m() > 0.0);
-            assert_within_geodesic(approx.value(), &c(40.7128, -74.006), approx.max_error_m());
+            assert_within_geodesic_meters(
+                approx.value(),
+                &c(40.7128, -74.006),
+                approx.max_error_m(),
+            );
         }
         // Finer resolutions give tighter bounds.
         assert!(
@@ -252,7 +249,11 @@ mod tests {
                 .decode()
                 .unwrap();
             assert!(approx.max_error_m() > 0.0);
-            assert_within_geodesic(approx.value(), &c(40.7128, -74.006), approx.max_error_m());
+            assert_within_geodesic_meters(
+                approx.value(),
+                &c(40.7128, -74.006),
+                approx.max_error_m(),
+            );
         }
         assert!(
             S2CellId::encode(c(40.7128, -74.006), 25)
