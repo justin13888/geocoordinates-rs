@@ -63,16 +63,19 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found.
 pub fn parse_coordinate_with(input: &str, options: &text::TextParseOptions) -> Result<Fix> {
+    // Dispatch on the trimmed input, but hand every builder the verbatim
+    // `input` so `RawSource::raw` never depends on which path matched. Each
+    // builder trims for itself.
     let trimmed = input.trim();
     if trimmed
         .get(..4)
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("geo:"))
     {
-        from_geo_uri(trimmed)
+        from_geo_uri(input)
     } else if let Ok(code) = PlusCode::try_from(trimmed) {
         Ok(plus_code_fix(&code, input))
     } else {
-        text::parse_with(trimmed, options)
+        text::parse_with(input, options)
     }
 }
 
@@ -416,5 +419,17 @@ mod tests {
         // The original lies within the decoded cell's reported bound.
         let bound = fix.accuracy.unwrap().horizontal_m.unwrap();
         assert_within_meters(&fix.coord, &c, bound);
+    }
+
+    #[test]
+    fn parse_coordinate_keeps_raw_input_verbatim_on_every_path() {
+        for input in [
+            "  geo:13.4125,103.8667 \n",
+            "\t8FVC2222+22  ",
+            " 40.7128, -74.0060\t",
+        ] {
+            let fix = parse_coordinate(input).unwrap();
+            assert_eq!(fix.source.unwrap().raw, input, "{input:?}");
+        }
     }
 }
