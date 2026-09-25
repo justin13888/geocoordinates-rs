@@ -176,12 +176,12 @@ impl DatumTransform {
     }
 
     /// Transform a geodetic coordinate from the source to the target datum,
-    /// tagging the result with `to`.
+    /// tagging the result with `self.to_crs`.
     ///
     /// Exact within the published parameters. `DatumTransform` holds only the
     /// two ellipsoids — which do not uniquely determine a [`Crs`] (e.g. GRS80
-    /// backs both NAD83 and ETRS89) — so the target reference system is supplied
-    /// explicitly rather than inferred.
+    /// backs both NAD83 and ETRS89) — so the target reference system is stored
+    /// explicitly on `self.to_crs` rather than inferred from the ellipsoid.
     pub fn transform(&self, coord: Coordinate) -> Result<Coordinate> {
         if coord.crs != self.from_crs {
             return Err(Error::CrsMismatch {
