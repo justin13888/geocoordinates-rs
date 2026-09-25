@@ -429,6 +429,28 @@ mod tests {
     }
 
     #[test]
+    fn utm_round_trip_drift_is_a_few_micrometers() {
+        // Sweep zone 18 (78°W–72°W, no Norway/Svalbard exceptions) from 80°S
+        // to 84°N and measure the round-trip drift as a ground distance.
+        const WGS84_A: f64 = 6_378_137.0;
+        let mut worst_m = 0.0_f64;
+        for i in 0..=82 {
+            let lat = (f64::from(i) * 2.0 - 80.0).min(83.9);
+            for j in 0..12 {
+                let lon = -78.0 + 0.5 * f64::from(j) + 0.001;
+                let back = Utm::try_from_coordinate(c(lat, lon))
+                    .unwrap()
+                    .try_to_coordinate()
+                    .unwrap();
+                let dn = (back.lat - lat).to_radians() * WGS84_A;
+                let de = (back.lon - lon).to_radians() * WGS84_A * lat.to_radians().cos();
+                worst_m = worst_m.max(dn.hypot(de));
+            }
+        }
+        assert!(worst_m < 5e-6, "round-trip drift {worst_m} m");
+    }
+
+    #[test]
     fn utm_rejects_polar_latitudes() {
         assert!(Utm::try_from_coordinate(c(84.0, 10.0)).is_err()); // 84°N is UPS
         assert!(Utm::try_from_coordinate(c(-80.000_1, 10.0)).is_err());
