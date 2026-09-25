@@ -1,0 +1,93 @@
+name: Full-tree mutation tests
+
+# CI's `mutants` job only mutates the lines a pull request changes, so code nobody
+# touches is never mutation-tested. This workflow runs the full-tree task weekly
+# (and on demand) and reports what survived. It gates nothing: it never runs on
+# pull requests, and surviving or timed-out mutants are reported in the run
+# summary and artifact rather than failing the run.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A full run can take hours; never let a manual dispatch overlap a scheduled one.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutants-all:
+    name: Full-tree mutation tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # GitHub-hosted runner ceiling
+    env:
+      RUSTFLAGS: "" # as in CI's `mutants` job: warn-only mutants must still build
+        # to be evaluated, else they count as unviable not missed.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+      # cargo-mutants exits 2 when mutants survive and 3 when some time out: those
+      # are the findings this workflow reports, so they do not fail the step. Any
+      # other non-zero status (usage error, failing baseline build/tests, internal
+      # error) means the run itself is broken, and fails it.
+      # The step bound sits below the job's 360-minute ceiling so an overlong run
+      # stops here first, leaving time for the summary and upload steps to report
+      # the partial mutants.out.
+      - name: Mutation-test the full tree
+        timeout-minutes: 330
+        run: |
+          set +e
+          mise run mutants-all
+          status=$?
+          set -e
+          echo "cargo-mutants exit status: $status"
+          case "$status" in
+            0|2|3) exit 0 ;;
+            *) exit "$status" ;;
+          esac
+      - name: Summarize results
+        if: always()
+        run: |
+          count() { if [ -f "mutants.out/$1.txt" ]; then wc -l < "mutants.out/$1.txt" | tr -d ' '; else echo 0; fi; }
+          {
+            echo "## Full-tree mutation tests"
+            echo
+            echo "| Outcome | Mutants |"
+            echo "| --- | --- |"
+            echo "| Caught | $(count caught) |"
+            echo "| Missed | $(count missed) |"
+            echo "| Timeout | $(count timeout) |"
+            echo "| Unviable | $(count unviable) |"
+            if [ -s mutants.out/missed.txt ]; then
+              echo
+              echo "### Missed mutants"
+              echo
+              echo '```'
+              cat mutants.out/missed.txt
+              echo '```'
+            fi
+            if [ -s mutants.out/timeout.txt ]; then
+              echo
+              echo "### Timed-out mutants"
+              echo
+              echo '```'
+              cat mutants.out/timeout.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload mutants.out
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-out
+          path: mutants.out
+          if-no-files-found: ignore
