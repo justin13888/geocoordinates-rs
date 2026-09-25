@@ -148,7 +148,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run fmt`          | Format code                           |
 | `mise run lint-fix`     | Lint and auto-fix                     |
 | `mise run coverage`     | Report code coverage                  |
-| `mise run check`        | fmt-check + lint + test (CI parity)   |
+| `mise run check`        | Core gates: fmt-check + lint + test   |
 | `mise run bindings`     | Generate FFI bindings (all languages) |
 
 Each gate is defined once, in [`.mise.toml`](.mise.toml). CI and the git hooks both

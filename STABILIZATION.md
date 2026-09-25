@@ -40,31 +40,33 @@ Measured on `master` at the start of this effort (2026-09-01):
 | `clippy -D warnings` (both crates) | clean |
 | `rustdoc -D missing_docs` | clean |
 | **Doctests** | **0 executable** — one ` ```ignore ` fence crate-wide |
-| **FFI CI** | **red since 2026-08-05** |
+| **FFI CI** | **red since 2026-08-05** — fixed by PR 1 (#37); green since 2026-09-01 |
 | Open issues | 0 |
 
 ## Audit ledger
 
 Every finding is anchored to source. Status is `open` until its owning PR merges.
+The baseline above is a snapshot from the start of the effort; the `Status`
+column below reflects what has actually landed since.
 
-| # | Finding | Anchor | Owner |
-|---|---|---|---|
-| G1 | FFI CI red — Java smoke test does not declare the now-checked `GeoException` | `jvm/…/SmokeTest.java:22,28` | PR 1 |
-| G2 | `Wgs84`/`Gcj02`/`Bd09` ↔ `Coordinate` existed only as six `From`/`TryFrom` impls with no named method — violates the mandatory rule and cannot cross FFI | `src/china/mod.rs` | PR 1 |
-| G3 | No FFI way to CRS-check a `Coordinate` down to a typed datum; `Error::CrsMismatch` protection is Rust-only | consequence of G2 | PR 7 |
-| G4 | FFI exposes only `coordinate_wgs84`/`_gcj02`/`_bd09`; no `coordinate_new(lat, lon, crs)`, so `Nad27`/`Tokyo`/`Pulkovo42` cannot be constructed by name despite `convert` accepting them | ffi `lib.rs:897-911` | PR 7 |
-| G5 | `validate()` unreachable across FFI except for `Coordinate` — no mirror for `Dms`, `Ddm`, `Ellipsoid`, or the China newtypes | ffi `lib.rs:1159` | PR 7 |
-| G6 | `zone_for` / `central_meridian_deg` have no FFI mirror | `src/grids/utm.rs:94,118` | PR 7 |
-| G7 | `Geohash`, `Maidenhead`, `PlusCode`, `Mgrs` implement `FromStr` but **no `Display`** — breaks the crate's own round-trip invariant | `src/grids/` | PR 3 |
-| G8 | `utm::Hemisphere` is not re-exported, though it types public fields of both `Utm` and `Ups` | `src/grids/mod.rs:17-19` | PR 3 |
-| G9 | Geodesic producers never validate their output; `intersection` divides by `phi1.cos()`, so near-pole degeneracy escapes as `Ok` | `src/geodesy/geodesic.rs:237,240` | PR 4 |
-| G10 | Utm/Ups forward failures are `OutOfRange`, reverse are `InvalidValue`; and 6 of 9 `Error` variants collapse into `GeoError::Other { detail }` across FFI, forcing string-matching | `utm.rs:140,246` vs `:184-187`; ffi `lib.rs:552` | PR 2 / 3 / 7 |
-| G11 | Doc drift — `ROADMAP.md` and `src/lib.rs` described shipped modules as unshipped | `src/lib.rs` | PR 1 |
-| G12 | **Zero executable doc examples crate-wide** | `src/lib.rs:21` | PR 6 |
-| G13 | `src/proj/mod.rs` and `src/height/mod.rs` are undeclared dead files holding four `todo!()`s | `proj:30`, `height:34,42,50` | PR 9 |
-| G14 | FFI gate is thin: one Python smoke test, one Java smoke test, zero Rust tests in the FFI crate, none for Kotlin/Swift/TypeScript | `crates/geocoordinates-ffi/` | PR 8 |
-| G15 | Coverage soft spots: `parse/interchange.rs` 80.0%, `china/mod.rs` 60.0% | — | PR 5 |
-| G16 | `Representation` covers only DD/DMS/DDM/Plus Code, so UTM, MGRS, Geohash and Maidenhead ship as types that cannot be **formatted**, and `parse_coordinate` cannot detect their tokens — format/parse are asymmetric with the grids subsystem | `src/format/mod.rs:19`, `src/parse/mod.rs:43` | PR 3 |
+| # | Finding | Anchor | Owner | Status |
+|---|---|---|---|---|
+| G1 | FFI CI red — Java smoke test does not declare the now-checked `GeoException` | `jvm/…/SmokeTest.java:15,21` | PR 1 | closed (#37) |
+| G2 | `Wgs84`/`Gcj02`/`Bd09` ↔ `Coordinate` existed only as six `From`/`TryFrom` impls with no named method — violates the mandatory rule and cannot cross FFI | `src/china/mod.rs` | PR 1 | closed (#37) |
+| G3 | No FFI way to CRS-check a `Coordinate` down to a typed datum; `Error::CrsMismatch` protection is Rust-only | consequence of G2 | PR 7 | open |
+| G4 | FFI exposes only `coordinate_wgs84`/`_gcj02`/`_bd09`; no `coordinate_new(lat, lon, crs)`, so `Nad27`/`Tokyo`/`Pulkovo42` cannot be constructed by name despite `convert` accepting them | ffi `lib.rs:897-911` | PR 7 | open |
+| G5 | `validate()` unreachable across FFI except for `Coordinate` — no mirror for `Dms`, `Ddm`, `Ellipsoid`, or the China newtypes | ffi `lib.rs:1159` | PR 7 | open |
+| G6 | `zone_for` / `central_meridian_deg` have no FFI mirror | `src/grids/utm.rs:94,118` | PR 7 | open |
+| G7 | `Geohash`, `Maidenhead`, `PlusCode`, `Mgrs` implement `FromStr` but **no `Display`** — breaks the crate's own round-trip invariant | `src/grids/` | PR 3 | open |
+| G8 | `utm::Hemisphere` is not re-exported, though it types public fields of both `Utm` and `Ups` | `src/grids/mod.rs:17-19` | PR 3 | open |
+| G9 | Geodesic producers never validate their output; `intersection` divides by `phi1.cos()`, so near-pole degeneracy escapes as `Ok` | `src/geodesy/geodesic.rs:237,240` | PR 4 | open |
+| G10 | Utm/Ups forward failures are `OutOfRange`, reverse are `InvalidValue`; and 7 of 9 `Error` variants collapse into `GeoError::Other { detail }` across FFI, forcing string-matching | `utm.rs:140,246` vs `:184-187`; ffi `lib.rs:552` | PR 2 / 3 / 7 | open |
+| G11 | Doc drift — `ROADMAP.md` and `src/lib.rs` described shipped modules as unshipped | `src/lib.rs` | PR 1 | closed (#37) |
+| G12 | **Zero executable doc examples crate-wide** | `src/lib.rs:21` | PR 6 | open |
+| G13 | `src/proj/mod.rs` and `src/height/mod.rs` are undeclared dead files holding four `todo!()`s | `proj:30`, `height:34,42,50` | PR 9 | open |
+| G14 | FFI gate is thin: one Python smoke test, one Java smoke test, zero Rust tests in the FFI crate, none for Kotlin/Swift/TypeScript | `crates/geocoordinates-ffi/` | PR 8 | open |
+| G15 | `parse/interchange.rs` 80.4% lines (open, PR 5); `china/mod.rs` was 60.0% lines, now 100.0% lines — closed incidentally by PR 1's named-method bridges (#37) | — | PR 5 | open — china/mod.rs half closed by #37 |
+| G16 | `Representation` covers only DD/DMS/DDM/Plus Code, so UTM, MGRS, Geohash and Maidenhead ship as types that cannot be **formatted**, and `parse_coordinate` cannot detect their tokens — format/parse are asymmetric with the grids subsystem | `src/format/mod.rs:19`, `src/parse/mod.rs:43` | PR 3 | open |
 
 **Verified clean**, and deliberately so — do not "fix" these:
 
