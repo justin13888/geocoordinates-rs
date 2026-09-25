@@ -4,7 +4,9 @@ name: Release (npm)
 #
 # Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
 # `publish=true`). A manual `workflow_dispatch` (publish defaulting to false) builds
-# + `npm pack`s without publishing (dry run).
+# + `npm pack`s without publishing (dry run). The same dry run also runs on pull
+# requests that touch this pipeline and weekly on a schedule, so the path is
+# exercised between releases, not first at one.
 #
 # Auth: npm OIDC Trusted Publishing — no token/secret. npm exchanges the GitHub
 # OIDC `id-token` for a short-lived publish credential and auto-attaches provenance.
@@ -28,6 +30,23 @@ on:
         description: "Publish to npm (set by release-plz; manual dispatch = dry run)"
         type: boolean
         default: false
+  # Dry runs: neither event satisfies the publish condition below, so they only
+  # build + `npm pack --dry-run`. The version falls back to the root crate's (see
+  # "Compute version").
+  pull_request:
+    paths:
+      - .github/workflows/release-web.yml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/geocoordinates-ffi/**
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC: catches runner/toolchain/action drift
+
+# Cancel superseded PR dry runs; every other run (release, dispatch, schedule) gets
+# a unique group, so a release is never cancelled or held pending behind another run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -59,12 +78,20 @@ jobs:
         run: npm install -g npm@latest
       - name: Compute version
         id: ver
+        working-directory: ${{ github.workspace }}
         env:
           REF_VERSION: ${{ github.event.release.tag_name }}
           INPUT_VERSION: ${{ inputs.version }}
+          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          V="${REF_VERSION:-$INPUT_VERSION}"; V="${V#v}"
+          V="${REF_VERSION:-$INPUT_VERSION}"
+          # PR / scheduled dry runs carry no tag or input: use the root crate version,
+          # which is what release-plz would pass.
+          if [ -z "$V" ] && { [ "$EVENT" = pull_request ] || [ "$EVENT" = schedule ]; }; then
+            V="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)"
+          fi
+          V="${V#v}"
           if [ -z "$V" ]; then echo "::error::No version"; exit 1; fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
       - run: npm ci
