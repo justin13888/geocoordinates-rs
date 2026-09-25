@@ -1,9 +1,13 @@
 //! Earth-Centered, Earth-Fixed (ECEF) geocentric coordinates.
 //!
-//! ECEF is the bridge format for almost every datum transformation. The
-//! geodetic ↔ ECEF conversion is closed-form and treated as **exact** (the
-//! inverse uses Bowring's well-converged formula). Named fallible methods
-//! validate the ellipsoid, numeric inputs, and ellipsoidal height semantics.
+//! ECEF is the bridge format for almost every datum transformation. Geodetic →
+//! ECEF is closed-form and exact. ECEF → geodetic uses Bowring's single-step
+//! formula, which is **not** exact: it is sub-micrometer at terrestrial heights
+//! and degrades with altitude (see [`Ecef::try_to_coordinate`] for the bound).
+//! Both return bare types rather than [`Approx`](crate::Approx) because the
+//! error is far below the millimeter for any surface or airborne position.
+//! Named fallible methods validate the ellipsoid, numeric inputs, and
+//! ellipsoidal height semantics.
 
 use super::ellipsoid::Ellipsoid;
 use crate::coord::{Coordinate, Crs, Height};
@@ -39,8 +43,14 @@ impl Ecef {
         Self { x, y, z }
     }
 
-    /// ECEF → geodetic [`Coordinate`] (lat/lon/height) on the given ellipsoid
-    /// (exact, Bowring closed-form inverse).
+    /// ECEF → geodetic [`Coordinate`] (lat/lon/height) on the given ellipsoid,
+    /// by Bowring's single-step closed-form inverse.
+    ///
+    /// **Not exact.** Height is recovered to a few nanometers, but the latitude
+    /// error grows with altitude. On WGS-84 it is about a micrometer for
+    /// heights within ±10 km, about 0.1 mm at 100 km, about 7 mm at 1,000 km,
+    /// and up to about 0.3 m at GNSS and geostationary altitudes
+    /// (20,000–36,000 km).
     ///
     /// ECEF is datum-agnostic, so `crs` explicitly tags the output with the
     /// reference system to which `ellipsoid` belongs.
@@ -147,6 +157,33 @@ mod tests {
                 other => panic!("expected ellipsoidal height, got {other:?}"),
             }
         }
+    }
+
+    #[test]
+    fn bowring_inverse_error_matches_the_documented_altitude_bound() {
+        // The forward direction is exact, so a round trip measures the
+        // single-step Bowring inverse alone. The worst latitude error sits in
+        // mid-latitudes; sweep them and check each documented altitude figure.
+        let e = Ellipsoid::WGS84;
+        let worst_m = |h: f64| {
+            (0..=180)
+                .map(|i| 0.5 * f64::from(i) - 45.0)
+                .map(|lat| {
+                    let c = Coordinate::wgs84(lat, 10.0).with_height(Height::Ellipsoidal(h));
+                    let back = Ecef::try_from_coordinate(c, e)
+                        .unwrap()
+                        .try_to_coordinate(e, Crs::Wgs84)
+                        .unwrap();
+                    (back.lat - lat).abs().to_radians() * (WGS84_A + h)
+                })
+                .fold(0.0_f64, f64::max)
+        };
+        assert!(worst_m(10_000.0) < 2e-6);
+        assert!(worst_m(100_000.0) < 2e-4);
+        let leo = worst_m(1_000_000.0);
+        assert!((1e-3..1e-2).contains(&leo), "1,000 km: {leo} m");
+        let geo = worst_m(36_000_000.0);
+        assert!((0.1..0.3).contains(&geo), "36,000 km: {geo} m");
     }
 
     #[test]
