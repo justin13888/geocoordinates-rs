@@ -10,10 +10,10 @@ name: Release (Maven Central)
 # Auth (configure before the first release; see PUBLISHING.md):
 #   secrets.MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD  — Central Portal token
 #   secrets.GPG_SIGNING_KEY (ASCII-armored) / GPG_SIGNING_PASSWORD — artifact signing
-# Until these are set, the `publish` job still runs — it stages the natives built
-# by the `natives` job and assembles the JAR — but the final "Publish to Maven
-# Central" step warns and exits 0 instead of publishing. The other registries are
-# unaffected.
+# Until these are set, the `publish` job still runs and stages the natives built
+# by the `natives` job, but on a real release the "Publish to Maven Central" step
+# warns and exits 0 before gradle builds or publishes anything. The other
+# registries are unaffected.
 on:
   release:
     types: [published]
