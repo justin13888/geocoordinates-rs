@@ -68,6 +68,18 @@ jobs:
       - name: Test
         run: mise run test
 
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The task installs the toolchain named by Cargo.toml's `rust-version`
+      # itself, so no version is repeated here.
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+      - name: Build and test on the declared MSRV
+        run: mise run msrv
+
   doc:
     name: Docs
     runs-on: ubuntu-latest
