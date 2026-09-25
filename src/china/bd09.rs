@@ -102,8 +102,8 @@ impl TryFrom<Wgs84> for Bd09 {
 impl Bd09 {
     /// BD-09 → WGS-84, refined composition through GCJ-02 (**approximate**).
     ///
-    /// Chains the two refined inverses, summing their error bounds via
-    /// `Approx::and_then`.
+    /// Chains the two refined inverses, summing their `Approx::max_error_m`
+    /// bounds and rewrapping the result with `Approx::new`.
     pub fn try_to_wgs84_refined(self) -> Result<Approx<Wgs84>> {
         let gcj = self.try_to_gcj02_refined()?;
         let max_error_m = gcj.max_error_m();
