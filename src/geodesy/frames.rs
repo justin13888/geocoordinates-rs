@@ -1,10 +1,15 @@
 //! Local tangent-plane frames: ENU, NED, and AER.
 //!
 //! These are defined relative to a reference origin, so they are expressed as
-//! methods taking the origin rather than `From` impls. The math is **exact**
-//! (a rotation of the ECEF difference vector), while construction remains
-//! fallible so both positions must be valid WGS-84 coordinates with compatible
-//! ellipsoidal heights.
+//! methods taking the origin rather than `From` impls. The forward direction
+//! (coordinate → ENU / NED / AER) and the frame-to-frame conversions are
+//! **exact** (a rotation of the ECEF difference vector). The inverse
+//! (`try_to_coordinate`) is **not** exact: it rotates back to ECEF exactly, then
+//! recovers latitude through [`Ecef::try_to_coordinate`]'s Bowring single-step
+//! inverse, so it inherits that bound — about a micrometer for targets within
+//! ±10 km of the surface, growing to about 0.3 m of latitude at GNSS and
+//! geostationary ranges. Construction remains fallible so both positions must
+//! be valid WGS-84 coordinates with compatible ellipsoidal heights.
 
 use super::ecef::Ecef;
 use super::ellipsoid::Ellipsoid;
@@ -72,6 +77,9 @@ impl Enu {
     }
 
     /// Recover the absolute coordinate of this ENU offset about `origin`.
+    ///
+    /// Not exact: latitude is recovered by [`Ecef::try_to_coordinate`]'s
+    /// Bowring single-step inverse and carries its altitude-dependent bound.
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         validate_frame_coordinate(origin)?;
         if !self.east.is_finite() || !self.north.is_finite() || !self.up.is_finite() {
@@ -126,6 +134,8 @@ impl Ned {
     }
 
     /// Recover the absolute coordinate of this NED offset about `origin`.
+    ///
+    /// Not exact: see [`Enu::try_to_coordinate`].
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         self.to_enu().try_to_coordinate(origin)
     }
@@ -154,6 +164,8 @@ impl Aer {
     }
 
     /// Recover the absolute coordinate of this AER offset about `origin`.
+    ///
+    /// Not exact: see [`Enu::try_to_coordinate`].
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         self.to_enu().try_to_coordinate(origin)
     }

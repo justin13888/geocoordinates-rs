@@ -1,6 +1,6 @@
 //! Distance, bearing, and geodesic problems.
 //!
-//! Exact ellipsoidal (Karney) [`geodesic_distance`], [`initial_bearing`] /
+//! Ellipsoidal (Karney, on WGS-84) [`geodesic_distance`], [`initial_bearing`] /
 //! [`final_bearing`], and the position producers ([`destination`], [`midpoint`],
 //! [`intermediate`], [`intersection`]) delegate to
 //! [`geographiclib-rs`](https://docs.rs/geographiclib-rs). The spherical
@@ -29,9 +29,20 @@ use crate::units::Length;
 /// (rhumb, cross/along-track, intersection) routines.
 const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 
-/// Exact ellipsoidal (Karney geodesic) distance between two points.
+/// Ellipsoidal (Karney geodesic) distance between two points, measured on the
+/// **WGS-84** ellipsoid whatever their shared [`Crs`].
 ///
 /// Preferred over Vincenty, which fails to converge for near-antipodal points.
+/// Karney's algorithm is accurate to round-off (nanometers) on WGS-84, so for
+/// two WGS-84 points the result is exact for practical purposes. For other
+/// systems it is not:
+///
+/// - **Classic datums** (NAD27, Tokyo, Pulkovo-1942) sit on other ellipsoids,
+///   and measuring them on WGS-84 is off by up to about 1.3e-4 of the distance
+///   (≈ 0.13 m per km, for Tokyo's Bessel 1841).
+/// - **GCJ-02 / BD-09** are offset from true positions by an amount that
+///   varies across the map, so the result carries the difference of the two
+///   points' offsets. Convert both to WGS-84 first for a true distance.
 pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
     validate_pair(a, b)?;
     let s12: f64 = Geodesic::wgs84().inverse(a.lat(), a.lon(), b.lat(), b.lon());
@@ -368,6 +379,27 @@ mod tests {
             111_319.49,
             0.5,
         );
+    }
+
+    #[test]
+    fn geodesic_distance_measures_other_datums_on_wgs84() {
+        // Two Tokyo-datum points are measured on WGS-84, not on their own
+        // Bessel 1841 ellipsoid, so the result differs from the Bessel geodesic
+        // by the documented relative error (up to about 1.3e-4).
+        let bessel = crate::geodesy::Ellipsoid::BESSEL_1841;
+        let (a, b) = ((35.0, 139.0), (36.0, 140.0));
+        let tokyo = geodesic_distance(
+            &Coordinate::new(a.0, a.1, Crs::Tokyo),
+            &Coordinate::new(b.0, b.1, Crs::Tokyo),
+        )
+        .unwrap()
+        .meters();
+        let on_wgs84: f64 = Geodesic::wgs84().inverse(a.0, a.1, b.0, b.1);
+        let on_bessel: f64 =
+            Geodesic::new(bessel.semi_major_m, bessel.flattening()).inverse(a.0, a.1, b.0, b.1);
+        assert_eq!(tokyo, on_wgs84);
+        let rel = ((tokyo - on_bessel) / on_bessel).abs();
+        assert!((1e-5..1.3e-4).contains(&rel), "relative error {rel}");
     }
 
     #[test]

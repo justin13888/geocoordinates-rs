@@ -1,9 +1,13 @@
 //! Earth-Centered, Earth-Fixed (ECEF) geocentric coordinates.
 //!
-//! ECEF is the bridge format for almost every datum transformation. The
-//! geodetic ↔ ECEF conversion is closed-form and treated as **exact** (the
-//! inverse uses Bowring's well-converged formula). Named fallible methods
-//! validate the ellipsoid, numeric inputs, and ellipsoidal height semantics.
+//! ECEF is the bridge format for almost every datum transformation. Geodetic →
+//! ECEF is closed-form and exact. ECEF → geodetic uses Bowring's single-step
+//! formula, which is **not** exact: it is good to about a micrometer at
+//! terrestrial heights and degrades with altitude (see [`Ecef::try_to_coordinate`] for the bound).
+//! Both return bare types rather than [`Approx`](crate::Approx) because the
+//! error is far below the millimeter for any surface or airborne position.
+//! Named fallible methods validate the ellipsoid, numeric inputs, and
+//! ellipsoidal height semantics.
 
 use super::ellipsoid::Ellipsoid;
 use crate::coord::{Coordinate, Crs, Height};
@@ -39,8 +43,15 @@ impl Ecef {
         Self { x, y, z }
     }
 
-    /// ECEF → geodetic [`Coordinate`] (lat/lon/height) on the given ellipsoid
-    /// (exact, Bowring closed-form inverse).
+    /// ECEF → geodetic [`Coordinate`] (lat/lon/height) on the given ellipsoid,
+    /// by Bowring's single-step closed-form inverse.
+    ///
+    /// **Not exact.** Height is recovered to floating-point round-off (a few
+    /// nanometers near the surface, about 15 nm at geostationary range), but the latitude
+    /// error grows with altitude. On WGS-84 it is about a micrometer for
+    /// heights within ±10 km, about 0.1 mm at 100 km, about 7 mm at 1,000 km,
+    /// and up to about 0.3 m at GNSS and geostationary altitudes
+    /// (20,000–36,000 km).
     ///
     /// ECEF is datum-agnostic, so `crs` explicitly tags the output with the
     /// reference system to which `ellipsoid` belongs.
@@ -146,6 +157,60 @@ mod tests {
                 Some(Height::Ellipsoidal(hb)) => assert_close(hb, h, 1e-4),
                 other => panic!("expected ellipsoidal height, got {other:?}"),
             }
+        }
+    }
+
+    #[test]
+    fn bowring_inverse_error_matches_the_documented_altitude_bound() {
+        // The forward direction is exact, so a round trip measures the
+        // single-step Bowring inverse alone. The worst latitude error sits in
+        // mid-latitudes; sweep them and check each documented altitude figure.
+        let e = Ellipsoid::WGS84;
+        // Worst (latitude error, height error) in meters across the sweep.
+        let worst_m = |h: f64| {
+            (0..=180)
+                .map(|i| 0.5 * f64::from(i) - 45.0)
+                .map(|lat| {
+                    let c = Coordinate::wgs84(lat, 10.0).with_height(Height::Ellipsoidal(h));
+                    let back = Ecef::try_from_coordinate(c, e)
+                        .unwrap()
+                        .try_to_coordinate(e, Crs::Wgs84)
+                        .unwrap();
+                    let Some(Height::Ellipsoidal(hb)) = back.height else {
+                        panic!("expected ellipsoidal height, got {:?}", back.height);
+                    };
+                    (
+                        (back.lat - lat).abs().to_radians() * (WGS84_A + h),
+                        (hb - h).abs(),
+                    )
+                })
+                .fold((0.0_f64, 0.0_f64), |(la, ha), (l, hh)| {
+                    (la.max(l), ha.max(hh))
+                })
+        };
+        let heights = [
+            -10_000.0,
+            10_000.0,
+            100_000.0,
+            1_000_000.0,
+            20_000_000.0,
+            36_000_000.0,
+        ];
+        let [below, terrestrial, near, leo, gnss, geo] = heights.map(worst_m);
+        assert!(below.0 < 2e-6, "-10 km: {} m", below.0);
+        assert!(terrestrial.0 < 2e-6, "10 km: {} m", terrestrial.0);
+        assert!(near.0 < 2e-4, "100 km: {} m", near.0);
+        assert!((1e-3..1e-2).contains(&leo.0), "1,000 km: {} m", leo.0);
+        assert!((0.1..0.3).contains(&gnss.0), "20,000 km: {} m", gnss.0);
+        assert!((0.1..0.3).contains(&geo.0), "36,000 km: {} m", geo.0);
+        // Height is round-off: a few nanometers near the surface, about 15 nm
+        // at geostationary range.
+        for (h, (_, dh)) in heights
+            .iter()
+            .zip([below, terrestrial, near, leo, gnss, geo])
+        {
+            let bound = if h.abs() <= 1_000_000.0 { 5e-9 } else { 2e-8 };
+            assert!(dh < bound, "height error at {h} m: {dh} m");
         }
     }
 

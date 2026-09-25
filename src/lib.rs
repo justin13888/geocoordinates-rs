@@ -11,8 +11,10 @@
 //! The guarantee of every conversion is visible at the call site, without
 //! reading docs:
 //!
-//! - **Exact but fallible** (bad range / unparseable input) use
-//!   [`TryFrom`]/[`TryInto`] and `try_to_x()`, returning [`Result`].
+//! - **Deterministic but fallible** (bad range / unparseable input) use
+//!   [`TryFrom`]/[`TryInto`] and `try_to_x()`, returning [`Result`]. These are
+//!   exact, or carry a fixed error their docs state (a truncated projection
+//!   series, the ECEF inverse, Baidu's published Mercator fits).
 //! - **Approximate** (lossy/iterative inverse, secret-algorithm inverse, or
 //!   cell decode) never implement [`From`]. They return [`Approx<T>`], which
 //!   carries the error bound, and their names carry a `_fast`/`_refined`

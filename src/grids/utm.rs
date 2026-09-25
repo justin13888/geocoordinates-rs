@@ -1,13 +1,17 @@
 //! UTM (Universal Transverse Mercator) and UPS (Universal Polar Stereographic).
 //!
-//! The projection is deterministic and invertible to high precision, so it is
-//! **exact**. Constructing from a coordinate can fail (UTM is undefined at the
-//! poles, where UPS is used instead), so the lat/lon → grid direction uses
-//! [`TryFrom`].
+//! Both projections are deterministic and invertible to well under a
+//! millimeter, so they return bare types rather than [`Approx`](crate::Approx)
+//! — but they are **not** exact. Constructing from a coordinate can fail (UTM
+//! is undefined at the poles, where UPS is used instead), so the lat/lon → grid
+//! direction uses [`TryFrom`].
 //!
-//! The transverse Mercator forward/inverse use the Karney–Krüger `n`-series to
-//! 4th order — sub-millimeter throughout a UTM zone. UPS uses the exact
-//! conformal polar stereographic projection.
+//! The transverse Mercator forward/inverse use the Karney–Krüger `n`-series
+//! truncated at 4th order: sub-millimeter throughout a UTM zone (a round trip
+//! is stable to a few micrometers). The UPS forward is the closed-form
+//! conformal polar stereographic projection; its inverse recovers latitude
+//! from the conformal latitude with a series truncated at `e⁶`, accurate to
+//! about 0.05 mm.
 
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
@@ -173,7 +177,8 @@ impl Utm {
         })
     }
 
-    /// UTM → geodetic WGS-84 coordinate (exact inverse projection).
+    /// UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger
+    /// inverse series (sub-millimeter within the UTM domain; not exact).
     pub fn try_to_coordinate(self) -> Result<Coordinate> {
         if !(1..=60).contains(&self.zone)
             || !self.easting.is_finite()
@@ -257,7 +262,9 @@ impl Ups {
         })
     }
 
-    /// UPS → geodetic WGS-84 coordinate (exact inverse polar stereographic).
+    /// UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
+    /// projection. Latitude comes from a conformal-latitude series truncated at
+    /// `e⁶`, accurate to about 0.05 mm; not exact.
     pub fn try_to_coordinate(self) -> Result<Coordinate> {
         if !self.easting.is_finite()
             || !(0.0..=4_000_000.0).contains(&self.easting)
@@ -422,6 +429,28 @@ mod tests {
     }
 
     #[test]
+    fn utm_round_trip_drift_is_a_few_micrometers() {
+        // Sweep zone 18 (78°W–72°W, no Norway/Svalbard exceptions) from 80°S
+        // to 84°N and measure the round-trip drift as a ground distance.
+        const WGS84_A: f64 = 6_378_137.0;
+        let mut worst_m = 0.0_f64;
+        for i in 0..=82 {
+            let lat = (f64::from(i) * 2.0 - 80.0).min(83.9);
+            for j in 0..12 {
+                let lon = -78.0 + 0.5 * f64::from(j) + 0.001;
+                let back = Utm::try_from_coordinate(c(lat, lon))
+                    .unwrap()
+                    .try_to_coordinate()
+                    .unwrap();
+                let dn = (back.lat - lat).to_radians() * WGS84_A;
+                let de = (back.lon - lon).to_radians() * WGS84_A * lat.to_radians().cos();
+                worst_m = worst_m.max(dn.hypot(de));
+            }
+        }
+        assert!(worst_m < 5e-6, "round-trip drift {worst_m} m");
+    }
+
+    #[test]
     fn utm_rejects_polar_latitudes() {
         assert!(Utm::try_from_coordinate(c(84.0, 10.0)).is_err()); // 84°N is UPS
         assert!(Utm::try_from_coordinate(c(-80.000_1, 10.0)).is_err());
@@ -469,6 +498,27 @@ mod tests {
             assert_close(back.lat, lat, 1e-9);
             assert_close(back.lon, lon, 1e-9);
         }
+    }
+
+    #[test]
+    fn ups_inverse_series_error_matches_the_documented_bound() {
+        // The forward is closed-form, so a round trip measures the truncated
+        // inverse series alone. Sweep both polar caps: the documented figure is
+        // about 0.05 mm of latitude.
+        let worst_m = (0..=6000)
+            .flat_map(|i| {
+                let t = f64::from(i) * 0.001;
+                [84.0 + t, -80.0 - t * 10.0 / 6.0]
+            })
+            .map(|lat| {
+                let back = Ups::try_from_coordinate(c(lat, 37.0))
+                    .unwrap()
+                    .try_to_coordinate()
+                    .unwrap();
+                (back.lat - lat).abs().to_radians() * A_AXIS
+            })
+            .fold(0.0_f64, f64::max);
+        assert!(worst_m < 6e-5, "UPS inverse error {worst_m} m");
     }
 
     #[test]
