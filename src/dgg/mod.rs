@@ -206,8 +206,8 @@ mod tests {
                 .map(|vertex| distance(center, vertex).unwrap().meters())
                 .fold(0.0, f64::max)
         };
-        let ellipsoidal = farthest(|a, b| geodesic_distance(a, b));
-        let spherical = farthest(|a, b| haversine_distance(a, b));
+        let ellipsoidal = farthest(geodesic_distance);
+        let spherical = farthest(haversine_distance);
         assert!(
             bound >= ellipsoidal,
             "bound {bound} < geodesic {ellipsoidal}"
