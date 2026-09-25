@@ -2,8 +2,8 @@
 //!
 //! ECEF is the bridge format for almost every datum transformation. Geodetic →
 //! ECEF is closed-form and exact. ECEF → geodetic uses Bowring's single-step
-//! formula, which is **not** exact: it is sub-micrometer at terrestrial heights
-//! and degrades with altitude (see [`Ecef::try_to_coordinate`] for the bound).
+//! formula, which is **not** exact: it is good to about a micrometer at
+//! terrestrial heights and degrades with altitude (see [`Ecef::try_to_coordinate`] for the bound).
 //! Both return bare types rather than [`Approx`](crate::Approx) because the
 //! error is far below the millimeter for any surface or airborne position.
 //! Named fallible methods validate the ellipsoid, numeric inputs, and

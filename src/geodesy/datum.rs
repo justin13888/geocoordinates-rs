@@ -16,9 +16,11 @@
 //! - **Parameters.** The built-in catalog ([`DatumTransform::to_wgs84`]) uses
 //!   regional *mean*, translation-only shifts, which match a local realization
 //!   of the datum only to several meters, and worse far from the region the
-//!   mean was fitted to. Only the computational error above is ever reported
-//!   as a bound (e.g. by [`convert`](crate::convert::convert)); the parameter
-//!   accuracy is not.
+//!   mean was fitted to.
+//!
+//! Neither accuracy is reported as a bound: [`convert`](crate::convert::convert)
+//! gives its Helmert legs a `max_error_m` of `0.0`, which means "no iterative
+//! inversion", not "exact".
 //!
 //! This module owns only the lightweight parametric path (a small catalog of
 //! common datums: NAD27, Tokyo, Pulkovo-1942). Helmert (run through ECEF) is the
