@@ -62,6 +62,10 @@ hooks {
             ["lint"] {
                 check = "mise run lint"
             }
+            // The FFI mirror gates every release; lint it with warnings denied.
+            ["ffi-check"] {
+                check = "mise run ffi-check"
+            }
             ["test"] {
                 check = "mise run test"
             }
@@ -74,9 +78,9 @@ hooks {
         }
     }
 
-    // `hk check` — the core gates (fmt-check + lint + test), runnable on
-    // demand. This is not full CI: CI also runs commits-check, coverage,
-    // mutants, FFI clippy, and the Python/JVM/WASM smoke builds. `hk fix`
+    // `hk check` — the core gates (fmt-check + lint + ffi-check + test),
+    // runnable on demand. This is not full CI: CI also runs commits-check,
+    // coverage, mutants, and the Python/JVM/WASM smoke builds. `hk fix`
     // (below) only autofixes formatting and lint, not test.
     ["check"] {
         steps {
@@ -85,6 +89,9 @@ hooks {
             }
             ["lint"] {
                 check = "mise run lint"
+            }
+            ["ffi-check"] {
+                check = "mise run ffi-check"
             }
             ["test"] {
                 check = "mise run test"
