@@ -1209,17 +1209,41 @@ pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> 
     gc::format::format_fix(&fix, &options).map_err(GeoError::from)
 }
 
+/// Whether `options` render `,` as the decimal separator (the locale's primary
+/// language uses a decimal comma). Pass it as
+/// [`TextParseOptions::decimal_comma`] to re-parse the output with
+/// [`parse_coordinate_with`].
+#[uniffi::export]
+pub fn format_options_uses_decimal_comma(options: FormatOptions) -> bool {
+    let options: gc::format::FormatOptions = options.into();
+    options.uses_decimal_comma()
+}
+
 // --- Coordinate parsing ---
 
 /// Best-effort parse of a single coordinate from arbitrary input (a `geo:` URI,
-/// else free-text DD/DMS/DDM heuristics). The [`Fix`] records the assumed axis
-/// order and parse confidence.
+/// a Plus Code, else free-text DD/DMS/DDM heuristics with default options).
+/// The [`Fix`] records the assumed axis order and parse confidence.
 ///
 /// # Errors
 /// Returns a [`GeoError`] when no interpretation is found.
 #[uniffi::export]
 pub fn parse_coordinate(input: String) -> Result<Fix, GeoError> {
     gc::parse::parse_coordinate(&input)
+        .map(Into::into)
+        .map_err(GeoError::from)
+}
+
+/// [`parse_coordinate`] with explicit options for the free-text fallback
+/// (`geo:` URIs and Plus Codes ignore them). Re-parses decimal-comma output
+/// when `decimal_comma` comes from [`format_options_uses_decimal_comma`].
+///
+/// # Errors
+/// Returns a [`GeoError`] when no interpretation is found.
+#[uniffi::export]
+pub fn parse_coordinate_with(input: String, options: TextParseOptions) -> Result<Fix, GeoError> {
+    let options: gc::parse::text::TextParseOptions = options.into();
+    gc::parse::parse_coordinate_with(&input, &options)
         .map(Into::into)
         .map_err(GeoError::from)
 }
