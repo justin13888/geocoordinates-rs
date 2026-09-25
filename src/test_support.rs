@@ -2,9 +2,14 @@
 //!
 //! Compiled only under `cfg(test)`, so nothing here is part of the public API.
 //!
-//! Assertions are expressed in **meters**, via the library's own
-//! [`haversine_distance`](crate::geodesy::haversine_distance), so a tolerance
-//! reads as a physical bound rather than an opaque float epsilon. The reference
+//! Assertions are expressed in **meters**, so a tolerance reads as a physical
+//! bound rather than an opaque float epsilon. Two distance oracles are offered:
+//! [`assert_within_meters`] measures on the sphere (haversine), and
+//! [`assert_within_geodesic_meters`] measures on the WGS-84 ellipsoid (Karney).
+//! Use the geodesic one wherever the bound under test is an ellipsoidal ground
+//! distance (UTM / UPS / MGRS decodes and their `max_error_m`), because the
+//! spherical oracle can disagree with it by a few tenths of a percent and so hide a bound
+//! that is too tight on the ellipsoid. The reference
 //! vectors are transcribed from the permissively-licensed China-datum libraries
 //! — eviltransform (BSD-2-Clause), coordtransform-rs (MIT/Apache-2.0), and
 //! undrift_gps (MIT) — never from PRCoords (GPL).
@@ -14,7 +19,7 @@
 #![allow(dead_code)]
 
 use crate::coord::LatLon;
-use crate::geodesy::haversine_distance;
+use crate::geodesy::{geodesic_distance, haversine_distance};
 use crate::{Bd09, Gcj02, Wgs84};
 
 /// Assert that two positions are within `max_m` meters, measured by the
@@ -27,6 +32,27 @@ pub(crate) fn assert_within_meters(a: &impl LatLon, b: &impl LatLon, max_m: f64)
     assert!(
         d <= max_m,
         "expected within {max_m} m, got {d:.4} m \
+         (a = {:.7},{:.7}  b = {:.7},{:.7})",
+        a.lat(),
+        a.lon(),
+        b.lat(),
+        b.lon(),
+    );
+}
+
+/// Assert that two positions are within `max_m` meters of ground distance on
+/// the WGS-84 ellipsoid, measured by the library's own
+/// [`geodesic_distance`](crate::geodesy::geodesic_distance) (Karney).
+///
+/// Prefer this over [`assert_within_meters`] when the bound being checked is an
+/// ellipsoidal quantity: the spherical oracle can under-report the true ground
+/// distance, letting a bound that is too tight on the ellipsoid pass.
+#[track_caller]
+pub(crate) fn assert_within_geodesic_meters(a: &impl LatLon, b: &impl LatLon, max_m: f64) {
+    let d = geodesic_distance(a, b).unwrap().meters();
+    assert!(
+        d <= max_m,
+        "expected within {max_m} m (geodesic), got {d:.4} m \
          (a = {:.7},{:.7}  b = {:.7},{:.7})",
         a.lat(),
         a.lon(),
