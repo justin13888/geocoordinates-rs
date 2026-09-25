@@ -1,0 +1,27 @@
+# File-length baseline, read by `mise run file-length-check`.
+#
+# Every tracked file must stay at or under the line limit set by
+# `max_file_lines` in .mise.toml, unless it is listed here. Each entry is two
+# whitespace-separated fields:
+#
+#   <lines> <path>      grandfathered file, capped at exactly its current length
+#   generated <path>    generated file, exempt from the limit
+#
+# This list may only shrink. The check fails when a file grows past its cap,
+# when a file shrinks without its cap being lowered to match, when a listed file
+# falls to the limit or below (remove its entry), and when an entry is added or
+# a cap raised relative to the base branch.
+
+# Grandfathered: split these, then lower or remove their entries.
+2246 crates/geocoordinates-ffi/src/lib.rs
+972 examples/flagship.rs
+778 src/format/mod.rs
+728 src/geodesy/geodesic.rs
+844 src/grids/encoded.rs
+713 src/parse/text.rs
+
+# Generated: tool output that is never edited by hand.
+generated CHANGELOG.md
+generated Cargo.lock
+generated crates/geocoordinates-ffi/web/package-lock.json
+generated swift/Sources/GeoCoordinates/geocoordinates_ffi.swift
