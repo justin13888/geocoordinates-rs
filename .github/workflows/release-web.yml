@@ -75,7 +75,9 @@ jobs:
           cache: npm
           cache-dependency-path: crates/geocoordinates-ffi/web/package-lock.json
       - name: Upgrade npm (OIDC trusted publishing needs >= 11.5.1)
-        run: npm install -g npm@latest
+        # Pinned rather than @latest so a new npm release, including a new major,
+        # cannot change the publish step unannounced.
+        run: npm install -g npm@11.20.0
       - name: Compute version
         id: ver
         working-directory: ${{ github.workspace }}
