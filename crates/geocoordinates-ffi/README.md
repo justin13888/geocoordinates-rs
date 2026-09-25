@@ -4,16 +4,21 @@
 [`geocoordinates`](https://crates.io/crates/geocoordinates) geospatial library —
 China datums (GCJ-02 / BD-09), geodetic transforms.
 
-A deliberately curated, flattened subset of the Rust API is exposed across the FFI
-boundary to **Python, Kotlin, Swift, and TypeScript** (Java consumes the Kotlin/JVM
-artifact). Generics, traits, operator overloads, and `From`/`TryFrom` conversions do
-not cross FFI, so they are re-expressed as flat records and free functions; approximate
-inverses keep their `_fast` / `_refined` names and carry an explicit `max_error_m`.
+The Rust API is exposed across the FFI boundary to **Python, Kotlin, Swift, and
+TypeScript** (Java consumes the Kotlin/JVM artifact) with **full capability
+parity** as the stabilization target: every public capability gets one
+canonical FFI-expressible form, though not every Rust-side signature crosses.
+Generics, traits, operator overloads, and `From`/`TryFrom` conversions do not
+cross FFI, so they are re-expressed as flat records and free functions;
+approximate inverses keep their `_fast` / `_refined` names and carry an
+explicit `max_error_m`.
 
 ## Surface
 
-WGS-84 ↔ GCJ-02 ↔ BD-09 conversions (exact forward, approximate inverse with error
-bounds), Baidu Web Mercator, `out_of_china`, and haversine distance.
+Mirrors the core crate's public surface, subsystem by subsystem. See the root
+[`README`'s API surface table](../../README.md#api-surface) for what's covered
+and the current Rust/FFI parity status — a ⚠️ links to the open finding in
+[`STABILIZATION.md`](../../STABILIZATION.md).
 
 ```python
 import geocoordinates_ffi as gc
