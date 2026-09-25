@@ -106,6 +106,8 @@ jobs:
         with:
           gradle-version: "8.11"
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13 # keep in step with ci.yml's pin
       - name: Plan release (version + publish)
         id: plan
         uses: ./.github/actions/release-plan

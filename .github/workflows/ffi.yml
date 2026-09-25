@@ -36,6 +36,8 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13 # keep in step with ci.yml's pin
       - name: Clippy (ffi crate)
         run: mise run ffi-check
       - name: Build cdylib
@@ -62,6 +64,8 @@ jobs:
         with:
           python-version: "3.12"
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13 # keep in step with ci.yml's pin
       - name: Build cdylib + generate Python bindings
         run: mise run bindings-python
       - name: Smoke test
@@ -127,6 +131,8 @@ jobs:
         with:
           gradle-version: "8.11"
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13 # keep in step with ci.yml's pin
       # Same staging as release-jvm.yml: the mise task, then copied into the
       # Gradle source set (the generated tree already carries its package path).
       - name: Build cdylib + generate Kotlin bindings
