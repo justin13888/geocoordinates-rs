@@ -5,6 +5,8 @@ name: Release (PyPI)
 # Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
 # `publish=true`), so the binding version tracks the Rust crate version. A manual
 # `workflow_dispatch` (publish defaulting to false) builds the wheels without publishing.
+# The same dry run also runs on pull requests that touch this pipeline and weekly
+# on a schedule, so the path is exercised between releases, not first at one.
 #
 # Auth: PyPI Trusted Publishing (OIDC) — no token. Configure a trusted publisher on
 # PyPI for this repo + workflow file `release-python.yml` (a "pending publisher"
@@ -21,6 +23,22 @@ on:
         description: "Publish to PyPI (set by release-plz; manual dispatch = test build only)"
         type: boolean
         default: false
+  # Dry runs: neither event satisfies the publish job's condition, so they only
+  # build wheels. The version falls back to the root crate's (see "Prepare manifests").
+  pull_request:
+    paths:
+      - .github/workflows/release-python.yml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/geocoordinates-ffi/**
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC: catches runner/toolchain/action drift
+
+# Cancel superseded PR dry runs; every other run (release, dispatch, schedule) gets
+# a unique group, so a release is never cancelled or held pending behind another run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -48,9 +66,15 @@ jobs:
         env:
           REF_VERSION: ${{ github.event.release.tag_name }}
           INPUT_VERSION: ${{ inputs.version }}
+          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
           VERSION="${REF_VERSION:-$INPUT_VERSION}"
+          # PR / scheduled dry runs carry no tag or input: use the root crate version,
+          # which is what release-plz would pass.
+          if [ -z "$VERSION" ] && { [ "$EVENT" = pull_request ] || [ "$EVENT" = schedule ]; }; then
+            VERSION="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)"
+          fi
           VERSION="${VERSION#v}"
           if [ -z "$VERSION" ]; then
             echo "::error::No version (provide one via workflow_dispatch input)"; exit 1
