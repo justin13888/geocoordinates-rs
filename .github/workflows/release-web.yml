@@ -30,12 +30,13 @@ on:
         description: "Publish to npm (set by release-plz; manual dispatch = dry run)"
         type: boolean
         default: false
-  # Dry runs: neither event satisfies the publish condition below, so they only
-  # build + `npm pack --dry-run`. The version falls back to the root crate's (see
-  # "Compute version").
+  # Dry runs: neither event satisfies the publish condition (see
+  # .github/actions/release-plan), so they only build + `npm pack --dry-run`. The
+  # version falls back to the root crate's.
   pull_request:
     paths:
       - .github/workflows/release-web.yml
+      - .github/actions/release-plan/**
       - Cargo.toml
       - Cargo.lock
       - crates/geocoordinates-ffi/**
@@ -76,35 +77,20 @@ jobs:
           cache-dependency-path: crates/geocoordinates-ffi/web/package-lock.json
       - name: Upgrade npm (OIDC trusted publishing needs >= 11.5.1)
         run: npm install -g npm@latest
-      - name: Compute version
-        id: ver
-        working-directory: ${{ github.workspace }}
-        env:
-          REF_VERSION: ${{ github.event.release.tag_name }}
-          INPUT_VERSION: ${{ inputs.version }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          V="${REF_VERSION:-$INPUT_VERSION}"
-          # PR / scheduled dry runs carry no tag or input: use the root crate version,
-          # which is what release-plz would pass.
-          if [ -z "$V" ] && { [ "$EVENT" = pull_request ] || [ "$EVENT" = schedule ]; }; then
-            V="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)"
-          fi
-          V="${V#v}"
-          if [ -z "$V" ]; then echo "::error::No version"; exit 1; fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Plan release (version + publish)
+        id: plan
+        uses: ./.github/actions/release-plan
       - run: npm ci
       - name: Set package version
-        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+        run: npm version "${{ steps.plan.outputs.version }}" --no-git-tag-version --allow-same-version
       - name: Build bindings
         run: npm run build
       # OIDC trusted publishing: no NODE_AUTH_TOKEN. npm exchanges the GitHub
       # `id-token` (permissions below) for a publish credential and attaches
       # provenance automatically. Requires the package to already exist on npm.
       - name: Publish to npm (OIDC trusted publishing)
-        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        if: ${{ steps.plan.outputs.publish == 'true' }}
         run: npm publish --provenance --access public
       - name: Dry run (npm pack)
-        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+        if: ${{ steps.plan.outputs.publish != 'true' }}
         run: npm pack --dry-run

@@ -28,11 +28,13 @@ on:
         description: "Publish to Maven Central (set by release-plz; manual dispatch = dry run)"
         type: boolean
         default: false
-  # Dry runs: neither event satisfies the publish condition below, so they only
-  # build + assemble. The version falls back to the root crate's (see "Compute version").
+  # Dry runs: neither event satisfies the publish condition (see
+  # .github/actions/release-plan), so they only build + assemble. The version
+  # falls back to the root crate's.
   pull_request:
     paths:
       - .github/workflows/release-jvm.yml
+      - .github/actions/release-plan/**
       - Cargo.toml
       - Cargo.lock
       - crates/geocoordinates-ffi/**
@@ -102,24 +104,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11"
-      - name: Compute version
-        id: ver
-        working-directory: ${{ github.workspace }}
-        env:
-          REF_VERSION: ${{ github.event.release.tag_name }}
-          INPUT_VERSION: ${{ inputs.version }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          V="${REF_VERSION:-$INPUT_VERSION}"
-          # PR / scheduled dry runs carry no tag or input: use the root crate version,
-          # which is what release-plz would pass.
-          if [ -z "$V" ] && { [ "$EVENT" = pull_request ] || [ "$EVENT" = schedule ]; }; then
-            V="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)"
-          fi
-          V="${V#v}"
-          if [ -z "$V" ]; then echo "::error::No version"; exit 1; fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Plan release (version + publish)
+        id: plan
+        uses: ./.github/actions/release-plan
       - name: Generate Kotlin bindings
         working-directory: ${{ github.workspace }}
         run: |
@@ -149,10 +136,10 @@ jobs:
           done
           find "$base" -type f | sort
       - name: Assemble JAR (dry run)
-        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
-        run: gradle -PreleaseVersion="${{ steps.ver.outputs.version }}" build
+        if: ${{ steps.plan.outputs.publish != 'true' }}
+        run: gradle -PreleaseVersion="${{ steps.plan.outputs.version }}" build
       - name: Publish to Maven Central
-        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        if: ${{ steps.plan.outputs.publish == 'true' }}
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -163,5 +150,5 @@ jobs:
             echo "::warning::Maven Central credentials not set — skipping publish. Configure Sonatype Central Portal + GPG secrets to enable."
             exit 0
           fi
-          gradle -PreleaseVersion="${{ steps.ver.outputs.version }}" \
+          gradle -PreleaseVersion="${{ steps.plan.outputs.version }}" \
             publishToMavenCentral --no-configuration-cache
