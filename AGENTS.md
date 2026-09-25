@@ -22,6 +22,7 @@ Validate changes:
 mise run test         # correctness
 mise run fmt-check    # formatting
 mise run lint         # clippy with warnings denied
+mise run file-length-check  # files over 654 lines fail unless in .file-length-baseline (shrink-only)
 mise run ffi-check    # FFI crate clippy (the mirror gates every release)
 mise run coverage     # coverage report (no threshold enforced yet)
 mise run mutants      # mutation-test lines changed vs origin/master (pre-push + CI gate)

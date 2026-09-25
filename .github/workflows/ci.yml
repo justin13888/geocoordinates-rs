@@ -52,6 +52,21 @@ jobs:
       - name: Check formatting
         run: mise run fmt-check
 
+  file-length:
+    name: File length
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base commit's baseline is read for the shrink-only check
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      # The base is the PR's base commit, or on a push the previous tip of the
+      # pushed branch, so the baseline can only shrink across either path.
+      - name: Check file lengths against the baseline
+        run: mise run file-length-check "${{ github.event.pull_request.base.sha || github.event.before }}"
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
