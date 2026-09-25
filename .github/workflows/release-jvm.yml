@@ -35,6 +35,7 @@ on:
     paths:
       - .github/workflows/release-jvm.yml
       - .github/actions/release-plan/**
+      - .mise.toml
       - Cargo.toml
       - Cargo.lock
       - crates/geocoordinates-ffi/**
@@ -104,21 +105,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11"
+      - uses: jdx/mise-action@v2
       - name: Plan release (version + publish)
         id: plan
         uses: ./.github/actions/release-plan
+      # The same `mise run` task contributors and ffi.yml use, then staged into
+      # the Gradle source set (the generated tree already carries its package path).
       - name: Generate Kotlin bindings
         working-directory: ${{ github.workspace }}
         run: |
-          cargo build --release -p geocoordinates-ffi
-          HOST_LIB=""
-          for ext in so dylib; do
-            cand="target/release/libgeocoordinates_ffi.$ext"
-            [ -f "$cand" ] && HOST_LIB="$cand" && break
-          done
-          cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format \
-            --library "$HOST_LIB" --language kotlin \
-            --out-dir crates/geocoordinates-ffi/jvm/src/main/kotlin
+          set -euo pipefail
+          mise run bindings-kotlin
+          mkdir -p crates/geocoordinates-ffi/jvm/src/main/kotlin
+          cp -R bindings/kotlin/. crates/geocoordinates-ffi/jvm/src/main/kotlin/
       - name: Download native libraries
         uses: actions/download-artifact@v4
         with:

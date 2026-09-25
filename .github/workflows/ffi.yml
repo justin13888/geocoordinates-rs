@@ -19,11 +19,13 @@ env:
 
 jobs:
   # Lint the FFI crate, build the cdylib, and confirm bindings generate for the
-  # built-in UniFFI backends. `--no-format` keeps generation independent of
-  # ktlint being installed (Kotlin/Swift are generate-validated only here; Swift
-  # is compiled on macOS in the `swift-build` job below). Java is served by the
-  # Kotlin/JVM artifact, so it has no separate generation step. TypeScript/WASM
-  # is built in the `web-wasm` job below (external `ubrn` toolchain).
+  # built-in UniFFI backends. Every step runs the same `mise run` task contributors
+  # use (see .mise.toml). A missing formatter (ktlint, swift-format) only warns, so
+  # generation does not depend on one being installed. Kotlin/Swift are
+  # generate-validated only here; Swift is compiled on macOS in the `swift-build`
+  # job below. Java is served by the Kotlin/JVM artifact, so it has no separate
+  # generation step. TypeScript/WASM is built in the `web-wasm` job below
+  # (external `ubrn` toolchain).
   build-and-bind:
     name: Build cdylib + generate bindings
     runs-on: ubuntu-latest
@@ -33,17 +35,17 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
       - name: Clippy (ffi crate)
-        run: cargo clippy -p geocoordinates-ffi --all-targets -- -D warnings
+        run: mise run ffi-check
       - name: Build cdylib
-        run: cargo build --release -p geocoordinates-ffi
+        run: mise run bindings-build
       - name: Generate bindings for the built-in backends
         run: |
+          set -euo pipefail
           for lang in python kotlin swift; do
             echo "::group::generate $lang"
-            cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
-              generate --no-format --library "$FFI_LIB" \
-              --language "$lang" --out-dir "bindings/$lang"
+            mise run "bindings-$lang"
             echo "::endgroup::"
           done
 
@@ -59,13 +61,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build cdylib
-        run: cargo build --release -p geocoordinates-ffi
-      - name: Generate Python bindings
-        run: |
-          cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
-            generate --no-format --library "$FFI_LIB" \
-            --language python --out-dir bindings/python
+      - uses: jdx/mise-action@v2
+      - name: Build cdylib + generate Python bindings
+        run: mise run bindings-python
       - name: Smoke test
         run: |
           cp "$FFI_LIB" bindings/python/
@@ -128,13 +126,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11"
-      - name: Build cdylib
-        run: cargo build --release -p geocoordinates-ffi
-      - name: Generate Kotlin bindings
+      - uses: jdx/mise-action@v2
+      # Same staging as release-jvm.yml: the mise task, then copied into the
+      # Gradle source set (the generated tree already carries its package path).
+      - name: Build cdylib + generate Kotlin bindings
         run: |
-          cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format \
-            --library "$FFI_LIB" --language kotlin \
-            --out-dir crates/geocoordinates-ffi/jvm/src/main/kotlin
+          set -euo pipefail
+          mise run bindings-kotlin
+          mkdir -p crates/geocoordinates-ffi/jvm/src/main/kotlin
+          cp -R bindings/kotlin/. crates/geocoordinates-ffi/jvm/src/main/kotlin/
       - name: Gradle test (Java consumption smoke)
         working-directory: crates/geocoordinates-ffi/jvm
         env:
