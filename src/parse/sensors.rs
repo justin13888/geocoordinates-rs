@@ -262,6 +262,12 @@ mod tests {
             from_nmea_sentence("$GPGLL,1é,N,12311.12,W,225444,A"),
             Err(Error::Parse(_))
         ));
+        // Longitude has 3 degree digits, so the split point (byte 3) falls
+        // inside 'é' here, unlike the latitude case above (2 degree digits).
+        assert!(matches!(
+            from_nmea_sentence("$GPGLL,4916.45,N,12é11.12,W,225444,A"),
+            Err(Error::Parse(_))
+        ));
     }
 
     #[test]
@@ -278,6 +284,7 @@ mod tests {
             "$GPGLL,é,é,é,é,é,é",
             "$GPGGA,123519,48é7.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
             "$GPGLL,4916.45,N,12311.12,Wé,225444,A",
+            "$GPGLL,4916.45,N,12é11.12,W,225444,A",
             "$GP\u{1F30D}A",
             "$GPGGA,,,é,,é,,,,,,,,,",
             "$G",
