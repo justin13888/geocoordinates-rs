@@ -228,8 +228,9 @@ impl BaiduMercator {
 
     /// Baidu Web Mercator → BD-09 lat/lon by Baidu's `MC2LL` polynomial fit.
     ///
-    /// Not an exact inverse of [`BaiduMercator::try_from_bd09`]; see the
-    /// [module docs](self) for the round-trip drift.
+    /// Not an exact inverse of [`BaiduMercator::try_from_bd09`]: the two are
+    /// independent fits, and a round trip drifts by up to about 0.25 m below
+    /// 60° latitude and up to about 7 m in the 60°–75° band.
     pub fn try_to_bd09(self) -> Result<Bd09> {
         if !self.x.is_finite() || !self.y.is_finite() {
             return Err(Error::InvalidValue {
@@ -252,8 +253,9 @@ impl BaiduMercator {
 
     /// BD-09 lat/lon → Baidu Web Mercator by Baidu's `LL2MC` polynomial fit.
     ///
-    /// Not an exact inverse of [`BaiduMercator::try_to_bd09`]; see the
-    /// [module docs](self) for the round-trip drift.
+    /// Not an exact inverse of [`BaiduMercator::try_to_bd09`]: the two are
+    /// independent fits, and a round trip drifts by up to about 0.25 m below
+    /// 60° latitude and up to about 7 m in the 60°–75° band.
     pub fn try_from_bd09(p: Bd09) -> Result<Self> {
         p.validate()?;
         let Some(row) = lookup(&LLBAND, &LL2MC, p.lat) else {
