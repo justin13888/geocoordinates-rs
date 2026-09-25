@@ -1,6 +1,6 @@
 # uniffi-bindgen-react-native (`ubrn`) configuration — WASM / web target only.
 #
-# `ubrn web build` generates a standalone wasm wrapper crate (under rust_modules/)
+# `ubrn build web` generates a standalone wasm wrapper crate (under rust_modules/)
 # that path-depends on `geocoordinates-ffi`, builds it for wasm32-unknown-unknown,
 # runs wasm-bindgen, and emits the TypeScript bindings into `web.ts` below.
 #
