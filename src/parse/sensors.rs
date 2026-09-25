@@ -52,7 +52,7 @@ pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
     let fields: Vec<&str> = data.split(',').collect();
     let kind = *fields.first().unwrap_or(&"");
     // Drop the 2-letter talker id (GP/GN/GL/…); the type is the trailing 3.
-    match &kind[kind.len().saturating_sub(3)..] {
+    match kind.get(kind.len().saturating_sub(3)..).unwrap_or("") {
         "GGA" => parse_gga(&fields, sentence),
         "RMC" => parse_rmc(&fields, sentence),
         "GLL" => parse_gll(&fields, sentence),
@@ -66,7 +66,7 @@ pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
 /// hemisphere letter into signed decimal degrees.
 fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f64> {
     let value = value.trim();
-    if value.len() < deg_digits {
+    if !value.is_char_boundary(deg_digits) {
         return Err(Error::Parse(format!("malformed NMEA coordinate: {raw}")));
     }
     let (deg_str, min_str) = value.split_at(deg_digits);
@@ -249,5 +249,55 @@ mod tests {
         assert!(from_nmea_sentence("$GPGLL,4916.45,X,12311.12,W,225444,A").is_err()); // bad hemi
         assert!(from_nmea_sentence("$GPGLL,4960.00,N,12311.12,W,225444,A").is_err());
         assert!(from_nmea_sentence("$GPGGA,0,4807.0,N,01131.0,E,1,8,NaN,0,M,0,M").is_err());
+    }
+
+    #[test]
+    fn non_ascii_sentence_type_is_parse_error_not_panic() {
+        assert!(matches!(from_nmea_sentence("$éAB"), Err(Error::Parse(_))));
+    }
+
+    #[test]
+    fn non_ascii_coordinate_field_is_parse_error_not_panic() {
+        assert!(matches!(
+            from_nmea_sentence("$GPGLL,1é,N,12311.12,W,225444,A"),
+            Err(Error::Parse(_))
+        ));
+        // Longitude has 3 degree digits, so the split point (byte 3) falls
+        // inside 'é' here, unlike the latitude case above (2 degree digits).
+        assert!(matches!(
+            from_nmea_sentence("$GPGLL,4916.45,N,12é11.12,W,225444,A"),
+            Err(Error::Parse(_))
+        ));
+    }
+
+    #[test]
+    fn non_ascii_and_truncated_inputs_never_panic() {
+        let probes = [
+            "$éAB",
+            "$GPGLL,1é,N,12311.12,W,225444,A",
+            "$GPGGA,é,N,é,E,,,,,,,,,",
+            "$GPRMC,é",
+            "$é",
+            "é",
+            "$",
+            "",
+            "$GPGLL,é,é,é,é,é,é",
+            "$GPGGA,123519,48é7.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
+            "$GPGLL,4916.45,N,12311.12,Wé,225444,A",
+            "$GPGLL,4916.45,N,12é11.12,W,225444,A",
+            "$GP\u{1F30D}A",
+            "$GPGGA,,,é,,é,,,,,,,,,",
+            "$G",
+            "$éé",
+            "$GPGLLé",
+            "$GPGLL,é",
+            "$GPGGAé,1,N,1,E",
+            "€€€",
+            "$*é",
+            "$GPGLL,4916.45é,N,12311.12,W,225444,A",
+        ];
+        for p in probes {
+            let _ = from_nmea_sentence(p);
+        }
     }
 }
