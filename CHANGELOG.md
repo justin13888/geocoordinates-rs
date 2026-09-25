@@ -8,6 +8,39 @@ Versions are `0.x`; each minor may make breaking changes until `1.0`. See
 [STABILIZATION.md](STABILIZATION.md) for the stabilization ledger and the road to
 the 1.0 API freeze.
 
+## [0.14.2](https://github.com/justin13888/geocoordinates-rs/compare/v0.14.1...v0.14.2) - 2026-09-25
+
+### Fixed
+
+- *(format)* derive DMS/DDM fix precision in arcseconds/arcminutes ([#77](https://github.com/justin13888/geocoordinates-rs/pull/77))
+- *(dgg)* measure H3/S2 decode error bounds on the WGS-84 ellipsoid ([#76](https://github.com/justin13888/geocoordinates-rs/pull/76))
+- *(mgrs)* state decode bound in ground meters via the minimum scale factor ([#75](https://github.com/justin13888/geocoordinates-rs/pull/75))
+- *(parse)* keep RawSource.raw verbatim on every parse_coordinate path ([#74](https://github.com/justin13888/geocoordinates-rs/pull/74))
+- *(mgrs)* report band/row mismatch as InvalidGridRef ([#73](https://github.com/justin13888/geocoordinates-rs/pull/73))
+- *(parse)* round-trip letter-style and decimal-comma formatted output ([#72](https://github.com/justin13888/geocoordinates-rs/pull/72))
+- *(grids)* don't panic on multibyte characters in MGRS parsing ([#41](https://github.com/justin13888/geocoordinates-rs/pull/41))
+- *(parse)* don't panic on non-ASCII or short NMEA input ([#39](https://github.com/justin13888/geocoordinates-rs/pull/39))
+
+### Other
+
+- declare per-feature MSRV for geojson and h3 ([#97](https://github.com/justin13888/geocoordinates-rs/pull/97))
+- *(release)* dispatch CI and FFI on the release-plz PR branch ([#96](https://github.com/justin13888/geocoordinates-rs/pull/96))
+- tidy .gitignore and drop redundant rustfmt.toml ([#95](https://github.com/justin13888/geocoordinates-rs/pull/95))
+- *(mise)* deny rustc warnings in local tasks as CI does ([#94](https://github.com/justin13888/geocoordinates-rs/pull/94))
+- deduplicate release workflow version, publish gate, and bindings generation ([#91](https://github.com/justin13888/geocoordinates-rs/pull/91))
+- pin mise, cargo-llvm-cov, and npm versions instead of floating ([#90](https://github.com/justin13888/geocoordinates-rs/pull/90))
+- run the mutants job only on pull requests ([#89](https://github.com/justin13888/geocoordinates-rs/pull/89))
+- *(release)* dry-run the binding release workflows on pull requests and weekly ([#88](https://github.com/justin13888/geocoordinates-rs/pull/88))
+- *(ffi)* compile the Swift package on pull requests ([#86](https://github.com/justin13888/geocoordinates-rs/pull/86))
+- *(hooks)* run ffi-check in the pre-push and check hooks ([#85](https://github.com/justin13888/geocoordinates-rs/pull/85))
+- build and test on the declared MSRV ([#84](https://github.com/justin13888/geocoordinates-rs/pull/84))
+- enforce rustdoc warnings and missing_docs ([#81](https://github.com/justin13888/geocoordinates-rs/pull/81))
+- run full-tree mutation tests weekly ([#79](https://github.com/justin13888/geocoordinates-rs/pull/79))
+- check MGRS decode bounds with a geodesic oracle ([#78](https://github.com/justin13888/geocoordinates-rs/pull/78))
+- replace exactness claims with measured error bounds ([#71](https://github.com/justin13888/geocoordinates-rs/pull/71))
+- correct the stabilization ledger, npm publishing notes and gate descriptions ([#42](https://github.com/justin13888/geocoordinates-rs/pull/42))
+- correct stale and contradicted core documentation ([#40](https://github.com/justin13888/geocoordinates-rs/pull/40))
+
 ## [0.14.1](https://github.com/justin13888/geocoordinates-rs/compare/v0.14.0...v0.14.1) - 2026-09-01
 
 ### Added
