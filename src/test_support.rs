@@ -10,7 +10,7 @@
 //! undrift_gps (MIT) — never from PRCoords (GPL).
 
 // Shared test scaffolding: not every helper / field is exercised by the current
-// test set. See `STABILIZATION.md` for the coverage ledger.
+// test set.
 #![allow(dead_code)]
 
 use crate::coord::LatLon;
