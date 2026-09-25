@@ -39,7 +39,11 @@ jobs:
       # are the findings this workflow reports, so they do not fail the step. Any
       # other non-zero status (usage error, failing baseline build/tests, internal
       # error) means the run itself is broken, and fails it.
+      # The step bound sits below the job's 360-minute ceiling so an overlong run
+      # stops here first, leaving time for the summary and upload steps to report
+      # the partial mutants.out.
       - name: Mutation-test the full tree
+        timeout-minutes: 330
         run: |
           set +e
           mise run mutants-all
