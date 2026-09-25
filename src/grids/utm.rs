@@ -16,8 +16,9 @@
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 
-/// UTM scale factor on the central meridian.
-const K0: f64 = 0.9996;
+/// UTM scale factor on the central meridian — the minimum point scale factor
+/// anywhere in the projection (k grows away from the central meridian).
+pub(crate) const K0: f64 = 0.9996;
 /// UTM false easting (meters).
 const FALSE_EASTING: f64 = 500_000.0;
 /// UTM false northing applied in the southern hemisphere (meters).
@@ -295,8 +296,9 @@ impl TryFrom<Coordinate> for Ups {
 
 /// UPS false easting/northing (meters), shared by both polar zones.
 const UPS_FALSE: f64 = 2_000_000.0;
-/// UPS central scale factor.
-const UPS_K0: f64 = 0.994;
+/// UPS central scale factor — the point scale factor at the pole, and the
+/// minimum anywhere in the projection (k grows away from the pole).
+pub(crate) const UPS_K0: f64 = 0.994;
 
 /// First eccentricity `e` of WGS-84.
 fn wgs84_e() -> f64 {

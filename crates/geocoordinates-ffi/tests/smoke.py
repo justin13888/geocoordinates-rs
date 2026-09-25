@@ -271,7 +271,7 @@ assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_00
 assert gc.mgrs_from_coordinate(gc.coordinate_wgs84(40.0, -75.0), 1) == "18TWK0000027757"
 assert gc.mgrs_precision_m("18TWK000277") == 100
 dec = gc.mgrs_to_coordinate("18TWK0000027757")
-assert approx(dec.max_error_m, math.sqrt(0.5), 1e-12)
+assert approx(dec.max_error_m, math.sqrt(0.5) / 0.9996, 1e-12)  # half-diagonal / UTM k0
 assert approx(dec.coord.lat, 40.0, 1e-3)
 try:
     gc.mgrs_to_coordinate("not-an-mgrs")
