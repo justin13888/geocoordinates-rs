@@ -74,9 +74,10 @@ hooks {
         }
     }
 
-    // `hk check` / `hk fix` — the core gates (fmt-check + lint + test),
-    // runnable on demand. This is not full CI: CI also runs commits-check,
-    // coverage, mutants, FFI clippy, and the Python/JVM/WASM smoke builds.
+    // `hk check` — the core gates (fmt-check + lint + test), runnable on
+    // demand. This is not full CI: CI also runs commits-check, coverage,
+    // mutants, FFI clippy, and the Python/JVM/WASM smoke builds. `hk fix`
+    // (below) only autofixes formatting and lint, not test.
     ["check"] {
         steps {
             ["fmt"] {
