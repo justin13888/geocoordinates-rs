@@ -24,6 +24,16 @@
 //! `RawSource` / `Confidence`, with `SystemTime` mapped natively to UniFFI's
 //! builtin `Timestamp`) all cross the boundary as flat records / enums and free
 //! functions.
+//!
+//! Mirror records are **unvalidated until used**: they are plain data, so
+//! foreign code can build one with any field values (an out-of-range latitude,
+//! a negative semi-major axis, a confidence of `7.0`). Nothing checks a record
+//! when it is constructed or crosses into Rust, and nothing normalizes one
+//! there except [`Confidence`], whose value is clamped into `[0.0, 1.0]` when
+//! it crosses in (as `gc::Confidence::new` does). Beyond that, each exported
+//! function applies the core crate's own rules to the values it consumes,
+//! exactly as the matching Rust function does. Call an explicit validator
+//! (such as [`coordinate_validate`]) to reject bad input up front.
 
 use geocoordinates as gc;
 
@@ -73,6 +83,10 @@ pub enum Height {
 }
 
 /// The canonical coordinate — mirror of [`gc::Coordinate`].
+///
+/// Unvalidated until used: constructing one does not check that `lat` is in
+/// `[-90, 90]`, `lon` in `[-180, 180]`, or a height finite. Call
+/// [`coordinate_validate`] to reject such values up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Coordinate {
     /// Latitude in decimal degrees.
@@ -271,9 +285,15 @@ pub enum DatumAmbiguity {
 }
 
 /// Parse confidence on a 0.0–1.0 scale — mirror of [`gc::Confidence`].
+///
+/// Unvalidated until used: a record built in foreign code keeps whatever
+/// `value` it was given. When it is passed into a function, the value is
+/// clamped into `[0.0, 1.0]` (NaN becomes `0.0`), as `gc::Confidence::new`
+/// does. Every `Confidence` this library returns is already in range.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Confidence {
-    /// The confidence value, clamped into `[0.0, 1.0]`.
+    /// The confidence value. In `[0.0, 1.0]` when returned by this library;
+    /// clamped into that range when passed into a function.
     pub value: f64,
 }
 
@@ -1328,6 +1348,11 @@ pub fn maidenhead_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
 // ===========================================================================
 
 /// A reference ellipsoid — mirror of [`gc::Ellipsoid`](gc::geodesy::Ellipsoid).
+///
+/// Unvalidated until used: constructing one does not check its parameters.
+/// The fallible ECEF conversions reject a malformed ellipsoid with
+/// [`GeoError`], but the infallible getters (`ellipsoid_flattening`, …) compute
+/// from the values as given and can return non-finite or meaningless results.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ellipsoid {
     /// Semi-major axis `a`, in meters.
@@ -1771,6 +1796,9 @@ pub fn intersection(
 /// The seven Bursa-Wolf parameters of a Helmert transform — mirror of
 /// [`gc::Helmert`](gc::geodesy::Helmert). Translations in meters, rotations in
 /// arc-seconds (position-vector convention), scale in parts-per-million.
+///
+/// Unvalidated until used: the seven parameters are applied as given, with no
+/// check that they are finite or of plausible magnitude.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Helmert {
     /// X-axis translation, meters.
@@ -1791,6 +1819,11 @@ pub struct Helmert {
 
 /// A complete datum transform (source/target ellipsoids + the Helmert shift) —
 /// mirror of [`gc::DatumTransform`](gc::geodesy::DatumTransform).
+///
+/// Unvalidated until used: nothing checks that `from` / `to` are the
+/// ellipsoids of `from_crs` / `to_crs`, or that `helmert` connects those two
+/// datums. Applying it rejects an input whose CRS is not `from_crs` and a
+/// malformed ellipsoid, but otherwise uses a hand-built transform as given.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct DatumTransform {
     /// Source reference system.
