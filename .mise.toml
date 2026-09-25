@@ -16,6 +16,12 @@ hk = "1.57.0"
 # Wrap the generated git hooks in `mise x`, so they resolve the pinned tools
 # even when the shell has no mise activation.
 HK_MISE = "1"
+# Deny rustc warnings in every task, matching the workflow-level `RUSTFLAGS` in
+# ci.yml and ffi.yml, so `mise run test`, `coverage`, and `bindings-build` fail
+# locally on the same warnings CI does. mise's value takes precedence over the
+# calling environment, so the tasks CI relaxes (`mutants`, `mutants-all`,
+# `bindings-web`) reset it on the task itself.
+RUSTFLAGS = "-D warnings"
 
 [hooks]
 # Install the git hooks as part of `mise install`, so a fresh clone is gated
@@ -100,6 +106,9 @@ run = ["mise run fmt-check", "mise run lint", "mise run test"]
 [tasks.mutants]
 description = "Mutation-test only the lines changed vs trunk (pre-push + CI gate)"
 tools = { "cargo:cargo-mutants" = "27.1.0" }
+# Warn-only mutants must still build to be evaluated, else they count as
+# unviable rather than missed (CI's `mutants` job relaxes it the same way).
+env = { RUSTFLAGS = "" }
 usage = 'arg "[base]" help="Base ref to diff against" default="origin/master"'
 run = '''
 #!/usr/bin/env bash
@@ -126,6 +135,7 @@ cargo mutants {{ vars.mutants_flags }} --in-diff "$diff"
 [tasks.mutants-all]
 description = "Full-tree mutation test of the published crate (slow, may report gaps)"
 tools = { "cargo:cargo-mutants" = "27.1.0" }
+env = { RUSTFLAGS = "" } # as in `mutants`
 run = "cargo mutants {{ vars.mutants_flags }}"
 
 # --- Commit message linting (Conventional Commits via convco) ---
@@ -212,6 +222,9 @@ run = "mise run bindings-generate swift"
 [tasks.bindings-web]
 description = "Generate the TypeScript / WebAssembly bindings (uniffi-bindgen-react-native)"
 dir = "{{ config_root }}/crates/geocoordinates-ffi/web"
+# The generated wrapper crate and wasm builds of third-party deps are not where
+# warnings are denied (ffi.yml's `web-wasm` job relaxes it the same way).
+env = { RUSTFLAGS = "" }
 run = ["npm install", "npm run build"]
 
 # Java is served by the Kotlin/JVM artifact, so it has no separate generation.
