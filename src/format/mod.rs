@@ -3,7 +3,16 @@
 //! Formatting is the inverse of parsing (the `parse` module):
 //! a [`Coordinate`] plus [`FormatOptions`] renders to a string in a selectable
 //! representation. The guarantee is **round-trip stability** —
-//! `parse → model → format → parse` must not drift.
+//! `parse → model → format → parse` must not drift beyond the rendered
+//! precision.
+//!
+//! Every DD / DMS / DDM output, in every [`SymbolStyle`] and
+//! [`HemisphereStyle`], re-parses through
+//! [`parse_coordinate_with`](crate::parse::parse_coordinate_with) given
+//! `decimal_comma` = [`FormatOptions::uses_decimal_comma`] and the default
+//! (lat-first) axis order. For a dot-decimal locale (the default) that is
+//! exactly [`parse_coordinate`](crate::parse::parse_coordinate). Plus Code
+//! output re-parses through either to the decoded cell's center.
 
 use crate::angle::{Axis, Dd};
 use crate::coord::Coordinate;
@@ -75,6 +84,21 @@ pub struct FormatOptions {
     pub hemisphere_style: HemisphereStyle,
     /// BCP-47 locale tag for number formatting (e.g. decimal comma).
     pub locale: Option<String>,
+}
+
+impl FormatOptions {
+    /// Whether these options render `,` as the decimal separator, i.e. whether
+    /// [`locale`](Self::locale)'s primary language conventionally uses a
+    /// decimal comma (`de`, `fr`, `es`, …). Such output separates the two
+    /// components with whitespace instead of `, `.
+    ///
+    /// Pass this as
+    /// [`TextParseOptions::decimal_comma`](crate::parse::text::TextParseOptions::decimal_comma)
+    /// to re-parse the output.
+    #[must_use]
+    pub fn uses_decimal_comma(&self) -> bool {
+        uses_decimal_comma(self.locale.as_deref())
+    }
 }
 
 impl Default for FormatOptions {
@@ -158,7 +182,7 @@ fn precision_for_accuracy(horizontal_m: f64) -> Option<u8> {
 }
 
 fn render(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
-    let comma = uses_decimal_comma(options.locale.as_deref());
+    let comma = options.uses_decimal_comma();
     // Per-representation default precision when none is given: DD 6 (~0.11 m),
     // DMS seconds 2, DDM minutes 3. Plus Code ignores precision entirely.
     match options.representation {
@@ -504,7 +528,8 @@ mod tests {
     #[test]
     fn locale_decimal_comma() {
         let c = Coordinate::wgs84(40.7128, -74.006);
-        // Comma locale: comma decimals, whitespace list separator (round-trippable).
+        // Comma locale: comma decimals, whitespace list separator (round-trips
+        // through `parse_coordinate_with` with `decimal_comma` set).
         assert_eq!(
             fmt(
                 &c,
@@ -532,6 +557,19 @@ mod tests {
             ),
             "40.712800, -74.006000"
         );
+    }
+
+    #[test]
+    fn uses_decimal_comma_follows_locale() {
+        let with_locale = |locale: Option<&str>| FormatOptions {
+            locale: locale.map(String::from),
+            ..FormatOptions::default()
+        };
+        assert!(!with_locale(None).uses_decimal_comma());
+        assert!(!with_locale(Some("en-US")).uses_decimal_comma());
+        assert!(with_locale(Some("de-DE")).uses_decimal_comma());
+        assert!(with_locale(Some("fr_CA")).uses_decimal_comma());
+        assert!(with_locale(Some("PT")).uses_decimal_comma());
     }
 
     #[test]

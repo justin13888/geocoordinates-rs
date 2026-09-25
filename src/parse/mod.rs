@@ -44,9 +44,25 @@ pub use crate::fix::AxisOrder;
 /// not yet — see `STABILIZATION.md`. The returned [`Fix`] records confidence and the
 /// assumed [`AxisOrder`] in its [`RawSource`].
 ///
+/// Uses the default [`text::TextParseOptions`] (lat-first, `.` decimals); use
+/// [`parse_coordinate_with`] to read decimal-comma text.
+///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found.
 pub fn parse_coordinate(input: &str) -> Result<Fix> {
+    parse_coordinate_with(input, &text::TextParseOptions::default())
+}
+
+/// [`parse_coordinate`] with explicit options for the free-text fallback.
+///
+/// `options` applies only to the free-text DD/DMS/DDM path; a `geo:` URI or a
+/// Plus Code parses the same regardless. To re-parse output rendered with a
+/// decimal-comma locale, set `decimal_comma` from
+/// [`FormatOptions::uses_decimal_comma`](crate::format::FormatOptions::uses_decimal_comma).
+///
+/// # Errors
+/// Returns [`crate::Error::Parse`] when no interpretation is found.
+pub fn parse_coordinate_with(input: &str, options: &text::TextParseOptions) -> Result<Fix> {
     let trimmed = input.trim();
     if trimmed
         .get(..4)
@@ -56,7 +72,7 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
     } else if let Ok(code) = PlusCode::try_from(trimmed) {
         Ok(plus_code_fix(&code, input))
     } else {
-        text::parse(trimmed)
+        text::parse_with(trimmed, options)
     }
 }
 
@@ -295,6 +311,83 @@ mod tests {
             let parsed = parse_coordinate(&text).unwrap();
             assert_within_meters(&parsed.coord, &c, 0.2);
         }
+    }
+
+    #[test]
+    fn round_trip_every_style_and_locale() {
+        use crate::format::{HemisphereStyle, Representation, SymbolStyle};
+        use text::TextParseOptions;
+        // Hemispheres, the range rule, the antimeridian and both poles.
+        let coords = [
+            Coordinate::wgs84(40.7128, -74.006),
+            Coordinate::wgs84(-33.8688, 151.2093),
+            Coordinate::wgs84(10.5, -20.25),
+            Coordinate::wgs84(0.0, 0.0),
+            Coordinate::wgs84(-0.5, 180.0),
+            Coordinate::wgs84(12.25, -180.0),
+            Coordinate::wgs84(90.0, 45.0),
+            Coordinate::wgs84(-90.0, -135.5),
+        ];
+        let representations = [
+            Representation::DecimalDegrees,
+            Representation::Dms,
+            Representation::Ddm,
+        ];
+        let symbols = [
+            SymbolStyle::Unicode,
+            SymbolStyle::Ascii,
+            SymbolStyle::Letters,
+        ];
+        let hemispheres = [HemisphereStyle::Signed, HemisphereStyle::Cardinal];
+        let locales = [None, Some("en-US"), Some("de-DE"), Some("fr")];
+        for c in coords {
+            for representation in representations {
+                for symbol_style in symbols {
+                    for hemisphere_style in hemispheres {
+                        for locale in locales {
+                            let options = FormatOptions {
+                                representation,
+                                precision: None,
+                                symbol_style,
+                                hemisphere_style,
+                                locale: locale.map(String::from),
+                            };
+                            let text = format(&c, &options).unwrap();
+                            let parse_options = TextParseOptions {
+                                decimal_comma: options.uses_decimal_comma(),
+                                ..TextParseOptions::default()
+                            };
+                            let parsed = parse_coordinate_with(&text, &parse_options)
+                                .unwrap_or_else(|e| panic!("{text:?} ({options:?}): {e}"));
+                            // Default precisions: DD 6 dp (0.11 m), DMS 0.01″
+                            // (0.3 m), DDM 0.001′ (1.9 m) — each rounds to half.
+                            assert_within_meters(&parsed.coord, &c, 1.0);
+                            if locale.is_none() {
+                                let plain = parse_coordinate(&text).unwrap();
+                                assert_eq!(plain.coord, parsed.coord, "{text:?}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn parse_coordinate_with_reads_decimal_comma_on_the_text_path_only() {
+        let comma = text::TextParseOptions {
+            decimal_comma: true,
+            ..text::TextParseOptions::default()
+        };
+        let fix = parse_coordinate_with("40,7128 -74,006", &comma).unwrap();
+        assert_close(fix.coord.lat, 40.7128, 1e-9);
+        assert_close(fix.coord.lon, -74.006, 1e-9);
+        assert!(parse_coordinate("40,7128 -74,006").is_err());
+        // geo: URIs and Plus Codes ignore the text options.
+        let geo = parse_coordinate_with("geo:13.4125,103.8667", &comma).unwrap();
+        assert_close(geo.coord.lon, 103.8667, 1e-9);
+        let plus = parse_coordinate_with("8FVC2222+22", &comma).unwrap();
+        assert_close(plus.coord.lat, 47.0000625, 1e-6);
     }
 
     #[test]
