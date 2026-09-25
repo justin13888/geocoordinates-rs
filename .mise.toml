@@ -52,6 +52,24 @@ run = "cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-featu
 description = "Run the test suite"
 run = "cargo test --all-features"
 
+# Builds and tests on the `rust-version` declared in Cargo.toml, read at run time
+# so the check cannot drift from the declaration. `--locked` proves the committed
+# Cargo.lock resolves on that toolchain. `geojson` and `h3` are excluded: their
+# dependencies (geojson 1.0, h3o 0.10) need a newer rustc than the core crate.
+[tasks.msrv]
+description = "Build and test on the declared MSRV (core + MSRV-clean features)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+msrv="$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' Cargo.toml)"
+if [ -z "$msrv" ]; then
+    echo "msrv: no rust-version in Cargo.toml" >&2
+    exit 1
+fi
+rustup toolchain install "$msrv" --profile minimal --no-self-update
+cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2
+'''
+
 [tasks.coverage]
 description = "Report code coverage (no enforced threshold yet)"
 run = "cargo llvm-cov --all-features"
