@@ -45,7 +45,7 @@ pub enum Crs {
 ///
 /// GNSS reports **ellipsoidal** height natively; humans expect **orthometric**
 /// height (above the geoid / "sea level"). Converting between them requires a
-/// geoid model — see the optional `geoid` feature.
+/// geoid model — deferred behind the `geoid` feature (see STABILIZATION.md).
 ///
 /// Only these two surfaces are modeled; tidal datums (MSL, MLLW, …) are out of
 /// scope.

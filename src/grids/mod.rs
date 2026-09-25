@@ -8,7 +8,8 @@
 //! cell half-extent as the error bound.
 //!
 //! National grid projections (OSGB36, Swiss LV95, Dutch RD, …) are out of scope
-//! here — reach them through the optional `proj` feature.
+//! here — reach them through the deferred `proj` feature (see
+//! STABILIZATION.md).
 
 pub mod encoded;
 pub mod mgrs; // UTM/UPS-backed military grid

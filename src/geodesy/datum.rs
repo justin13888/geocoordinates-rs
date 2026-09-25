@@ -13,8 +13,8 @@
 //! Molodensky-Badekas** transforms are deliberately omitted, as the ECEF Helmert
 //! path is more general and at least as accurate. Higher-accuracy **grid-based**
 //! transforms (NTv2, NADCON5), national grid projections, and the full EPSG
-//! registry are out of scope here and are delegated to the optional `proj`
-//! feature.
+//! registry are out of scope here and are delegated to the deferred `proj`
+//! feature (see STABILIZATION.md).
 //!
 //! Transforms are **static**. Epoch / time-aware geodesy — plate-motion velocity
 //! models, the 14-parameter (rate-of-change) transforms, and distinct ITRF
@@ -127,7 +127,8 @@ impl DatumTransform {
     ///
     /// Returns `None` for [`Crs::Wgs84`] (no shift needed), for the China
     /// obfuscation systems (use the [`china`](crate::china) typed conversions),
-    /// and for datums reachable only through the optional `proj` feature.
+    /// and for datums reachable only through the deferred `proj` feature (see
+    /// STABILIZATION.md).
     #[must_use]
     pub fn to_wgs84(datum: Crs) -> Option<DatumTransform> {
         // NIMA TR8350.2 mean translation-only (Molodensky) shifts. Exhaustive
