@@ -68,6 +68,21 @@ jobs:
       - name: Test
         run: mise run test
 
+  doc:
+    name: Docs
+    runs-on: ubuntu-latest
+    env:
+      # RUSTFLAGS does not reach rustdoc, so broken intra-doc links and other
+      # rustdoc warnings need their own deny flag.
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+      - name: Build docs (warnings denied)
+        run: mise run doc
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
