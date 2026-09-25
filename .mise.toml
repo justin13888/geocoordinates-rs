@@ -74,7 +74,7 @@ run = "cargo doc --no-deps --all-features"
 
 # Run in series: parallel cargo invocations contend on the target-dir lock.
 [tasks.check]
-description = "fmt-check + lint + test (CI parity)"
+description = "core gates: fmt-check + lint + test"
 run = ["mise run fmt-check", "mise run lint", "mise run test"]
 
 # --- Mutation testing (cargo-mutants) ---
