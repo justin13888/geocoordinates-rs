@@ -1540,7 +1540,9 @@ pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Enu
         .map(Into::into)
         .map_err(Into::into)
 }
-/// Recover the absolute coordinate of an ENU offset about `origin`.
+/// Recover the absolute coordinate of an ENU offset about `origin`. Not exact:
+/// latitude is recovered by the Bowring single-step inverse of
+/// [`ecef_to_coordinate`] and carries its altitude-dependent bound.
 #[uniffi::export]
 pub fn enu_to_coordinate(enu: Enu, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Enu::from(enu)
@@ -1566,7 +1568,8 @@ pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Ned
         .map(Into::into)
         .map_err(Into::into)
 }
-/// Recover the absolute coordinate of a NED offset about `origin`.
+/// Recover the absolute coordinate of a NED offset about `origin`. Not exact:
+/// see [`enu_to_coordinate`].
 #[uniffi::export]
 pub fn ned_to_coordinate(ned: Ned, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Ned::from(ned)
@@ -1592,7 +1595,8 @@ pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Aer
         .map(Into::into)
         .map_err(Into::into)
 }
-/// Recover the absolute coordinate of an AER offset about `origin`.
+/// Recover the absolute coordinate of an AER offset about `origin`. Not exact:
+/// see [`enu_to_coordinate`].
 #[uniffi::export]
 pub fn aer_to_coordinate(aer: Aer, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Aer::from(aer)
