@@ -4,6 +4,10 @@ on:
   push:
     branches: [master]
   pull_request:
+  # Release-plz dispatches this on its release PR branch: that PR is opened with the
+  # default GITHUB_TOKEN, so its `pull_request` runs stop at `action_required` (see
+  # release-plz.yml). The PR-only `commits` and `mutants` jobs skip on a dispatch.
+  workflow_dispatch:
 
 # Cancel superseded PR runs (a new push to the same PR cancels the in-flight one);
 # never cancel push/master runs so post-merge history stays complete.
