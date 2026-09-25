@@ -137,6 +137,11 @@ pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
 /// [`accuracy`](crate::fix::Fix::accuracy) when `options.precision` is `None`
 /// (so spurious digits beyond the fix's resolution are not printed).
 ///
+/// The derived precision is in the representation's last rendered unit:
+/// decimals of degrees for DD, of arcseconds for DMS (1″ ≈ 30.9 m), and of
+/// arcminutes for DDM (1′ ≈ 1.85 km) — e.g. a 1 m fix renders as 5 DD
+/// decimals, 1 DMS decimal, or 3 DDM decimals.
+///
 /// # Errors
 /// As [`format()`].
 pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
@@ -146,7 +151,7 @@ pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
     let derived = fix
         .accuracy
         .and_then(|a| a.horizontal_m)
-        .and_then(precision_for_accuracy);
+        .and_then(|m| precision_for_accuracy(m, options.representation));
     let Some(p) = derived else {
         return format(&fix.coord, options);
     };
@@ -168,14 +173,25 @@ enum AngleKind {
     Ddm,
 }
 
+/// Meters spanned by one degree of latitude (mean-radius arc, ≈ 111,195 m).
+const METERS_PER_DEGREE: f64 = 111_195.0;
+
 /// Decimal places implied by a horizontal accuracy, so digits finer than the
-/// fix's resolution are not printed. `None` (unusable accuracy) → caller's
-/// default. One degree of latitude ≈ 111,195 m.
-fn precision_for_accuracy(horizontal_m: f64) -> Option<u8> {
+/// fix's resolution are not printed. The places count the representation's
+/// last rendered unit: degrees for DD, arcseconds for DMS, arcminutes for DDM.
+/// `None` (unusable accuracy, or a representation without a precision knob
+/// such as Plus Code) → caller's default.
+fn precision_for_accuracy(horizontal_m: f64, representation: Representation) -> Option<u8> {
     if !horizontal_m.is_finite() || horizontal_m <= 0.0 {
         return None;
     }
-    let places = (-(horizontal_m / 111_195.0).log10())
+    let meters_per_unit = match representation {
+        Representation::DecimalDegrees => METERS_PER_DEGREE,
+        Representation::Dms => METERS_PER_DEGREE / 3600.0,
+        Representation::Ddm => METERS_PER_DEGREE / 60.0,
+        Representation::PlusCode => return None,
+    };
+    let places = (-(horizontal_m / meters_per_unit).log10())
         .round()
         .clamp(0.0, 8.0);
     Some(places as u8)
@@ -614,6 +630,76 @@ mod tests {
             format_fix(&fix(Some(-5.0)), &dd_default).unwrap(),
             "40.712800, -74.006000"
         );
+    }
+
+    #[test]
+    fn format_fix_derives_dms_ddm_precision_in_their_own_units() {
+        let coord = Coordinate::wgs84(40.7128, -74.006);
+        let fix = |horizontal_m: Option<f64>| Fix {
+            coord,
+            accuracy: Some(Accuracy {
+                horizontal_m,
+                vertical_m: None,
+            }),
+            timestamp: None,
+            source: None,
+        };
+        let derived = |representation| {
+            opts(
+                representation,
+                None,
+                SymbolStyle::Unicode,
+                HemisphereStyle::Cardinal,
+                None,
+            )
+        };
+        let dms = derived(Representation::Dms);
+        let ddm = derived(Representation::Ddm);
+        // DMS counts decimals of arcseconds (1″ ≈ 30.9 m): ~1 m -> 1 decimal,
+        // ~1 km -> whole seconds.
+        assert_eq!(
+            format_fix(&fix(Some(1.0)), &dms).unwrap(),
+            "40°42′46.1″N 74°00′21.6″W"
+        );
+        assert_eq!(
+            format_fix(&fix(Some(1000.0)), &dms).unwrap(),
+            "40°42′46″N 74°00′22″W"
+        );
+        // DDM counts decimals of arcminutes (1′ ≈ 1.85 km): ~1 m -> 3
+        // decimals, ~1 km -> whole minutes.
+        assert_eq!(
+            format_fix(&fix(Some(1.0)), &ddm).unwrap(),
+            "40°42.768′N 74°00.360′W"
+        );
+        assert_eq!(
+            format_fix(&fix(Some(1000.0)), &ddm).unwrap(),
+            "40°43′N 74°00′W"
+        );
+        // Unusable accuracy falls back to the representation default.
+        assert_eq!(
+            format_fix(&fix(None), &dms).unwrap(),
+            format(&coord, &dms).unwrap()
+        );
+        // Plus Code has no precision knob; accuracy leaves it unchanged.
+        let plus = derived(Representation::PlusCode);
+        assert_eq!(
+            format_fix(&fix(Some(1.0)), &plus).unwrap(),
+            format(&coord, &plus).unwrap()
+        );
+    }
+
+    #[test]
+    fn precision_for_accuracy_uses_the_representations_unit() {
+        use Representation::{Ddm, DecimalDegrees, Dms, PlusCode};
+        assert_eq!(precision_for_accuracy(1.0, DecimalDegrees), Some(5));
+        assert_eq!(precision_for_accuracy(1.0, Dms), Some(1));
+        assert_eq!(precision_for_accuracy(1.0, Ddm), Some(3));
+        assert_eq!(precision_for_accuracy(0.03, Dms), Some(3));
+        assert_eq!(precision_for_accuracy(1.0e-9, Dms), Some(8));
+        assert_eq!(precision_for_accuracy(1.0e6, Ddm), Some(0));
+        assert_eq!(precision_for_accuracy(1.0, PlusCode), None);
+        assert_eq!(precision_for_accuracy(f64::NAN, Dms), None);
+        assert_eq!(precision_for_accuracy(0.0, Ddm), None);
     }
 
     #[test]
