@@ -5,11 +5,13 @@
 //! latitude / value bands ([`LLBAND`] / [`MCBAND`]) select one of six
 //! coefficient rows in [`LL2MC`] (forward) or [`MC2LL`] (inverse).
 //!
-//! Both directions are deterministic and modeled as **exact** (like a UTM
-//! projection), but remain fallible because their numeric and projection
-//! domains are validated. The two coefficient tables are independent empirical
-//! fits, so a `try_from_bd09(p)?.try_to_bd09()?` round-trip is stable to
-//! sub-meter, not bit-identical.
+//! Each direction reproduces Baidu's own published formula deterministically,
+//! so it returns a bare type rather than [`Approx`](crate::Approx), and remains
+//! fallible because its numeric and projection domains are validated. The two
+//! directions are **not** exact inverses of each other: the coefficient tables
+//! are independent empirical fits. A `try_from_bd09(p)?.try_to_bd09()?` round
+//! trip drifts by up to about 0.25 m below 60° latitude (all of China), and by
+//! up to about 7 m in the 60°–75° band.
 //!
 //! The geographic side is always [`Bd09`]; chain the [`china`](crate::china) datum
 //! methods (BD-09 → GCJ-02 → WGS-84) to reach real GPS, which are honest about
@@ -224,7 +226,10 @@ impl BaiduMercator {
         Self { x, y }
     }
 
-    /// Baidu Web Mercator → BD-09 lat/lon (exact inverse projection, `MC2LL`).
+    /// Baidu Web Mercator → BD-09 lat/lon by Baidu's `MC2LL` polynomial fit.
+    ///
+    /// Not an exact inverse of [`BaiduMercator::try_from_bd09`]; see the
+    /// [module docs](self) for the round-trip drift.
     pub fn try_to_bd09(self) -> Result<Bd09> {
         if !self.x.is_finite() || !self.y.is_finite() {
             return Err(Error::InvalidValue {
@@ -245,7 +250,10 @@ impl BaiduMercator {
         Ok(result)
     }
 
-    /// BD-09 lat/lon → Baidu Web Mercator (exact forward projection, `LL2MC`).
+    /// BD-09 lat/lon → Baidu Web Mercator by Baidu's `LL2MC` polynomial fit.
+    ///
+    /// Not an exact inverse of [`BaiduMercator::try_to_bd09`]; see the
+    /// [module docs](self) for the round-trip drift.
     pub fn try_from_bd09(p: Bd09) -> Result<Self> {
         p.validate()?;
         let Some(row) = lookup(&LLBAND, &LL2MC, p.lat) else {
@@ -259,8 +267,9 @@ impl BaiduMercator {
         Ok(Self::new(x.copysign(p.lon), y.copysign(p.lat)))
     }
 
-    /// Baidu Web Mercator → canonical [`Coordinate`], tagged [`Crs::Bd09`](crate::Crs)
-    /// (exact). Height is left unset — the projection is 2-D.
+    /// Baidu Web Mercator → canonical [`Coordinate`], tagged [`Crs::Bd09`](crate::Crs),
+    /// via [`BaiduMercator::try_to_bd09`]. Height is left unset — the
+    /// projection is 2-D.
     pub fn try_to_coordinate(self) -> Result<Coordinate> {
         Ok(self.try_to_bd09()?.into())
     }
@@ -279,7 +288,7 @@ impl BaiduMercator {
 impl TryFrom<Bd09> for BaiduMercator {
     type Error = Error;
 
-    /// Exact forward projection.
+    /// Forward projection. Thin sugar over [`BaiduMercator::try_from_bd09`].
     fn try_from(p: Bd09) -> Result<Self> {
         Self::try_from_bd09(p)
     }
@@ -288,7 +297,7 @@ impl TryFrom<Bd09> for BaiduMercator {
 impl TryFrom<BaiduMercator> for Bd09 {
     type Error = Error;
 
-    /// Exact inverse projection.
+    /// Inverse projection. Thin sugar over [`BaiduMercator::try_to_bd09`].
     fn try_from(m: BaiduMercator) -> Result<Self> {
         m.try_to_bd09()
     }
@@ -330,6 +339,28 @@ mod tests {
         // Independent forward/inverse fits: stable to well under a meter.
         assert_close(back.x, m.x, 0.5);
         assert_close(back.y, m.y, 0.5);
+    }
+
+    #[test]
+    fn bd09_round_trip_drift_matches_the_documented_bands() {
+        // Worst ground drift of BD-09 → Mercator → BD-09 over a latitude band,
+        // sampled every 0.1° of latitude and 1° of longitude (70°E–140°E).
+        let worst_m = |from: u32, to: u32| {
+            (from..to)
+                .flat_map(|i| (70..140).map(move |lon| (f64::from(i) * 0.1, f64::from(lon))))
+                .map(|(lat, lon)| {
+                    let m = BaiduMercator::try_from_bd09(Bd09::new(lat, lon)).unwrap();
+                    let b = m.try_to_bd09().unwrap();
+                    let d_north = (b.lat - lat).to_radians();
+                    let d_east = (b.lon - lon).to_radians() * lat.to_radians().cos();
+                    d_north.hypot(d_east) * 6_378_137.0
+                })
+                .fold(0.0_f64, f64::max)
+        };
+        let low = worst_m(1, 600);
+        assert!(low < 0.3, "below 60°: {low} m");
+        let high = worst_m(600, 750);
+        assert!((1.0..8.0).contains(&high), "60°–75°: {high} m");
     }
 
     #[test]
