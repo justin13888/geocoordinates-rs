@@ -35,7 +35,7 @@ use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
 use geocoordinates::parse::interchange::{from_geojson, from_gpx, from_kml, from_wkt};
 use geocoordinates::parse::sensors::from_nmea_sentence;
 use geocoordinates::parse::text::{TextParseOptions, parse as parse_text, parse_with};
-use geocoordinates::parse::{from_geo_uri, parse_coordinate};
+use geocoordinates::parse::{from_geo_uri, parse_coordinate, parse_coordinate_with};
 use geocoordinates::{
     Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Error, Fix, Gcj02, Height,
     LatLon, Length, LengthUnit, RawSource, Wgs84,
@@ -354,6 +354,35 @@ fn formatting_and_parsing() -> DemoResult {
     let rendered = format(&NEW_YORK, &FormatOptions::default())?;
     let reparsed = parse_coordinate(&rendered)?;
     assert_within_meters(&reparsed.coord, &NEW_YORK, 0.2);
+
+    // Letter-style DMS re-parses through `parse_coordinate`; a decimal-comma
+    // locale re-parses once `decimal_comma` follows the format options.
+    let letters = format(
+        &NEW_YORK,
+        &FormatOptions {
+            representation: Representation::Dms,
+            symbol_style: SymbolStyle::Letters,
+            hemisphere_style: HemisphereStyle::Cardinal,
+            ..FormatOptions::default()
+        },
+    )?;
+    assert_within_meters(&parse_coordinate(&letters)?.coord, &NEW_YORK, 0.5);
+    let german = FormatOptions {
+        representation: Representation::Ddm,
+        locale: Some("de-DE".to_owned()),
+        ..FormatOptions::default()
+    };
+    assert!(german.uses_decimal_comma());
+    let rendered = format(&NEW_YORK, &german)?;
+    assert!(parse_coordinate(&rendered).is_err());
+    let reparsed = parse_coordinate_with(
+        &rendered,
+        &TextParseOptions {
+            decimal_comma: german.uses_decimal_comma(),
+            ..TextParseOptions::default()
+        },
+    )?;
+    assert_within_meters(&reparsed.coord, &NEW_YORK, 1.0);
 
     Ok("formatting and parsing")
 }

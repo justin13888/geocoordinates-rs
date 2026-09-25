@@ -1,8 +1,9 @@
 //! Tolerant free-text and DMS/DDM coordinate parsing.
 //!
 //! Handles the hairiest input: signed decimal (`40.7128, -74.006`), DMS with
-//! assorted symbols (`°'"`, Unicode primes `′″`, bare spaces), hemisphere as
-//! prefix *or* suffix, DDM, and concatenated forms (`4042.766N`).
+//! assorted symbols (`°'"`, Unicode primes `′″`, letter markers `d m s`, bare
+//! spaces), hemisphere as prefix *or* suffix, DDM, and concatenated forms
+//! (`4042.766N`).
 //!
 //! Hard problems handled explicitly:
 //! - **Axis-order ambiguity** (`40, -74` — lat,lon or lon,lat?): resolved with
@@ -123,7 +124,8 @@ struct Resolved {
 }
 
 /// Canonicalize typography: Unicode primes → `'`/`"`, masculine ordinal → `°`,
-/// exotic spaces → ASCII space; apply the decimal-comma rewrite when requested.
+/// exotic spaces → ASCII space; apply the decimal-comma rewrite when requested,
+/// then the letter-marker rewrite (`10d30m00s` → `10°30'00"`).
 fn normalize(input: &str, options: &TextParseOptions) -> String {
     let mapped: String = input
         .trim()
@@ -136,11 +138,53 @@ fn normalize(input: &str, options: &TextParseOptions) -> String {
             other => other,
         })
         .collect();
-    if options.decimal_comma {
+    let decimals = if options.decimal_comma {
         rewrite_decimal_comma(&mapped)
     } else {
         mapped
+    };
+    rewrite_unit_letters(&decimals)
+}
+
+/// Rewrite letter unit markers (`d`, `m`, `s`, either case) into `°`, `'`, `"`,
+/// so letter-style DMS / DDM (`10d30m00.00sN`, `-20d15.000m`) parses like the
+/// symbol forms.
+///
+/// Only the anchored sequence `<digits>d<number>[m[<number>s]]` is rewritten: a
+/// degree `d` must sit between two digits, a minute `m` must directly follow
+/// the minutes number, and a second `s` must directly follow a seconds number.
+/// That anchoring keeps a hemisphere suffix intact — `S` in `10d30mS` (no
+/// seconds number) or in `33.9s` (no degree marker) stays a hemisphere letter.
+fn rewrite_unit_letters(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = chars.clone();
+    for i in 1..chars.len() {
+        let degree_marker = matches!(chars[i], 'd' | 'D')
+            && chars[i - 1].is_ascii_digit()
+            && chars.get(i + 1).is_some_and(char::is_ascii_digit);
+        if !degree_marker {
+            continue;
+        }
+        out[i] = '°';
+        let minutes_end = number_end(&chars, i + 1);
+        if !matches!(chars.get(minutes_end), Some('m' | 'M')) {
+            continue;
+        }
+        out[minutes_end] = '\'';
+        let seconds_end = number_end(&chars, minutes_end + 1);
+        if seconds_end > minutes_end + 1 && matches!(chars.get(seconds_end), Some('s' | 'S')) {
+            out[seconds_end] = '"';
+        }
     }
+    out.into_iter().collect()
+}
+
+/// Index one past the run of digits and `.` starting at `start`.
+fn number_end(chars: &[char], start: usize) -> usize {
+    chars[start..]
+        .iter()
+        .position(|c| !(c.is_ascii_digit() || *c == '.'))
+        .map_or(chars.len(), |len| start + len)
 }
 
 /// Replace a comma that sits between two digits with a decimal point, so the
@@ -596,6 +640,54 @@ mod tests {
         assert_eq!(rewrite_decimal_comma("5,a"), "5,a"); // next char not a digit
         assert_eq!(rewrite_decimal_comma(",5"), ",5"); // leading comma (no previous)
         assert_eq!(rewrite_decimal_comma("5,"), "5,"); // trailing comma (no next)
+    }
+
+    #[test]
+    fn rewrite_unit_letters_is_anchored() {
+        // DMS and DDM markers, either case.
+        assert_eq!(rewrite_unit_letters("10d30m00.00sN"), "10°30'00.00\"N");
+        assert_eq!(rewrite_unit_letters("10D30M00S"), "10°30'00\"");
+        assert_eq!(rewrite_unit_letters("-20d15.000m"), "-20°15.000'");
+        // Both components of a pair are rewritten.
+        assert_eq!(
+            rewrite_unit_letters("10d30m00sS 20d15m00sW"),
+            "10°30'00\"S 20°15'00\"W"
+        );
+        // An `S` with no seconds number before it is a hemisphere, not a marker.
+        assert_eq!(rewrite_unit_letters("10d30.000mS"), "10°30.000'S");
+        assert_eq!(rewrite_unit_letters("10d30mS"), "10°30'S");
+        // A degree `d` needs a digit on both sides.
+        assert_eq!(rewrite_unit_letters("d5"), "d5");
+        assert_eq!(rewrite_unit_letters("40dN"), "40dN");
+        assert_eq!(rewrite_unit_letters("40 d30m"), "40 d30m");
+        // Without a degree marker, `m` and `s` are left alone (`33.9s` is South).
+        assert_eq!(rewrite_unit_letters("33.9s 151.2e"), "33.9s 151.2e");
+        // A minutes number not followed by `m` stops the sequence there.
+        assert_eq!(rewrite_unit_letters("10d30 00s"), "10°30 00s");
+    }
+
+    #[test]
+    fn letter_markers_parse_like_symbols() {
+        let lat = 10.0 + 30.0 / 60.0;
+        let lon = -(20.0 + 15.0 / 60.0);
+        for input in [
+            "10d30m00.00sN 20d15m00.00sW",
+            "10d30m00s 20d15m00sW",
+            "10d30.000mN 20d15.000mW",
+            "10d30.000m -20d15.000m",
+        ] {
+            let fix = parse(input).unwrap_or_else(|e| panic!("{input}: {e}"));
+            assert_close(fix.coord.lat, lat, 1e-9);
+            assert_close(fix.coord.lon, lon, 1e-9);
+        }
+        // Letter markers combine with the decimal-comma option.
+        let opts = TextParseOptions {
+            decimal_comma: true,
+            default_axis_order: AxisOrder::LatLon,
+        };
+        let fix = parse_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
+        assert_close(fix.coord.lat, -lat, 1e-9);
+        assert_close(fix.coord.lon, lon, 1e-9);
     }
 
     #[test]
