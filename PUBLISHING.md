@@ -26,7 +26,7 @@ does not publish** — use it to dry-run a pipeline.
 | Registry | Package | Workflow | Tooling | Auth |
 |---|---|---|---|---|
 | PyPI | `geocoordinates-rs` | `release-python.yml` | maturin (`bindings=uniffi`) + maturin-action matrix | OIDC trusted publishing (no secret) |
-| npm | `geocoordinates` | `release-web.yml` | `ubrn` + wasm-pack (WASM) | `NPM_TOKEN` secret (+ provenance) |
+| npm | `geocoordinates-rs` | `release-web.yml` | `ubrn` + wasm-pack (WASM) | OIDC trusted publishing (no secret) |
 | Maven Central | `io.github.justin13888:geocoordinates` | `release-jvm.yml` | Gradle + JNA fat-JAR + vanniktech plugin | Central Portal token + GPG (secrets) |
 | SwiftPM | `GeoCoordinates` | `release-swift.yml` | XCFramework on the GitHub Release + root `Package.swift` | none (uses `GITHUB_TOKEN`) |
 
@@ -40,11 +40,15 @@ repo `justin13888/geocoordinates-rs`, workflow `release-python.yml`, no environm
 A "pending publisher" creates the project on the first CI publish — no token, no
 local bootstrap needed.
 
-### npm — `NPM_TOKEN` secret
-npm cannot pre-create an empty package, so the first publish creates it with a token
-(OIDC trusted publishing can be adopted afterwards). Create an **automation** access
-token on npmjs.com (with publish rights), then add it as the repo secret `NPM_TOKEN`.
-`--provenance` still attaches a build attestation via GitHub OIDC.
+### npm (OIDC, no secret)
+The bare `geocoordinates` is blocked by npm's name-similarity filter (too close to
+the existing `geo-coordinates`), so the package is **`geocoordinates-rs`**, matching
+PyPI. Configure a **Trusted Publisher** on npmjs.com for package `geocoordinates-rs`:
+repo `justin13888/geocoordinates-rs`, workflow `release-web.yml`.
+OIDC cannot publish a package's *first* version — the package must already exist to
+host the trusted-publisher config — so `v0.1.1` was bootstrapped with a one-time
+local `npm publish`. Every release since uses OIDC, with `--provenance` attaching a
+build attestation.
 
 ### Maven Central — Central Portal + GPG (not yet set up)
 1. Create a **Sonatype Central Portal** account (central.sonatype.com).
