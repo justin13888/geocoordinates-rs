@@ -24,6 +24,7 @@ mise run fmt-check    # formatting
 mise run lint         # clippy with warnings denied
 mise run ffi-check    # FFI crate clippy (the mirror gates every release)
 mise run coverage     # coverage report (no threshold enforced yet)
+mise run mutants      # mutation-test lines changed vs origin/master (pre-push + CI gate)
 ```
 
 `STABILIZATION.md` is the ledger for the 0.15.0 API stabilization: the five-point
