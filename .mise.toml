@@ -101,7 +101,8 @@ run = ["mise run fmt-check", "mise run lint", "mise run test"]
 
 # Fails any tracked file over `max_file_lines` unless `.file-length-baseline`
 # lists it, and holds every listed file to its recorded length. Against [base],
-# the baseline may only shrink: no new entries and no raised caps. Plain awk and
+# the baseline may only shrink: no new entries, no raised caps, and no raised
+# `max_file_lines`. Plain awk and
 # no associative arrays in bash, so it runs on macOS's stock bash 3.2 too.
 [tasks.file-length-check]
 description = "Fail files over the line limit unless baselined; the baseline may only shrink"
@@ -181,8 +182,27 @@ END {
     exit bad
 }' "$baseline" "$lengths" || status=1
 
+base_ok=1
 if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
     echo "file-length-check: no '$base' ref; skipping the shrink-only comparison." >&2
+    base_ok=0
+fi
+
+# The limit itself may only fall too: a raised `max_file_lines` would loosen the
+# gate for every file that the baseline comparison below never sees.
+if [ "$base_ok" -eq 1 ]; then
+    base_max="$(git show "$base:.mise.toml" 2>/dev/null \
+        | sed -n 's/^max_file_lines = "\([0-9][0-9]*\)"$/\1/p' || true)"
+    if [ -z "$base_max" ]; then
+        echo "file-length-check: $base sets no max_file_lines; skipping the limit comparison."
+    elif [ "$max" -gt "$base_max" ]; then
+        echo "max_file_lines: raised from $base_max to $max vs $base; the limit may only shrink"
+        status=1
+    fi
+fi
+
+if [ "$base_ok" -eq 0 ]; then
+    :
 elif ! git show "$base:$baseline" > "$base_baseline" 2>/dev/null; then
     echo "file-length-check: $base has no $baseline; skipping the shrink-only comparison."
 else
