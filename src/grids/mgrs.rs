@@ -245,7 +245,7 @@ fn decode_utm(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
     let band = chars.next().ok_or_else(bad)?;
     let col = chars.next().ok_or_else(bad)?;
     let row = chars.next().ok_or_else(bad)?;
-    let (k, e_dig, n_dig) = split_digits(&rest[3..], bad)?;
+    let (k, e_dig, n_dig) = split_digits(chars.as_str(), bad)?;
 
     let band_idx = BAND.find(band).ok_or_else(bad)?;
     let set = ((zone - 1) % 3) as usize;
@@ -292,7 +292,7 @@ fn decode_ups(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
     }
     let col = chars.next().ok_or_else(bad)?;
     let row = chars.next().ok_or_else(bad)?;
-    let (k, e_dig, n_dig) = split_digits(&s[3..], bad)?;
+    let (k, e_dig, n_dig) = split_digits(chars.as_str(), bad)?;
 
     let north = zl == 'Y' || zl == 'Z';
     let (col_tbl, col_off) = ups_column_table(zl);
@@ -475,5 +475,36 @@ mod tests {
         assert!(Mgrs::try_from("QWK0000027757").is_err()); // Q is not a UPS zone letter
         assert!(Mgrs::try_from("18TIK0000027757").is_err()); // I not a column letter
         assert!(Mgrs::try_from("18TWK000000277577").is_err()); // more than 5+5 digits
+    }
+
+    #[test]
+    fn multibyte_references_are_invalid_grid_refs_not_panics() {
+        // Multibyte characters in the band/column/row position used to land a
+        // byte-index slice off a char boundary and panic instead of erroring.
+        for s in ["1ÉÉ1", "1ÉÉ", "ÉÉÉ", "18TÉÉ00000", "AXÉ00"] {
+            assert!(
+                matches!(Mgrs::try_from(s), Err(Error::InvalidGridRef(_))),
+                "{s:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn multibyte_inputs_never_panic() {
+        // Deterministic sweep: place a 2-, 3-, and 4-byte UTF-8 character at
+        // each of the first few positions of otherwise-valid UTM and UPS
+        // references. A panic (rather than a returned Err) fails the test.
+        for template in ["18TWK0000027757", "ZAH0000000000"] {
+            for ch in ['é', '€', '🌍'] {
+                for pos in 0..6.min(template.chars().count()) {
+                    let s: String = template
+                        .chars()
+                        .enumerate()
+                        .map(|(i, c)| if i == pos { ch } else { c })
+                        .collect();
+                    let _ = Mgrs::try_from(s.as_str());
+                }
+            }
+        }
     }
 }
