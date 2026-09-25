@@ -21,7 +21,7 @@ jobs:
   # Lint the FFI crate, build the cdylib, and confirm bindings generate for the
   # built-in UniFFI backends. `--no-format` keeps generation independent of
   # ktlint being installed (Kotlin/Swift are generate-validated only here; Swift
-  # needs a macOS toolchain to actually compile). Java is served by the
+  # is compiled on macOS in the `swift-build` job below). Java is served by the
   # Kotlin/JVM artifact, so it has no separate generation step. TypeScript/WASM
   # is built in the `web-wasm` job below (external `ubrn` toolchain).
   build-and-bind:
@@ -140,3 +140,22 @@ jobs:
         env:
           GEOCOORDINATES_NATIVE_LIB: ${{ github.workspace }}/${{ env.FFI_LIB }}
         run: gradle test
+
+  # Compile the Swift bindings on every PR, so Swift breakage surfaces here rather
+  # than in release-swift.yml after a tag is cut. Runs the same
+  # build-xcframework.sh the release uses (all Apple slices + freshly generated
+  # Swift sources), then builds the root Package.swift against that local
+  # XCFramework instead of the release URL.
+  swift-build:
+    name: Swift package build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build XCFramework + generate Swift sources
+        run: bash crates/geocoordinates-ffi/swift/build-xcframework.sh
+      - name: Swift build (local XCFramework)
+        env:
+          GEOCOORDINATES_LOCAL_XCFRAMEWORK: "1"
+        run: swift build
