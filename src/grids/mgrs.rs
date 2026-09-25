@@ -15,7 +15,7 @@ use core::str::FromStr;
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::grids::utm::{Hemisphere, Ups, Utm};
+use crate::grids::utm::{Hemisphere, K0 as UTM_K0, UPS_K0, Ups, Utm};
 
 // --- 100 km square lettering tables (I and O are always excluded) ---
 /// UTM column letters, selected by `(zone − 1) mod 3`.
@@ -54,15 +54,24 @@ impl Mgrs {
         self.precision_m
     }
 
-    /// Decode to a coordinate at the square's center; the error bound is half
-    /// the square diagonal. Infallible — the reference was validated at
-    /// construction.
+    /// Decode to a coordinate at the square's center. Infallible — the
+    /// reference was validated at construction.
+    ///
+    /// The error bound is the square's half diagonal converted from grid to
+    /// ground meters: `precision_m / √2 / k_min`, where `k_min` is the
+    /// projection's minimum point scale factor (0.9996 for UTM, 0.994 for
+    /// UPS). Grid distance is ground distance times the point scale factor k,
+    /// and k never falls below `k_min`, so the bound holds everywhere in the
+    /// square. It overstates the true worst case by the local excess of k over
+    /// `k_min`: about 0.14% at a standard UTM zone edge on the equator, and
+    /// under 0.8% at the UPS cap's 80°S edge.
     #[must_use]
     pub fn to_coordinate(&self) -> Approx<Coordinate> {
         let (coord, _) = decode(&self.text).expect("MGRS was validated at construction");
         Approx::new(
             coord,
-            f64::from(self.precision_m) * core::f64::consts::FRAC_1_SQRT_2,
+            f64::from(self.precision_m) * core::f64::consts::FRAC_1_SQRT_2
+                / min_scale_factor(&self.text),
         )
     }
 
@@ -193,6 +202,16 @@ fn ups_column_table(zl: char) -> (&'static str, usize) {
         'Z' => (UPS_COL_Z, 20),
         'A' => (UPS_COL_A, 8),
         _ => (UPS_COL_B, 20),
+    }
+}
+
+/// The minimum point scale factor of the projection a canonical MGRS string
+/// lives in: UTM references start with the zone number, UPS ones with a letter.
+fn min_scale_factor(canonical: &str) -> f64 {
+    if canonical.starts_with(|c: char| c.is_ascii_digit()) {
+        UTM_K0
+    } else {
+        UPS_K0
     }
 }
 
@@ -390,9 +409,90 @@ mod tests {
         for &(lat, lon, s) in REFS {
             let m = Mgrs::try_from(s).expect("valid MGRS");
             let approx = m.to_coordinate();
-            assert_eq!(approx.max_error_m(), core::f64::consts::FRAC_1_SQRT_2);
+            let k_min = if s.starts_with(|c: char| c.is_ascii_digit()) {
+                0.9996
+            } else {
+                0.994
+            };
+            assert_close(
+                approx.max_error_m(),
+                core::f64::consts::FRAC_1_SQRT_2 / k_min,
+                1e-12,
+            );
             assert_within_meters(approx.value(), &c(lat, lon), 1.0);
         }
+    }
+
+    /// The largest geodesic (ground) distance from the decoded center to any
+    /// corner of the cell, given the cell's grid corners.
+    fn worst_corner_distance(center: &Coordinate, corners: [Coordinate; 4]) -> f64 {
+        corners
+            .iter()
+            .map(|corner| {
+                crate::geodesy::geodesic_distance(center, corner)
+                    .unwrap()
+                    .meters()
+            })
+            .fold(0.0, f64::max)
+    }
+
+    #[test]
+    fn bound_covers_ground_distance_where_scale_is_minimal() {
+        // Where k is at its minimum (the UTM central meridian, the UPS pole),
+        // a grid half-diagonal is longest on the ground: grid / k. The bound
+        // must cover it, and the old grid-meter bound falls short of it.
+        let half_diag = 1000.0 * core::f64::consts::FRAC_1_SQRT_2;
+
+        // UTM: zone 31's central meridian (easting 500 km) at the equator.
+        let utm = Mgrs::try_from("31NEA0000").expect("valid");
+        assert_eq!(utm.precision_m(), 1000);
+        let approx = utm.to_coordinate();
+        let corner = |e: f64, n: f64| {
+            Utm {
+                zone: 31,
+                hemisphere: Hemisphere::North,
+                easting: e,
+                northing: n,
+            }
+            .try_to_coordinate()
+            .unwrap()
+        };
+        let worst = worst_corner_distance(
+            approx.value(),
+            [
+                corner(500_000.0, 0.0),
+                corner(501_000.0, 0.0),
+                corner(500_000.0, 1_000.0),
+                corner(501_000.0, 1_000.0),
+            ],
+        );
+        assert!(worst > half_diag, "UTM worst {worst} m");
+        assert!(worst <= approx.max_error_m(), "UTM worst {worst} m");
+
+        // UPS: the cell whose south-west corner is the North Pole.
+        let ups = Mgrs::try_from("ZAH0000").expect("valid");
+        assert_eq!(ups.precision_m(), 1000);
+        let approx = ups.to_coordinate();
+        let corner = |e: f64, n: f64| {
+            Ups {
+                hemisphere: Hemisphere::North,
+                easting: e,
+                northing: n,
+            }
+            .try_to_coordinate()
+            .unwrap()
+        };
+        let worst = worst_corner_distance(
+            approx.value(),
+            [
+                corner(2_000_000.0, 2_000_000.0),
+                corner(2_001_000.0, 2_000_000.0),
+                corner(2_000_000.0, 2_001_000.0),
+                corner(2_001_000.0, 2_001_000.0),
+            ],
+        );
+        assert!(worst > half_diag, "UPS worst {worst} m");
+        assert!(worst <= approx.max_error_m(), "UPS worst {worst} m");
     }
 
     #[test]
@@ -410,8 +510,8 @@ mod tests {
         assert_eq!(m.precision_m(), 1000);
         assert_close(
             m.to_coordinate().max_error_m(),
-            1000.0 * core::f64::consts::FRAC_1_SQRT_2,
-            1e-12,
+            1000.0 * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
+            1e-9,
         );
     }
 
@@ -430,8 +530,8 @@ mod tests {
         let approx = m.to_coordinate();
         assert_close(
             approx.max_error_m(),
-            100.0 * core::f64::consts::FRAC_1_SQRT_2,
-            1e-12,
+            100.0 * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
+            1e-10,
         );
         assert_within_meters(approx.value(), &c(48.8584, 2.2945), 100.0);
         // Polar coarse decode (UPS zone A) likewise.

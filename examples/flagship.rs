@@ -691,7 +691,11 @@ fn classic_datums_and_projected_grids() -> DemoResult {
     assert_eq!(parsed, mgrs);
     assert_eq!(Mgrs::try_from("18TWK0000027757")?, mgrs);
     let decoded = mgrs.to_coordinate();
-    assert_eq!(decoded.max_error_m(), core::f64::consts::FRAC_1_SQRT_2);
+    // Half the 1 m square's diagonal, in ground meters (grid / UTM k0).
+    assert_eq!(
+        decoded.max_error_m(),
+        core::f64::consts::FRAC_1_SQRT_2 / 0.9996
+    );
     assert_within_meters(decoded.value(), &philadelphia, 1.0);
 
     Ok("classic datums and projected grids")
