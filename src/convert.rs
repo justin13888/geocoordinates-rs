@@ -4,7 +4,7 @@
 //! [`Approx`] because some target systems (GCJ-02/BD-09 inverses) are only
 //! reachable approximately. When the source and target are known at compile
 //! time, prefer the typed newtype conversions (e.g. [`crate::Wgs84`] →
-//! [`crate::Gcj02`] via [`From`]), which return exact bare types where the math
+//! [`crate::Gcj02`] via [`TryFrom`]), which return exact bare types where the math
 //! is exact.
 //!
 //! Conversions are per-coordinate; batch / vectorized conversion is left to the
