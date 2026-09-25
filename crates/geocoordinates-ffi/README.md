@@ -15,7 +15,7 @@ explicit `max_error_m`.
 
 ## Surface
 
-Mirrors the core crate's public surface, subsystem by subsystem. See the root
+Tracks the core crate's public surface, subsystem by subsystem. See the root
 [`README`'s API surface table](../../README.md#api-surface) for what's covered
 and the current Rust/FFI parity status — a ⚠️ links to the open finding in
 [`STABILIZATION.md`](../../STABILIZATION.md).

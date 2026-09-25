@@ -5,7 +5,8 @@
 # runs wasm-bindgen, and emits the TypeScript bindings into `web.ts` below.
 #
 # The wrapper carries `wasm-bindgen` and the `wasm-unstable-single-threaded`
-# uniffi runtime; the `geocoordinates-ffi` crate itself stays a plain cdylib.
+# uniffi runtime; the `geocoordinates-ffi` crate itself is unchanged — the
+# wrapper consumes it as an ordinary Rust dependency (its rlib).
 rust:
   # Cargo workspace root, relative to this file (crates/geocoordinates-ffi/web/).
   directory: ../../..
