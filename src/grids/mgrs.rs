@@ -267,16 +267,20 @@ fn decode_utm(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
     };
 
     // The row letter fixes the northing only mod 2 000 km; the latitude band
-    // selects which 20-row block it sits in.
+    // selects which 20-row block it sits in. A candidate block outside the UTM
+    // domain is just another miss: surfacing its `InvalidValue` would mask the
+    // band/row mismatch, which is an invalid grid reference.
     for block in 0..11u32 {
         let northing = (row_val as f64 + 20.0 * f64::from(block)) * 100_000.0 + n_base;
-        let coord = Utm {
+        let Ok(coord) = Utm {
             zone,
             hemisphere,
             easting,
             northing,
         }
-        .try_to_coordinate()?;
+        .try_to_coordinate() else {
+            continue;
+        };
         if lo - 0.5 <= coord.lat && coord.lat <= hi + 0.5 {
             return Ok((coord, 10u32.pow(5 - k)));
         }
@@ -485,6 +489,20 @@ mod tests {
             assert!(
                 matches!(Mgrs::try_from(s), Err(Error::InvalidGridRef(_))),
                 "{s:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn band_row_mismatch_is_invalid_grid_ref() {
+        // Row A in zone 31 never falls in band P: blocks 0-4 miss the band and
+        // block 5 onward exceeds the UTM northing domain. That out-of-domain
+        // candidate used to surface as `InvalidValue { field: "UTM" }`.
+        for s in ["31PAA0000000000", "31PAA"] {
+            assert!(
+                matches!(Mgrs::try_from(s), Err(Error::InvalidGridRef(_))),
+                "{s:?}: {:?}",
+                Mgrs::try_from(s)
             );
         }
     }
