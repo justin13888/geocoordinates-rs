@@ -47,8 +47,9 @@ impl H3Cell {
         Ok(H3Cell(u64::from(cell)))
     }
 
-    /// Decode to the cell's center coordinate; the error bound is the hexagon
-    /// circumradius derived from the cell's exact area.
+    /// Decode to the cell's center coordinate; the error bound is the greatest
+    /// ellipsoidal (WGS-84 geodesic) distance from the center to the cell's
+    /// boundary vertices.
     pub fn decode(self) -> Result<Approx<Coordinate>> {
         use h3o::{CellIndex, LatLng};
 
@@ -62,7 +63,7 @@ impl H3Cell {
             .boundary()
             .iter()
             .map(|vertex| {
-                crate::geodesy::haversine_distance(
+                crate::geodesy::geodesic_distance(
                     &center,
                     &Coordinate::wgs84(vertex.lat(), vertex.lng()),
                 )
@@ -100,7 +101,8 @@ impl S2CellId {
     }
 
     /// Decode to the cell's center coordinate; the error bound is the greatest
-    /// spherical distance from the center to the cell's four actual vertices.
+    /// ellipsoidal (WGS-84 geodesic) distance from the center to the cell's
+    /// four actual vertices.
     pub fn decode(self) -> Result<Approx<Coordinate>> {
         use s2::cell::Cell;
         use s2::cellid::CellID;
@@ -120,7 +122,7 @@ impl S2CellId {
             .iter()
             .map(|vertex| {
                 let vertex = LatLng::from(*vertex);
-                crate::geodesy::haversine_distance(
+                crate::geodesy::geodesic_distance(
                     &center,
                     &Coordinate::wgs84(vertex.lat.deg(), vertex.lng.deg()),
                 )
