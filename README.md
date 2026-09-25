@@ -161,13 +161,13 @@ installs the hooks; `hk install` re-runs that step on its own.
 
 Pre-commit auto-fixes formatting and linting on staged Rust files. The commit-msg hook
 validates each message against [Conventional Commits](https://www.conventionalcommits.org)
-(via `convco`). Pre-push lints the pushed commits and runs format checks, Clippy, tests, a
-coverage report, and mutation tests on the changed lines.
+(via `convco`). Pre-push lints the pushed commits and runs format checks, Clippy (core and
+FFI crates), tests, a coverage report, and mutation tests on the changed lines.
 
 Run them on demand without committing:
 
 ```bash
-hk check --all           # fmt-check + lint + test
+hk check --all           # fmt-check + lint + ffi-check + test
 hk fix --all             # apply the pre-commit fixes
 hk run pre-push          # the full pre-push gate set
 ```
