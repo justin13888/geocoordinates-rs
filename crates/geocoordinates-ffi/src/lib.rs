@@ -27,11 +27,13 @@
 //!
 //! Mirror records are **unvalidated until used**: they are plain data, so
 //! foreign code can build one with any field values (an out-of-range latitude,
-//! a negative semi-major axis, a confidence of `7.0`). Nothing checks or
-//! normalizes a record when it is constructed or crosses into Rust; each
-//! exported function applies the core crate's own rules to the values it
-//! consumes, exactly as the matching Rust function does. Call an explicit
-//! validator (such as [`coordinate_validate`]) to reject bad input up front.
+//! a negative semi-major axis, a confidence of `7.0`). Nothing checks a record
+//! when it is constructed or crosses into Rust, and nothing normalizes one
+//! there except [`Confidence`], whose value is clamped into `[0.0, 1.0]` when
+//! it crosses in (as `gc::Confidence::new` does). Beyond that, each exported
+//! function applies the core crate's own rules to the values it consumes,
+//! exactly as the matching Rust function does. Call an explicit validator
+//! (such as [`coordinate_validate`]) to reject bad input up front.
 
 use geocoordinates as gc;
 
