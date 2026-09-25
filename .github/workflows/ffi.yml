@@ -52,8 +52,12 @@ jobs:
       - name: Check committed Swift bindings are up to date
         run: |
           committed=swift/Sources/GeoCoordinates/geocoordinates_ffi.swift
+          # Printed literally (single quotes) for the developer's shell, which
+          # picks the cdylib extension the way the bindings-generate mise task
+          # does: .dylib on macOS, .so elsewhere.
+          lib='target/release/libgeocoordinates_ffi.$(if [ "$(uname -s)" = Darwin ]; then echo dylib; else echo so; fi)'
           if ! diff -u "$committed" bindings/swift/geocoordinates_ffi.swift; then
-            echo "::error file=$committed::Committed Swift bindings are stale. Regenerate with: mise run bindings-build && cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format --library target/release/libgeocoordinates_ffi.so --language swift --out-dir bindings/swift && cp bindings/swift/geocoordinates_ffi.swift $committed"
+            echo "::error file=$committed::Committed Swift bindings are stale. Regenerate with: mise run bindings-build && cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- generate --no-format --library \"$lib\" --language swift --out-dir bindings/swift && cp bindings/swift/geocoordinates_ffi.swift $committed"
             exit 1
           fi
 
