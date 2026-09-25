@@ -2,10 +2,23 @@
 //! (Bursa-Wolf) model.
 //!
 //! Unlike the GCJ-02/BD-09 obfuscation transforms — whose inverses are
-//! iterative and lossy — a Helmert transform is **exact** within its published
-//! parameters: a rigid rotation, translation, and scale of the geocentric
-//! (ECEF) frame. So these conversions return bare types, not
-//! [`Approx`](crate::Approx).
+//! iterative and lossy — a Helmert transform is a closed-form rigid rotation,
+//! translation, and scale of the geocentric (ECEF) frame, so these conversions
+//! return bare types, not [`Approx`](crate::Approx). Two separate accuracies
+//! apply, and neither is zero:
+//!
+//! - **Computation.** Applying a transform is accurate to well under a
+//!   millimeter at terrestrial heights; the residual comes from the ECEF →
+//!   geodetic step (see [`Ecef::try_to_coordinate`]). Reversing one with
+//!   [`Helmert::inverse`] / [`DatumTransform::inverse`] is exact for the
+//!   translation-only catalog, but first-order — about a centimeter off — for a
+//!   full seven-parameter set.
+//! - **Parameters.** The built-in catalog ([`DatumTransform::to_wgs84`]) uses
+//!   regional *mean*, translation-only shifts, which match a local realization
+//!   of the datum only to several meters, and worse far from the region the
+//!   mean was fitted to. Only the computational error above is ever reported
+//!   as a bound (e.g. by [`convert`](crate::convert::convert)); the parameter
+//!   accuracy is not.
 //!
 //! This module owns only the lightweight parametric path (a small catalog of
 //! common datums: NAD27, Tokyo, Pulkovo-1942). Helmert (run through ECEF) is the
@@ -86,8 +99,16 @@ impl Helmert {
         }
     }
 
-    /// The inverse transform (negated parameters; exact to first order in the
-    /// small rotation angles, which is the standard Bursa-Wolf approximation).
+    /// The inverse transform, by negating every parameter.
+    ///
+    /// **Approximate** unless the transform is translation-only (as every
+    /// built-in catalog entry is), where negation is the exact inverse. With
+    /// rotations or scale it is the standard first-order Bursa-Wolf inverse,
+    /// and a there-and-back round trip leaves a residual of roughly
+    /// `(θ + s)·|t| + (θ² + s²)·r`, where `θ` is the rotation in radians, `s`
+    /// the scale difference, `|t|` the translation length, and `r` ≈ 6.4e6 m.
+    /// For a full published set such as WGS-84 → OSGB36 (≈ 20 ppm, ≈ 720 m)
+    /// that is about a centimeter.
     #[must_use]
     pub fn inverse(&self) -> Helmert {
         Helmert {
@@ -178,7 +199,10 @@ impl DatumTransform {
     /// Transform a geodetic coordinate from the source to the target datum,
     /// tagging the result with `self.to_crs`.
     ///
-    /// Exact within the published parameters. `DatumTransform` holds only the
+    /// This computes the modeled transform to well under a millimeter at
+    /// terrestrial heights. It is **not** exact, and it is only as accurate as
+    /// the Helmert parameters: the built-in mean shifts are good to several
+    /// meters (see the [module docs](self)). `DatumTransform` holds only the
     /// two ellipsoids — which do not uniquely determine a [`Crs`] (e.g. GRS80
     /// backs both NAD83 and ETRS89) — so the target reference system is stored
     /// explicitly on `self.to_crs` rather than inferred from the ellipsoid.
@@ -200,6 +224,9 @@ impl DatumTransform {
     }
 
     /// The reverse transform (swaps ellipsoids and inverts the Helmert shift).
+    ///
+    /// Exact for translation-only shifts (the whole built-in catalog);
+    /// otherwise it inherits the first-order error of [`Helmert::inverse`].
     #[must_use]
     pub fn inverse(&self) -> DatumTransform {
         DatumTransform {
@@ -286,6 +313,29 @@ mod tests {
         assert_close(back.x, e.x, 1e-2);
         assert_close(back.y, e.y, 1e-2);
         assert_close(back.z, e.z, 1e-2);
+    }
+
+    #[test]
+    fn first_order_inverse_is_approximate_for_a_real_seven_parameter_set() {
+        // WGS-84 → OSGB36 (EPSG:1314, position-vector convention): a published
+        // full seven-parameter set, with the large scale and translation that
+        // make the dropped cross terms visible. `Helmert::inverse` documents a
+        // residual of about a centimeter for this set: nonzero, and under 2 cm.
+        let osgb = Helmert {
+            tx_m: -446.448,
+            ty_m: 125.157,
+            tz_m: -542.06,
+            rx_arcsec: -0.1502,
+            ry_arcsec: -0.247,
+            rz_arcsec: -0.8421,
+            scale_ppm: 20.4894,
+        };
+        let e = ecef(3_980_000.0, -10_000.0, 4_970_000.0); // near 51.5°N, 0°
+        let back = osgb.inverse().apply_ecef(osgb.apply_ecef(e));
+        let residual =
+            ((back.x - e.x).powi(2) + (back.y - e.y).powi(2) + (back.z - e.z).powi(2)).sqrt();
+        assert!(residual > 5e-3, "residual {residual} m should be visible");
+        assert!(residual < 0.02, "residual {residual} m is over 2 cm");
     }
 
     #[test]

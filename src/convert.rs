@@ -4,8 +4,8 @@
 //! [`Approx`] because some target systems (GCJ-02/BD-09 inverses) are only
 //! reachable approximately. When the source and target are known at compile
 //! time, prefer the typed newtype conversions (e.g. [`crate::Wgs84`] →
-//! [`crate::Gcj02`] via [`TryFrom`]), which return exact bare types where the math
-//! is exact.
+//! [`crate::Gcj02`] via [`TryFrom`]), which return bare types where no inversion
+//! is involved.
 //!
 //! Conversions are per-coordinate; batch / vectorized conversion is left to the
 //! caller (iterate, or parallelize with e.g. `rayon`) rather than offered as a
@@ -26,8 +26,18 @@ use crate::geodesy::datum::DatumTransform;
 /// tail is delegated to the deferred `proj` feature (see STABILIZATION.md).
 ///
 /// The result is wrapped in [`Approx`] because the worst-case path (e.g.
-/// BD-09 → WGS-84) is approximate; for exact paths — including Helmert datum
-/// shifts — the reported [`Approx::max_error_m`] is `0.0`.
+/// BD-09 → WGS-84) is approximate. [`Approx::max_error_m`] bounds only the
+/// error of the iterative GCJ-02 / BD-09 inverses. Every other leg reports
+/// `0.0`: the forward China offsets, and the Helmert datum shifts in either
+/// direction (the catalog is translation-only, so reversing a shift is exact).
+/// For the Helmert legs that `0.0` is not a claim of exactness:
+///
+/// - their ECEF → geodetic step adds well under a millimeter at terrestrial
+///   heights, which the bound leaves out;
+/// - the catalogued shifts are regional mean, translation-only parameters,
+///   good to only several meters against a local realization of the datum.
+///   That parameter accuracy is outside the bound entirely (see
+///   [`geodesy::datum`](crate::geodesy::datum)).
 ///
 /// # Errors
 /// Returns [`crate::Error::UnsupportedConversion`] if no route is known between
