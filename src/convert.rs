@@ -207,8 +207,9 @@ mod tests {
     }
 
     #[test]
-    fn nad27_to_wgs84_is_exact() {
-        // Same independent reference as the datum milestone.
+    fn nad27_to_wgs84_reports_no_inversion_bound() {
+        // Same independent reference as the datum milestone. The `0.0` bound
+        // means "no iterative inversion", not that the Helmert leg is exact.
         let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).with_height(Height::Ellipsoidal(0.0));
         let r = convert(nad27, Crs::Wgs84).unwrap();
         assert_eq!(r.max_error_m(), 0.0);
@@ -218,8 +219,10 @@ mod tests {
     }
 
     #[test]
-    fn classic_datum_round_trips_exactly() {
-        // NAD27 ↔ WGS-84 is exact both ways, so a round trip recovers the input.
+    fn classic_datum_round_trips() {
+        // The NAD27 catalog shift is translation-only, so the reverse leg's
+        // negated parameters undo the forward leg and a round trip recovers the
+        // input to round-off (the parameters' own accuracy does not enter).
         let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).with_height(Height::Ellipsoidal(0.0));
         let w = convert(nad27, Crs::Wgs84).unwrap().into_inner();
         let back = convert(w, Crs::Nad27).unwrap();
@@ -230,9 +233,10 @@ mod tests {
     }
 
     #[test]
-    fn cross_datum_to_china_is_exact() {
-        // NAD27 → WGS-84 (Helmert, exact) → GCJ-02 (typed forward, exact): both
-        // legs exact, so the composed bound is zero.
+    fn cross_datum_to_china_reports_no_inversion_bound() {
+        // NAD27 → WGS-84 (Helmert, no iterative inversion) → GCJ-02 (typed
+        // forward, exact): neither leg inverts an offset iteratively, so the
+        // composed bound is zero.
         let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27);
         let r = convert(nad27, Crs::Gcj02).unwrap();
         assert_eq!(r.max_error_m(), 0.0);
@@ -247,8 +251,9 @@ mod tests {
 
     #[test]
     fn cross_china_to_datum_accumulates_the_bound() {
-        // BD-09 → WGS-84 (approx) → Tokyo (Helmert, exact): the composed bound is
-        // exactly the BD-09 inverse bound (the exact leg adds nothing).
+        // BD-09 → WGS-84 (approx) → Tokyo (Helmert, no iterative inversion): the
+        // composed bound is exactly the BD-09 inverse bound (the Helmert leg
+        // adds nothing to it).
         let r = convert(Coordinate::bd09(BD.0, BD.1), Crs::Tokyo).unwrap();
         let w = Bd09::new(BD.0, BD.1).try_to_wgs84_refined().unwrap();
         let dt = DatumTransform::to_wgs84(Crs::Tokyo).unwrap();
