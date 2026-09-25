@@ -147,19 +147,6 @@ pub struct ApproxGcj02 {
     pub max_error_m: f64,
 }
 
-/// The decoded cell of a grid code (Plus Code, geohash, Maidenhead) — the
-/// WGS-84 cell **center** plus the cell half-diagonal error bound. The
-/// flattened form of `Approx<Coordinate>` for the (always WGS-84) grid systems.
-#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
-pub struct GridCell {
-    /// Latitude of the cell center, in decimal degrees.
-    pub lat: f64,
-    /// Longitude of the cell center, in decimal degrees.
-    pub lon: f64,
-    /// Estimated maximum positional error (cell half-diagonal), in meters.
-    pub max_error_m: f64,
-}
-
 /// Errors surfaced across the FFI boundary — a flattened mirror of [`gc::Error`].
 ///
 /// Datum-bearing variants carry their reference systems as their canonical
@@ -1278,17 +1265,6 @@ pub fn parse_text_with(input: String, options: TextParseOptions) -> Result<Fix, 
 
 // --- Grid systems (Plus Code, geohash, Maidenhead) ---
 
-/// Flatten a decoded `Approx<Coordinate>` cell into a [`GridCell`] record.
-fn grid_cell(area: gc::Approx<gc::Coordinate>) -> GridCell {
-    let max_error_m = area.max_error_m();
-    let center = area.into_inner();
-    GridCell {
-        lat: center.lat,
-        lon: center.lon,
-        max_error_m,
-    }
-}
-
 /// Encode a coordinate to an Open Location Code at a valid length.
 #[uniffi::export]
 pub fn plus_code_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
@@ -1297,14 +1273,15 @@ pub fn plus_code_encode(coord: Coordinate, length: u8) -> Result<String, GeoErro
         .map_err(Into::into)
 }
 
-/// Decode an Open Location Code to its cell center and error bound.
+/// Decode an Open Location Code to its WGS-84 cell center, with the cell
+/// half-diagonal error bound.
 ///
 /// # Errors
 /// Returns a [`GeoError`] for a malformed or short code.
 #[uniffi::export]
-pub fn plus_code_decode(code: String) -> Result<GridCell, GeoError> {
+pub fn plus_code_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
     let pc = gc::grids::PlusCode::try_from(code.as_str()).map_err(GeoError::from)?;
-    Ok(grid_cell(pc.decode()))
+    Ok(approx_coordinate(pc.decode()))
 }
 
 /// Encode a coordinate to a geohash of the given character length.
@@ -1315,14 +1292,15 @@ pub fn geohash_encode(coord: Coordinate, length: u8) -> Result<String, GeoError>
         .map_err(Into::into)
 }
 
-/// Decode a geohash to its cell center and error bound.
+/// Decode a geohash to its WGS-84 cell center, with the cell half-diagonal
+/// error bound.
 ///
 /// # Errors
 /// Returns a [`GeoError`] for non-base-32 input.
 #[uniffi::export]
-pub fn geohash_decode(code: String) -> Result<GridCell, GeoError> {
+pub fn geohash_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
     let gh = gc::grids::Geohash::try_from(code.as_str()).map_err(GeoError::from)?;
-    Ok(grid_cell(gh.decode()))
+    Ok(approx_coordinate(gh.decode()))
 }
 
 /// Encode a coordinate to a Maidenhead locator of the given number of pairs
@@ -1334,14 +1312,15 @@ pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoErro
         .map_err(Into::into)
 }
 
-/// Decode a Maidenhead locator to its grid-square center and error bound.
+/// Decode a Maidenhead locator to its WGS-84 grid-square center, with the
+/// square half-diagonal error bound.
 ///
 /// # Errors
 /// Returns a [`GeoError`] for a malformed locator.
 #[uniffi::export]
-pub fn maidenhead_decode(code: String) -> Result<GridCell, GeoError> {
+pub fn maidenhead_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
     let mh = gc::grids::Maidenhead::try_from(code.as_str()).map_err(GeoError::from)?;
-    Ok(grid_cell(mh.decode()))
+    Ok(approx_coordinate(mh.decode()))
 }
 
 // ===========================================================================
@@ -1935,20 +1914,38 @@ pub fn datum_transform_inverse(transform: DatumTransform) -> DatumTransform {
 // Runtime conversion dispatch
 // ===========================================================================
 
-/// A converted coordinate with its error bound — the flattened FFI form of
-/// `Approx<Coordinate>`.
+/// A coordinate with its error bound — the single FFI form of
+/// `Approx<Coordinate>`, returned by [`convert`] and by every grid / cell
+/// decoder (Plus Code, geohash, Maidenhead, MGRS, H3, S2).
 ///
-/// `max_error_m` bounds only the error of the iterative GCJ-02 / BD-09
-/// inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
-/// legs that `0.0` is not a claim of exactness: the catalogued mean shifts are
-/// good to only several meters, which the bound leaves out.
+/// What `max_error_m` bounds depends on the producer:
+///
+/// - **Grid / cell decoders** return the WGS-84 cell center; the bound is the
+///   distance from that center to the farthest point of the cell, as each
+///   decoder documents it: the half-diagonal (Plus Code, geohash,
+///   Maidenhead), the half-square (MGRS), the cell radius (H3), or the
+///   maximum corner distance (S2).
+/// - **[`convert`]** bounds only the error of the iterative GCJ-02 / BD-09
+///   inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
+///   legs that `0.0` is not a claim of exactness: the catalogued mean shifts
+///   are good to only several meters, which the bound leaves out.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct ApproxCoordinate {
-    /// The converted coordinate (carries its target [`Crs`]).
+    /// The coordinate (carries its [`Crs`]: the conversion target, or WGS-84
+    /// for a decoded cell center).
     pub coord: Coordinate,
-    /// Estimated upper bound on the GCJ-02 / BD-09 inversion error, in meters
-    /// (`0.0` when the route inverts neither).
+    /// Estimated upper bound on the positional error, in meters (see the
+    /// record docs for what each producer bounds).
     pub max_error_m: f64,
+}
+
+/// Flatten an `Approx<Coordinate>` into its [`ApproxCoordinate`] record.
+fn approx_coordinate(approx: gc::Approx<gc::Coordinate>) -> ApproxCoordinate {
+    let max_error_m = approx.max_error_m();
+    ApproxCoordinate {
+        coord: approx.into_inner().into(),
+        max_error_m,
+    }
 }
 
 /// Convert `coord` from its own reference system to `to`, routing through the
@@ -1959,13 +1956,7 @@ pub struct ApproxCoordinate {
 #[uniffi::export]
 pub fn convert(coord: Coordinate, to: Crs) -> Result<ApproxCoordinate, GeoError> {
     gc::convert::convert(coord.into(), to.into())
-        .map(|a| {
-            let max_error_m = a.max_error_m();
-            ApproxCoordinate {
-                coord: a.into_inner().into(),
-                max_error_m,
-            }
-        })
+        .map(approx_coordinate)
         .map_err(GeoError::from)
 }
 
@@ -2123,12 +2114,7 @@ pub fn mgrs_from_coordinate(coord: Coordinate, precision_m: u32) -> Result<Strin
 #[uniffi::export]
 pub fn mgrs_to_coordinate(mgrs: String) -> Result<ApproxCoordinate, GeoError> {
     let parsed = gc::grids::Mgrs::try_from(mgrs.as_str()).map_err(GeoError::from)?;
-    let approx = parsed.to_coordinate();
-    let max_error_m = approx.max_error_m();
-    Ok(ApproxCoordinate {
-        coord: approx.into_inner().into(),
-        max_error_m,
-    })
+    Ok(approx_coordinate(parsed.to_coordinate()))
 }
 
 /// The precision in meters implied by an MGRS string's digit count.
@@ -2229,14 +2215,10 @@ pub fn h3_encode(coord: Coordinate, resolution: u8) -> Result<H3Cell, GeoError> 
 /// Decode an H3 cell to its center, with the cell-radius error bound.
 #[uniffi::export]
 pub fn h3_decode(cell: H3Cell) -> Result<ApproxCoordinate, GeoError> {
-    let approx = gc::dgg::H3Cell(cell.value)
+    gc::dgg::H3Cell(cell.value)
         .decode()
-        .map_err(GeoError::from)?;
-    let max_error_m = approx.max_error_m();
-    Ok(ApproxCoordinate {
-        coord: approx.into_inner().into(),
-        max_error_m,
-    })
+        .map(approx_coordinate)
+        .map_err(GeoError::from)
 }
 
 /// An S2 cell id — mirror of [`gc::S2CellId`](gc::dgg::S2CellId).
@@ -2257,12 +2239,8 @@ pub fn s2_encode(coord: Coordinate, level: u8) -> Result<S2CellId, GeoError> {
 /// Decode an S2 cell to its center, with the maximum corner-distance bound.
 #[uniffi::export]
 pub fn s2_decode(cell: S2CellId) -> Result<ApproxCoordinate, GeoError> {
-    let approx = gc::dgg::S2CellId(cell.value)
+    gc::dgg::S2CellId(cell.value)
         .decode()
-        .map_err(GeoError::from)?;
-    let max_error_m = approx.max_error_m();
-    Ok(ApproxCoordinate {
-        coord: approx.into_inner().into(),
-        max_error_m,
-    })
+        .map(approx_coordinate)
+        .map_err(GeoError::from)
 }

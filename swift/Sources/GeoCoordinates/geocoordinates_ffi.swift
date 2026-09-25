@@ -352,7 +352,7 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-// Initial value and increment amount for handles.
+// Initial value and increment amount for handles. 
 // These ensure that SWIFT handles always have the lowest bit set
 fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
 fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
@@ -618,7 +618,7 @@ public struct Accuracy: Equatable, Hashable {
     public init(
         /**
          * Horizontal accuracy radius in meters, if reported.
-         */horizontalM: Double?,
+         */horizontalM: Double?, 
         /**
          * Vertical accuracy in meters, if reported.
          */verticalM: Double?) {
@@ -626,9 +626,9 @@ public struct Accuracy: Equatable, Hashable {
         self.verticalM = verticalM
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -642,7 +642,7 @@ public struct FfiConverterTypeAccuracy: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Accuracy {
         return
             try Accuracy(
-                horizontalM: FfiConverterOptionDouble.read(from: &buf),
+                horizontalM: FfiConverterOptionDouble.read(from: &buf), 
                 verticalM: FfiConverterOptionDouble.read(from: &buf)
         )
     }
@@ -692,10 +692,10 @@ public struct Aer: Equatable, Hashable {
     public init(
         /**
          * Azimuth (degrees clockwise from north).
-         */azimuthDeg: Double,
+         */azimuthDeg: Double, 
         /**
          * Elevation (degrees above the local horizontal).
-         */elevationDeg: Double,
+         */elevationDeg: Double, 
         /**
          * Slant range, in meters.
          */rangeM: Double) {
@@ -704,9 +704,9 @@ public struct Aer: Equatable, Hashable {
         self.rangeM = rangeM
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -720,8 +720,8 @@ public struct FfiConverterTypeAer: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Aer {
         return
             try Aer(
-                azimuthDeg: FfiConverterDouble.read(from: &buf),
-                elevationDeg: FfiConverterDouble.read(from: &buf),
+                azimuthDeg: FfiConverterDouble.read(from: &buf), 
+                elevationDeg: FfiConverterDouble.read(from: &buf), 
                 rangeM: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -750,16 +750,31 @@ public func FfiConverterTypeAer_lower(_ value: Aer) -> RustBuffer {
 
 
 /**
- * A converted coordinate with its error bound — the flattened FFI form of
- * `Approx<Coordinate>`. `max_error_m` is `0.0` for exact routes.
+ * A coordinate with its error bound — the single FFI form of
+ * `Approx<Coordinate>`, returned by [`convert`] and by every grid / cell
+ * decoder (Plus Code, geohash, Maidenhead, MGRS, H3, S2).
+ *
+ * What `max_error_m` bounds depends on the producer:
+ *
+ * - **Grid / cell decoders** return the WGS-84 cell center; the bound is the
+ * distance from that center to the farthest point of the cell, as each
+ * decoder documents it: the half-diagonal (Plus Code, geohash,
+ * Maidenhead), the half-square (MGRS), the cell radius (H3), or the
+ * maximum corner distance (S2).
+ * - **[`convert`]** bounds only the error of the iterative GCJ-02 / BD-09
+ * inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
+ * legs that `0.0` is not a claim of exactness: the catalogued mean shifts
+ * are good to only several meters, which the bound leaves out.
  */
 public struct ApproxCoordinate: Equatable, Hashable {
     /**
-     * The converted coordinate (carries its target [`Crs`]).
+     * The coordinate (carries its [`Crs`]: the conversion target, or WGS-84
+     * for a decoded cell center).
      */
     public var coord: Coordinate
     /**
-     * Estimated upper bound on positional error, in meters (`0.0` if exact).
+     * Estimated upper bound on the positional error, in meters (see the
+     * record docs for what each producer bounds).
      */
     public var maxErrorM: Double
 
@@ -767,18 +782,20 @@ public struct ApproxCoordinate: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * The converted coordinate (carries its target [`Crs`]).
-         */coord: Coordinate,
+         * The coordinate (carries its [`Crs`]: the conversion target, or WGS-84
+         * for a decoded cell center).
+         */coord: Coordinate, 
         /**
-         * Estimated upper bound on positional error, in meters (`0.0` if exact).
+         * Estimated upper bound on the positional error, in meters (see the
+         * record docs for what each producer bounds).
          */maxErrorM: Double) {
         self.coord = coord
         self.maxErrorM = maxErrorM
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -792,7 +809,7 @@ public struct FfiConverterTypeApproxCoordinate: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ApproxCoordinate {
         return
             try ApproxCoordinate(
-                coord: FfiConverterTypeCoordinate.read(from: &buf),
+                coord: FfiConverterTypeCoordinate.read(from: &buf), 
                 maxErrorM: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -843,10 +860,10 @@ public struct ApproxGcj02: Equatable, Hashable {
     public init(
         /**
          * Latitude in decimal degrees.
-         */lat: Double,
+         */lat: Double, 
         /**
          * Longitude in decimal degrees.
-         */lon: Double,
+         */lon: Double, 
         /**
          * Estimated maximum positional error, in meters.
          */maxErrorM: Double) {
@@ -855,9 +872,9 @@ public struct ApproxGcj02: Equatable, Hashable {
         self.maxErrorM = maxErrorM
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -871,8 +888,8 @@ public struct FfiConverterTypeApproxGcj02: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ApproxGcj02 {
         return
             try ApproxGcj02(
-                lat: FfiConverterDouble.read(from: &buf),
-                lon: FfiConverterDouble.read(from: &buf),
+                lat: FfiConverterDouble.read(from: &buf), 
+                lon: FfiConverterDouble.read(from: &buf), 
                 maxErrorM: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -924,10 +941,10 @@ public struct ApproxWgs84: Equatable, Hashable {
     public init(
         /**
          * Latitude in decimal degrees.
-         */lat: Double,
+         */lat: Double, 
         /**
          * Longitude in decimal degrees.
-         */lon: Double,
+         */lon: Double, 
         /**
          * Estimated maximum positional error, in meters.
          */maxErrorM: Double) {
@@ -936,9 +953,9 @@ public struct ApproxWgs84: Equatable, Hashable {
         self.maxErrorM = maxErrorM
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -952,8 +969,8 @@ public struct FfiConverterTypeApproxWgs84: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ApproxWgs84 {
         return
             try ApproxWgs84(
-                lat: FfiConverterDouble.read(from: &buf),
-                lon: FfiConverterDouble.read(from: &buf),
+                lat: FfiConverterDouble.read(from: &buf), 
+                lon: FfiConverterDouble.read(from: &buf), 
                 maxErrorM: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -999,7 +1016,7 @@ public struct BaiduMercator: Equatable, Hashable {
     public init(
         /**
          * Easting (longitude axis), in meters.
-         */x: Double,
+         */x: Double, 
         /**
          * Northing (latitude axis), in meters.
          */y: Double) {
@@ -1007,9 +1024,9 @@ public struct BaiduMercator: Equatable, Hashable {
         self.y = y
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1023,7 +1040,7 @@ public struct FfiConverterTypeBaiduMercator: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BaiduMercator {
         return
             try BaiduMercator(
-                x: FfiConverterDouble.read(from: &buf),
+                x: FfiConverterDouble.read(from: &buf), 
                 y: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -1068,7 +1085,7 @@ public struct Bd09: Equatable, Hashable {
     public init(
         /**
          * Latitude in decimal degrees.
-         */lat: Double,
+         */lat: Double, 
         /**
          * Longitude in decimal degrees.
          */lon: Double) {
@@ -1076,9 +1093,9 @@ public struct Bd09: Equatable, Hashable {
         self.lon = lon
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1092,7 +1109,7 @@ public struct FfiConverterTypeBd09: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bd09 {
         return
             try Bd09(
-                lat: FfiConverterDouble.read(from: &buf),
+                lat: FfiConverterDouble.read(from: &buf), 
                 lon: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -1137,9 +1154,9 @@ public struct Confidence: Equatable, Hashable {
         self.value = value
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1204,13 +1221,13 @@ public struct Coordinate: Equatable, Hashable {
     public init(
         /**
          * Latitude in decimal degrees.
-         */lat: Double,
+         */lat: Double, 
         /**
          * Longitude in decimal degrees.
-         */lon: Double,
+         */lon: Double, 
         /**
          * Optional height (ellipsoidal or orthometric).
-         */height: Height?,
+         */height: Height?, 
         /**
          * The reference system the position is expressed in.
          */crs: Crs) {
@@ -1220,9 +1237,9 @@ public struct Coordinate: Equatable, Hashable {
         self.crs = crs
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1236,9 +1253,9 @@ public struct FfiConverterTypeCoordinate: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Coordinate {
         return
             try Coordinate(
-                lat: FfiConverterDouble.read(from: &buf),
-                lon: FfiConverterDouble.read(from: &buf),
-                height: FfiConverterOptionTypeHeight.read(from: &buf),
+                lat: FfiConverterDouble.read(from: &buf), 
+                lon: FfiConverterDouble.read(from: &buf), 
+                height: FfiConverterOptionTypeHeight.read(from: &buf), 
                 crs: FfiConverterTypeCrs.read(from: &buf)
         )
     }
@@ -1298,16 +1315,16 @@ public struct DatumTransform: Equatable, Hashable {
     public init(
         /**
          * Source reference system.
-         */fromCrs: Crs,
+         */fromCrs: Crs, 
         /**
          * Target reference system.
-         */toCrs: Crs,
+         */toCrs: Crs, 
         /**
          * Ellipsoid of the source datum.
-         */from: Ellipsoid,
+         */from: Ellipsoid, 
         /**
          * Ellipsoid of the target datum.
-         */to: Ellipsoid,
+         */to: Ellipsoid, 
         /**
          * Helmert parameters carrying the source frame to the target frame.
          */helmert: Helmert) {
@@ -1318,9 +1335,9 @@ public struct DatumTransform: Equatable, Hashable {
         self.helmert = helmert
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1334,10 +1351,10 @@ public struct FfiConverterTypeDatumTransform: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DatumTransform {
         return
             try DatumTransform(
-                fromCrs: FfiConverterTypeCrs.read(from: &buf),
-                toCrs: FfiConverterTypeCrs.read(from: &buf),
-                from: FfiConverterTypeEllipsoid.read(from: &buf),
-                to: FfiConverterTypeEllipsoid.read(from: &buf),
+                fromCrs: FfiConverterTypeCrs.read(from: &buf), 
+                toCrs: FfiConverterTypeCrs.read(from: &buf), 
+                from: FfiConverterTypeEllipsoid.read(from: &buf), 
+                to: FfiConverterTypeEllipsoid.read(from: &buf), 
                 helmert: FfiConverterTypeHelmert.read(from: &buf)
         )
     }
@@ -1385,9 +1402,9 @@ public struct Dd: Equatable, Hashable {
         self.value = value
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1448,10 +1465,10 @@ public struct Ddm: Equatable, Hashable {
     public init(
         /**
          * Whole degrees (non-negative; sign carried by `hemisphere`).
-         */degrees: UInt16,
+         */degrees: UInt16, 
         /**
          * Decimal minutes `[0, 60)`.
-         */minutes: Double,
+         */minutes: Double, 
         /**
          * Hemisphere providing the sign.
          */hemisphere: Hemisphere) {
@@ -1460,9 +1477,9 @@ public struct Ddm: Equatable, Hashable {
         self.hemisphere = hemisphere
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1476,8 +1493,8 @@ public struct FfiConverterTypeDdm: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ddm {
         return
             try Ddm(
-                degrees: FfiConverterUInt16.read(from: &buf),
-                minutes: FfiConverterDouble.read(from: &buf),
+                degrees: FfiConverterUInt16.read(from: &buf), 
+                minutes: FfiConverterDouble.read(from: &buf), 
                 hemisphere: FfiConverterTypeHemisphere.read(from: &buf)
         )
     }
@@ -1531,13 +1548,13 @@ public struct Dms: Equatable, Hashable {
     public init(
         /**
          * Whole degrees (non-negative; sign carried by `hemisphere`).
-         */degrees: UInt16,
+         */degrees: UInt16, 
         /**
          * Whole minutes `[0, 60)`.
-         */minutes: UInt8,
+         */minutes: UInt8, 
         /**
          * Seconds `[0, 60)`.
-         */seconds: Double,
+         */seconds: Double, 
         /**
          * Hemisphere providing the sign.
          */hemisphere: Hemisphere) {
@@ -1547,9 +1564,9 @@ public struct Dms: Equatable, Hashable {
         self.hemisphere = hemisphere
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1563,9 +1580,9 @@ public struct FfiConverterTypeDms: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Dms {
         return
             try Dms(
-                degrees: FfiConverterUInt16.read(from: &buf),
-                minutes: FfiConverterUInt8.read(from: &buf),
-                seconds: FfiConverterDouble.read(from: &buf),
+                degrees: FfiConverterUInt16.read(from: &buf), 
+                minutes: FfiConverterUInt8.read(from: &buf), 
+                seconds: FfiConverterDouble.read(from: &buf), 
                 hemisphere: FfiConverterTypeHemisphere.read(from: &buf)
         )
     }
@@ -1616,10 +1633,10 @@ public struct Ecef: Equatable, Hashable {
     public init(
         /**
          * X axis (meters), through the prime meridian at the equator.
-         */x: Double,
+         */x: Double, 
         /**
          * Y axis (meters), 90° east at the equator.
-         */y: Double,
+         */y: Double, 
         /**
          * Z axis (meters), through the north pole.
          */z: Double) {
@@ -1628,9 +1645,9 @@ public struct Ecef: Equatable, Hashable {
         self.z = z
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1644,8 +1661,8 @@ public struct FfiConverterTypeEcef: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ecef {
         return
             try Ecef(
-                x: FfiConverterDouble.read(from: &buf),
-                y: FfiConverterDouble.read(from: &buf),
+                x: FfiConverterDouble.read(from: &buf), 
+                y: FfiConverterDouble.read(from: &buf), 
                 z: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -1691,7 +1708,7 @@ public struct Ellipsoid: Equatable, Hashable {
     public init(
         /**
          * Semi-major axis `a`, in meters.
-         */semiMajorM: Double,
+         */semiMajorM: Double, 
         /**
          * Inverse flattening `1/f`.
          */inverseFlattening: Double) {
@@ -1699,9 +1716,9 @@ public struct Ellipsoid: Equatable, Hashable {
         self.inverseFlattening = inverseFlattening
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1715,7 +1732,7 @@ public struct FfiConverterTypeEllipsoid: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ellipsoid {
         return
             try Ellipsoid(
-                semiMajorM: FfiConverterDouble.read(from: &buf),
+                semiMajorM: FfiConverterDouble.read(from: &buf), 
                 inverseFlattening: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -1764,10 +1781,10 @@ public struct Enu: Equatable, Hashable {
     public init(
         /**
          * East offset (meters).
-         */east: Double,
+         */east: Double, 
         /**
          * North offset (meters).
-         */north: Double,
+         */north: Double, 
         /**
          * Up offset (meters).
          */up: Double) {
@@ -1776,9 +1793,9 @@ public struct Enu: Equatable, Hashable {
         self.up = up
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1792,8 +1809,8 @@ public struct FfiConverterTypeEnu: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Enu {
         return
             try Enu(
-                east: FfiConverterDouble.read(from: &buf),
-                north: FfiConverterDouble.read(from: &buf),
+                east: FfiConverterDouble.read(from: &buf), 
+                north: FfiConverterDouble.read(from: &buf), 
                 up: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -1849,13 +1866,13 @@ public struct Fix: Equatable, Hashable {
     public init(
         /**
          * The observed position.
-         */coord: Coordinate,
+         */coord: Coordinate, 
         /**
          * Positional accuracy, if reported.
-         */accuracy: Accuracy?,
+         */accuracy: Accuracy?, 
         /**
          * Observation time, if known.
-         */timestamp: Date?,
+         */timestamp: Date?, 
         /**
          * The raw input and how confidently it was interpreted.
          */source: RawSource?) {
@@ -1865,9 +1882,9 @@ public struct Fix: Equatable, Hashable {
         self.source = source
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1881,9 +1898,9 @@ public struct FfiConverterTypeFix: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Fix {
         return
             try Fix(
-                coord: FfiConverterTypeCoordinate.read(from: &buf),
-                accuracy: FfiConverterOptionTypeAccuracy.read(from: &buf),
-                timestamp: FfiConverterOptionTimestamp.read(from: &buf),
+                coord: FfiConverterTypeCoordinate.read(from: &buf), 
+                accuracy: FfiConverterOptionTypeAccuracy.read(from: &buf), 
+                timestamp: FfiConverterOptionTimestamp.read(from: &buf), 
                 source: FfiConverterOptionTypeRawSource.read(from: &buf)
         )
     }
@@ -1944,17 +1961,17 @@ public struct FormatOptions: Equatable, Hashable {
     public init(
         /**
          * Target representation.
-         */representation: Representation,
+         */representation: Representation, 
         /**
          * Decimal places (DD) or sub-second/minute precision; `None` → a sensible
          * per-representation default.
-         */precision: UInt8?,
+         */precision: UInt8?, 
         /**
          * Symbol style for DMS/DDM.
-         */symbolStyle: SymbolStyle,
+         */symbolStyle: SymbolStyle, 
         /**
          * Hemisphere rendering.
-         */hemisphereStyle: HemisphereStyle,
+         */hemisphereStyle: HemisphereStyle, 
         /**
          * BCP-47 locale tag for number formatting (e.g. decimal comma).
          */locale: String?) {
@@ -1965,9 +1982,9 @@ public struct FormatOptions: Equatable, Hashable {
         self.locale = locale
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1981,10 +1998,10 @@ public struct FfiConverterTypeFormatOptions: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FormatOptions {
         return
             try FormatOptions(
-                representation: FfiConverterTypeRepresentation.read(from: &buf),
-                precision: FfiConverterOptionUInt8.read(from: &buf),
-                symbolStyle: FfiConverterTypeSymbolStyle.read(from: &buf),
-                hemisphereStyle: FfiConverterTypeHemisphereStyle.read(from: &buf),
+                representation: FfiConverterTypeRepresentation.read(from: &buf), 
+                precision: FfiConverterOptionUInt8.read(from: &buf), 
+                symbolStyle: FfiConverterTypeSymbolStyle.read(from: &buf), 
+                hemisphereStyle: FfiConverterTypeHemisphereStyle.read(from: &buf), 
                 locale: FfiConverterOptionString.read(from: &buf)
         )
     }
@@ -2032,7 +2049,7 @@ public struct Gcj02: Equatable, Hashable {
     public init(
         /**
          * Latitude in decimal degrees.
-         */lat: Double,
+         */lat: Double, 
         /**
          * Longitude in decimal degrees.
          */lon: Double) {
@@ -2040,9 +2057,9 @@ public struct Gcj02: Equatable, Hashable {
         self.lon = lon
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2056,7 +2073,7 @@ public struct FfiConverterTypeGcj02: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Gcj02 {
         return
             try Gcj02(
-                lat: FfiConverterDouble.read(from: &buf),
+                lat: FfiConverterDouble.read(from: &buf), 
                 lon: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -2084,87 +2101,6 @@ public func FfiConverterTypeGcj02_lower(_ value: Gcj02) -> RustBuffer {
 
 
 /**
- * The decoded cell of a grid code (Plus Code, geohash, Maidenhead) — the
- * WGS-84 cell **center** plus the cell half-diagonal error bound. The
- * flattened form of `Approx<Coordinate>` for the (always WGS-84) grid systems.
- */
-public struct GridCell: Equatable, Hashable {
-    /**
-     * Latitude of the cell center, in decimal degrees.
-     */
-    public var lat: Double
-    /**
-     * Longitude of the cell center, in decimal degrees.
-     */
-    public var lon: Double
-    /**
-     * Estimated maximum positional error (cell half-diagonal), in meters.
-     */
-    public var maxErrorM: Double
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Latitude of the cell center, in decimal degrees.
-         */lat: Double,
-        /**
-         * Longitude of the cell center, in decimal degrees.
-         */lon: Double,
-        /**
-         * Estimated maximum positional error (cell half-diagonal), in meters.
-         */maxErrorM: Double) {
-        self.lat = lat
-        self.lon = lon
-        self.maxErrorM = maxErrorM
-    }
-
-
-
-
-}
-
-#if compiler(>=6)
-extension GridCell: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeGridCell: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GridCell {
-        return
-            try GridCell(
-                lat: FfiConverterDouble.read(from: &buf),
-                lon: FfiConverterDouble.read(from: &buf),
-                maxErrorM: FfiConverterDouble.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: GridCell, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.lat, into: &buf)
-        FfiConverterDouble.write(value.lon, into: &buf)
-        FfiConverterDouble.write(value.maxErrorM, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeGridCell_lift(_ buf: RustBuffer) throws -> GridCell {
-    return try FfiConverterTypeGridCell.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeGridCell_lower(_ value: GridCell) -> RustBuffer {
-    return FfiConverterTypeGridCell.lower(value)
-}
-
-
-/**
  * An H3 cell index — mirror of [`gc::H3Cell`](gc::dgg::H3Cell).
  */
 public struct H3Cell: Equatable, Hashable {
@@ -2182,9 +2118,9 @@ public struct H3Cell: Equatable, Hashable {
         self.value = value
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2263,22 +2199,22 @@ public struct Helmert: Equatable, Hashable {
     public init(
         /**
          * X-axis translation, meters.
-         */txM: Double,
+         */txM: Double, 
         /**
          * Y-axis translation, meters.
-         */tyM: Double,
+         */tyM: Double, 
         /**
          * Z-axis translation, meters.
-         */tzM: Double,
+         */tzM: Double, 
         /**
          * X-axis rotation, arc-seconds (position-vector convention).
-         */rxArcsec: Double,
+         */rxArcsec: Double, 
         /**
          * Y-axis rotation, arc-seconds (position-vector convention).
-         */ryArcsec: Double,
+         */ryArcsec: Double, 
         /**
          * Z-axis rotation, arc-seconds (position-vector convention).
-         */rzArcsec: Double,
+         */rzArcsec: Double, 
         /**
          * Scale difference, parts-per-million.
          */scalePpm: Double) {
@@ -2291,9 +2227,9 @@ public struct Helmert: Equatable, Hashable {
         self.scalePpm = scalePpm
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2307,12 +2243,12 @@ public struct FfiConverterTypeHelmert: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Helmert {
         return
             try Helmert(
-                txM: FfiConverterDouble.read(from: &buf),
-                tyM: FfiConverterDouble.read(from: &buf),
-                tzM: FfiConverterDouble.read(from: &buf),
-                rxArcsec: FfiConverterDouble.read(from: &buf),
-                ryArcsec: FfiConverterDouble.read(from: &buf),
-                rzArcsec: FfiConverterDouble.read(from: &buf),
+                txM: FfiConverterDouble.read(from: &buf), 
+                tyM: FfiConverterDouble.read(from: &buf), 
+                tzM: FfiConverterDouble.read(from: &buf), 
+                rxArcsec: FfiConverterDouble.read(from: &buf), 
+                ryArcsec: FfiConverterDouble.read(from: &buf), 
+                rzArcsec: FfiConverterDouble.read(from: &buf), 
                 scalePpm: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -2366,10 +2302,10 @@ public struct Ned: Equatable, Hashable {
     public init(
         /**
          * North offset (meters).
-         */north: Double,
+         */north: Double, 
         /**
          * East offset (meters).
-         */east: Double,
+         */east: Double, 
         /**
          * Down offset (meters).
          */down: Double) {
@@ -2378,9 +2314,9 @@ public struct Ned: Equatable, Hashable {
         self.down = down
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2394,8 +2330,8 @@ public struct FfiConverterTypeNed: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ned {
         return
             try Ned(
-                north: FfiConverterDouble.read(from: &buf),
-                east: FfiConverterDouble.read(from: &buf),
+                north: FfiConverterDouble.read(from: &buf), 
+                east: FfiConverterDouble.read(from: &buf), 
                 down: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -2453,16 +2389,16 @@ public struct RawSource: Equatable, Hashable {
     public init(
         /**
          * The verbatim input string.
-         */raw: String,
+         */raw: String, 
         /**
          * How confidently `raw` was interpreted as this coordinate.
-         */confidence: Confidence,
+         */confidence: Confidence, 
         /**
          * The axis order the parser assumed, when the format leaves it ambiguous.
-         */axisOrder: AxisOrder?,
+         */axisOrder: AxisOrder?, 
         /**
          * A flagged datum ambiguity, when the source's reference system is suspect.
-         */datumAmbiguity: DatumAmbiguity?,
+         */datumAmbiguity: DatumAmbiguity?, 
         /**
          * Free-text notes about anything else resolved during parsing.
          */notes: [String]) {
@@ -2473,9 +2409,9 @@ public struct RawSource: Equatable, Hashable {
         self.notes = notes
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2489,10 +2425,10 @@ public struct FfiConverterTypeRawSource: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RawSource {
         return
             try RawSource(
-                raw: FfiConverterString.read(from: &buf),
-                confidence: FfiConverterTypeConfidence.read(from: &buf),
-                axisOrder: FfiConverterOptionTypeAxisOrder.read(from: &buf),
-                datumAmbiguity: FfiConverterOptionTypeDatumAmbiguity.read(from: &buf),
+                raw: FfiConverterString.read(from: &buf), 
+                confidence: FfiConverterTypeConfidence.read(from: &buf), 
+                axisOrder: FfiConverterOptionTypeAxisOrder.read(from: &buf), 
+                datumAmbiguity: FfiConverterOptionTypeDatumAmbiguity.read(from: &buf), 
                 notes: FfiConverterSequenceString.read(from: &buf)
         )
     }
@@ -2540,9 +2476,9 @@ public struct S2CellId: Equatable, Hashable {
         self.value = value
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2600,7 +2536,7 @@ public struct TextParseOptions: Equatable, Hashable {
     public init(
         /**
          * Axis order to assume when the range heuristics are inconclusive.
-         */defaultAxisOrder: AxisOrder,
+         */defaultAxisOrder: AxisOrder, 
         /**
          * Whether to interpret `,` as a decimal separator (European locales).
          */decimalComma: Bool) {
@@ -2608,9 +2544,9 @@ public struct TextParseOptions: Equatable, Hashable {
         self.decimalComma = decimalComma
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2624,7 +2560,7 @@ public struct FfiConverterTypeTextParseOptions: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextParseOptions {
         return
             try TextParseOptions(
-                defaultAxisOrder: FfiConverterTypeAxisOrder.read(from: &buf),
+                defaultAxisOrder: FfiConverterTypeAxisOrder.read(from: &buf), 
                 decimalComma: FfiConverterBool.read(from: &buf)
         )
     }
@@ -2673,10 +2609,10 @@ public struct Ups: Equatable, Hashable {
     public init(
         /**
          * North or south polar zone.
-         */hemisphere: UtmHemisphere,
+         */hemisphere: UtmHemisphere, 
         /**
          * Easting in meters.
-         */easting: Double,
+         */easting: Double, 
         /**
          * Northing in meters.
          */northing: Double) {
@@ -2685,9 +2621,9 @@ public struct Ups: Equatable, Hashable {
         self.northing = northing
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2701,8 +2637,8 @@ public struct FfiConverterTypeUps: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ups {
         return
             try Ups(
-                hemisphere: FfiConverterTypeUtmHemisphere.read(from: &buf),
-                easting: FfiConverterDouble.read(from: &buf),
+                hemisphere: FfiConverterTypeUtmHemisphere.read(from: &buf), 
+                easting: FfiConverterDouble.read(from: &buf), 
                 northing: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -2756,13 +2692,13 @@ public struct Utm: Equatable, Hashable {
     public init(
         /**
          * Longitude zone number, 1–60.
-         */zone: UInt8,
+         */zone: UInt8, 
         /**
          * Hemisphere band.
-         */hemisphere: UtmHemisphere,
+         */hemisphere: UtmHemisphere, 
         /**
          * Easting in meters (false-easting applied).
-         */easting: Double,
+         */easting: Double, 
         /**
          * Northing in meters.
          */northing: Double) {
@@ -2772,9 +2708,9 @@ public struct Utm: Equatable, Hashable {
         self.northing = northing
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2788,9 +2724,9 @@ public struct FfiConverterTypeUtm: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Utm {
         return
             try Utm(
-                zone: FfiConverterUInt8.read(from: &buf),
-                hemisphere: FfiConverterTypeUtmHemisphere.read(from: &buf),
-                easting: FfiConverterDouble.read(from: &buf),
+                zone: FfiConverterUInt8.read(from: &buf), 
+                hemisphere: FfiConverterTypeUtmHemisphere.read(from: &buf), 
+                easting: FfiConverterDouble.read(from: &buf), 
                 northing: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -2837,7 +2773,7 @@ public struct Wgs84: Equatable, Hashable {
     public init(
         /**
          * Latitude in decimal degrees.
-         */lat: Double,
+         */lat: Double, 
         /**
          * Longitude in decimal degrees.
          */lon: Double) {
@@ -2845,9 +2781,9 @@ public struct Wgs84: Equatable, Hashable {
         self.lon = lon
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -2861,7 +2797,7 @@ public struct FfiConverterTypeWgs84: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Wgs84 {
         return
             try Wgs84(
-                lat: FfiConverterDouble.read(from: &buf),
+                lat: FfiConverterDouble.read(from: &buf), 
                 lon: FfiConverterDouble.read(from: &buf)
         )
     }
@@ -2894,7 +2830,7 @@ public func FfiConverterTypeWgs84_lower(_ value: Wgs84) -> RustBuffer {
  */
 
 public enum Axis: Equatable, Hashable {
-
+    
     /**
      * Latitude (selects N/S).
      */
@@ -2923,26 +2859,26 @@ public struct FfiConverterTypeAxis: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Axis {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .latitude
-
+        
         case 2: return .longitude
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: Axis, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .latitude:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .longitude:
             writeInt(&buf, Int32(2))
-
+        
         }
     }
 }
@@ -2971,7 +2907,7 @@ public func FfiConverterTypeAxis_lower(_ value: Axis) -> RustBuffer {
  */
 
 public enum AxisOrder: Equatable, Hashable {
-
+    
     /**
      * Latitude first (human / EPSG convention).
      */
@@ -3000,26 +2936,26 @@ public struct FfiConverterTypeAxisOrder: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AxisOrder {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .latLon
-
+        
         case 2: return .lonLat
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: AxisOrder, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .latLon:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .lonLat:
             writeInt(&buf, Int32(2))
-
+        
         }
     }
 }
@@ -3050,7 +2986,7 @@ public func FfiConverterTypeAxisOrder_lower(_ value: AxisOrder) -> RustBuffer {
  */
 
 public enum Crs: Equatable, Hashable {
-
+    
     /**
      * WGS-84 — the global GNSS reference and library default.
      */
@@ -3095,50 +3031,50 @@ public struct FfiConverterTypeCrs: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Crs {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .wgs84
-
+        
         case 2: return .gcj02
-
+        
         case 3: return .bd09
-
+        
         case 4: return .nad27
-
+        
         case 5: return .tokyo
-
+        
         case 6: return .pulkovo42
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: Crs, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .wgs84:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .gcj02:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .bd09:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case .nad27:
             writeInt(&buf, Int32(4))
-
-
+        
+        
         case .tokyo:
             writeInt(&buf, Int32(5))
-
-
+        
+        
         case .pulkovo42:
             writeInt(&buf, Int32(6))
-
+        
         }
     }
 }
@@ -3167,7 +3103,7 @@ public func FfiConverterTypeCrs_lower(_ value: Crs) -> RustBuffer {
  */
 
 public enum DatumAmbiguity: Equatable, Hashable {
-
+    
     /**
      * In China's bounding box; datum may be GCJ-02 rather than WGS-84.
      */
@@ -3192,20 +3128,20 @@ public struct FfiConverterTypeDatumAmbiguity: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DatumAmbiguity {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .possiblyGcj02
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: DatumAmbiguity, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .possiblyGcj02:
             writeInt(&buf, Int32(1))
-
+        
         }
     }
 }
@@ -3235,15 +3171,15 @@ public func FfiConverterTypeDatumAmbiguity_lower(_ value: DatumAmbiguity) -> Rus
  */
 public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
-
-
+    
+    
     /**
      * A coordinate carried the wrong reference system for the requested operation.
      */
     case CrsMismatch(
         /**
          * The reference system that was required.
-         */expected: String,
+         */expected: String, 
         /**
          * The reference system the coordinate actually carried.
          */found: String
@@ -3254,7 +3190,7 @@ public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     case OutOfRange(
         /**
          * Offending latitude in degrees.
-         */lat: Double,
+         */lat: Double, 
         /**
          * Offending longitude in degrees.
          */lon: Double
@@ -3268,15 +3204,15 @@ public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
          */detail: String
     )
 
+    
 
+    
 
-
-
-
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
-
+    
 }
 
 #if compiler(>=6)
@@ -3293,15 +3229,15 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
+        
 
-
-
+        
         case 1: return .CrsMismatch(
-            expected: try FfiConverterString.read(from: &buf),
+            expected: try FfiConverterString.read(from: &buf), 
             found: try FfiConverterString.read(from: &buf)
             )
         case 2: return .OutOfRange(
-            lat: try FfiConverterDouble.read(from: &buf),
+            lat: try FfiConverterDouble.read(from: &buf), 
             lon: try FfiConverterDouble.read(from: &buf)
             )
         case 3: return .Other(
@@ -3315,26 +3251,26 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
     public static func write(_ value: GeoError, into buf: inout [UInt8]) {
         switch value {
 
+        
 
-
-
-
+        
+        
         case let .CrsMismatch(expected,found):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(expected, into: &buf)
             FfiConverterString.write(found, into: &buf)
-
-
+            
+        
         case let .OutOfRange(lat,lon):
             writeInt(&buf, Int32(2))
             FfiConverterDouble.write(lat, into: &buf)
             FfiConverterDouble.write(lon, into: &buf)
-
-
+            
+        
         case let .Other(detail):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(detail, into: &buf)
-
+            
         }
     }
 }
@@ -3361,7 +3297,7 @@ public func FfiConverterTypeGeoError_lower(_ value: GeoError) -> RustBuffer {
  */
 
 public enum Height: Equatable, Hashable {
-
+    
     /**
      * Meters above the reference ellipsoid.
      */
@@ -3398,30 +3334,30 @@ public struct FfiConverterTypeHeight: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Height {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .ellipsoidal(meters: try FfiConverterDouble.read(from: &buf)
         )
-
+        
         case 2: return .orthometric(meters: try FfiConverterDouble.read(from: &buf)
         )
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: Height, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case let .ellipsoidal(meters):
             writeInt(&buf, Int32(1))
             FfiConverterDouble.write(meters, into: &buf)
-
-
+            
+        
         case let .orthometric(meters):
             writeInt(&buf, Int32(2))
             FfiConverterDouble.write(meters, into: &buf)
-
+            
         }
     }
 }
@@ -3449,7 +3385,7 @@ public func FfiConverterTypeHeight_lower(_ value: Height) -> RustBuffer {
  */
 
 public enum Hemisphere: Equatable, Hashable {
-
+    
     /**
      * North (latitude, positive).
      */
@@ -3486,38 +3422,38 @@ public struct FfiConverterTypeHemisphere: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Hemisphere {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .north
-
+        
         case 2: return .south
-
+        
         case 3: return .east
-
+        
         case 4: return .west
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: Hemisphere, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .north:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .south:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .east:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case .west:
             writeInt(&buf, Int32(4))
-
+        
         }
     }
 }
@@ -3545,7 +3481,7 @@ public func FfiConverterTypeHemisphere_lower(_ value: Hemisphere) -> RustBuffer 
  */
 
 public enum HemisphereStyle: Equatable, Hashable {
-
+    
     /**
      * Signed numbers (`-74.006`).
      */
@@ -3574,26 +3510,26 @@ public struct FfiConverterTypeHemisphereStyle: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HemisphereStyle {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .signed
-
+        
         case 2: return .cardinal
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: HemisphereStyle, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .signed:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .cardinal:
             writeInt(&buf, Int32(2))
-
+        
         }
     }
 }
@@ -3621,7 +3557,7 @@ public func FfiConverterTypeHemisphereStyle_lower(_ value: HemisphereStyle) -> R
  */
 
 public enum LengthUnit: Equatable, Hashable {
-
+    
     /**
      * Meter (SI).
      */
@@ -3662,44 +3598,44 @@ public struct FfiConverterTypeLengthUnit: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LengthUnit {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .meter
-
+        
         case 2: return .kilometer
-
+        
         case 3: return .foot
-
+        
         case 4: return .usSurveyFoot
-
+        
         case 5: return .nauticalMile
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: LengthUnit, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .meter:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .kilometer:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .foot:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case .usSurveyFoot:
             writeInt(&buf, Int32(4))
-
-
+        
+        
         case .nauticalMile:
             writeInt(&buf, Int32(5))
-
+        
         }
     }
 }
@@ -3727,7 +3663,7 @@ public func FfiConverterTypeLengthUnit_lower(_ value: LengthUnit) -> RustBuffer 
  */
 
 public enum Representation: Equatable, Hashable {
-
+    
     /**
      * Decimal degrees (`40.712800, -74.006000`).
      */
@@ -3764,38 +3700,38 @@ public struct FfiConverterTypeRepresentation: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Representation {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .decimalDegrees
-
+        
         case 2: return .dms
-
+        
         case 3: return .ddm
-
+        
         case 4: return .plusCode
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: Representation, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .decimalDegrees:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .dms:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .ddm:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case .plusCode:
             writeInt(&buf, Int32(4))
-
+        
         }
     }
 }
@@ -3823,7 +3759,7 @@ public func FfiConverterTypeRepresentation_lower(_ value: Representation) -> Rus
  */
 
 public enum SymbolStyle: Equatable, Hashable {
-
+    
     /**
      * Unicode `°′″`.
      */
@@ -3856,32 +3792,32 @@ public struct FfiConverterTypeSymbolStyle: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SymbolStyle {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .unicode
-
+        
         case 2: return .ascii
-
+        
         case 3: return .letters
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: SymbolStyle, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .unicode:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .ascii:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .letters:
             writeInt(&buf, Int32(3))
-
+        
         }
     }
 }
@@ -3910,7 +3846,7 @@ public func FfiConverterTypeSymbolStyle_lower(_ value: SymbolStyle) -> RustBuffe
  */
 
 public enum UtmHemisphere: Equatable, Hashable {
-
+    
     /**
      * Northern hemisphere.
      */
@@ -3939,26 +3875,26 @@ public struct FfiConverterTypeUtmHemisphere: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UtmHemisphere {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .north
-
+        
         case 2: return .south
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: UtmHemisphere, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .north:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .south:
             writeInt(&buf, Int32(2))
-
+        
         }
     }
 }
@@ -4304,7 +4240,8 @@ public func aerFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> 
 })
 }
 /**
- * Recover the absolute coordinate of an AER offset about `origin`.
+ * Recover the absolute coordinate of an AER offset about `origin`. Not exact:
+ * see [`enu_to_coordinate`].
  */
 public func aerToCoordinate(aer: Aer, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4348,7 +4285,9 @@ public func alongTrackDistanceM(point: Coordinate, start: Coordinate, end: Coord
 })
 }
 /**
- * BD-09 lat/lon → Baidu Web Mercator (exact forward projection).
+ * BD-09 lat/lon → Baidu Web Mercator by Baidu's `LL2MC` polynomial fit. The
+ * two directions are independent fits, not exact inverses: a round trip drifts
+ * by up to about 0.25 m below 60° latitude and up to about 7 m above it.
  */
 public func baiduMercatorFromBd09(p: Bd09)throws  -> BaiduMercator  {
     return try  FfiConverterTypeBaiduMercator_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4358,7 +4297,8 @@ public func baiduMercatorFromBd09(p: Bd09)throws  -> BaiduMercator  {
 })
 }
 /**
- * Baidu Web Mercator → BD-09 lat/lon (exact inverse projection).
+ * Baidu Web Mercator → BD-09 lat/lon by Baidu's `MC2LL` polynomial fit. Not an
+ * exact inverse of [`baidu_mercator_from_bd09`] (see its round-trip drift).
  */
 public func baiduMercatorToBd09(m: BaiduMercator)throws  -> Bd09  {
     return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4368,7 +4308,8 @@ public func baiduMercatorToBd09(m: BaiduMercator)throws  -> Bd09  {
 })
 }
 /**
- * Baidu Web Mercator → canonical [`Coordinate`], tagged BD-09 (exact).
+ * Baidu Web Mercator → canonical [`Coordinate`], tagged BD-09, via
+ * [`baidu_mercator_to_bd09`].
  */
 public func baiduMercatorToCoordinate(m: BaiduMercator)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4542,6 +4483,11 @@ public func crossTrackDistanceM(point: Coordinate, start: Coordinate, end: Coord
 /**
  * Transform a geodetic coordinate from the source to the target datum, tagging
  * the result with `to`.
+ *
+ * Not exact. The computation adds well under a millimeter at terrestrial
+ * heights, and the result is only as accurate as the Helmert parameters: the
+ * catalogued ones are regional mean, translation-only shifts good to several
+ * meters.
  */
 public func datumTransformApply(transform: DatumTransform, coord: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4659,7 +4605,10 @@ public func ecefFromCoordinate(coord: Coordinate, ellipsoid: Ellipsoid)throws  -
 })
 }
 /**
- * ECEF → geodetic [`Coordinate`] on the given ellipsoid and reference system.
+ * ECEF → geodetic [`Coordinate`] on the given ellipsoid and reference system,
+ * by Bowring's single-step inverse. Not exact: the latitude error is about a
+ * micrometer within ±10 km of the surface, about 7 mm at 1,000 km, and up to
+ * about 0.3 m at GNSS and geostationary altitudes.
  */
 public func ecefToCoordinate(ecef: Ecef, ellipsoid: Ellipsoid, crs: Crs)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4776,7 +4725,9 @@ public func enuToAer(enu: Enu) -> Aer  {
 })
 }
 /**
- * Recover the absolute coordinate of an ENU offset about `origin`.
+ * Recover the absolute coordinate of an ENU offset about `origin`. Not exact:
+ * latitude is recovered by the Bowring single-step inverse of
+ * [`ecef_to_coordinate`] and carries its altitude-dependent bound.
  */
 public func enuToCoordinate(enu: Enu, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4843,6 +4794,19 @@ public func formatFix(fix: Fix, options: FormatOptions)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_format_fix(
         FfiConverterTypeFix_lower(fix),
+        FfiConverterTypeFormatOptions_lower(options),$0
+    )
+})
+}
+/**
+ * Whether `options` render `,` as the decimal separator (the locale's primary
+ * language uses a decimal comma). Pass it as
+ * [`TextParseOptions::decimal_comma`] to re-parse the output with
+ * [`parse_coordinate_with`].
+ */
+public func formatOptionsUsesDecimalComma(options: FormatOptions) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_format_options_uses_decimal_comma(
         FfiConverterTypeFormatOptions_lower(options),$0
     )
 })
@@ -4961,8 +4925,14 @@ public func gcj02ToWgs84Refined(p: Gcj02)throws  -> ApproxWgs84  {
 })
 }
 /**
- * Exact ellipsoidal (Karney) geodesic distance between two coordinates, in
- * **meters**.
+ * Ellipsoidal (Karney) geodesic distance between two coordinates, in
+ * **meters**, measured on the **WGS-84** ellipsoid whatever their shared CRS.
+ *
+ * Accurate to round-off for WGS-84 points. Two classic-datum points (NAD27,
+ * Tokyo, Pulkovo-1942) are off by up to about 1.3e-4 of the distance, because
+ * their own ellipsoid is not WGS-84. Two GCJ-02 or BD-09 points carry the
+ * difference of their obfuscation offsets; convert them to WGS-84 first for a
+ * true distance.
  */
 public func geodesicDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4973,13 +4943,14 @@ public func geodesicDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
 })
 }
 /**
- * Decode a geohash to its cell center and error bound.
+ * Decode a geohash to its WGS-84 cell center, with the cell half-diagonal
+ * error bound.
  *
  * # Errors
  * Returns a [`GeoError`] for non-base-32 input.
  */
-public func geohashDecode(code: String)throws  -> GridCell  {
-    return try  FfiConverterTypeGridCell_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+public func geohashDecode(code: String)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_geohash_decode(
         FfiConverterString.lower(code),$0
     )
@@ -5052,7 +5023,10 @@ public func helmertIdentity() -> Helmert  {
 })
 }
 /**
- * The inverse Helmert transform (negated parameters).
+ * The inverse Helmert transform (negated parameters). Exact for
+ * translation-only transforms, as every catalogued one is; otherwise
+ * first-order, leaving about a centimeter of round-trip residual for a full
+ * seven-parameter set such as WGS-84 → OSGB36.
  */
 public func helmertInverse(helmert: Helmert) -> Helmert  {
     return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
@@ -5131,13 +5105,14 @@ public func lengthToUnit(meters: Double, unit: LengthUnit) -> Double  {
 })
 }
 /**
- * Decode a Maidenhead locator to its grid-square center and error bound.
+ * Decode a Maidenhead locator to its WGS-84 grid-square center, with the
+ * square half-diagonal error bound.
  *
  * # Errors
  * Returns a [`GeoError`] for a malformed locator.
  */
-public func maidenheadDecode(code: String)throws  -> GridCell  {
-    return try  FfiConverterTypeGridCell_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+public func maidenheadDecode(code: String)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_maidenhead_decode(
         FfiConverterString.lower(code),$0
     )
@@ -5227,7 +5202,8 @@ public func nedToAer(ned: Ned) -> Aer  {
 })
 }
 /**
- * Recover the absolute coordinate of a NED offset about `origin`.
+ * Recover the absolute coordinate of a NED offset about `origin`. Not exact:
+ * see [`enu_to_coordinate`].
  */
 public func nedToCoordinate(ned: Ned, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5271,8 +5247,8 @@ public func outOfChina(lat: Double, lon: Double) -> Bool  {
 }
 /**
  * Best-effort parse of a single coordinate from arbitrary input (a `geo:` URI,
- * else free-text DD/DMS/DDM heuristics). The [`Fix`] records the assumed axis
- * order and parse confidence.
+ * a Plus Code, else free-text DD/DMS/DDM heuristics with default options).
+ * The [`Fix`] records the assumed axis order and parse confidence.
  *
  * # Errors
  * Returns a [`GeoError`] when no interpretation is found.
@@ -5281,6 +5257,22 @@ public func parseCoordinate(input: String)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_parse_coordinate(
         FfiConverterString.lower(input),$0
+    )
+})
+}
+/**
+ * [`parse_coordinate`] with explicit options for the free-text fallback
+ * (`geo:` URIs and Plus Codes ignore them). Re-parses decimal-comma output
+ * when `decimal_comma` comes from [`format_options_uses_decimal_comma`].
+ *
+ * # Errors
+ * Returns a [`GeoError`] when no interpretation is found.
+ */
+public func parseCoordinateWith(input: String, options: TextParseOptions)throws  -> Fix  {
+    return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_parse_coordinate_with(
+        FfiConverterString.lower(input),
+        FfiConverterTypeTextParseOptions_lower(options),$0
     )
 })
 }
@@ -5299,13 +5291,14 @@ public func parseTextWith(input: String, options: TextParseOptions)throws  -> Fi
 })
 }
 /**
- * Decode an Open Location Code to its cell center and error bound.
+ * Decode an Open Location Code to its WGS-84 cell center, with the cell
+ * half-diagonal error bound.
  *
  * # Errors
  * Returns a [`GeoError`] for a malformed or short code.
  */
-public func plusCodeDecode(code: String)throws  -> GridCell  {
-    return try  FfiConverterTypeGridCell_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+public func plusCodeDecode(code: String)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_plus_code_decode(
         FfiConverterString.lower(code),$0
     )
@@ -5389,7 +5382,9 @@ public func upsFromCoordinate(coord: Coordinate)throws  -> Ups  {
 })
 }
 /**
- * UPS → geodetic WGS-84 coordinate (exact inverse).
+ * UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
+ * projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
+ * exact).
  */
 public func upsToCoordinate(ups: Ups)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5409,7 +5404,8 @@ public func utmFromCoordinate(coord: Coordinate)throws  -> Utm  {
 })
 }
 /**
- * UTM → geodetic WGS-84 coordinate (exact inverse).
+ * UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
+ * series (sub-millimeter within the UTM domain; not exact).
  */
 public func utmToCoordinate(utm: Utm)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5467,7 +5463,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 14415) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 18451) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 30335) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_aer_to_enu() != 64395) {
@@ -5479,13 +5475,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_m() != 28073) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_bd09() != 21344) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_bd09() != 5637) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_bd09() != 51899) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_bd09() != 3300) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_coordinate() != 51552) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_coordinate() != 11601) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_try_from_coordinate() != 8208) {
@@ -5530,7 +5526,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_m() != 52386) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 1750) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 65268) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_inverse() != 6161) {
@@ -5563,7 +5559,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 31983) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 33732) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 48406) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_airy_1830() != 35969) {
@@ -5599,7 +5595,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_enu_to_aer() != 27301) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 17291) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 21101) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 65065) {
@@ -5615,6 +5611,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 19855) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_format_options_uses_decimal_comma() != 58914) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_geo_uri() != 24723) {
@@ -5644,10 +5643,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 35361) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geodesic_distance_m() != 1250) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geodesic_distance_m() != 62038) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geohash_decode() != 47565) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geohash_decode() != 45162) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_geohash_encode() != 24833) {
@@ -5668,7 +5667,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_helmert_identity() != 8761) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse() != 54269) {
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse() != 46670) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_hemisphere_sign() != 1780) {
@@ -5689,7 +5688,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_length_to_unit() != 4564) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_decode() != 54706) {
+    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_decode() != 32312) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_encode() != 22415) {
@@ -5713,7 +5712,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ned_to_aer() != 11931) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 59337) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 59590) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 22829) {
@@ -5725,13 +5724,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_out_of_china() != 22213) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 50322) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 3101) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 4955) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 15332) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_decode() != 35987) {
+    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_decode() != 53042) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_plus_code_encode() != 58443) {
@@ -5755,13 +5757,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 33273) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 62843) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 19549) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_utm_from_coordinate() != 37330) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 21748) {
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 51217) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_bd09() != 64475) {

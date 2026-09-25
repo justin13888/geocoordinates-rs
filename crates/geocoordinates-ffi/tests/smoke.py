@@ -169,7 +169,9 @@ assert approx(comma.coord.lon, -74.006, 1e-9)
 # --- Plus Code (Open Location Code) ---
 assert gc.plus_code_encode(gc.coordinate_wgs84(47.0000625, 8.0000625), 10) == "8FVC2222+22"
 area = gc.plus_code_decode("8FVC2222+22")
-assert approx(area.lat, 47.0000625, 1e-6) and approx(area.lon, 8.0000625, 1e-6)
+# Grid decodes share the ApproxCoordinate shape with MGRS/H3/S2 and `convert`.
+assert area.coord.crs == gc.Crs.WGS84
+assert approx(area.coord.lat, 47.0000625, 1e-6) and approx(area.coord.lon, 8.0000625, 1e-6)
 assert 0.0 < area.max_error_m < 20.0
 try:
     gc.plus_code_decode("not a code")
@@ -195,10 +197,12 @@ assert (
 # --- Geohash and Maidenhead ---
 assert gc.geohash_encode(gc.coordinate_wgs84(42.6, -5.6), 5) == "ezs42"
 gh = gc.geohash_decode("ezs42")
-assert gh.max_error_m > 0.0
+assert gh.max_error_m > 0.0 and gh.coord.crs == gc.Crs.WGS84
 assert gc.maidenhead_encode(gc.coordinate_wgs84(40.5, -75.0), 2) == "FN20"
 mh = gc.maidenhead_decode("FN20")
-assert approx(mh.lat, 40.5, 1e-9) and approx(mh.lon, -75.0, 1e-9)
+assert mh.coord.crs == gc.Crs.WGS84
+assert approx(mh.coord.lat, 40.5, 1e-9) and approx(mh.coord.lon, -75.0, 1e-9)
+assert mh.max_error_m > 0.0
 
 # --- Geodesy: ellipsoid, ECEF, ENU/AER ---
 wgs84 = gc.ellipsoid_wgs84()
