@@ -24,10 +24,12 @@ on:
         type: boolean
         default: false
   # Dry runs: neither event satisfies the publish job's condition, so they only
-  # build wheels. The version falls back to the root crate's (see "Prepare manifests").
+  # build wheels. The version falls back to the root crate's (see
+  # .github/actions/release-plan).
   pull_request:
     paths:
       - .github/workflows/release-python.yml
+      - .github/actions/release-plan/**
       - Cargo.toml
       - Cargo.lock
       - crates/geocoordinates-ffi/**
@@ -47,6 +49,10 @@ jobs:
   build:
     name: Wheel (${{ matrix.runner }} ${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
+    # Every matrix leg computes the same plan from the same event, so whichever
+    # leg's value GitHub keeps, the publish job reads the same answer.
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
     strategy:
       fail-fast: false
       matrix:
@@ -61,24 +67,15 @@ jobs:
           - { runner: macos-14, target: aarch64 }
     steps:
       - uses: actions/checkout@v4
+      - name: Plan release (version + publish)
+        id: plan
+        uses: ./.github/actions/release-plan
       - name: Prepare manifests (version + maturin bindgen scope)
         shell: bash
         env:
-          REF_VERSION: ${{ github.event.release.tag_name }}
-          INPUT_VERSION: ${{ inputs.version }}
-          EVENT: ${{ github.event_name }}
+          VERSION: ${{ steps.plan.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${REF_VERSION:-$INPUT_VERSION}"
-          # PR / scheduled dry runs carry no tag or input: use the root crate version,
-          # which is what release-plz would pass.
-          if [ -z "$VERSION" ] && { [ "$EVENT" = pull_request ] || [ "$EVENT" = schedule ]; }; then
-            VERSION="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)"
-          fi
-          VERSION="${VERSION#v}"
-          if [ -z "$VERSION" ]; then
-            echo "::error::No version (provide one via workflow_dispatch input)"; exit 1
-          fi
           # Stamp the FFI crate version from the release tag (package line only).
           perl -i -pe 's/^version = "[^"]*"/version = "'"$VERSION"'"/' \
             crates/geocoordinates-ffi/Cargo.toml
@@ -107,8 +104,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # Publish on a real release, or a release-plz dispatch with publish=true; a plain
-    # manual workflow_dispatch is a build-only dry run.
-    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    # manual workflow_dispatch is a build-only dry run (see .github/actions/release-plan).
+    if: ${{ needs.build.outputs.publish == 'true' }}
     permissions:
       id-token: write # OIDC for PyPI Trusted Publishing
     steps:

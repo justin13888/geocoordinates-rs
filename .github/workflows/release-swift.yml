@@ -20,17 +20,19 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Tag to build, e.g. v0.1.0"
+        description: "Version to build, e.g. 0.1.0 (names the tag a dry run rewrites Package.swift against)"
         required: false
       publish:
         description: "Upload to the release + re-point the tag (set by release-plz; manual dispatch = dry run)"
         type: boolean
         default: false
-  # Dry runs: neither event satisfies the publish condition below, so they build
-  # the XCFramework and rewrite Package.swift in the runner's checkout only.
+  # Dry runs: neither event satisfies the publish condition (see
+  # .github/actions/release-plan), so they build the XCFramework and rewrite
+  # Package.swift in the runner's checkout only.
   pull_request:
     paths:
       - .github/workflows/release-swift.yml
+      - .github/actions/release-plan/**
       - Cargo.toml
       - Cargo.lock
       - crates/geocoordinates-ffi/**
@@ -58,6 +60,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Plan release (version + publish)
+        id: plan
+        uses: ./.github/actions/release-plan
       - name: Build XCFramework
         id: xcf
         run: bash crates/geocoordinates-ffi/swift/build-xcframework.sh
@@ -66,11 +71,11 @@ jobs:
       - name: Rewrite Package.swift binaryTarget (URL + checksum)
         id: pkg
         env:
-          PUBLISH: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          PUBLISH: ${{ steps.plan.outputs.publish }}
           # On a release event this is the release tag; on a release-plz dispatch the
           # workflow runs at `--ref <tag>`, so ref_name is that same tag.
           RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
-          INPUT_VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.plan.outputs.version }}
           CHECKSUM: ${{ steps.xcf.outputs.checksum }}
         run: |
           set -euo pipefail
@@ -78,8 +83,7 @@ jobs:
             TAG="$RELEASE_TAG"
           else
             # Dry run: no release exists, so rewrite against the tag it would have.
-            V="${INPUT_VERSION:-$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)}"
-            TAG="v${V#v}"
+            TAG="v$VERSION"
           fi
           if ! printf '%s' "$CHECKSUM" | grep -Eq '^[0-9a-f]{64}$'; then
             echo "::error::build-xcframework.sh emitted no valid checksum: '$CHECKSUM'"; exit 1
@@ -93,7 +97,7 @@ jobs:
           git diff -- Package.swift
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - name: Publish to the release + re-point tag
-        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        if: ${{ steps.plan.outputs.publish == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.pkg.outputs.tag }}
