@@ -1,8 +1,8 @@
 //! Geodetic core: ellipsoids, ECEF, local tangent frames, and geodesic
 //! computations.
 //!
-//! This module owns its math, with one planned exception: exact ellipsoidal
-//! (Karney) geodesics will be delegated to
+//! This module owns its math, with one exception: exact ellipsoidal (Karney)
+//! geodesics are delegated to
 //! [`geographiclib-rs`](https://docs.rs/geographiclib-rs) — the validated Rust
 //! port of Karney's GeographicLib (and the same engine the `geo` crate uses) —
 //! rather than re-deriving it. Everything else (haversine, rhumb/loxodrome,

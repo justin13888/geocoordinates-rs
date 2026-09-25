@@ -51,12 +51,14 @@ projected/encoded grids, serde round trips, and typed failures.
 
 ## Language bindings (FFI)
 
-The API is exposed to **Python, Kotlin, Swift, and TypeScript** with full
-capability parity via [UniFFI](https://mozilla.github.io/uniffi-rs/), generated
-from the separate `geocoordinates-ffi` crate (Java consumes the Kotlin/JVM
-artifact directly). The bindings track the released surface and gate each
-release. Every public capability has a canonical FFI form, including both H3
-and S2 discrete global grids.
+The API is exposed to **Python, Kotlin, Swift, and TypeScript** via
+[UniFFI](https://mozilla.github.io/uniffi-rs/), generated from the separate
+`geocoordinates-ffi` crate (Java consumes the Kotlin/JVM artifact directly).
+The bindings track the released surface and gate each release. **Full
+capability parity is the design rule** — every public capability is meant to
+have a canonical FFI form, including both H3 and S2 discrete global grids —
+but the ⚠️ rows in the FFI column of the surface table above mark subsystems
+that don't yet meet it (tracked in [STABILIZATION.md](STABILIZATION.md)).
 
 Because the Rust API is idiomatic, the FFI surface is deliberately flattened:
 generics (`Approx<T>`), traits, `Deref`, and operator overloads do not cross the
@@ -174,7 +176,7 @@ Set `HK=0` to skip hooks for a single git invocation.
 
 ### CI/CD
 
-GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests, and lints PR commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`). A separate FFI workflow builds the bindings `cdylib`, generates bindings for all four languages, and runs a Python smoke test. Both workflows cancel superseded in-flight runs when a PR is updated.
+GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests, runs mutation tests on the lines a pull request changes, and lints PR commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`). A separate FFI workflow builds the bindings `cdylib`, generates bindings for all four languages, and runs Python and JVM (Kotlin/Java) smoke tests. Both workflows cancel superseded in-flight runs when a PR is updated.
 
 ### Releases
 

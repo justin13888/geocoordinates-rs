@@ -2,7 +2,7 @@
 //!
 //! Design (locked): a **lean** [`Coordinate`] (position + optional height +
 //! reference system) is what the geodetic math and the central
-//! `convert` dispatch (a later release) operate on. Rich observation metadata
+//! `convert` dispatch operate on. Rich observation metadata
 //! (accuracy, timestamp, raw source, parse confidence) lives separately in
 //! [`crate::fix::Fix`], populated by the ingestion layer.
 
@@ -15,7 +15,7 @@ use crate::error::{Error, Result};
 ///
 /// GCJ-02 and BD-09 are obfuscation transforms rather than true geodetic
 /// datums, but are modeled here as reference systems so the central
-/// `convert` dispatch (a later release) can dispatch over them uniformly.
+/// `convert` dispatch can dispatch over them uniformly.
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
 /// so adding a datum here is a deliberate, compile-forcing change on both sides
@@ -38,14 +38,14 @@ pub enum Crs {
     // These classic datums are reached natively via a 7-parameter Helmert
     // transform — see [`crate::geodesy::datum`]. NAD83, ETRS89, ITRF
     // realizations, national grids, and the full EPSG long tail are delegated
-    // to the optional `proj` feature.
+    // to the deferred `proj` feature (see STABILIZATION.md).
 }
 
 /// A height value, tagged by the surface it is measured from.
 ///
 /// GNSS reports **ellipsoidal** height natively; humans expect **orthometric**
 /// height (above the geoid / "sea level"). Converting between them requires a
-/// geoid model — see the optional `geoid` feature.
+/// geoid model — deferred behind the `geoid` feature (see STABILIZATION.md).
 ///
 /// Only these two surfaces are modeled; tidal datums (MSL, MLLW, …) are out of
 /// scope.

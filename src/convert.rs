@@ -4,7 +4,7 @@
 //! [`Approx`] because some target systems (GCJ-02/BD-09 inverses) are only
 //! reachable approximately. When the source and target are known at compile
 //! time, prefer the typed newtype conversions (e.g. [`crate::Wgs84`] →
-//! [`crate::Gcj02`] via [`From`]), which return exact bare types where the math
+//! [`crate::Gcj02`] via [`TryFrom`]), which return exact bare types where the math
 //! is exact.
 //!
 //! Conversions are per-coordinate; batch / vectorized conversion is left to the
@@ -23,7 +23,7 @@ use crate::geodesy::datum::DatumTransform;
 /// [`china`](crate::china) conversions; classic datums (NAD27, Tokyo,
 /// Pulkovo-1942) use the 7-parameter Helmert transforms from
 /// [`geodesy::datum`](crate::geodesy::datum). The full EPSG/national-grid long
-/// tail is delegated to the optional `proj` feature.
+/// tail is delegated to the deferred `proj` feature (see STABILIZATION.md).
 ///
 /// The result is wrapped in [`Approx`] because the worst-case path (e.g.
 /// BD-09 → WGS-84) is approximate; for exact paths — including Helmert datum
@@ -58,15 +58,16 @@ pub fn convert(coord: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
 ///
 /// True for every currently-modeled [`Crs`]: each reaches the WGS-84 hub (China
 /// systems via the typed conversions, classic datums via Helmert). The
-/// distinction exists for the optional `proj` long tail, whose datums are not
-/// hub-reachable without that feature.
+/// distinction exists for the deferred `proj` long tail (see STABILIZATION.md),
+/// whose datums are not hub-reachable without that feature.
 #[must_use]
 pub fn can_convert(from: Crs, to: Crs) -> bool {
     hub_reachable(from) && hub_reachable(to)
 }
 
-/// Whether a reference system can reach the WGS-84 hub without the `proj`
-/// feature. Exhaustive — a new [`Crs`] must declare its routability here.
+/// Whether a reference system can reach the WGS-84 hub without the deferred
+/// `proj` feature. Exhaustive — a new [`Crs`] must declare its routability
+/// here.
 fn hub_reachable(crs: Crs) -> bool {
     match crs {
         Crs::Wgs84 | Crs::Gcj02 | Crs::Bd09 | Crs::Nad27 | Crs::Tokyo | Crs::Pulkovo42 => true,

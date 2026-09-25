@@ -5,7 +5,7 @@ use crate::coord::Crs;
 /// The result type returned across the public API.
 pub type Result<T> = core::result::Result<T, Error>;
 
-/// All errors produced by `gcoordinates`.
+/// All errors produced by `geocoordinates`.
 ///
 /// Conversions that can fail return [`Result`]; conversions that are merely
 /// *approximate* do not fail — they return [`crate::Approx`] instead.
@@ -46,7 +46,7 @@ pub enum Error {
     Parse(String),
 
     /// The requested runtime conversion is not supported by the `convert`
-    /// dispatch (a later release).
+    /// dispatch.
     #[error("unsupported conversion: {from} -> {to}")]
     UnsupportedConversion {
         /// Source reference system.
@@ -79,6 +79,6 @@ pub enum Error {
     /// An optional capability was requested whose cargo feature is disabled.
     #[error("feature `{0}` is not enabled")]
     FeatureDisabled(&'static str),
-    // TODO(impl): add further variants as modules are fleshed out (projection
-    // domain errors, PROJ errors, ...).
+    // TODO(impl): add further variants (e.g. projection domain errors) if the
+    // deferred `proj` feature is promoted — see STABILIZATION.md.
 }

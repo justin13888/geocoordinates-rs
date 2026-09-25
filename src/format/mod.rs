@@ -1,6 +1,6 @@
 //! Presentation: locale-aware, round-trip-stable coordinate formatting.
 //!
-//! Formatting is the inverse of parsing (the `parse` module, a later release):
+//! Formatting is the inverse of parsing (the `parse` module):
 //! a [`Coordinate`] plus [`FormatOptions`] renders to a string in a selectable
 //! representation. The guarantee is **round-trip stability** —
 //! `parse → model → format → parse` must not drift.

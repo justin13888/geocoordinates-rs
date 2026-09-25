@@ -2,10 +2,9 @@
 //!
 //! - [`text`] — tolerant free-text / DMS / DDM parsing (always available).
 //! - [`from_geo_uri`] — `geo:` URIs per RFC 5870 (always available).
-//! - `interchange` — GeoJSON, WKT, GPX, KML (each behind a cargo feature; a
-//!   later release).
-//! - `sensors` — NMEA 0183 (feature-gated; a later release). EXIF is out of
-//!   scope — a separate library handles it, consuming this crate's primitives.
+//! - `interchange` — GeoJSON, WKT, GPX, KML (each behind a cargo feature).
+//! - `sensors` — NMEA 0183 (feature-gated). EXIF is out of scope — a
+//!   separate library handles it, consuming this crate's primitives.
 //!
 //! ## Axis order is first-class
 //!

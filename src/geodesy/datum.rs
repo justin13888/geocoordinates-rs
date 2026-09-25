@@ -13,8 +13,8 @@
 //! Molodensky-Badekas** transforms are deliberately omitted, as the ECEF Helmert
 //! path is more general and at least as accurate. Higher-accuracy **grid-based**
 //! transforms (NTv2, NADCON5), national grid projections, and the full EPSG
-//! registry are out of scope here and are delegated to the optional `proj`
-//! feature.
+//! registry are out of scope here and are delegated to the deferred `proj`
+//! feature (see STABILIZATION.md).
 //!
 //! Transforms are **static**. Epoch / time-aware geodesy — plate-motion velocity
 //! models, the 14-parameter (rate-of-change) transforms, and distinct ITRF
@@ -127,7 +127,8 @@ impl DatumTransform {
     ///
     /// Returns `None` for [`Crs::Wgs84`] (no shift needed), for the China
     /// obfuscation systems (use the [`china`](crate::china) typed conversions),
-    /// and for datums reachable only through the optional `proj` feature.
+    /// and for datums reachable only through the deferred `proj` feature (see
+    /// STABILIZATION.md).
     #[must_use]
     pub fn to_wgs84(datum: Crs) -> Option<DatumTransform> {
         // NIMA TR8350.2 mean translation-only (Molodensky) shifts. Exhaustive
@@ -175,12 +176,12 @@ impl DatumTransform {
     }
 
     /// Transform a geodetic coordinate from the source to the target datum,
-    /// tagging the result with `to`.
+    /// tagging the result with `self.to_crs`.
     ///
     /// Exact within the published parameters. `DatumTransform` holds only the
     /// two ellipsoids — which do not uniquely determine a [`Crs`] (e.g. GRS80
-    /// backs both NAD83 and ETRS89) — so the target reference system is supplied
-    /// explicitly rather than inferred.
+    /// backs both NAD83 and ETRS89) — so the target reference system is stored
+    /// explicitly on `self.to_crs` rather than inferred from the ellipsoid.
     pub fn transform(&self, coord: Coordinate) -> Result<Coordinate> {
         if coord.crs != self.from_crs {
             return Err(Error::CrsMismatch {
