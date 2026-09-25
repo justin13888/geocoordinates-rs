@@ -60,13 +60,13 @@ assert approx(back.lon, BD[1], 1e-6), back.lon
 assert gc.out_of_china(51.5074, -0.1278) is True  # London
 assert gc.out_of_china(WGS[0], WGS[1]) is False  # Beijing
 
-# --- Fallible try-conversion: error path + success path ---
+# --- Fallible conversion: error path + success path ---
 try:
-    gc.baidu_mercator_try_from_coordinate(gc.coordinate_wgs84(WGS[0], WGS[1]))
+    gc.baidu_mercator_from_coordinate(gc.coordinate_wgs84(WGS[0], WGS[1]))
     raise AssertionError("expected CrsMismatch for a WGS-84 coordinate")
 except gc.GeoError.CrsMismatch:
     pass
-ok = gc.baidu_mercator_try_from_coordinate(gc.coordinate_bd09(BD[0], BD[1]))
+ok = gc.baidu_mercator_from_coordinate(gc.coordinate_bd09(BD[0], BD[1]))
 assert approx(ok.x, merc.x, 1e-6) and approx(ok.y, merc.y, 1e-6)
 
 # --- Distance (Length flattened to meters) ---

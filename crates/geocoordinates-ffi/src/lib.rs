@@ -1016,7 +1016,7 @@ pub fn baidu_mercator_to_coordinate(m: BaiduMercator) -> Result<Coordinate, GeoE
 /// non-BD-09 coordinate must be converted to BD-09 first, never silently
 /// reprojected.
 #[uniffi::export]
-pub fn baidu_mercator_try_from_coordinate(coord: Coordinate) -> Result<BaiduMercator, GeoError> {
+pub fn baidu_mercator_from_coordinate(coord: Coordinate) -> Result<BaiduMercator, GeoError> {
     gc::BaiduMercator::try_from_coordinate(coord.into())
         .map(Into::into)
         .map_err(GeoError::from)
