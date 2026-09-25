@@ -51,7 +51,7 @@ column below reflects what has actually landed since.
 
 | # | Finding | Anchor | Owner | Status |
 |---|---|---|---|---|
-| G1 | FFI CI red — Java smoke test does not declare the now-checked `GeoException` | `jvm/…/SmokeTest.java:22,28` | PR 1 | closed (#37) |
+| G1 | FFI CI red — Java smoke test does not declare the now-checked `GeoException` | `jvm/…/SmokeTest.java:15,21` | PR 1 | closed (#37) |
 | G2 | `Wgs84`/`Gcj02`/`Bd09` ↔ `Coordinate` existed only as six `From`/`TryFrom` impls with no named method — violates the mandatory rule and cannot cross FFI | `src/china/mod.rs` | PR 1 | closed (#37) |
 | G3 | No FFI way to CRS-check a `Coordinate` down to a typed datum; `Error::CrsMismatch` protection is Rust-only | consequence of G2 | PR 7 | open |
 | G4 | FFI exposes only `coordinate_wgs84`/`_gcj02`/`_bd09`; no `coordinate_new(lat, lon, crs)`, so `Nad27`/`Tokyo`/`Pulkovo42` cannot be constructed by name despite `convert` accepting them | ffi `lib.rs:897-911` | PR 7 | open |
@@ -65,7 +65,7 @@ column below reflects what has actually landed since.
 | G12 | **Zero executable doc examples crate-wide** | `src/lib.rs:21` | PR 6 | open |
 | G13 | `src/proj/mod.rs` and `src/height/mod.rs` are undeclared dead files holding four `todo!()`s | `proj:30`, `height:34,42,50` | PR 9 | open |
 | G14 | FFI gate is thin: one Python smoke test, one Java smoke test, zero Rust tests in the FFI crate, none for Kotlin/Swift/TypeScript | `crates/geocoordinates-ffi/` | PR 8 | open |
-| G15 | `parse/interchange.rs` 80.0% (open, PR 5); `china/mod.rs` was 60.0%, now 100.0% — closed incidentally by PR 1's named-method bridges (#37) | — | PR 5 | open — china/mod.rs half closed by #37 |
+| G15 | `parse/interchange.rs` 80.4% lines (open, PR 5); `china/mod.rs` was 60.0% lines, now 100.0% lines — closed incidentally by PR 1's named-method bridges (#37) | — | PR 5 | open — china/mod.rs half closed by #37 |
 | G16 | `Representation` covers only DD/DMS/DDM/Plus Code, so UTM, MGRS, Geohash and Maidenhead ship as types that cannot be **formatted**, and `parse_coordinate` cannot detect their tokens — format/parse are asymmetric with the grids subsystem | `src/format/mod.rs:19`, `src/parse/mod.rs:43` | PR 3 | open |
 
 **Verified clean**, and deliberately so — do not "fix" these:
