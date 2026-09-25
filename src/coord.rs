@@ -38,7 +38,7 @@ pub enum Crs {
     // These classic datums are reached natively via a 7-parameter Helmert
     // transform — see [`crate::geodesy::datum`]. NAD83, ETRS89, ITRF
     // realizations, national grids, and the full EPSG long tail are delegated
-    // to the optional `proj` feature.
+    // to the deferred `proj` feature (see STABILIZATION.md).
 }
 
 /// A height value, tagged by the surface it is measured from.
