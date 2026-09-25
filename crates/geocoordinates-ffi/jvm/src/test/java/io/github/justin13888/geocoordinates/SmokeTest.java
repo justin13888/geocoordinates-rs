@@ -17,6 +17,9 @@ import uniffi.geocoordinates_ffi.Wgs84;
 
 /** Proves the Kotlin/JNA bindings are callable idiomatically from Java. */
 class SmokeTest {
+    // Every FFI function that returns `Result` surfaces as `@Throws(GeoException::class)`,
+    // and Java treats `GeoException` as checked. Calling a newly fallible function without
+    // declaring it fails `compileTestJava`, which CI reports only as the Gradle step exiting 1.
     @Test
     void chinaDatumRoundTripFromJava() throws GeoException {
         Wgs84 wgs = new Wgs84(39.915, 116.404);
