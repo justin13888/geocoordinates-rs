@@ -690,7 +690,7 @@ mod tests {
 
     #[test]
     fn precision_for_accuracy_uses_the_representations_unit() {
-        use Representation::{DecimalDegrees, Ddm, Dms, PlusCode};
+        use Representation::{Ddm, DecimalDegrees, Dms, PlusCode};
         assert_eq!(precision_for_accuracy(1.0, DecimalDegrees), Some(5));
         assert_eq!(precision_for_accuracy(1.0, Dms), Some(1));
         assert_eq!(precision_for_accuracy(1.0, Ddm), Some(3));
