@@ -46,7 +46,7 @@ pub enum Error {
     Parse(String),
 
     /// The requested runtime conversion is not supported by the `convert`
-    /// dispatch (a later release).
+    /// dispatch.
     #[error("unsupported conversion: {from} -> {to}")]
     UnsupportedConversion {
         /// Source reference system.

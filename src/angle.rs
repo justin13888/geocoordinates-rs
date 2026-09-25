@@ -85,7 +85,7 @@ impl Dd {
     ///
     /// `seconds` is kept full-precision and is **not** pre-rounded, so a round
     /// trip back through [`Dms::try_to_dd`] is exact. Rounding — and the 60″ carry it
-    /// can imply — is the formatter's responsibility (a later release).
+    /// can imply — is the formatter's responsibility (see [`crate::format`]).
     ///
     /// # Errors
     /// Returns [`Error::InvalidValue`] for a non-finite or out-of-axis-range
