@@ -13,6 +13,19 @@ and all packages release in lockstep. Each workflow also accepts a plain manual
 `workflow_dispatch` (with `publish` defaulting to **false**) that **builds/packages but
 does not publish** — use it to dry-run a pipeline.
 
+The same dry run also runs **automatically**, so a pipeline's scripted steps (version
+stamping, native staging, the `Package.swift` checksum rewrite) are exercised between
+releases rather than first at one:
+
+- on every **pull request** that touches the workflow itself, `Cargo.toml`, `Cargo.lock`,
+  or `crates/geocoordinates-ffi/**` (plus `Package.swift` / `swift/**` for SwiftPM), and
+- **weekly** (Mondays 06:00 UTC), to catch runner, toolchain, and action drift.
+
+Neither event can publish: the publish steps run only on `release: published` or a
+dispatch with `publish=true`. With no tag or input, these runs take the version from the
+root `Cargo.toml`. A dry run on SwiftPM rewrites `Package.swift` in the runner's checkout
+only; it uploads nothing, commits nothing, and moves no tag.
+
 > **No tokens to manage.** A GitHub Release created with the default `GITHUB_TOKEN` does
 > not fire `release: published` (GitHub's recursion guard), so the binding workflows
 > can't simply trigger off the release. Rather than introduce a PAT (which GitHub forces

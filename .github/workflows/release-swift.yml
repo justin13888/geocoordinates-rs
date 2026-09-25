@@ -5,7 +5,9 @@ name: Release (SwiftPM)
 #
 # Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
 # `publish=true`). A manual `workflow_dispatch` (publish defaulting to false) builds
-# the XCFramework without publishing (dry run).
+# the XCFramework and rewrites Package.swift locally without publishing (dry run).
+# The same dry run also runs on pull requests that touch this pipeline and weekly
+# on a schedule, so the path is exercised between releases, not first at one.
 #
 # No external account: SwiftPM resolves from the git tag + the GitHub Release.
 # Because a binaryTarget checksum is self-referential (it depends on the built
@@ -24,6 +26,24 @@ on:
         description: "Upload to the release + re-point the tag (set by release-plz; manual dispatch = dry run)"
         type: boolean
         default: false
+  # Dry runs: neither event satisfies the publish condition below, so they build
+  # the XCFramework and rewrite Package.swift in the runner's checkout only.
+  pull_request:
+    paths:
+      - .github/workflows/release-swift.yml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/geocoordinates-ffi/**
+      - Package.swift
+      - swift/**
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC: catches runner/toolchain/action drift
+
+# Cancel superseded PR dry runs; every other run (release, dispatch, schedule) gets
+# a unique group, so a release is never cancelled or held pending behind another run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -41,21 +61,45 @@ jobs:
       - name: Build XCFramework
         id: xcf
         run: bash crates/geocoordinates-ffi/swift/build-xcframework.sh
+      # Runs on dry runs too, so the checksum rewrite is exercised before a release
+      # depends on it; only the step below uploads, commits, or moves a tag.
+      - name: Rewrite Package.swift binaryTarget (URL + checksum)
+        id: pkg
+        env:
+          PUBLISH: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+          # On a release event this is the release tag; on a release-plz dispatch the
+          # workflow runs at `--ref <tag>`, so ref_name is that same tag.
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          CHECKSUM: ${{ steps.xcf.outputs.checksum }}
+        run: |
+          set -euo pipefail
+          if [ "$PUBLISH" = true ]; then
+            TAG="$RELEASE_TAG"
+          else
+            # Dry run: no release exists, so rewrite against the tag it would have.
+            V="${INPUT_VERSION:-$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)}"
+            TAG="v${V#v}"
+          fi
+          if ! printf '%s' "$CHECKSUM" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::build-xcframework.sh emitted no valid checksum: '$CHECKSUM'"; exit 1
+          fi
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/geocoordinates_ffiFFI.xcframework.zip"
+          perl -0pi -e "s{url: \"[^\"]*geocoordinates_ffiFFI\\.xcframework\\.zip\"}{url: \"${URL}\"}" Package.swift
+          perl -0pi -e "s{checksum: \"[0-9a-f]{64}\"}{checksum: \"${CHECKSUM}\"}" Package.swift
+          # A pattern that stops matching would otherwise leave the old values in place silently.
+          grep -qF "url: \"${URL}\"" Package.swift || { echo "::error::Package.swift URL was not rewritten"; exit 1; }
+          grep -qF "checksum: \"${CHECKSUM}\"" Package.swift || { echo "::error::Package.swift checksum was not rewritten"; exit 1; }
+          git diff -- Package.swift
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - name: Publish to the release + re-point tag
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         env:
           GH_TOKEN: ${{ github.token }}
-          # On a release event this is the release tag; on a release-plz dispatch the
-          # workflow runs at `--ref <tag>`, so ref_name is that same tag.
-          TAG: ${{ github.event.release.tag_name || github.ref_name }}
-          CHECKSUM: ${{ steps.xcf.outputs.checksum }}
+          TAG: ${{ steps.pkg.outputs.tag }}
         run: |
           set -euo pipefail
-          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/geocoordinates_ffiFFI.xcframework.zip"
           gh release upload "$TAG" swift/geocoordinates_ffiFFI.xcframework.zip --clobber
-          # Rewrite the remote binaryTarget URL + checksum in Package.swift.
-          perl -0pi -e "s{url: \"[^\"]*geocoordinates_ffiFFI\\.xcframework\\.zip\"}{url: \"${URL}\"}" Package.swift
-          perl -0pi -e "s{checksum: \"[0-9a-f]{64}\"}{checksum: \"${CHECKSUM}\"}" Package.swift
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Package.swift swift/Sources/GeoCoordinates
