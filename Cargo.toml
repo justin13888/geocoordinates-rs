@@ -14,6 +14,17 @@ categories = ["science::geo", "mathematics", "parser-implementations"]
 # SwiftPM) are not part of the published crate.
 exclude = ["AGENTS.md", "CLAUDE.md", "STABILIZATION.md", "PUBLISHING.md", "Package.swift", "swift"]
 
+# Per-feature MSRV exceptions. `rust-version` above covers the core crate and every
+# feature not listed here; each listed feature needs the newer rustc its upstream
+# dependency requires (geojson 1.0 uses `if let` chains; h3o 0.10 calls
+# `f64::mul_add` in a `const fn`). Cargo has no per-feature `rust-version`, so this
+# table is the record: `mise run msrv` reads it and tests each feature on its own
+# toolchain, so the declaration cannot drift from what builds. Keep one
+# `feature = "version"` entry per line.
+[package.metadata.feature-rust-version]
+geojson = "1.88"
+h3 = "1.94"
+
 # The repo is a workspace so the FFI bindings live in their own crate
 # (`geocoordinates-ffi`) without touching this published, pure-`rlib` crate.
 # The root package auto-joins as a member; `default-members = ["."]` keeps bare

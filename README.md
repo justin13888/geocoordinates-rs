@@ -49,6 +49,23 @@ approximate conversion semantics, axis order, antimeridian/pole behavior,
 interchange and sensor ingestion, classic and China datums, geodesics, frames,
 projected/encoded grids, serde round trips, and typed failures.
 
+## Minimum supported Rust version
+
+The core crate and most features build on **Rust 1.85** (`rust-version` in
+[`Cargo.toml`](Cargo.toml)). Two features need a newer toolchain, because their
+upstream dependencies do:
+
+| Feature | Needs | Why |
+|---|---|---|
+| everything else (`serde`, `wkt`, `gpx`, `kml`, `nmea`, `s2`) | 1.85 | core `rust-version` |
+| `geojson` | 1.88 | geojson 1.0 uses `if let` chains |
+| `h3` | 1.94 | h3o 0.10 calls `f64::mul_add` in a `const fn` |
+
+Enabling `geojson` or `h3` therefore raises your MSRV to the version shown. The
+exceptions are recorded in `[package.metadata.feature-rust-version]` in
+`Cargo.toml`, and `mise run msrv` (a CI job) tests the core on 1.85 and each
+exception on its own toolchain against the committed `Cargo.lock`.
+
 ## Language bindings (FFI)
 
 The API is exposed to **Python, Kotlin, Swift, and TypeScript** via

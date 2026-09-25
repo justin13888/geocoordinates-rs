@@ -60,10 +60,12 @@ run = "cargo test --all-features"
 
 # Builds and tests on the `rust-version` declared in Cargo.toml, read at run time
 # so the check cannot drift from the declaration. `--locked` proves the committed
-# Cargo.lock resolves on that toolchain. `geojson` and `h3` are excluded: their
-# dependencies (geojson 1.0, h3o 0.10) need a newer rustc than the core crate.
+# Cargo.lock resolves on that toolchain. The features in Cargo.toml's
+# `[package.metadata.feature-rust-version]` table (`geojson`, `h3`) are left out of
+# the core run: each is then tested alone on the newer toolchain that table
+# declares for it, read the same way.
 [tasks.msrv]
-description = "Build and test on the declared MSRV (core + MSRV-clean features)"
+description = "Build and test on the declared MSRV, and each feature MSRV exception on its own"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -74,6 +76,16 @@ if [ -z "$msrv" ]; then
 fi
 rustup toolchain install "$msrv" --profile minimal --no-self-update
 cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2
+
+exceptions="$(sed -n '/^\[package\.metadata\.feature-rust-version\]$/,/^\[/ s/^\([a-z0-9_-]*\) = "\(.*\)"$/\1 \2/p' Cargo.toml)"
+if [ -z "$exceptions" ]; then
+    echo "msrv: no [package.metadata.feature-rust-version] entries in Cargo.toml" >&2
+    exit 1
+fi
+while read -r feature version; do
+    rustup toolchain install "$version" --profile minimal --no-self-update < /dev/null
+    cargo "+$version" test --locked --features "$feature" < /dev/null
+done <<< "$exceptions"
 '''
 
 [tasks.coverage]
