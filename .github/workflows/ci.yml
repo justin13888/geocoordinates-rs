@@ -118,6 +118,9 @@ jobs:
   mutants:
     name: Mutation tests
     runs-on: ubuntu-latest
+    # PR-only: on a push to master the diff against origin/master is always empty
+    # after the merge, so the job could only ever report "nothing to test".
+    if: github.event_name == 'pull_request'
     env:
       RUSTFLAGS: "" # override the workflow-level `-D warnings`: warn-only mutants must
         # still build to be evaluated, else they count as unviable not missed.
@@ -129,4 +132,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
       - name: Mutation-test changed lines
-        run: mise run mutants "origin/${{ github.base_ref || 'master' }}"
+        run: mise run mutants "origin/${{ github.base_ref }}"
