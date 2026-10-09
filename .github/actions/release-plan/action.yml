@@ -1,0 +1,56 @@
+name: Release plan
+description: >-
+  Decide, once for every binding release workflow, which version it builds and
+  whether it publishes. Reads only the triggering event, so callers pass nothing.
+
+# Publish only on a real `release: published` event, or a `workflow_dispatch` with
+# `publish=true` (what release-plz.yml sends). Every other run is a dry run: a
+# manual dispatch (publish defaults to false), a pull request, or the weekly
+# schedule.
+#
+# Version, first match wins:
+#   1. the release tag (`release` event);
+#   2. the `version` dispatch input (release-plz.yml passes the released version);
+#   3. dry runs only: the root crate's version in Cargo.toml, which is what
+#      release-plz would pass.
+# A publishing run with neither 1 nor 2 fails rather than guess. A leading `v` is
+# stripped, so `version` is always bare (e.g. `0.14.1`).
+#
+# Requires the repository checked out at the workspace root.
+outputs:
+  version:
+    description: Bare version to build, e.g. 0.14.1
+    value: ${{ steps.plan.outputs.version }}
+  publish:
+    description: "`true` when this run publishes, `false` for a dry run"
+    value: ${{ steps.plan.outputs.publish }}
+
+runs:
+  using: composite
+  steps:
+    - id: plan
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        EVENT: ${{ github.event_name }}
+        REF_VERSION: ${{ github.event.release.tag_name }}
+        INPUT_VERSION: ${{ github.event.inputs.version }}
+        INPUT_PUBLISH: ${{ github.event.inputs.publish }}
+      run: |
+        set -euo pipefail
+        publish=false
+        if [ "$EVENT" = release ] || { [ "$EVENT" = workflow_dispatch ] && [ "$INPUT_PUBLISH" = true ]; }; then
+          publish=true
+        fi
+        V="${REF_VERSION:-$INPUT_VERSION}"
+        if [ -z "$V" ] && [ "$publish" = false ]; then
+          V="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n1)"
+        fi
+        V="${V#v}"
+        if [ -z "$V" ]; then
+          echo "::error::No version: a publishing run needs a release tag or the version dispatch input"
+          exit 1
+        fi
+        echo "Release plan: version=$V publish=$publish (event=$EVENT)"
+        echo "version=$V" >> "$GITHUB_OUTPUT"
+        echo "publish=$publish" >> "$GITHUB_OUTPUT"

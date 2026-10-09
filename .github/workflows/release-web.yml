@@ -4,7 +4,9 @@ name: Release (npm)
 #
 # Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
 # `publish=true`). A manual `workflow_dispatch` (publish defaulting to false) builds
-# + `npm pack`s without publishing (dry run).
+# + `npm pack`s without publishing (dry run). The same dry run also runs on pull
+# requests that touch this pipeline and weekly on a schedule, so the path is
+# exercised between releases, not first at one.
 #
 # Auth: npm OIDC Trusted Publishing — no token/secret. npm exchanges the GitHub
 # OIDC `id-token` for a short-lived publish credential and auto-attaches provenance.
@@ -28,6 +30,24 @@ on:
         description: "Publish to npm (set by release-plz; manual dispatch = dry run)"
         type: boolean
         default: false
+  # Dry runs: neither event satisfies the publish condition (see
+  # .github/actions/release-plan), so they only build + `npm pack --dry-run`. The
+  # version falls back to the root crate's.
+  pull_request:
+    paths:
+      - .github/workflows/release-web.yml
+      - .github/actions/release-plan/**
+      - Cargo.toml
+      - Cargo.lock
+      - crates/geocoordinates-ffi/**
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC: catches runner/toolchain/action drift
+
+# Cancel superseded PR dry runs; every other run (release, dispatch, schedule) gets
+# a unique group, so a release is never cancelled or held pending behind another run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -56,28 +76,23 @@ jobs:
           cache: npm
           cache-dependency-path: crates/geocoordinates-ffi/web/package-lock.json
       - name: Upgrade npm (OIDC trusted publishing needs >= 11.5.1)
-        run: npm install -g npm@latest
-      - name: Compute version
-        id: ver
-        env:
-          REF_VERSION: ${{ github.event.release.tag_name }}
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          V="${REF_VERSION:-$INPUT_VERSION}"; V="${V#v}"
-          if [ -z "$V" ]; then echo "::error::No version"; exit 1; fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
+        # Pinned rather than @latest so a new npm release, including a new major,
+        # cannot change the publish step unannounced.
+        run: npm install -g npm@11.20.0
+      - name: Plan release (version + publish)
+        id: plan
+        uses: ./.github/actions/release-plan
       - run: npm ci
       - name: Set package version
-        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+        run: npm version "${{ steps.plan.outputs.version }}" --no-git-tag-version --allow-same-version
       - name: Build bindings
         run: npm run build
       # OIDC trusted publishing: no NODE_AUTH_TOKEN. npm exchanges the GitHub
       # `id-token` (permissions below) for a publish credential and attaches
       # provenance automatically. Requires the package to already exist on npm.
       - name: Publish to npm (OIDC trusted publishing)
-        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        if: ${{ steps.plan.outputs.publish == 'true' }}
         run: npm publish --provenance --access public
       - name: Dry run (npm pack)
-        if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+        if: ${{ steps.plan.outputs.publish != 'true' }}
         run: npm pack --dry-run

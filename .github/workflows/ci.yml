@@ -4,6 +4,10 @@ on:
   push:
     branches: [master]
   pull_request:
+  # Release-plz dispatches this on its release PR branch: that PR is opened with the
+  # default GITHUB_TOKEN, so its `pull_request` runs stop at `action_required` (see
+  # release-plz.yml). The PR-only `commits` and `mutants` jobs skip on a dispatch.
+  workflow_dispatch:
 
 # Cancel superseded PR runs (a new push to the same PR cancels the in-flight one);
 # never cancel push/master runs so post-merge history stays complete.
@@ -17,6 +21,11 @@ env:
 
 # Every job runs its gate through `mise run <task>`, so the commands here and the
 # ones contributors run locally are the same definitions (see .mise.toml).
+# Tool versions are pinned rather than floating, so a CI run is reproducible:
+# mise itself through each `jdx/mise-action` step's `version` input (bump every
+# occurrence here and in mutants-all.yml, ffi.yml, and release-jvm.yml together),
+# and cargo-llvm-cov through
+# the `tool` input of `taiki-e/install-action`.
 jobs:
   commits:
     name: Commit messages
@@ -29,6 +38,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       - name: Lint commit messages (Conventional Commits)
         run: mise run commits-check "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
 
@@ -41,6 +52,8 @@ jobs:
         with:
           components: rustfmt
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       - name: Check formatting
         run: mise run fmt-check
 
@@ -54,6 +67,8 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       - name: Clippy
         run: mise run lint
 
@@ -65,6 +80,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       - name: Test
         run: mise run test
 
@@ -77,6 +94,8 @@ jobs:
       # itself, so no version is repeated here.
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       - name: Build and test on the declared MSRV
         run: mise run msrv
 
@@ -92,6 +111,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       - name: Build docs (warnings denied)
         run: mise run doc
 
@@ -104,8 +125,12 @@ jobs:
         with:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.9.1
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       # No --fail-under-lines threshold yet; this reports coverage only.
       - name: Generate coverage report
         run: mise run coverage-lcov
@@ -118,6 +143,9 @@ jobs:
   mutants:
     name: Mutation tests
     runs-on: ubuntu-latest
+    # PR-only: on a push to master the diff against origin/master is always empty
+    # after the merge, so the job could only ever report "nothing to test".
+    if: github.event_name == 'pull_request'
     env:
       RUSTFLAGS: "" # override the workflow-level `-D warnings`: warn-only mutants must
         # still build to be evaluated, else they count as unviable not missed.
@@ -128,5 +156,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
       - name: Mutation-test changed lines
-        run: mise run mutants "origin/${{ github.base_ref || 'master' }}"
+        run: mise run mutants "origin/${{ github.base_ref }}"

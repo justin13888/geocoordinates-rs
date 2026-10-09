@@ -5,6 +5,8 @@ name: Release (PyPI)
 # Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
 # `publish=true`), so the binding version tracks the Rust crate version. A manual
 # `workflow_dispatch` (publish defaulting to false) builds the wheels without publishing.
+# The same dry run also runs on pull requests that touch this pipeline and weekly
+# on a schedule, so the path is exercised between releases, not first at one.
 #
 # Auth: PyPI Trusted Publishing (OIDC) — no token. Configure a trusted publisher on
 # PyPI for this repo + workflow file `release-python.yml` (a "pending publisher"
@@ -21,6 +23,24 @@ on:
         description: "Publish to PyPI (set by release-plz; manual dispatch = test build only)"
         type: boolean
         default: false
+  # Dry runs: neither event satisfies the publish job's condition, so they only
+  # build wheels. The version falls back to the root crate's (see
+  # .github/actions/release-plan).
+  pull_request:
+    paths:
+      - .github/workflows/release-python.yml
+      - .github/actions/release-plan/**
+      - Cargo.toml
+      - Cargo.lock
+      - crates/geocoordinates-ffi/**
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC: catches runner/toolchain/action drift
+
+# Cancel superseded PR dry runs; every other run (release, dispatch, schedule) gets
+# a unique group, so a release is never cancelled or held pending behind another run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -29,6 +49,10 @@ jobs:
   build:
     name: Wheel (${{ matrix.runner }} ${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
+    # Every matrix leg computes the same plan from the same event, so whichever
+    # leg's value GitHub keeps, the publish job reads the same answer.
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
     strategy:
       fail-fast: false
       matrix:
@@ -43,18 +67,15 @@ jobs:
           - { runner: macos-14, target: aarch64 }
     steps:
       - uses: actions/checkout@v4
+      - name: Plan release (version + publish)
+        id: plan
+        uses: ./.github/actions/release-plan
       - name: Prepare manifests (version + maturin bindgen scope)
         shell: bash
         env:
-          REF_VERSION: ${{ github.event.release.tag_name }}
-          INPUT_VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.plan.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${REF_VERSION:-$INPUT_VERSION}"
-          VERSION="${VERSION#v}"
-          if [ -z "$VERSION" ]; then
-            echo "::error::No version (provide one via workflow_dispatch input)"; exit 1
-          fi
           # Stamp the FFI crate version from the release tag (package line only).
           perl -i -pe 's/^version = "[^"]*"/version = "'"$VERSION"'"/' \
             crates/geocoordinates-ffi/Cargo.toml
@@ -83,8 +104,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # Publish on a real release, or a release-plz dispatch with publish=true; a plain
-    # manual workflow_dispatch is a build-only dry run.
-    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    # manual workflow_dispatch is a build-only dry run (see .github/actions/release-plan).
+    if: ${{ needs.build.outputs.publish == 'true' }}
     permissions:
       id-token: write # OIDC for PyPI Trusted Publishing
     steps:
