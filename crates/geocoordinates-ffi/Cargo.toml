@@ -13,10 +13,12 @@ publish = false
 
 [lib]
 name = "geocoordinates_ffi"
-# cdylib   — the loadable shared library that the generated Python/Kotlin
-#            bindings `dlopen`, the artifact `uniffi-bindgen --library`
-#            introspects to emit bindings, and the form the generated wasm
-#            wrapper crate links for the TypeScript/WASM target.
+# cdylib   — the artifact loaded or introspected outside Rust: the shared
+#            library the generated Python/Kotlin bindings `dlopen`, and what
+#            `uniffi-bindgen --library` introspects to emit bindings. The
+#            generated wasm wrapper crate depends on this crate as an
+#            ordinary Rust dependency (its rlib) and is itself what gets
+#            compiled as a cdylib for wasm-bindgen.
 # staticlib — Swift static linking (an iOS app/XCFramework links the `.a`;
 #            iOS cannot `dlopen` an arbitrary dylib).
 # lib (rlib) — lets the `uniffi-bindgen` bin target and `cargo test` use this
