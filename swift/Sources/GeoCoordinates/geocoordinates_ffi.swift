@@ -1138,10 +1138,16 @@ public func FfiConverterTypeBd09_lower(_ value: Bd09) -> RustBuffer {
 
 /**
  * Parse confidence on a 0.0–1.0 scale — mirror of [`gc::Confidence`].
+ *
+ * Unvalidated until used: a record built in foreign code keeps whatever
+ * `value` it was given. When it is passed into a function, the value is
+ * clamped into `[0.0, 1.0]` (NaN becomes `0.0`), as `gc::Confidence::new`
+ * does. Every `Confidence` this library returns is already in range.
  */
 public struct Confidence: Equatable, Hashable {
     /**
-     * The confidence value, clamped into `[0.0, 1.0]`.
+     * The confidence value. In `[0.0, 1.0]` when returned by this library;
+     * clamped into that range when passed into a function.
      */
     public var value: Double
 
@@ -1149,7 +1155,8 @@ public struct Confidence: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * The confidence value, clamped into `[0.0, 1.0]`.
+         * The confidence value. In `[0.0, 1.0]` when returned by this library;
+         * clamped into that range when passed into a function.
          */value: Double) {
         self.value = value
     }
@@ -1197,6 +1204,10 @@ public func FfiConverterTypeConfidence_lower(_ value: Confidence) -> RustBuffer 
 
 /**
  * The canonical coordinate — mirror of [`gc::Coordinate`].
+ *
+ * Unvalidated until used: constructing one does not check that `lat` is in
+ * `[-90, 90]`, `lon` in `[-180, 180]`, or a height finite. Call
+ * [`coordinate_validate`] to reject such values up front.
  */
 public struct Coordinate: Equatable, Hashable {
     /**
@@ -1287,6 +1298,11 @@ public func FfiConverterTypeCoordinate_lower(_ value: Coordinate) -> RustBuffer 
 /**
  * A complete datum transform (source/target ellipsoids + the Helmert shift) —
  * mirror of [`gc::DatumTransform`](gc::geodesy::DatumTransform).
+ *
+ * Unvalidated until used: nothing checks that `from` / `to` are the
+ * ellipsoids of `from_crs` / `to_crs`, or that `helmert` connects those two
+ * datums. Applying it rejects an input whose CRS is not `from_crs` and a
+ * malformed ellipsoid, but otherwise uses a hand-built transform as given.
  */
 public struct DatumTransform: Equatable, Hashable {
     /**
@@ -1692,6 +1708,11 @@ public func FfiConverterTypeEcef_lower(_ value: Ecef) -> RustBuffer {
 
 /**
  * A reference ellipsoid — mirror of [`gc::Ellipsoid`](gc::geodesy::Ellipsoid).
+ *
+ * Unvalidated until used: constructing one does not check its parameters.
+ * The fallible ECEF conversions reject a malformed ellipsoid with
+ * [`GeoError`], but the infallible getters (`ellipsoid_flattening`, …) compute
+ * from the values as given and can return non-finite or meaningless results.
  */
 public struct Ellipsoid: Equatable, Hashable {
     /**
@@ -2163,6 +2184,9 @@ public func FfiConverterTypeH3Cell_lower(_ value: H3Cell) -> RustBuffer {
  * The seven Bursa-Wolf parameters of a Helmert transform — mirror of
  * [`gc::Helmert`](gc::geodesy::Helmert). Translations in meters, rotations in
  * arc-seconds (position-vector convention), scale in parts-per-million.
+ *
+ * Unvalidated until used: the seven parameters are applied as given, with no
+ * check that they are finite or of plausible magnitude.
  */
 public struct Helmert: Equatable, Hashable {
     /**
