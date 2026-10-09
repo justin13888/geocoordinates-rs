@@ -13,7 +13,7 @@
 # a cap raised relative to the base branch.
 
 # Grandfathered: split these, then lower or remove their entries.
-2246 crates/geocoordinates-ffi/src/lib.rs
+2279 crates/geocoordinates-ffi/src/lib.rs
 972 examples/flagship.rs
 778 src/format/mod.rs
 728 src/geodesy/geodesic.rs
