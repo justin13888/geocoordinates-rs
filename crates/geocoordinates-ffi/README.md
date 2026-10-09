@@ -16,9 +16,10 @@ explicit `max_error_m`.
 ## Surface
 
 Tracks the core crate's public surface, subsystem by subsystem. See the root
-[`README`'s API surface table](../../README.md#api-surface) for what's covered
-and the current Rust/FFI parity status — a ⚠️ links to the open finding in
-[`STABILIZATION.md`](../../STABILIZATION.md).
+[`README`'s API surface table](https://github.com/justin13888/geocoordinates-rs/blob/master/README.md#api-surface)
+for what's covered and the current Rust/FFI parity status — a ⚠️ links to the
+open finding in
+[`STABILIZATION.md`](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md).
 
 ```python
 import geocoordinates_ffi as gc
@@ -28,4 +29,4 @@ wgs = gc.gcj02_to_wgs84_refined(gcj)          # approximate inverse
 print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
 ```
 
-The WebAssembly/TypeScript bindings live in [`web/`](web/).
+The WebAssembly/TypeScript bindings live in [`web/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web).
