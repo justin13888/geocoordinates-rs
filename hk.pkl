@@ -59,6 +59,9 @@ hooks {
             ["fmt"] {
                 check = "mise run fmt-check"
             }
+            ["file-length"] {
+                check = "mise run file-length-check"
+            }
             ["lint"] {
                 check = "mise run lint"
             }
@@ -78,14 +81,17 @@ hooks {
         }
     }
 
-    // `hk check` — the core gates (fmt-check + lint + ffi-check + test),
-    // runnable on demand. This is not full CI: CI also runs commits-check,
-    // coverage, mutants, and the Python/JVM/WASM smoke builds. `hk fix`
-    // (below) only autofixes formatting and lint, not test.
+    // `hk check` — the core gates (fmt-check + file-length-check + lint +
+    // ffi-check + test), runnable on demand. This is not full CI: CI also runs
+    // commits-check, coverage, mutants, and the Python/JVM/WASM smoke builds.
+    // `hk fix` (below) only autofixes formatting and lint, not test.
     ["check"] {
         steps {
             ["fmt"] {
                 check = "mise run fmt-check"
+            }
+            ["file-length"] {
+                check = "mise run file-length-check"
             }
             ["lint"] {
                 check = "mise run lint"
