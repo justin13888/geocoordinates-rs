@@ -17,14 +17,17 @@ The same dry run also runs **automatically**, so a pipeline's scripted steps (ve
 stamping, native staging, the `Package.swift` checksum rewrite) are exercised between
 releases rather than first at one:
 
-- on every **pull request** that touches the workflow itself, `Cargo.toml`, `Cargo.lock`,
-  or `crates/geocoordinates-ffi/**` (plus `Package.swift` / `swift/**` for SwiftPM), and
+- on every **pull request** that touches the workflow itself, the shared
+  `.github/actions/release-plan/**` action, `Cargo.toml`, `Cargo.lock`, or
+  `crates/geocoordinates-ffi/**` (plus `Package.swift` / `swift/**` for SwiftPM, and
+  `.mise.toml` for JVM), and
 - **weekly** (Mondays 06:00 UTC), to catch runner, toolchain, and action drift.
 
 Neither event can publish: the publish steps run only on `release: published` or a
-dispatch with `publish=true`. With no tag or input, these runs take the version from the
-root `Cargo.toml`. A dry run on SwiftPM rewrites `Package.swift` in the runner's checkout
-only; it uploads nothing, commits nothing, and moves no tag.
+dispatch with `publish=true`. Every non-publishing run (these automatic runs and a manual
+dry-run dispatch alike) takes the version from the root `Cargo.toml` when it has no tag
+or `version` input; a publishing run with neither fails instead. A dry run on SwiftPM
+rewrites `Package.swift` in the runner's checkout only; it uploads nothing, commits nothing, and moves no tag.
 
 > **No tokens to manage.** A GitHub Release created with the default `GITHUB_TOKEN` does
 > not fire `release: published` (GitHub's recursion guard), so the binding workflows
