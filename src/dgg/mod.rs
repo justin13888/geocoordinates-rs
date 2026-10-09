@@ -3,7 +3,7 @@
 //! These index a coordinate to a hierarchical cell for spatial joins, binning,
 //! and proximity. Backed by external crates (`h3o`, `s2`) and gated behind the
 //! `h3` / `s2` cargo features. A cell covers an area, so decoding a cell to a
-//! representative point returns [`Approx`](crate::Approx).
+//! representative point returns [`Approx`].
 //!
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Crs};
