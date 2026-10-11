@@ -65,8 +65,9 @@ column below reflects what has actually landed since.
 | G12 | **Zero executable doc examples crate-wide** | `src/lib.rs:21` | PR 6 | open |
 | G13 | `src/proj/mod.rs` and `src/height/mod.rs` are undeclared dead files holding four `todo!()`s | `proj:30`, `height:34,42,50` | PR 9 | open |
 | G14 | FFI gate is thin: one Python smoke test, one Java smoke test, zero Rust tests in the FFI crate, none for Kotlin/Swift/TypeScript | `crates/geocoordinates-ffi/` | PR 8 | open |
-| G15 | `parse/interchange.rs` 80.4% lines (open, PR 5); `china/mod.rs` was 60.0% lines, now 100.0% lines — closed incidentally by PR 1's named-method bridges (#37) | — | PR 5 | open — china/mod.rs half closed by #37 |
+| G15 | `parse/interchange.rs` was 80.4% lines, now 99.29% lines (inline test module included) — lifted by #134's interchange coverage; `china/mod.rs` was 60.0% lines, now 100.0% lines — closed incidentally by PR 1's named-method bridges (#37) | — | PR 5 | closed (#37, #134) |
 | G16 | `Representation` covers only DD/DMS/DDM/Plus Code, so UTM, MGRS, Geohash and Maidenhead ship as types that cannot be **formatted**, and `parse_coordinate` cannot detect their tokens — format/parse are asymmetric with the grids subsystem | `src/format/mod.rs:19`, `src/parse/mod.rs:43` | PR 3 | open |
+| G17 | `from_kml` never returns on a truncated document whose last open element is a geometry or placemark (`"<kml><Point>"`, `"<kml><Placemark>"`): the `kml` 0.13.0 reader spins, and nothing here bounds it, so a 12-byte untrusted input stalls the caller. Found while lifting G15 | `src/parse/interchange.rs` `from_kml` | #135 | open |
 
 **Verified clean**, and deliberately so — do not "fix" these:
 
