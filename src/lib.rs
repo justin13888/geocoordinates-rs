@@ -63,17 +63,11 @@ pub mod grids; // Plus Code, Geohash, Maidenhead, UTM/UPS, MGRS
 pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 
 // --- Deferred: blocked on an external dependency (see STABILIZATION.md) ---
-// Neither ships in 0.x. `proj` needs the system libproj C library; `geoid`
-// needs multi-megabyte EGM grid data files. Their `pub mod` declarations and
-// Cargo features stay commented out, so nothing in the released surface can
-// reach the unimplemented bodies.
-//
-// #[cfg(feature = "proj")]
-// pub mod proj;
-//
-// #[cfg(feature = "geoid")]
-// pub mod height;
-//
+// Neither ships in 0.x, and neither has any source in-tree. A PROJ-backed EPSG
+// long tail needs the system libproj C library; geoid (EGM) height conversion
+// needs multi-megabyte grid data files. Their Cargo features stay commented out
+// in Cargo.toml until a concrete consumer appears.
+
 /// Discrete global grid indexing (H3 / S2), via external crates (optional).
 #[cfg(any(feature = "h3", feature = "s2"))]
 pub mod dgg;

@@ -63,7 +63,7 @@ column below reflects what has actually landed since.
 | G10 | Utm/Ups forward failures are `OutOfRange`, reverse are `InvalidValue`; and 7 of 9 `Error` variants collapse into `GeoError::Other { detail }` across FFI, forcing string-matching | `utm.rs:140,246` vs `:184-187`; ffi `lib.rs:552` | PR 2 / 3 / 7 | open |
 | G11 | Doc drift — `ROADMAP.md` and `src/lib.rs` described shipped modules as unshipped | `src/lib.rs` | PR 1 | closed (#37) |
 | G12 | **Zero executable doc examples crate-wide** | `src/lib.rs:21` | PR 6 | open |
-| G13 | `src/proj/mod.rs` and `src/height/mod.rs` are undeclared dead files holding four `todo!()`s | `proj:30`, `height:34,42,50` | PR 9 | open |
+| G13 | `src/proj/mod.rs` and `src/height/mod.rs` are undeclared dead files holding four `todo!()`s | `proj:30`, `height:34,42,50` | PR 9 | closed (#103: stubs deleted) |
 | G14 | FFI gate is thin: one Python smoke test, one Java smoke test, zero Rust tests in the FFI crate, none for Kotlin/Swift/TypeScript | `crates/geocoordinates-ffi/` | PR 8 | open |
 | G15 | `parse/interchange.rs` was 80.4% lines, now 99.29% lines (inline test module included) — lifted by #134's interchange coverage; `china/mod.rs` was 60.0% lines, now 100.0% lines — closed incidentally by PR 1's named-method bridges (#37) | — | PR 5 | closed (#37, #134) |
 | G16 | `Representation` covers only DD/DMS/DDM/Plus Code, so UTM, MGRS, Geohash and Maidenhead ship as types that cannot be **formatted**, and `parse_coordinate` cannot detect their tokens — format/parse are asymmetric with the grids subsystem | `src/format/mod.rs:19`, `src/parse/mod.rs:43` | PR 3 | open |
@@ -121,13 +121,13 @@ surface that gets dogfooded is the one intended for the 1.0 freeze.
 Unscheduled. Promoted only when a concrete consumer appears.
 
 - **`proj`** — PROJ-backed EPSG/datum long tail (`CrsId`, `proj::transform`).
-  Blocked: needs the system `libproj` C library. Stub source at `src/proj/`.
+  Blocked: needs the system `libproj` C library.
 - **`geoid`** — EGM96/EGM2008/EGM2020 height undulation. Blocked: needs
-  multi-megabyte external grid data files. Stub source at `src/height/`.
+  multi-megabyte external grid data files.
 
-Both are commented out at their `pub mod` declaration in `src/lib.rs` and at their
-Cargo feature, so neither can be reached from the released surface. PR 9 decides
-whether the stub source stays on disk at all.
+Neither has any source in-tree: PR 9 deleted the `todo!()` stubs (git history
+keeps them). Each survives only as a commented-out Cargo feature, so neither can
+be reached from the released surface.
 
 ## Out of scope
 
