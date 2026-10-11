@@ -66,7 +66,7 @@ default = []
 # Enable serde Serialize/Deserialize on this crate's value/option/id types.
 serde = ["dep:serde"]
 
-# --- Optional capabilities (see STABILIZATION.md) ---
+# --- Optional capabilities ---
 # Each feature below is implemented, tested and released. The core path (angles,
 # format, parse, Plus Code) needs no cargo features at all. EXIF ingestion is out
 # of scope entirely — it lives in a separate library that consumes this crate's
@@ -88,9 +88,6 @@ s2 = ["dep:s2"] # Google S2 indexing
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md):
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
 # geoid = []          # EGM96/EGM2008 geoid models — needs multi-MB grid data files
-#
-# Convenience: enable every optional capability (restore entries as they return).
-# full = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "proj", "geoid", "h3", "s2"]
 
 [[example]]
 name = "flagship"

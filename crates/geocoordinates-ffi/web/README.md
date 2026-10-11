@@ -1,7 +1,8 @@
 # geocoordinates (WebAssembly / TypeScript)
 
 WebAssembly bindings for the [`geocoordinates`](https://crates.io/crates/geocoordinates)
-geospatial library — China datums (GCJ-02 / BD-09), geodetic transforms — generated from
+crate — low-level geospatial coordinate primitives: China datums (GCJ-02/BD-09), angle
+encodings, coordinate parsing/formatting, and geodesy utilities — generated from
 the `geocoordinates-ffi` UniFFI surface with
 [`uniffi-bindgen-react-native`](https://github.com/jhugman/uniffi-bindgen-react-native)
 (`ubrn`) targeting `wasm32-unknown-unknown`.
@@ -28,7 +29,7 @@ regenerated each run, and its `opt-level` is emitted as a string).
 The wasm module loads asynchronously, so initialize once before calling the API:
 
 ```ts
-import GeoCoordinates, { uniffiInitAsync, wgs84ToGcj02, coordinateWgs84 } from "geocoordinates-rs";
+import { uniffiInitAsync, wgs84ToGcj02 } from "geocoordinates-rs";
 
 await uniffiInitAsync();
 
@@ -41,4 +42,4 @@ Bundler notes:
 - The package targets ES2021+ (the runtime uses `FinalizationRegistry`).
 
 > Node.js consumers are not the target of this WASM build (the generated loader is
-> web/bundler-shaped). A dedicated Node target is tracked separately.
+> web/bundler-shaped).
