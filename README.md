@@ -167,6 +167,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run lint`             | Clippy with warnings denied (`mise run lint-fix` fixes what it can)  |
 | `mise run file-length-check`| Files over 654 lines fail unless in `.file-length-baseline` (shrink-only) |
 | `mise run ffi-check`        | Clippy on the FFI crate (the mirror gates every release)             |
+| `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
 | `mise run coverage`         | Coverage report                                                      |
