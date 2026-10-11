@@ -1,4 +1,3 @@
-
 use super::*;
 use crate::Coordinate;
 use crate::fix::{Accuracy, Fix};
