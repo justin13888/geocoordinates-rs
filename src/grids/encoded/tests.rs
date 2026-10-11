@@ -1,6 +1,21 @@
-
 use super::*;
+use crate::Crs;
 use crate::test_support::{assert_close, assert_within_meters};
+
+/// Every malformed code string is rejected as `InvalidGridRef`.
+#[track_caller]
+fn assert_invalid_grid_ref<T: core::fmt::Debug>(r: Result<T>) {
+    assert!(matches!(r, Err(Error::InvalidGridRef(_))), "{r:?}");
+}
+
+/// An out-of-domain encode length or pair count is `InvalidValue` on `field`.
+#[track_caller]
+fn assert_invalid_value<T: core::fmt::Debug>(r: Result<T>, expected: &str) {
+    assert!(
+        matches!(&r, Err(Error::InvalidValue { field, .. }) if *field == expected),
+        "{r:?}"
+    );
+}
 
 #[test]
 fn encode_reference_vectors() {
@@ -67,15 +82,45 @@ fn shorter_lengths_pad() {
 
 #[test]
 fn validation_accepts_and_rejects() {
-    assert!(PlusCode::try_from("87G7X2VV+2V").is_ok());
-    assert!(PlusCode::try_from("87g7x2vv+2v").is_ok()); // lowercase normalized
-    assert!(PlusCode::try_from("8FVC2222+").is_ok()); // length-8 full code
-    assert!(PlusCode::try_from("INVALID").is_err()); // no separator
-    assert!(PlusCode::try_from("8FVC2222").is_err()); // missing separator
-    assert!(PlusCode::try_from("8FVC2222+2").is_err()); // one char after separator
-    assert!(PlusCode::try_from("8FVC222+22").is_err()); // separator not at position 8
-    assert!(PlusCode::try_from("8FVC222A+22").is_err()); // 'A' not in the alphabet
-    assert!(PlusCode::try_from("").is_err()); // empty
+    assert_eq!(
+        PlusCode::try_from("87G7X2VV+2V").unwrap().as_str(),
+        "87G7X2VV+2V"
+    );
+    // Lowercase input is canonicalized to uppercase.
+    assert_eq!(
+        PlusCode::try_from("87g7x2vv+2v").unwrap().as_str(),
+        "87G7X2VV+2V"
+    );
+    // Surrounding whitespace is trimmed before validation.
+    assert_eq!(
+        PlusCode::try_from("  8fvc2222+22 ").unwrap().as_str(),
+        "8FVC2222+22"
+    );
+    assert_eq!(
+        PlusCode::try_from("8FVC2222+").unwrap().as_str(),
+        "8FVC2222+"
+    ); // length-8 full code
+    assert_invalid_grid_ref(PlusCode::try_from("INVALID")); // no separator
+    assert_invalid_grid_ref(PlusCode::try_from("8FVC2222")); // missing separator
+    assert_invalid_grid_ref(PlusCode::try_from("8FVC2222+2")); // one char after separator
+    assert_invalid_grid_ref(PlusCode::try_from("8FVC222+22")); // separator not at position 8
+    assert_invalid_grid_ref(PlusCode::try_from("8FVC222A+22")); // 'A' not in the alphabet
+    assert_invalid_grid_ref(PlusCode::try_from("")); // empty
+}
+
+#[test]
+fn from_str_matches_try_from() {
+    // `FromStr` is thin sugar over `TryFrom<&str>`: same canonical value, same
+    // rejection variant.
+    assert_eq!(
+        "87g7x2vv+2v".parse::<PlusCode>().unwrap(),
+        PlusCode::try_from("87G7X2VV+2V").unwrap()
+    );
+    assert_eq!("DR5REGY".parse::<Geohash>().unwrap().as_str(), "dr5regy");
+    assert_eq!("jn58TD".parse::<Maidenhead>().unwrap().as_str(), "JN58td");
+    assert_invalid_grid_ref("8FVC2222".parse::<PlusCode>());
+    assert_invalid_grid_ref("ezs42a".parse::<Geohash>());
+    assert_invalid_grid_ref("FN2".parse::<Maidenhead>());
 }
 
 #[test]
@@ -97,11 +142,44 @@ fn latitude_precision_values() {
 #[test]
 fn invalid_encoding_configuration_is_rejected() {
     let c = Coordinate::wgs84(0.0, 0.0);
-    assert!(PlusCode::encode(c, 3).is_err());
-    assert!(Geohash::encode(c, 0).is_err());
-    assert!(Geohash::encode(c, 23).is_err());
-    assert!(Maidenhead::encode(c, 0).is_err());
-    assert!(PlusCode::encode(Coordinate::gcj02(0.0, 0.0), 10).is_err());
+    assert_invalid_value(PlusCode::encode(c, 3), "Plus Code length");
+    assert_invalid_value(PlusCode::encode(c, 9), "Plus Code length");
+    assert_invalid_value(PlusCode::encode(c, 16), "Plus Code length");
+    assert_invalid_value(Geohash::encode(c, 0), "geohash length");
+    assert_invalid_value(Geohash::encode(c, 23), "geohash length");
+    assert_invalid_value(Maidenhead::encode(c, 0), "Maidenhead pairs");
+    assert_invalid_value(Maidenhead::encode(c, 4), "Maidenhead pairs");
+    // Every encoder demands WGS-84 and rejects an out-of-range input first.
+    let gcj = Coordinate::gcj02(0.0, 0.0);
+    let mismatch = |r: Result<String>| {
+        matches!(
+            r,
+            Err(Error::CrsMismatch {
+                expected: Crs::Wgs84,
+                found: Crs::Gcj02,
+            })
+        )
+    };
+    assert!(mismatch(
+        PlusCode::encode(gcj, 10).map(|p| p.as_str().into())
+    ));
+    assert!(mismatch(Geohash::encode(gcj, 5).map(|g| g.as_str().into())));
+    assert!(mismatch(
+        Maidenhead::encode(gcj, 2).map(|m| m.as_str().into())
+    ));
+    let bad = Coordinate::wgs84(91.0, 0.0);
+    assert!(matches!(
+        Geohash::encode(bad, 5),
+        Err(Error::OutOfRange { lat, lon }) if lat == 91.0 && lon == 0.0
+    ));
+    assert!(matches!(
+        PlusCode::encode(bad, 10),
+        Err(Error::OutOfRange { .. })
+    ));
+    assert!(matches!(
+        Maidenhead::encode(bad, 2),
+        Err(Error::OutOfRange { .. })
+    ));
 }
 
 #[test]
@@ -159,16 +237,22 @@ fn decode_center_within_absolute_bound() {
 #[test]
 fn validation_padding_and_range_rules() {
     // A first longitude digit of 10 (longitude 20°E) is in range and valid.
-    assert!(PlusCode::try_from("2G222222+").is_ok());
+    assert_eq!(
+        PlusCode::try_from("2G222222+").unwrap().as_str(),
+        "2G222222+"
+    );
     // Padding must start on an even, non-zero index, be contiguous, and end
     // at the separator.
-    assert!(PlusCode::try_from("8FVC0000+").is_ok()); // well-formed padded code
-    assert!(PlusCode::try_from("00000000+").is_err()); // padding at index 0
-    assert!(PlusCode::try_from("8FVCC000+").is_err()); // padding starts on an odd index
-    assert!(PlusCode::try_from("8FVC0000+22").is_err()); // chars after a padded code
+    assert_eq!(
+        PlusCode::try_from("8fvc0000+").unwrap().as_str(),
+        "8FVC0000+"
+    ); // well-formed padded code
+    assert_invalid_grid_ref(PlusCode::try_from("00000000+")); // padding at index 0
+    assert_invalid_grid_ref(PlusCode::try_from("8FVCC000+")); // padding starts on an odd index
+    assert_invalid_grid_ref(PlusCode::try_from("8FVC0000+22")); // chars after a padded code
     // First latitude digit must be ≤ 8 and longitude ≤ 17 (range limits).
-    assert!(PlusCode::try_from("F2222222+").is_err()); // first lat digit = 9
-    assert!(PlusCode::try_from("2W222222+").is_err()); // first lon digit = 18
+    assert_invalid_grid_ref(PlusCode::try_from("F2222222+")); // first lat digit = 9
+    assert_invalid_grid_ref(PlusCode::try_from("2W222222+")); // first lon digit = 18
 }
 
 // --- Geohash ---
@@ -215,11 +299,16 @@ fn geohash_decode_matches_known_cell() {
 
 #[test]
 fn geohash_validation() {
-    assert!(Geohash::try_from("dr5regy").is_ok());
-    assert!(Geohash::try_from("DR5REGY").is_ok()); // case-insensitive
-    assert!(Geohash::try_from("ezs42a").is_err()); // 'a' is excluded
-    assert!(Geohash::try_from("ezs4i").is_err()); // 'i' is excluded
-    assert!(Geohash::try_from("").is_err());
+    assert_eq!(Geohash::try_from("dr5regy").unwrap().as_str(), "dr5regy");
+    // Case-insensitive: the canonical form is lowercase.
+    assert_eq!(Geohash::try_from("DR5REGY").unwrap().as_str(), "dr5regy");
+    // Surrounding whitespace is trimmed.
+    assert_eq!(Geohash::try_from(" Ezs42\t").unwrap().as_str(), "ezs42");
+    assert_invalid_grid_ref(Geohash::try_from("ezs42a")); // 'a' is excluded
+    assert_invalid_grid_ref(Geohash::try_from("ezs4i")); // 'i' is excluded
+    assert_invalid_grid_ref(Geohash::try_from("ezs 42")); // inner space
+    assert_invalid_grid_ref(Geohash::try_from(""));
+    assert_invalid_grid_ref(Geohash::try_from("   ")); // blank after trimming
 }
 
 // --- Maidenhead ---
@@ -269,21 +358,25 @@ fn maidenhead_pole_does_not_panic() {
 
 #[test]
 fn maidenhead_validation() {
-    assert!(Maidenhead::try_from("FN").is_ok()); // 2-char field-only locator
-    assert!(Maidenhead::try_from("FN20").is_ok());
-    assert!(Maidenhead::try_from("JN58td").is_ok());
-    assert!(Maidenhead::try_from("fn20").is_ok()); // case-insensitive field
-    assert!(Maidenhead::try_from("FN2").is_err()); // odd length
-    assert!(Maidenhead::try_from("").is_err()); // empty
+    // Canonical form: field uppercase, square digits, subsquare lowercase.
+    assert_eq!(Maidenhead::try_from("FN").unwrap().as_str(), "FN"); // 2-char field-only locator
+    assert_eq!(Maidenhead::try_from("FN20").unwrap().as_str(), "FN20");
+    assert_eq!(Maidenhead::try_from("JN58td").unwrap().as_str(), "JN58td");
+    assert_eq!(Maidenhead::try_from("fn20").unwrap().as_str(), "FN20"); // case-insensitive field
+    assert_eq!(Maidenhead::try_from("jn58TD").unwrap().as_str(), "JN58td");
+    assert_eq!(Maidenhead::try_from(" jN58Td ").unwrap().as_str(), "JN58td"); // trimmed
+    assert_invalid_grid_ref(Maidenhead::try_from("FN2")); // odd length
+    assert_invalid_grid_ref(Maidenhead::try_from("FN20td00")); // 8 chars is out of scope
+    assert_invalid_grid_ref(Maidenhead::try_from("")); // empty
     // 2-char: each field validated (second field invalid here).
-    assert!(Maidenhead::try_from("F0").is_err());
-    assert!(Maidenhead::try_from("SN20").is_err()); // 'S' is past R
+    assert_invalid_grid_ref(Maidenhead::try_from("F0"));
+    assert_invalid_grid_ref(Maidenhead::try_from("SN20")); // 'S' is past R
     // 6-char: each component validated individually.
-    assert!(Maidenhead::try_from("0N58td").is_err()); // field 1 invalid
-    assert!(Maidenhead::try_from("J058td").is_err()); // field 2 invalid
-    assert!(Maidenhead::try_from("JNX8td").is_err()); // square 1 non-digit
-    assert!(Maidenhead::try_from("JN5Xtd").is_err()); // square 2 non-digit
-    assert!(Maidenhead::try_from("JN580d").is_err()); // sub 1 past x ('0')
-    assert!(Maidenhead::try_from("JN58t0").is_err()); // sub 2 past x ('0')
-    assert!(Maidenhead::try_from("FN20zz").is_err()); // 'z' is past x
+    assert_invalid_grid_ref(Maidenhead::try_from("0N58td")); // field 1 invalid
+    assert_invalid_grid_ref(Maidenhead::try_from("J058td")); // field 2 invalid
+    assert_invalid_grid_ref(Maidenhead::try_from("JNX8td")); // square 1 non-digit
+    assert_invalid_grid_ref(Maidenhead::try_from("JN5Xtd")); // square 2 non-digit
+    assert_invalid_grid_ref(Maidenhead::try_from("JN580d")); // sub 1 past x ('0')
+    assert_invalid_grid_ref(Maidenhead::try_from("JN58t0")); // sub 2 past x ('0')
+    assert_invalid_grid_ref(Maidenhead::try_from("FN20zz")); // 'z' is past x
 }
