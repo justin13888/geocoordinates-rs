@@ -22,7 +22,7 @@ env:
   FFI_LIB: target/release/libgeocoordinates_ffi.so
 
 jobs:
-  # Lint the FFI crate, build the cdylib, and confirm bindings generate for the
+  # Lint and test the FFI crate, build the cdylib, and confirm bindings generate for the
   # built-in UniFFI backends. Every step runs the same `mise run` task contributors
   # use (see .mise.toml). A missing formatter (ktlint, swift-format) only warns, so
   # generation does not depend on one being installed. Kotlin/Swift are
@@ -44,6 +44,8 @@ jobs:
           version: 2026.9.13 # keep in step with ci.yml's pin
       - name: Clippy (ffi crate)
         run: mise run ffi-check
+      - name: Test (ffi crate)
+        run: mise run ffi-test
       - name: Build cdylib
         run: mise run bindings-build
       - name: Generate bindings for the built-in backends

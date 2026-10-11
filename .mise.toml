@@ -335,6 +335,10 @@ convco check "$range"
 description = "Lint the FFI bindings crate (warnings denied)"
 run = "cargo clippy -p geocoordinates-ffi --all-targets -- -D warnings"
 
+[tasks.ffi-test]
+description = "Run the FFI bindings crate's Rust tests"
+run = "cargo test -p geocoordinates-ffi"
+
 [tasks.bindings-build]
 description = "Build the release cdylib the bindings are generated from"
 run = "cargo build --release -p geocoordinates-ffi"
