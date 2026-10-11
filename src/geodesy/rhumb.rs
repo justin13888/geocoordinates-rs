@@ -21,12 +21,7 @@ pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
     let phi2 = b.lat().to_radians();
     let d_phi = phi2 - phi1;
     let d_lon = shortest_d_lon(a, b);
-    let d_psi = stretched_lat_diff(phi1, phi2);
-    let q = if d_psi.abs() > 1e-12 {
-        d_phi / d_psi
-    } else {
-        phi1.cos()
-    };
+    let q = east_west_scale(d_phi, stretched_lat_diff(phi1, phi2), phi1);
     let dist = (d_phi * d_phi + q * q * d_lon * d_lon).sqrt() * MEAN_EARTH_RADIUS_M;
     Ok(Length::from_meters(dist))
 }
@@ -58,14 +53,10 @@ pub fn rhumb_destination(
     // Crossing a pole flips to the far side.
     let crossed_pole = phi2.abs() > FRAC_PI_2;
     if crossed_pole {
-        phi2 = if phi2 > 0.0 { PI - phi2 } else { -PI - phi2 };
+        // ±π − φ₂, taking the sign of the pole crossed (φ₂ ≠ 0 here).
+        phi2 = PI.copysign(phi2) - phi2;
     }
-    let d_psi = stretched_lat_diff(phi1, phi2);
-    let q = if d_psi.abs() > 1e-12 {
-        d_phi / d_psi
-    } else {
-        phi1.cos()
-    };
+    let q = east_west_scale(d_phi, stretched_lat_diff(phi1, phi2), phi1);
     let d_lon = (delta * theta.sin() / q).to_degrees();
     Ok(Coordinate::new(
         phi2.to_degrees(),
@@ -81,6 +72,17 @@ fn shortest_d_lon(a: &impl LatLon, b: &impl LatLon) -> f64 {
         d_lon -= d_lon.signum() * 2.0 * PI;
     }
     d_lon
+}
+
+/// The east-west scale `q = Δφ / Δψ` of a rhumb line, falling back to `cos φ₁`
+/// when `|Δψ| ≤ 1e-12`: on an (almost) east-west line the ratio is 0/0, and
+/// `cos φ₁` is its limit.
+fn east_west_scale(d_phi: f64, d_psi: f64, phi1: f64) -> f64 {
+    if d_psi.abs() > 1e-12 {
+        d_phi / d_psi
+    } else {
+        phi1.cos()
+    }
 }
 
 /// The stretched-latitude (Mercator `ψ`) difference between two latitudes.

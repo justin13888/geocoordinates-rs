@@ -63,7 +63,8 @@ pub fn along_track_distance(
     let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
     let xt = (d13.sin() * bearing_diff.sin()).asin();
     let at = (d13.cos() / xt.cos()).clamp(-1.0, 1.0).acos();
-    let signed = at * bearing_diff.cos().signum();
+    // `at` is an `acos`, so nonnegative: give it the sign of the foot's side.
+    let signed = at.copysign(bearing_diff.cos());
     Ok(Length::from_meters(signed * MEAN_EARTH_RADIUS_M))
 }
 
@@ -95,7 +96,7 @@ pub fn intersection(
         * ((d_phi / 2.0).sin().powi(2) + phi1.cos() * phi2.cos() * (d_lam / 2.0).sin().powi(2))
             .sqrt()
             .asin();
-    if delta12 < 1e-12 {
+    if is_coincident(delta12) {
         return Ok(Some(*a)); // coincident endpoints
     }
 
@@ -105,11 +106,7 @@ pub fn intersection(
     let theta_b = ((phi1.sin() - phi2.sin() * delta12.cos()) / (delta12.sin() * phi2.cos()))
         .clamp(-1.0, 1.0)
         .acos();
-    let (theta12, theta21) = if d_lam.sin() > 0.0 {
-        (theta_a, 2.0 * PI - theta_b)
-    } else {
-        (2.0 * PI - theta_a, theta_b)
-    };
+    let (theta12, theta21) = endpoint_bearings(theta_a, theta_b, d_lam.sin());
 
     let alpha1 = theta13 - theta12;
     let alpha2 = theta21 - theta23;
@@ -130,6 +127,25 @@ pub fn intersection(
         (theta13.sin() * delta13.sin() * phi1.cos()).atan2(delta13.cos() - phi1.sin() * phi3.sin());
     let lon3 = wrap_longitude((lam1 + d_lam13).to_degrees());
     Ok(Some(Coordinate::new(phi3.to_degrees(), lon3, a.crs)))
+}
+
+/// Whether two points `delta12` radians apart are treated as one point by
+/// [`intersection`]: strictly closer than 1e-12 rad (about 6 µm).
+fn is_coincident(delta12: f64) -> bool {
+    delta12 < 1e-12
+}
+
+/// The bearings `(θ₁₂, θ₂₁)` of the great circle between the two
+/// [`intersection`] start points, in radians, from the unsigned angles
+/// `theta_a` / `theta_b` it makes with each meridian. Point 2 lies east of
+/// point 1 when `sin_d_lam > 0`; otherwise (including `sin_d_lam == 0`, a
+/// shared meridian) the west assignment is taken.
+fn endpoint_bearings(theta_a: f64, theta_b: f64, sin_d_lam: f64) -> (f64, f64) {
+    if sin_d_lam > 0.0 {
+        (theta_a, 2.0 * PI - theta_b)
+    } else {
+        (2.0 * PI - theta_a, theta_b)
+    }
 }
 
 /// Initial bearing on a sphere, in radians.

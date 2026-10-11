@@ -87,6 +87,25 @@ fn angular_distance_rad_reference() {
 }
 
 #[test]
+fn is_coincident_is_strictly_below_the_threshold() {
+    assert!(is_coincident(0.0));
+    // The largest f64 below 1e-12 (`next_down` needs Rust 1.86; MSRV is 1.85).
+    assert!(is_coincident(f64::from_bits(1e-12_f64.to_bits() - 1)));
+    assert!(!is_coincident(1e-12));
+}
+
+#[test]
+fn endpoint_bearings_take_the_west_assignment_on_a_shared_meridian() {
+    let (a, b) = (0.25, 0.75);
+    let east = (a, 2.0 * PI - b);
+    let west = (2.0 * PI - a, b);
+    assert_eq!(endpoint_bearings(a, b, 1e-300), east);
+    assert_eq!(endpoint_bearings(a, b, -1e-300), west);
+    // sin Δλ == 0 (a shared meridian) is not "east".
+    assert_eq!(endpoint_bearings(a, b, 0.0), west);
+}
+
+#[test]
 fn intersection_second_geometry_and_west_branch() {
     // A real great circle (east from (10,0)) meets the λ=10 meridian at a
     // positive latitude — pins the φ₃/λ₃ formulas away from the trivial origin.

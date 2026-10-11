@@ -82,6 +82,18 @@ fn stretched_lat_diff_reference() {
 }
 
 #[test]
+fn east_west_scale_falls_back_to_cos_at_and_below_the_threshold() {
+    use core::f64::consts::FRAC_PI_3;
+    // |Δψ| exactly at the 1e-12 threshold (either sign) is still east-west:
+    // q = cos φ₁, not the ratio Δφ/Δψ (which would be 1 here).
+    assert_eq!(east_west_scale(1e-12, 1e-12, FRAC_PI_3), FRAC_PI_3.cos());
+    assert_eq!(east_west_scale(-1e-12, -1e-12, FRAC_PI_3), FRAC_PI_3.cos());
+    // Above it, q is the ratio.
+    assert_eq!(east_west_scale(1e-11, 2e-11, FRAC_PI_3), 0.5);
+    assert_eq!(east_west_scale(1e-11, -2e-11, FRAC_PI_3), -0.5);
+}
+
+#[test]
 fn rhumb_destination_due_east_holds_latitude() {
     // A due-east rhumb keeps latitude fixed (d_psi → 0, so q = cos φ₁).
     let d = rhumb_destination(&c(40.0, 0.0), 90.0, Length::from_meters(100_000.0)).unwrap();
@@ -99,6 +111,17 @@ fn rhumb_destination_reflects_over_the_poles() {
     let s = rhumb_destination(&c(-80.0, 0.0), 180.0, Length::from_meters(1_668_000.0)).unwrap();
     assert_close(s.lat, -84.999_336_333_074_71, 1e-9);
     assert_close(s.lon, -180.0, 1e-9);
+}
+
+#[test]
+fn rhumb_destination_over_a_pole_adds_a_half_turn_to_the_longitude() {
+    // Due north past the pole lands on the far meridian, start.lon + 180°,
+    // wrapped. Adding or subtracting the half-turn names the same meridian, so
+    // this pins the exact rounding of the addition: −179.9 + 180 is
+    // 0.099_999_999_999_994_32, while −179.9 − 180 wraps to 0.100_000_000_000_022_74.
+    let p = rhumb_destination(&c(80.0, -179.9), 0.0, Length::from_meters(1_668_000.0)).unwrap();
+    assert_close(p.lat, 84.999_336_333_074_71, 1e-9);
+    assert_eq!(p.lon, 0.099_999_999_999_994_32);
 }
 
 #[test]
