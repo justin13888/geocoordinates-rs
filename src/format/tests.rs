@@ -2,6 +2,9 @@ use super::*;
 use crate::Coordinate;
 use crate::fix::{Accuracy, Fix};
 
+/// Property tests of the `format → parse → format` round trip.
+mod round_trip;
+
 fn opts(
     representation: Representation,
     precision: Option<u8>,
