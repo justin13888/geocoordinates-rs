@@ -373,4 +373,206 @@ mod tests {
         // every geometry/walk arm contributes, so deleting any one is caught.
         assert_eq!(fixes.len(), 23);
     }
+
+    /// The `(lat, lon)` of every fix, in emission order.
+    fn lat_lons(fixes: &[Fix]) -> Vec<(f64, f64)> {
+        fixes.iter().map(|f| (f.coord.lat, f.coord.lon)).collect()
+    }
+
+    /// A rejection is `Parse` whose message names the format first.
+    #[track_caller]
+    fn assert_parse_err(r: Result<Vec<Fix>>, prefix: &str) {
+        assert!(
+            matches!(&r, Err(Error::Parse(m)) if m.starts_with(prefix)),
+            "{r:?}"
+        );
+    }
+
+    #[cfg(feature = "geojson")]
+    #[test]
+    fn geojson_walks_every_geometry_type_in_order() {
+        let multi_point = r#"{"type":"MultiPoint","coordinates":[[1,2],[3,4]]}"#;
+        assert_eq!(
+            lat_lons(&from_geojson(multi_point).unwrap()),
+            [(2.0, 1.0), (4.0, 3.0)]
+        );
+        let multi_line = r#"{"type":"MultiLineString","coordinates":[[[1,2],[3,4]],[[5,6]]]}"#;
+        assert_eq!(
+            lat_lons(&from_geojson(multi_line).unwrap()),
+            [(2.0, 1.0), (4.0, 3.0), (6.0, 5.0)]
+        );
+        // Polygon rings are emitted vertex by vertex, closing vertex included,
+        // outer ring then holes.
+        let polygon = r#"{"type":"Polygon","coordinates":[
+            [[0,0],[10,0],[10,10],[0,0]],[[1,1],[2,1],[1,1]]]}"#;
+        assert_eq!(from_geojson(polygon).unwrap().len(), 7);
+        let multi_polygon = r#"{"type":"MultiPolygon","coordinates":[
+            [[[0,0],[1,0],[0,0]]],[[[5,5],[6,5],[5,5]],[[7,7],[8,7],[7,7]]]]}"#;
+        let fixes = from_geojson(multi_polygon).unwrap();
+        assert_eq!(fixes.len(), 9);
+        assert_eq!((fixes[8].coord.lat, fixes[8].coord.lon), (7.0, 7.0));
+        // A GeometryCollection recurses, nested collections included.
+        let collection = r#"{"type":"GeometryCollection","geometries":[
+            {"type":"Point","coordinates":[1,2]},
+            {"type":"GeometryCollection","geometries":[
+                {"type":"LineString","coordinates":[[3,4],[5,6]]}]}]}"#;
+        let fixes = from_geojson(collection).unwrap();
+        assert_eq!(lat_lons(&fixes), [(2.0, 1.0), (4.0, 3.0), (6.0, 5.0)]);
+        // Every fix records the whole input verbatim, not the fragment.
+        assert!(
+            fixes
+                .iter()
+                .all(|f| f.source.as_ref().unwrap().raw == collection)
+        );
+    }
+
+    #[cfg(feature = "geojson")]
+    #[test]
+    fn geojson_features_with_and_without_geometry() {
+        // A bare Feature carrying a geometry.
+        let feature = r#"{"type":"Feature","geometry":{"type":"Point","coordinates":[1,2]},
+            "properties":{}}"#;
+        assert_eq!(lat_lons(&from_geojson(feature).unwrap()), [(2.0, 1.0)]);
+        // A null-geometry Feature is valid GeoJSON with no positions.
+        let empty = r#"{"type":"Feature","geometry":null,"properties":null}"#;
+        assert!(from_geojson(empty).unwrap().is_empty());
+        // In a collection, null-geometry features are skipped.
+        let fc = r#"{"type":"FeatureCollection","features":[
+            {"type":"Feature","geometry":null,"properties":null},
+            {"type":"Feature","geometry":{"type":"Point","coordinates":[3,4]},"properties":null}]}"#;
+        assert_eq!(lat_lons(&from_geojson(fc).unwrap()), [(4.0, 3.0)]);
+        // Without an altitude there is no height.
+        assert_eq!(from_geojson(feature).unwrap()[0].coord.height, None);
+    }
+
+    #[cfg(feature = "geojson")]
+    #[test]
+    fn geojson_rejections_are_parse_errors() {
+        assert_parse_err(from_geojson("not json"), "geojson: ");
+        assert_parse_err(
+            from_geojson(r#"{"type":"Point","coordinates":[2.0,91.0]}"#),
+            "geojson: invalid position",
+        );
+        // One bad vertex rejects the whole line.
+        assert_parse_err(
+            from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[181,0]]}"#),
+            "geojson: invalid position",
+        );
+    }
+
+    #[cfg(feature = "wkt")]
+    #[test]
+    fn wkt_walks_every_geometry_type_in_order() {
+        assert_eq!(
+            lat_lons(&from_wkt("MULTIPOINT((1 2),(3 4))").unwrap()),
+            [(2.0, 1.0), (4.0, 3.0)]
+        );
+        assert_eq!(
+            lat_lons(&from_wkt("MULTILINESTRING((1 2,3 4),(5 6,7 8))").unwrap()),
+            [(2.0, 1.0), (4.0, 3.0), (6.0, 5.0), (8.0, 7.0)]
+        );
+        // Outer ring then holes, closing vertices included.
+        let polygon = "POLYGON((0 0,10 0,10 10,0 0),(1 1,2 1,1 1))";
+        assert_eq!(from_wkt(polygon).unwrap().len(), 7);
+        let multi_polygon = "MULTIPOLYGON(((0 0,1 0,0 0)),((5 5,6 5,5 5),(7 7,8 7,7 7)))";
+        let fixes = from_wkt(multi_polygon).unwrap();
+        assert_eq!(fixes.len(), 9);
+        assert_eq!((fixes[8].coord.lat, fixes[8].coord.lon), (7.0, 7.0));
+        let collection = "GEOMETRYCOLLECTION(POINT(1 2),LINESTRING(3 4,5 6))";
+        assert_eq!(
+            lat_lons(&from_wkt(collection).unwrap()),
+            [(2.0, 1.0), (4.0, 3.0), (6.0, 5.0)]
+        );
+    }
+
+    #[cfg(feature = "wkt")]
+    #[test]
+    fn wkt_empty_and_dimensioned_geometries() {
+        // EMPTY geometries are valid WKT with no positions.
+        assert!(from_wkt("POINT EMPTY").unwrap().is_empty());
+        assert!(from_wkt("LINESTRING EMPTY").unwrap().is_empty());
+        assert!(from_wkt("GEOMETRYCOLLECTION EMPTY").unwrap().is_empty());
+        assert!(from_wkt("MULTIPOINT EMPTY").unwrap().is_empty());
+        // Z is read as an ellipsoidal height.
+        let z = from_wkt("POINT Z(1 2 3)").unwrap();
+        assert_eq!(z[0].coord.height, Some(Height::Ellipsoidal(3.0)));
+        // M is a measure, not a height: it is dropped.
+        let m = from_wkt("POINT M(1 2 3)").unwrap();
+        assert_eq!((m[0].coord.lat, m[0].coord.lon), (2.0, 1.0));
+        assert_eq!(m[0].coord.height, None);
+        let zm = from_wkt("POINT ZM(1 2 3 4)").unwrap();
+        assert_eq!(zm[0].coord.height, Some(Height::Ellipsoidal(3.0)));
+    }
+
+    #[cfg(feature = "wkt")]
+    #[test]
+    fn wkt_rejections_are_parse_errors() {
+        assert_parse_err(from_wkt("CIRCLE(0 0 5)"), "wkt: ");
+        assert_parse_err(from_wkt("POINT(181 0)"), "wkt: invalid position");
+        assert_parse_err(from_wkt("POINT(0 -91)"), "wkt: invalid position");
+    }
+
+    #[cfg(feature = "gpx")]
+    #[test]
+    fn gpx_emits_waypoints_then_tracks_then_routes() {
+        let doc = r#"<?xml version="1.0"?>
+            <gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+              <rte>
+                <rtept lat="10.0" lon="20.0"/>
+                <rtept lat="11.0" lon="21.0"><ele>5.5</ele></rtept>
+              </rte>
+              <trk><trkseg><trkpt lat="1.0" lon="2.0"/></trkseg>
+                   <trkseg><trkpt lat="3.0" lon="4.0"/></trkseg></trk>
+              <wpt lat="-1.0" lon="-2.0"/>
+            </gpx>"#;
+        let fixes = from_gpx(doc).unwrap();
+        assert_eq!(
+            lat_lons(&fixes),
+            [
+                (-1.0, -2.0),
+                (1.0, 2.0),
+                (3.0, 4.0),
+                (10.0, 20.0),
+                (11.0, 21.0)
+            ]
+        );
+        assert_eq!(fixes[4].coord.height, Some(Height::Ellipsoidal(5.5)));
+        assert_eq!(fixes[3].coord.height, None);
+        assert!(fixes.iter().all(|f| f.source.as_ref().unwrap().raw == doc));
+    }
+
+    #[cfg(feature = "gpx")]
+    #[test]
+    fn gpx_rejections_are_parse_errors() {
+        assert_parse_err(from_gpx("<gpx>broken"), "gpx: ");
+    }
+
+    #[cfg(feature = "kml")]
+    #[test]
+    fn kml_polygon_inner_rings_and_rejections() {
+        // Inner boundaries are walked after the outer one, for a bare polygon
+        // and a placemark-wrapped one alike.
+        let ring = "<LinearRing><coordinates>0,0 1,0 0,0</coordinates></LinearRing>";
+        let polygon = format!(
+            "<Polygon><outerBoundaryIs>{ring}</outerBoundaryIs>\
+             <innerBoundaryIs>{ring}</innerBoundaryIs></Polygon>"
+        );
+        let doc = format!(
+            r#"<kml xmlns="http://www.opengis.net/kml/2.2"><Folder>{polygon}
+                <Placemark>{polygon}</Placemark></Folder></kml>"#
+        );
+        assert_eq!(from_kml(&doc).unwrap().len(), 12);
+        // Mismatched tags and a non-numeric coordinate are parse errors. (A
+        // truncated document such as `<kml><Point>` is not exercised: the
+        // `kml` crate never returns on it, tracked in #135.)
+        assert_parse_err(from_kml("<kml></Point></kml>"), "kml: ");
+        assert_parse_err(
+            from_kml("<kml><Point><coordinates>abc</coordinates></Point></kml>"),
+            "kml: ",
+        );
+        assert_parse_err(from_kml("not xml"), "kml: ");
+        let off_globe = r#"<kml xmlns="http://www.opengis.net/kml/2.2">
+            <Placemark><Point><coordinates>0,95</coordinates></Point></Placemark></kml>"#;
+        assert_parse_err(from_kml(off_globe), "kml: invalid position");
+    }
 }
