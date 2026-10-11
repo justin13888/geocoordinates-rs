@@ -330,10 +330,11 @@ fn utm_inverse_folds_northings_over_the_pole() {
     assert_close(p.lat, 89.990_729_391, 1e-8);
     assert_close(p.lon, 3.0, 1e-9);
     // In zone 31 the fold lands on 183°, which only validation catches.
-    assert_out_of_range(
-        utm(31, North, 500_000.0, 9_999_000.0).try_to_coordinate(),
-        89.990_729_391_400_34,
-        183.0,
+    let r = utm(31, North, 500_000.0, 9_999_000.0).try_to_coordinate();
+    assert!(
+        matches!(r, Err(Error::OutOfRange { lat, lon })
+            if (lat - 89.990_729_391).abs() < 1e-8 && (lon - 183.0).abs() < 1e-9),
+        "{r:?}"
     );
 }
 
