@@ -15,6 +15,7 @@
 
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
+use crate::geodesy::Ellipsoid;
 
 /// UTM scale factor on the central meridian — the minimum point scale factor
 /// anywhere in the projection (k grows away from the central meridian).
@@ -25,9 +26,8 @@ const FALSE_EASTING: f64 = 500_000.0;
 const FALSE_NORTHING_SOUTH: f64 = 10_000_000.0;
 
 // --- WGS-84 transverse Mercator (Karney–Krüger n-series) constants ---
-const A_AXIS: f64 = 6_378_137.0;
-const INV_F: f64 = 298.257_223_563;
-const F: f64 = 1.0 / INV_F;
+const A_AXIS: f64 = Ellipsoid::WGS84.semi_major_m;
+const F: f64 = 1.0 / Ellipsoid::WGS84.inverse_flattening;
 /// Third flattening `n = f / (2 − f)`.
 const N: f64 = F / (2.0 - F);
 const N2: f64 = N * N;
