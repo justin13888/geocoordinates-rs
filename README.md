@@ -20,7 +20,7 @@ subsystem meets the five-point stabilization bar defined in
 | **China datums** | `Wgs84`, `Gcj02`, `Bd09` (exact forward, `_fast` / `_refined` inverses), `BaiduMercator`, `out_of_china` | ✅ | ⚠️ G3, G5 |
 | **Runtime dispatch** | `convert`, `can_convert` | ✅ | ✅ |
 | **Format** | `format`, `format_fix`, `FormatOptions`, `Representation`, `SymbolStyle`, `HemisphereStyle` | ⚠️ G16 | ✅ |
-| **Parse** | `parse_coordinate`, `from_geo_uri`, `text::parse`, `text::parse_with`, `TextParseOptions` | ⚠️ G16 | ✅ |
+| **Parse** | `parse_coordinate`, `parse_coordinate_with`, `from_geo_uri`, `text::parse`, `text::parse_with`, `TextParseOptions` | ⚠️ G16 | ✅ |
 | **Interchange & sensors** *(feature-gated)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
 | **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate`, `intersection`, rhumb and cross/along-track utilities, `Helmert`, `DatumTransform` | ⚠️ G9 | ⚠️ G5 |
 | **Projected grids** | `Utm`, `Ups`, `Mgrs`, `zone_for`, `central_meridian_deg` | ⚠️ G10 | ⚠️ G6 |
@@ -77,13 +77,10 @@ have a canonical FFI form, including both H3 and S2 discrete global grids —
 but the ⚠️ rows in the FFI column of the surface table above mark subsystems
 that don't yet meet it (tracked in [STABILIZATION.md](STABILIZATION.md)).
 
-Because the Rust API is idiomatic, the FFI surface is deliberately flattened:
-generics (`Approx<T>`), traits, `Deref`, and operator overloads do not cross the
-boundary. Their equivalents are concrete records (e.g. `ApproxWgs84 { lat, lon,
-max_error_m }`) and free functions returning primitives (distance is returned in
-meters). Approximate inverses keep their `_fast` / `_refined` names and carry
-`max_error_m`. The published `geocoordinates` crate is unaffected — the bindings
-build from their own `cdylib`/`staticlib` crate.
+The FFI surface is deliberately flatter than the idiomatic Rust API; the
+[bindings README](crates/geocoordinates-ffi/README.md) states how each Rust idiom
+is re-expressed. The published `geocoordinates` crate is unaffected — the
+bindings build from their own `cdylib`/`staticlib` crate.
 
 > Java is served by the Kotlin/JVM bindings (directly callable from Java), so it
 > has no separate generated surface. TypeScript targets WebAssembly (browser /
@@ -111,8 +108,8 @@ print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
 
 ### Published packages
 
-Each language's bindings are published to its registry on every `v*` release, using
-that ecosystem's native tooling. See [PUBLISHING.md](PUBLISHING.md) for the release
+Each language's bindings are uploaded to its registry on every `v*` release, using
+that ecosystem's native tooling; Maven Central does not list them yet (see † below). See [PUBLISHING.md](PUBLISHING.md) for the release
 workflows and registry setup.
 
 | Language | Registry | Package | Install |
@@ -120,11 +117,16 @@ workflows and registry setup.
 | Python | [PyPI](https://pypi.org/project/geocoordinates-rs/) | `geocoordinates-rs` | `pip install geocoordinates-rs` |
 | TypeScript / WASM | [npm](https://www.npmjs.com/package/geocoordinates-rs) | `geocoordinates-rs` | `npm install geocoordinates-rs` |
 | Kotlin / Java | [Maven Central](https://central.sonatype.com/artifact/io.github.justin13888/geocoordinates)&nbsp;† | `io.github.justin13888:geocoordinates` | add the coordinate to Gradle / Maven |
-| Swift | [GitHub Releases](https://github.com/justin13888/geocoordinates-rs/releases) | `GeoCoordinates` | `.package(url: "https://github.com/justin13888/geocoordinates-rs", from: "0.1.1")` |
+| Swift | [GitHub Releases](https://github.com/justin13888/geocoordinates-rs/releases) | `GeoCoordinates` | `.package(url: "https://github.com/justin13888/geocoordinates-rs", .upToNextMinor(from: "0.14.2"))` |
 
-> † **Maven Central** publishing is pending registry credentials — the JVM workflow builds the
-> artifact but skips the upload until the Central Portal token and GPG key are configured (see
-> [PUBLISHING.md](PUBLISHING.md)).
+> † **Maven Central:** the JVM workflow uploads each release to the Central Portal with the
+> configured token and GPG key, but no version has appeared on Maven Central yet — most
+> likely because the build does not request automatic release, so each uploaded deployment
+> waits in the portal for a manual release (see [PUBLISHING.md](PUBLISHING.md)).
+> Until it is, build the JAR locally as PUBLISHING.md describes.
+
+> The Swift requirement pins the minor version on purpose: while the API is `0.x`, a minor
+> release may break it, and a plain `from:` would accept every later `0.x`.
 
 > The native Rust crate is published separately to
 > [crates.io](https://crates.io/crates/geocoordinates) (`cargo add geocoordinates`).
@@ -156,20 +158,33 @@ mise run check   # fmt-check + clippy + tests
 
 ## Development
 
-`mise tasks` lists everything; the common ones are:
+`mise tasks` lists everything. The gates a change must pass:
+
+| Command                     | Gate                                                                 |
+| --------------------------- | -------------------------------------------------------------------- |
+| `mise run test`             | Tests, doctests, and the flagship example (all features)             |
+| `mise run fmt-check`        | Formatting (`mise run fmt` fixes it)                                 |
+| `mise run lint`             | Clippy with warnings denied (`mise run lint-fix` fixes what it can)  |
+| `mise run file-length-check`| Files over 654 lines fail unless in `.file-length-baseline` (shrink-only) |
+| `mise run ffi-check`        | Clippy on the FFI crate (the mirror gates every release)             |
+| `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
+| `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
+| `mise run coverage`         | Coverage report                                                      |
+| `mise run mutants`          | Mutation tests on the lines changed vs `origin/master`               |
+
+Other common tasks:
 
 | Command                 | Description                           |
 | ----------------------- | ------------------------------------- |
 | `cargo build`           | Build the crate                       |
-| `mise run test`         | Run tests                             |
-| `mise run fmt`          | Format code                           |
-| `mise run lint-fix`     | Lint and auto-fix                     |
-| `mise run coverage`     | Report code coverage                  |
 | `mise run check`        | Core gates: fmt-check + lint + test   |
 | `mise run bindings`     | Generate FFI bindings (all languages) |
 
-Each gate is defined once, in [`.mise.toml`](.mise.toml). CI and the git hooks both
-invoke these same tasks, so there is nothing to keep in sync by hand.
+Each gate is defined once, in [`.mise.toml`](.mise.toml), and CI and the git hooks
+both invoke these same tasks, so no gate definition needs syncing by hand. Tool
+version pins are the exception: the mise version is repeated in every workflow that
+installs it, and the hk version in both `.mise.toml` and `hk.pkl`, so bump each set
+together.
 
 ### Git Hooks
 
@@ -178,13 +193,14 @@ installs the hooks; `hk install` re-runs that step on its own.
 
 Pre-commit auto-fixes formatting and linting on staged Rust files. The commit-msg hook
 validates each message against [Conventional Commits](https://www.conventionalcommits.org)
-(via `convco`). Pre-push lints the pushed commits and runs format checks, Clippy (core and
-FFI crates), tests, a coverage report, and mutation tests on the changed lines.
+(via `convco`). Pre-push lints the pushed commits and runs format checks, the file-length
+check, Clippy (core and FFI crates), tests, a coverage report, and mutation tests on the
+changed lines.
 
 Run them on demand without committing:
 
 ```bash
-hk check --all           # fmt-check + lint + ffi-check + test
+hk check --all           # fmt-check + file-length-check + lint + ffi-check + test
 hk fix --all             # apply the pre-commit fixes
 hk run pre-push          # the full pre-push gate set
 ```
@@ -193,7 +209,14 @@ Set `HK=0` to skip hooks for a single git invocation.
 
 ### CI/CD
 
-GitHub Actions runs format checks, Clippy, tests, and a coverage report on pushes to `master` and pull requests, runs mutation tests on the lines a pull request changes, and lints PR commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`). A separate FFI workflow builds the bindings `cdylib`, generates bindings for all four languages, and runs Python and JVM (Kotlin/Java) smoke tests. Both workflows cancel superseded in-flight runs when a PR is updated.
+GitHub Actions runs these workflows:
+
+- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, and a coverage report; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
+- **FFI** (pushes to `master` and pull requests): Clippy on the FFI crate, the bindings `cdylib` build, Python/Kotlin/Swift binding generation, a check that the committed Swift bindings are current, a WASM/TypeScript build, Python and JVM (Kotlin/Java) smoke tests, and a Swift package build on macOS.
+- **Full-tree mutation tests** (weekly, and on demand): mutates the whole tree and reports survivors without gating anything.
+- **Release dry runs**: each binding release workflow also runs as a non-publishing dry run on pull requests that touch its pipeline and weekly (see [PUBLISHING.md](PUBLISHING.md)).
+
+CI and FFI cancel superseded in-flight runs when a PR is updated.
 
 ### Releases
 
@@ -210,7 +233,7 @@ stored in the repository.
 
 ### Code Coverage
 
-This project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for LLVM-based code coverage. No minimum threshold is enforced yet — tests and a threshold are added once the API stabilizes.
+This project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for LLVM-based code coverage. No minimum threshold is enforced yet; one is added once the API stabilizes.
 
 ```bash
 mise run coverage

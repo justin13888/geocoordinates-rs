@@ -1,4 +1,4 @@
-# gcoordinates
+# geocoordinates
 
 Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-09),
 angle encodings, coordinate parsing/formatting, and geodesy utilities. UNIX
@@ -16,17 +16,8 @@ library built on this one).
 
 ## Quality
 
-Validate changes:
-
-```bash
-mise run test         # correctness
-mise run fmt-check    # formatting
-mise run lint         # clippy with warnings denied
-mise run file-length-check  # files over 654 lines fail unless in .file-length-baseline (shrink-only)
-mise run ffi-check    # FFI crate clippy (the mirror gates every release)
-mise run coverage     # coverage report (no threshold enforced yet)
-mise run mutants      # mutation-test lines changed vs origin/master (pre-push + CI gate)
-```
+Validate every change against the gates listed in the `README.md` Development
+section (each is a `mise run <task>` defined in `.mise.toml`).
 
 `STABILIZATION.md` is the ledger for the 0.15.0 API stabilization: the five-point
 bar every public item must meet, the open findings with their source anchors, and
@@ -41,7 +32,7 @@ new finding there.
 - All `pub` items need doc comments. Mark pure getters / fallible-return types with `#[must_use]` where appropriate.
 - Safe rust only. Return typed errors via `thiserror`.
 - **Conversion naming:** geometric / projected types (ECEF, ENU/NED/AER, UTM/UPS, MGRS) use `to_coordinate` / `from_coordinate`; discrete cell / encoding systems (Geohash, Plus Code, Maidenhead, H3, S2) keep domain-standard `encode` / `decode`. A **named inherent method is mandatory** for every conversion; `From`/`TryFrom` impls are thin sugar over it — they cannot be the only access path, because they cannot cross FFI.
-- **serde:** under the `serde` feature, derive `Serialize`/`Deserialize` on every value / option / id type (coordinates, enums, config structs like `FormatOptions`/`TextParseOptions`, ids like `CrsId`). Skip only purely behavioral types.
+- **serde:** under the `serde` feature, derive `Serialize`/`Deserialize` on every value / option / id type (coordinates, enums, config structs like `FormatOptions`/`TextParseOptions`, ids like `S2CellId`). Skip only purely behavioral types.
 - **FFI translatability (UniFFI):** the separate `geocoordinates-ffi` crate exposes the public API across the FFI boundary with **full capability parity** (Python, Kotlin, Swift, and TypeScript/WASM; Java consumes the Kotlin/JVM artifact, and TypeScript is generated with `uniffi-bindgen-react-native` targeting wasm32 — see `crates/geocoordinates-ffi/web/`). Parity is per **capability**, not per signature: every public capability must be reachable through one canonical FFI form, but not every Rust-side overload, trait impl, or operator. The FFI mirror **gates every release** — a milestone is not done until its surface crosses the boundary.
   - Design rule: every new public capability gets an **FFI-expressible canonical form** (named inherent methods or free functions over concrete types); Rust idioms are thin sugar layered on top. These idioms **cannot** cross FFI: generics (`Approx<T>`), traits and `&impl Trait` bounds (`LatLon`), `Deref`, operator overloads (`Length`), and `From`/`TryFrom` conversions. Their FFI forms are flattened concrete records (e.g. `ApproxWgs84 { lat, lon, max_error_m }`), free functions in place of trait methods/operators/conversions, and primitives in place of wrappers (distance as `f64` meters). `SystemTime` crosses natively (UniFFI's builtin `Timestamp`), so `Fix` metadata is FFI-clean. Keep exported names language-neutral and preserve exactness semantics across the boundary (retain `_fast`/`_refined`).
   - Mirror sync is compiler-enforced: FFI-mirrored **data** enums (`Crs`, `LengthUnit`, …) are exhaustive (no `#[non_exhaustive]`), so adding a variant fails the FFI crate's build until the mirror + its `From`/`Into` impls are updated. Mirror wildcard arms are allowed **only** where the fallback preserves meaning (errors → `GeoError::Other { detail }`), never where they would mislabel data (datums, units). `Error` alone stays `#[non_exhaustive]`.
