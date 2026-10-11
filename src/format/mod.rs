@@ -29,7 +29,7 @@ const MAX_PRECISION: u8 = 15;
 ///
 /// Covers decimal degrees, DMS, DDM and Plus Code. The remaining grid
 /// representations (UTM / MGRS / geohash / Maidenhead) are not renderable yet
-/// even though those types ship — see `STABILIZATION.md`. Exhaustive (no
+/// even though those types ship — see [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md). Exhaustive (no
 /// `#[non_exhaustive]`): adding a variant compile-forces both the `format`
 /// dispatch and the FFI mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

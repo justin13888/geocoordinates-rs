@@ -41,7 +41,9 @@ pub use crate::fix::AxisOrder;
 /// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]); then falls back
 /// to free-text DD/DMS/DDM heuristics (see [`text`]). Plus Code tokens are
 /// detected; the remaining grid tokens (UTM / MGRS / geohash / Maidenhead) are
-/// not yet — see `STABILIZATION.md`. The returned [`Fix`] records confidence and the
+/// not yet — see
+/// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md).
+/// The returned [`Fix`] records confidence and the
 /// assumed [`AxisOrder`] in its [`RawSource`].
 ///
 /// Uses the default [`text::TextParseOptions`] (lat-first, `.` decimals); use

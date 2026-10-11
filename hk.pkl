@@ -83,7 +83,8 @@ hooks {
 
     // `hk check` — the core gates (fmt-check + file-length-check + lint +
     // ffi-check + test), runnable on demand. This is not full CI: CI also runs
-    // commits-check, coverage, mutants, and the Python/JVM/WASM smoke builds.
+    // commits-check, msrv, doc, coverage, mutants, the Python/JVM/WASM smoke
+    // builds, and the Swift package build.
     // `hk fix` (below) only autofixes formatting and lint, not test.
     ["check"] {
         steps {

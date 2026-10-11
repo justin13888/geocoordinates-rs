@@ -27,8 +27,10 @@
 //! println!("{} ± {} m", w.lat(), w.max_error_m());
 //! ```
 //!
-//! See `AGENTS.md` for design constraints, and `STABILIZATION.md` for the
-//! stabilization ledger and what remains before the 1.0 API freeze.
+//! See [AGENTS.md](https://github.com/justin13888/geocoordinates-rs/blob/master/AGENTS.md)
+//! for design constraints, and
+//! [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)
+//! for the stabilization ledger and what remains before the 1.0 API freeze.
 //!
 //! ## Released surface
 //!
@@ -40,7 +42,9 @@
 //!
 //! Two capabilities remain deliberately unreleased because they need a system
 //! library or multi-megabyte external data: PROJ-backed EPSG transforms and
-//! geoid height models. `STABILIZATION.md` records that decision.
+//! geoid height models.
+//! [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)
+//! records that decision.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

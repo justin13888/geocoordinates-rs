@@ -23,7 +23,8 @@ use crate::geodesy::datum::DatumTransform;
 /// [`china`](crate::china) conversions; classic datums (NAD27, Tokyo,
 /// Pulkovo-1942) use the 7-parameter Helmert transforms from
 /// [`geodesy::datum`](crate::geodesy::datum). The full EPSG/national-grid long
-/// tail is delegated to the deferred `proj` feature (see STABILIZATION.md).
+/// tail is delegated to the deferred `proj` feature (see
+/// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
 ///
 /// The result is wrapped in [`Approx`] because the worst-case path (e.g.
 /// BD-09 → WGS-84) is approximate. [`Approx::max_error_m`] bounds only the
@@ -68,7 +69,8 @@ pub fn convert(coord: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
 ///
 /// True for every currently-modeled [`Crs`]: each reaches the WGS-84 hub (China
 /// systems via the typed conversions, classic datums via Helmert). The
-/// distinction exists for the deferred `proj` long tail (see STABILIZATION.md),
+/// distinction exists for the deferred `proj` long tail (see
+/// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)),
 /// whose datums are not hub-reachable without that feature.
 #[must_use]
 pub fn can_convert(from: Crs, to: Crs) -> bool {

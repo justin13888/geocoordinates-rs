@@ -1,8 +1,9 @@
 # geocoordinates (language bindings)
 
 [UniFFI](https://mozilla.github.io/uniffi-rs/) bindings for the
-[`geocoordinates`](https://crates.io/crates/geocoordinates) geospatial library —
-China datums (GCJ-02 / BD-09), geodetic transforms.
+[`geocoordinates`](https://crates.io/crates/geocoordinates) crate — low-level
+geospatial coordinate primitives: China datums (GCJ-02/BD-09), angle encodings,
+coordinate parsing/formatting, and geodesy utilities.
 
 The Rust API is exposed across the FFI boundary to **Python, Kotlin, Swift, and
 TypeScript** (Java consumes the Kotlin/JVM artifact) with **full capability

@@ -9,11 +9,13 @@ name: Release (Maven Central)
 # The same dry run also runs on pull requests that touch this pipeline and weekly
 # on a schedule, so the path is exercised between releases, not first at one.
 #
-# Auth (configure before the first release; see PUBLISHING.md):
+# Auth (configured; see PUBLISHING.md):
 #   secrets.MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD  — Central Portal token
 #   secrets.GPG_SIGNING_KEY (ASCII-armored) / GPG_SIGNING_PASSWORD — artifact signing
-# Until these are set, the `publish` job still runs and stages the natives built
-# by the `natives` job, but on a real release the "Publish to Maven Central" step
+# With them set, a real release runs `publishToMavenCentral`, which uploads the
+# deployment to the Central Portal; the build does not request automatic release,
+# so nothing reaches Maven Central until the deployment is released there (see
+# PUBLISHING.md). If the secrets are absent, the "Publish to Maven Central" step
 # warns and exits 0 before gradle builds or publishes anything. The other
 # registries are unaffected.
 on:

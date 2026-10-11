@@ -66,7 +66,7 @@ host the trusted-publisher config — so `v0.1.1` was bootstrapped with a one-ti
 local `npm publish`. Every release since uses OIDC, with `--provenance` attaching a
 build attestation.
 
-### Maven Central — Central Portal + GPG (not yet set up)
+### Maven Central — Central Portal + GPG (configured; releases not yet visible)
 1. Create a **Sonatype Central Portal** account (central.sonatype.com).
 2. Verify the **namespace** `io.github.justin13888` (the portal walks you through a
    GitHub-based verification — it has you create a throwaway public repo whose name it
@@ -80,8 +80,14 @@ build attestation.
    - `GPG_SIGNING_KEY` — the ASCII-armored private key (`-----BEGIN PGP PRIVATE KEY…`).
    - `GPG_SIGNING_PASSWORD` — the key passphrase.
 
-Until these exist, the `release-jvm.yml` publish step **skips with a warning** and the
-other registries are unaffected. (Desktop JVM only for now; Android AAR is future work.)
+These secrets are set, so a publishing run of `release-jvm.yml` runs
+`publishToMavenCentral` and uploads the deployment (v0.14.1's run succeeded). No
+version is on Maven Central yet, though: the Gradle build calls
+`publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)` without automatic release, so each
+uploaded deployment most likely waits in the portal for a manual **Publish**. If the
+secrets are ever removed, the publish step skips with a warning instead, and the other
+registries are unaffected either way. (Desktop JVM only for now; Android AAR is future
+work.)
 
 ### SwiftPM — nothing to configure
 The release workflow builds the XCFramework, uploads it to the GitHub Release, writes
