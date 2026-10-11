@@ -9,7 +9,9 @@
 //! ECEF, ENU/NED/AER, datum/ellipsoid parameters tied to our
 //! [`Crs`](crate::Crs)) is implemented here directly.
 
-pub mod geodesic;
+pub mod geodesic; // ellipsoidal (Karney) geodesics; re-exports the two below
+mod rhumb; // rhumb/loxodrome on the mean sphere
+mod spherical; // haversine, cross/along-track, intersection on the mean sphere
 
 pub use geodesic::haversine_distance;
 
