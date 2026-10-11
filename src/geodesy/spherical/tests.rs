@@ -95,6 +95,23 @@ fn is_coincident_is_strictly_below_the_threshold() {
 }
 
 #[test]
+fn no_single_forward_intersection_boundaries() {
+    // Same great circle: both sines strictly below 1e-12.
+    assert!(no_single_forward_intersection(0.0, 0.0));
+    assert!(no_single_forward_intersection(-5e-13, 5e-13 * 0.5));
+    // Exactly 1e-12 on either side is no longer "the same circle".
+    assert!(!no_single_forward_intersection(1e-12, 0.0));
+    assert!(!no_single_forward_intersection(0.0, 1e-12));
+    // One sine zero and the other not: a single crossing, whatever the sign.
+    assert!(!no_single_forward_intersection(0.0, 0.5));
+    assert!(!no_single_forward_intersection(0.5, 0.0));
+    assert!(!no_single_forward_intersection(-0.5, 0.0));
+    // Opposite signs: the ambiguous antipodal crossing.
+    assert!(no_single_forward_intersection(-0.5, 0.25));
+    assert!(!no_single_forward_intersection(0.5, 0.25));
+}
+
+#[test]
 fn endpoint_bearings_take_the_west_assignment_on_a_shared_meridian() {
     let (a, b) = (0.25, 0.75);
     let east = (a, 2.0 * PI - b);

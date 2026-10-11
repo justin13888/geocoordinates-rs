@@ -110,11 +110,8 @@ pub fn intersection(
 
     let alpha1 = theta13 - theta12;
     let alpha2 = theta21 - theta23;
-    if alpha1.sin().abs() < 1e-12 && alpha2.sin().abs() < 1e-12 {
-        return Ok(None); // same great circle — infinitely many intersections
-    }
-    if alpha1.sin() * alpha2.sin() < 0.0 {
-        return Ok(None); // ambiguous (the antipodal intersection)
+    if no_single_forward_intersection(alpha1.sin(), alpha2.sin()) {
+        return Ok(None);
     }
 
     let cos_alpha3 = -alpha1.cos() * alpha2.cos() + alpha1.sin() * alpha2.sin() * delta12.cos();
@@ -146,6 +143,15 @@ fn endpoint_bearings(theta_a: f64, theta_b: f64, sin_d_lam: f64) -> (f64, f64) {
     } else {
         (2.0 * PI - theta_a, theta_b)
     }
+}
+
+/// Whether [`intersection`] has no single forward crossing, from the sines of
+/// the angles `α₁` / `α₂` each path makes with the line joining the starts:
+/// both (almost) zero means the same great circle (infinitely many
+/// intersections), and opposite signs mean the crossing is the ambiguous
+/// antipodal one.
+fn no_single_forward_intersection(sin_alpha1: f64, sin_alpha2: f64) -> bool {
+    (sin_alpha1.abs() < 1e-12 && sin_alpha2.abs() < 1e-12) || sin_alpha1 * sin_alpha2 < 0.0
 }
 
 /// Initial bearing on a sphere, in radians.
