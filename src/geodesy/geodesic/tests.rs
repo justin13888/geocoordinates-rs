@@ -1,6 +1,9 @@
 use super::*;
 use crate::test_support::assert_close;
 
+/// Characterization of validation, poles, the antimeridian and rhumb edges.
+mod edges;
+
 fn c(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon)
 }
@@ -72,14 +75,17 @@ fn destination_inverts_distance_and_bearing() {
 
 #[test]
 fn destination_rejects_non_wgs84() {
-    assert!(
+    assert!(matches!(
         destination(
             &Coordinate::gcj02(0.0, 0.0),
             90.0,
             Length::from_meters(100_000.0),
-        )
-        .is_err()
-    );
+        ),
+        Err(Error::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: Crs::Gcj02,
+        })
+    ));
 }
 
 #[test]
@@ -354,8 +360,57 @@ fn intersection_with_shared_start_meridian() {
 
 #[test]
 fn public_geodesics_reject_mixed_crs_and_invalid_parameters() {
-    assert!(geodesic_distance(&Coordinate::wgs84(0.0, 0.0), &Coordinate::gcj02(0.0, 1.0)).is_err());
-    assert!(intermediate(&c(0.0, 0.0), &c(0.0, 1.0), 1.1).is_err());
-    assert!(destination(&c(0.0, 0.0), f64::NAN, Length::from_meters(1.0)).is_err());
-    assert!(rhumb_destination(&c(0.0, 0.0), 0.0, Length::from_meters(-1.0)).is_err());
+    assert!(matches!(
+        geodesic_distance(&Coordinate::wgs84(0.0, 0.0), &Coordinate::gcj02(0.0, 1.0)),
+        Err(Error::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: Crs::Gcj02,
+        })
+    ));
+    assert_invalid_value(intermediate(&c(0.0, 0.0), &c(0.0, 1.0), 1.1), "fraction");
+    assert_invalid_value(intermediate(&c(0.0, 0.0), &c(0.0, 1.0), -0.1), "fraction");
+    assert_invalid_value(
+        intermediate(&c(0.0, 0.0), &c(0.0, 1.0), f64::NAN),
+        "fraction",
+    );
+    let one_m = Length::from_meters(1.0);
+    assert_invalid_value(destination(&c(0.0, 0.0), f64::NAN, one_m), "bearing");
+    assert_invalid_value(
+        destination(&c(0.0, 0.0), 0.0, Length::from_meters(f64::INFINITY)),
+        "distance",
+    );
+    assert_invalid_value(
+        rhumb_destination(&c(0.0, 0.0), 0.0, Length::from_meters(-1.0)),
+        "distance",
+    );
+    assert_invalid_value(
+        rhumb_destination(&c(0.0, 0.0), f64::INFINITY, one_m),
+        "bearing",
+    );
+    assert_invalid_value(
+        intersection(&c(0.0, 0.0), f64::NAN, &c(1.0, 1.0), 0.0),
+        "bearing",
+    );
+    assert_invalid_value(
+        intersection(&c(0.0, 0.0), 0.0, &c(1.0, 1.0), f64::INFINITY),
+        "bearing",
+    );
+}
+
+/// A rejected parameter is `InvalidValue` naming exactly `expected`.
+#[track_caller]
+fn assert_invalid_value<T: core::fmt::Debug>(r: Result<T>, expected: &str) {
+    assert!(
+        matches!(&r, Err(Error::InvalidValue { field, .. }) if *field == expected),
+        "{r:?}"
+    );
+}
+
+/// An out-of-range position is `OutOfRange` carrying its own components.
+#[track_caller]
+fn assert_out_of_range<T: core::fmt::Debug>(r: Result<T>, lat: f64, lon: f64) {
+    assert!(
+        matches!(&r, Err(Error::OutOfRange { lat: a, lon: o }) if *a == lat && *o == lon),
+        "{r:?}"
+    );
 }
