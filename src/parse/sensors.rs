@@ -296,8 +296,11 @@ mod tests {
             "$*é",
             "$GPGLL,4916.45é,N,12311.12,W,225444,A",
         ];
+        // Every probe is rejected as a parse error; a panic or any other
+        // variant fails the test.
         for p in probes {
-            let _ = from_nmea_sentence(p);
+            let r = from_nmea_sentence(p);
+            assert!(matches!(r, Err(Error::Parse(_))), "{p:?}: {r:?}");
         }
     }
 }

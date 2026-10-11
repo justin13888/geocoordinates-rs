@@ -396,6 +396,29 @@ mod tests {
     }
 
     #[test]
+    fn parse_coordinate_does_not_recognise_other_grid_references_yet() {
+        // Only geo: URIs, Plus Codes and free text are dispatched today. An
+        // MGRS, geohash, Maidenhead or UTM string falls through to the text
+        // parser and fails to split into two components.
+        // KNOWN GAP (flipped by #118, which recognises grids deliberately):
+        // the MGRS reference below parses there; geohash, Maidenhead and UTM
+        // are decided by that issue.
+        for input in ["18TWK0000027757", "ezs42", "FN20", "18N 500000 4427757"] {
+            let r = parse_coordinate(input);
+            assert!(
+                matches!(&r, Err(Error::Parse(m)) if m.contains("two components")),
+                "{input:?}: {r:?}"
+            );
+        }
+        // A lone number and a bare word are not coordinates; #118 keeps them
+        // errors.
+        for input in ["42", "bed"] {
+            let r = parse_coordinate(input);
+            assert!(matches!(r, Err(Error::Parse(_))), "{input:?}: {r:?}");
+        }
+    }
+
+    #[test]
     fn parse_coordinate_detects_plus_code() {
         let fix = parse_coordinate("8FVC2222+22").unwrap();
         assert_close(fix.coord.lat, 47.0000625, 1e-6);
