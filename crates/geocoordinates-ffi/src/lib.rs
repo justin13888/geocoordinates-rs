@@ -1,11 +1,9 @@
 //! UniFFI bindings for [`geocoordinates`](https://docs.rs/geocoordinates).
 //!
-//! This crate exposes the Rust API to Python, Kotlin, Swift, and
-//! TypeScript/WASM (and Java, via the Kotlin/JVM artifact). **Full capability
-//! parity** is the target: every public capability of the released
-//! `geocoordinates` surface is meant to be reachable here, and the mirror
-//! gates each release. Subsystems that do not meet it yet are tracked in
-//! [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md).
+//! This crate exposes the Rust API to Python, Kotlin, Swift, and TypeScript/WASM
+//! (and Java, via the Kotlin/JVM artifact). **Full capability parity** with the
+//! released `geocoordinates` surface is the target, and the mirror gates each release;
+//! open gaps are tracked in [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md).
 //! Several Rust idioms cannot cross an FFI boundary, so they are re-expressed
 //! as flat, language-neutral records and free functions:
 //!
