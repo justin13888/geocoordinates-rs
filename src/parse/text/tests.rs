@@ -109,6 +109,16 @@ fn invalid_inputs_error() {
 }
 
 #[test]
+fn doubled_sign_leaves_a_negative_magnitude_that_is_rejected() {
+    // The component parser strips one leading `-`; a second one reaches the
+    // magnitude parser as a negative number, which must be rejected rather
+    // than folded into the sign (`--5` is not `5`).
+    assert!(parse("--5, 10").is_err()); // decimal magnitude
+    assert!(parse("--5 30, 10").is_err()); // DDM degrees field
+    assert!(parse("--5 30 0, 10").is_err()); // DMS degrees field
+}
+
+#[test]
 fn south_and_east_hemispheres() {
     let fix = parse("33.9S 151.2E").unwrap();
     assert_close(fix.coord.lat, -33.9, 1e-9);
