@@ -104,9 +104,19 @@ fn utm_round_trip_drift_is_a_few_micrometers() {
 
 #[test]
 fn utm_rejects_polar_latitudes() {
-    assert!(Utm::try_from_coordinate(c(84.0, 10.0)).is_err()); // 84°N is UPS
-    assert!(Utm::try_from_coordinate(c(-80.000_1, 10.0)).is_err());
-    assert!(Utm::try_from_coordinate(c(83.999, 10.0)).is_ok());
+    // 84°N is UPS.
+    assert_out_of_range(Utm::try_from_coordinate(c(84.0, 10.0)), 84.0, 10.0);
+    assert_out_of_range(
+        Utm::try_from_coordinate(c(-80.000_1, 10.0)),
+        -80.000_1,
+        10.0,
+    );
+    // Just under the cap is the widened Svalbard zone 33.
+    let u = Utm::try_from_coordinate(c(83.999, 10.0)).unwrap();
+    assert_eq!((u.zone, u.hemisphere), (33, Hemisphere::North));
+    // 80°S itself is the last UTM latitude.
+    let u = Utm::try_from_coordinate(c(-80.0, 10.0)).unwrap();
+    assert_eq!((u.zone, u.hemisphere), (32, Hemisphere::South));
 }
 
 #[test]
@@ -175,33 +185,180 @@ fn ups_inverse_series_error_matches_the_documented_bound() {
 
 #[test]
 fn ups_rejects_non_polar_latitudes() {
-    assert!(Ups::try_from_coordinate(c(50.0, 0.0)).is_err());
-    assert!(Ups::try_from_coordinate(c(83.9, 0.0)).is_err()); // still UTM
-    assert!(Ups::try_from_coordinate(c(-79.0, 0.0)).is_err());
-    assert!(Ups::try_from_coordinate(c(84.0, 0.0)).is_ok());
-    assert!(Ups::try_from_coordinate(c(-80.0, 0.0)).is_ok());
+    assert_out_of_range(Ups::try_from_coordinate(c(50.0, 0.0)), 50.0, 0.0);
+    assert_out_of_range(Ups::try_from_coordinate(c(83.9, 0.0)), 83.9, 0.0); // still UTM
+    assert_out_of_range(Ups::try_from_coordinate(c(-79.0, 0.0)), -79.0, 0.0);
+    assert_out_of_range(Ups::try_from_coordinate(c(0.0, 0.0)), 0.0, 0.0); // equator is north
+    assert_eq!(
+        Ups::try_from_coordinate(c(84.0, 0.0)).unwrap().hemisphere,
+        Hemisphere::North
+    );
+    assert_eq!(
+        Ups::try_from_coordinate(c(-80.0, 0.0)).unwrap().hemisphere,
+        Hemisphere::South
+    );
 }
 
 #[test]
 fn projections_reject_wrong_crs_and_invalid_records() {
-    assert!(Utm::try_from_coordinate(Coordinate::gcj02(40.0, -75.0)).is_err());
+    use crate::Crs::{Gcj02, Wgs84};
+    assert!(matches!(
+        Utm::try_from_coordinate(Coordinate::gcj02(40.0, -75.0)),
+        Err(Error::CrsMismatch {
+            expected: Wgs84,
+            found: Gcj02,
+        })
+    ));
+    assert!(matches!(
+        Ups::try_from_coordinate(Coordinate::gcj02(85.0, 0.0)),
+        Err(Error::CrsMismatch {
+            expected: Wgs84,
+            found: Gcj02,
+        })
+    ));
+    assert_out_of_range(Utm::try_from_coordinate(c(91.0, 0.0)), 91.0, 0.0);
+    assert_out_of_range(Ups::try_from_coordinate(c(91.0, 0.0)), 91.0, 0.0);
+}
+
+/// An out-of-range input is `OutOfRange` carrying exactly that position.
+#[track_caller]
+fn assert_out_of_range<T: core::fmt::Debug>(r: Result<T>, lat: f64, lon: f64) {
     assert!(
-        Utm {
-            zone: 0,
-            hemisphere: Hemisphere::North,
-            easting: 500_000.0,
-            northing: 0.0,
-        }
-        .try_to_coordinate()
-        .is_err()
+        matches!(&r, Err(Error::OutOfRange { lat: a, lon: o }) if *a == lat && *o == lon),
+        "{r:?}"
     );
+}
+
+/// A record outside its projection's domain is `InvalidValue` on `field`.
+#[track_caller]
+fn assert_invalid_record(r: Result<Coordinate>, expected: &str) {
     assert!(
-        Ups {
-            hemisphere: Hemisphere::North,
-            easting: f64::NAN,
-            northing: 2_000_000.0,
-        }
-        .try_to_coordinate()
-        .is_err()
+        matches!(&r, Err(Error::InvalidValue { field, .. }) if *field == expected),
+        "{r:?}"
     );
+}
+
+fn utm(zone: u8, hemisphere: Hemisphere, easting: f64, northing: f64) -> Utm {
+    Utm {
+        zone,
+        hemisphere,
+        easting,
+        northing,
+    }
+}
+
+fn ups(hemisphere: Hemisphere, easting: f64, northing: f64) -> Ups {
+    Ups {
+        hemisphere,
+        easting,
+        northing,
+    }
+}
+
+#[test]
+fn utm_inverse_guards_each_field() {
+    use Hemisphere::{North, South};
+    let bad = |u: Utm| assert_invalid_record(u.try_to_coordinate(), "UTM");
+    bad(utm(0, North, 500_000.0, 0.0));
+    bad(utm(61, North, 500_000.0, 0.0));
+    bad(utm(31, North, 99_999.0, 0.0));
+    bad(utm(31, North, 900_001.0, 0.0));
+    bad(utm(31, North, f64::INFINITY, 0.0));
+    bad(utm(31, North, f64::NAN, 0.0));
+    bad(utm(31, North, 500_000.0, -1.0));
+    bad(utm(31, South, 500_000.0, 10_000_001.0));
+    bad(utm(31, North, 500_000.0, f64::NAN));
+    bad(utm(31, North, 500_000.0, f64::NEG_INFINITY));
+    // The domain bounds themselves are accepted.
+    let edge = utm(31, North, 100_000.0, 0.0).try_to_coordinate().unwrap();
+    assert_close(edge.lon, -0.592_327_203, 1e-8);
+    let edge = utm(31, North, 900_000.0, 0.0).try_to_coordinate().unwrap();
+    assert_close(edge.lon, 6.592_327_203, 1e-8);
+}
+
+#[test]
+fn ups_inverse_guards_each_field() {
+    use Hemisphere::{North, South};
+    let bad = |u: Ups| assert_invalid_record(u.try_to_coordinate(), "UPS");
+    bad(ups(North, -1.0, 2_000_000.0));
+    bad(ups(North, 4_000_001.0, 2_000_000.0));
+    bad(ups(South, f64::NAN, 2_000_000.0));
+    bad(ups(North, f64::INFINITY, 2_000_000.0));
+    bad(ups(North, 2_000_000.0, -1.0));
+    bad(ups(South, 2_000_000.0, 4_000_001.0));
+    bad(ups(North, 2_000_000.0, f64::NAN));
+    // The domain corner itself is accepted, far below the 84°N cap.
+    let corner = ups(North, 4_000_000.0, 4_000_000.0)
+        .try_to_coordinate()
+        .unwrap();
+    assert_close(corner.lat, 64.916_412_333, 1e-8);
+    assert_close(corner.lon, 135.0, 1e-9);
+}
+
+#[test]
+fn utm_inverse_does_not_wrap_the_antimeridian() {
+    use Hemisphere::North;
+    // KNOWN WRONG (C6, flipped by #114): zone 1 easting 150 km at the
+    // equator lies at ≈179.856°E across the antimeridian, but the inverse
+    // never wraps longitude, so it fails validation as lon ≈ −180.144.
+    let r = utm(1, North, 150_000.0, 0.0).try_to_coordinate();
+    assert!(
+        matches!(r, Err(Error::OutOfRange { lat, lon })
+            if lat == 0.0 && (lon + 180.143_772_343).abs() < 1e-8),
+        "{r:?}"
+    );
+    // KNOWN WRONG (C6, flipped by #114): the mirror case in zone 60.
+    let r = utm(60, North, 850_000.0, 0.0).try_to_coordinate();
+    assert!(
+        matches!(r, Err(Error::OutOfRange { lon, .. }) if (lon - 180.143_772_343).abs() < 1e-8),
+        "{r:?}"
+    );
+    // Inside ±180 the same zone decodes normally.
+    let p = utm(1, North, 170_000.0, 0.0).try_to_coordinate().unwrap();
+    assert_close(p.lon, -179.964_294_459, 1e-8);
+}
+
+#[test]
+fn utm_inverse_folds_northings_over_the_pole() {
+    use Hemisphere::North;
+    // KNOWN WRONG (C6, flipped by #114): a north northing of 9 999 000 m is
+    // past the pole (≈9 997 964 m), yet it is accepted and folds over onto
+    // the far meridian: zone 1 (−177°) lands on +3°.
+    let p = utm(1, North, 500_000.0, 9_999_000.0)
+        .try_to_coordinate()
+        .unwrap();
+    assert_close(p.lat, 89.990_729_391, 1e-8);
+    assert_close(p.lon, 3.0, 1e-9);
+    // In zone 31 the fold lands on 183°, which only validation catches.
+    assert_out_of_range(
+        utm(31, North, 500_000.0, 9_999_000.0).try_to_coordinate(),
+        89.990_729_391_400_34,
+        183.0,
+    );
+}
+
+#[test]
+fn zone_edges_of_the_norway_and_svalbard_exceptions() {
+    // Svalbard (72°–84°N, 0°–42°E): boundaries at 9°, 21°, 33° and 42°E.
+    assert_eq!(zone_for(72.0, 0.0), 31);
+    assert_eq!(zone_for(72.0, 8.999), 31);
+    assert_eq!(zone_for(72.0, 9.0), 33);
+    assert_eq!(zone_for(72.0, 20.999), 33);
+    assert_eq!(zone_for(72.0, 21.0), 35);
+    assert_eq!(zone_for(72.0, 32.999), 35);
+    assert_eq!(zone_for(72.0, 33.0), 37);
+    assert_eq!(zone_for(72.0, 41.999), 37);
+    assert_eq!(zone_for(72.0, 42.0), 38); // the exception ends at 42°E
+    assert_eq!(zone_for(83.999, 9.0), 33);
+    assert_eq!(zone_for(84.0, 9.0), 32); // 84°N is outside the exception
+    assert_eq!(zone_for(71.999, 9.0), 32); // band W keeps its normal zone
+    assert_eq!(zone_for(72.0, -0.001), 30); // west of 0°E is unaffected
+    // Norway (56°–64°N, 3°–12°E) widens zone 32 westward.
+    assert_eq!(zone_for(56.0, 3.0), 32);
+    assert_eq!(zone_for(56.0, 2.999), 31);
+    assert_eq!(zone_for(55.999, 3.0), 31);
+    assert_eq!(zone_for(63.999, 3.0), 32);
+    assert_eq!(zone_for(64.0, 3.0), 31); // 64°N is outside the exception
+    assert_eq!(zone_for(56.0, 11.999), 32);
+    assert_eq!(zone_for(56.0, 12.0), 33);
 }
