@@ -58,7 +58,13 @@ fn encode_precision_levels() {
             .as_str(),
         "18TWK"
     );
-    assert!(Mgrs::try_from_coordinate(c(40.0, -75.0), 250).is_err());
+    for precision in [0, 2, 250, 1_000_000] {
+        let r = Mgrs::try_from_coordinate(c(40.0, -75.0), precision);
+        assert!(
+            matches!(&r, Err(Error::InvalidValue { field, .. }) if *field == "MGRS precision"),
+            "{precision}: {r:?}"
+        );
+    }
 }
 
 #[test]
@@ -155,12 +161,35 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
 }
 
 #[test]
-fn from_str_round_trips_through_encode() {
+fn encode_decode_round_trips_within_bound() {
     for &(lat, lon, _) in REFS {
         let m = Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap();
         let back = m.to_coordinate();
         assert_within_geodesic_meters(back.value(), &c(lat, lon), back.max_error_m());
     }
+}
+
+#[test]
+fn from_str_round_trips_the_canonical_string() {
+    // UTM and UPS (zone letters A/B/Y/Z) references alike: parsing the
+    // canonical string and re-reading `as_str` is the identity, and the parsed
+    // value equals the encoded one.
+    for &(lat, lon, s) in REFS {
+        let parsed: Mgrs = s.parse().expect("valid MGRS");
+        assert_eq!(parsed.as_str(), s);
+        assert_eq!(parsed.precision_m(), 1);
+        let encoded = Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap();
+        assert_eq!(encoded.as_str().parse::<Mgrs>().unwrap(), encoded);
+    }
+    // A coarse UPS reference keeps its precision through the round trip.
+    let z: Mgrs = "ZAB000044".parse().expect("valid UPS ref");
+    assert_eq!(z.precision_m(), 100);
+    assert_eq!(z.as_str().parse::<Mgrs>().unwrap(), z);
+    // Non-canonical input (lowercase, spaces) parses to the canonical form,
+    // which is then a fixed point.
+    let loose: Mgrs = "z ab 0000 044542".parse().expect("normalized");
+    assert_eq!(loose.as_str(), "ZAB0000044542");
+    assert_eq!(loose.as_str().parse::<Mgrs>().unwrap(), loose);
 }
 
 #[test]
@@ -217,7 +246,13 @@ fn decode_accepts_single_digit_zone() {
 #[test]
 fn decode_rejects_three_digit_zone() {
     // A three-digit zone designator (split > 2) is malformed.
-    assert!(Mgrs::try_from("012TWK0000027757").is_err());
+    assert_invalid_grid_ref(Mgrs::try_from("012TWK0000027757"));
+}
+
+/// Every malformed reference is rejected as `InvalidGridRef`.
+#[track_caller]
+fn assert_invalid_grid_ref(r: Result<Mgrs>) {
+    assert!(matches!(r, Err(Error::InvalidGridRef(_))), "{r:?}");
 }
 
 #[test]
@@ -230,14 +265,16 @@ fn decode_near_the_band_upper_edge() {
 
 #[test]
 fn parsing_rejects_malformed_references() {
-    assert!(Mgrs::try_from("").is_err());
-    assert!(Mgrs::try_from("18").is_err()); // no square
-    assert!(Mgrs::try_from("99TWK0000027757").is_err()); // zone > 60
-    assert!(Mgrs::try_from("18IWK0000027757").is_err()); // I is not a band letter
-    assert!(Mgrs::try_from("18TWK000002775").is_err()); // odd digit count
-    assert!(Mgrs::try_from("QWK0000027757").is_err()); // Q is not a UPS zone letter
-    assert!(Mgrs::try_from("18TIK0000027757").is_err()); // I not a column letter
-    assert!(Mgrs::try_from("18TWK000000277577").is_err()); // more than 5+5 digits
+    assert_invalid_grid_ref(Mgrs::try_from(""));
+    assert_invalid_grid_ref(Mgrs::try_from("18")); // no square
+    assert_invalid_grid_ref(Mgrs::try_from("99TWK0000027757")); // zone > 60
+    assert_invalid_grid_ref(Mgrs::try_from("61NAA")); // zone 61
+    assert_invalid_grid_ref(Mgrs::try_from("0NAA")); // zone 0
+    assert_invalid_grid_ref(Mgrs::try_from("18IWK0000027757")); // I is not a band letter
+    assert_invalid_grid_ref(Mgrs::try_from("18TWK000002775")); // odd digit count
+    assert_invalid_grid_ref(Mgrs::try_from("QWK0000027757")); // Q is not a UPS zone letter
+    assert_invalid_grid_ref(Mgrs::try_from("18TIK0000027757")); // I not a column letter
+    assert_invalid_grid_ref(Mgrs::try_from("18TWK000000277577")); // more than 5+5 digits
 }
 
 #[test]
@@ -270,7 +307,8 @@ fn band_row_mismatch_is_invalid_grid_ref() {
 fn multibyte_inputs_never_panic() {
     // Deterministic sweep: place a 2-, 3-, and 4-byte UTF-8 character at
     // each of the first few positions of otherwise-valid UTM and UPS
-    // references. A panic (rather than a returned Err) fails the test.
+    // references. Each is rejected as `InvalidGridRef`; a panic or any other
+    // variant fails the test.
     for template in ["18TWK0000027757", "ZAH0000000000"] {
         for ch in ['é', '€', '🌍'] {
             for pos in 0..6.min(template.chars().count()) {
@@ -279,7 +317,7 @@ fn multibyte_inputs_never_panic() {
                     .enumerate()
                     .map(|(i, c)| if i == pos { ch } else { c })
                     .collect();
-                let _ = Mgrs::try_from(s.as_str());
+                assert_invalid_grid_ref(Mgrs::try_from(s.as_str()));
             }
         }
     }
