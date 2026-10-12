@@ -38,6 +38,16 @@ fn farthest_vertex_m(center: &Coordinate, vertices: impl IntoIterator<Item = (f6
 /// raw `u64` with [`new`](Self::new) (or `TryFrom<u64>`), which rejects an
 /// index H3 does not define. Under the `serde` feature it serializes as the
 /// bare `u64` and deserializing validates it the same way.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::dgg::H3Cell;
+///
+/// let cell = H3Cell::encode(Coordinate::wgs84(40.7128, -74.006)?, 9)?;
+/// assert_eq!(format!("{:x}", cell.as_u64()), "892a1072893ffff");
+/// assert_eq!(H3Cell::new(cell.as_u64())?, cell);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(feature = "h3")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
@@ -51,6 +61,16 @@ pub struct H3Cell(u64);
 impl H3Cell {
     /// Wrap a raw 64-bit H3 cell index, validating it.
     ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::dgg::H3Cell;
+    ///
+    /// let cell = H3Cell::new(0x892a_1072_893f_fff)?;
+    /// assert_eq!(cell.as_u64(), 0x892a_1072_893f_fff);
+    /// assert!(matches!(H3Cell::new(0), Err(Error::InvalidCellId { grid: "H3", .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// [`Error::InvalidCellId`] (`grid: "H3"`) when `value` is not a valid H3
@@ -62,6 +82,15 @@ impl H3Cell {
     }
 
     /// The raw 64-bit H3 cell index.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::dgg::H3Cell;
+    ///
+    /// let cell = H3Cell::encode(Coordinate::wgs84(40.7128, -74.006)?, 9)?;
+    /// assert_eq!(cell.as_u64(), 617_733_151_020_810_239);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn as_u64(self) -> u64 {
         self.0
@@ -69,6 +98,20 @@ impl H3Cell {
 
     /// Encode (index) a WGS-84 coordinate to its H3 cell at `resolution`
     /// (0–15).
+    ///
+    /// ```
+    /// use geocoordinates::dgg::H3Cell;
+    /// use geocoordinates::{Coordinate, Error};
+    ///
+    /// let nyc = Coordinate::wgs84(40.7128, -74.006)?;
+    /// assert_eq!(H3Cell::encode(nyc, 9)?.as_u64(), 0x892a_1072_893f_fff);
+    /// assert!(matches!(H3Cell::encode(nyc, 16), Err(Error::InvalidValue { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    /// [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
+    /// [`Error::InvalidValue`] for a `resolution` above 15.
     pub fn encode(coord: Coordinate, resolution: u8) -> Result<Self> {
         use h3o::{LatLng, Resolution};
 
@@ -91,6 +134,16 @@ impl H3Cell {
     /// boundary vertices.
     ///
     /// Infallible: the index was validated when this value was built.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::dgg::H3Cell;
+    ///
+    /// let area = H3Cell::encode(Coordinate::wgs84(40.7128, -74.006)?, 9)?.decode();
+    /// assert!((area.lat() - 40.7128).abs() < 0.003);
+    /// assert!((205.0..206.0).contains(&area.max_error_m()));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn decode(self) -> Approx<Coordinate> {
         use h3o::{CellIndex, LatLng};
@@ -134,6 +187,16 @@ impl From<H3Cell> for u64 {
 /// `u64` with [`new`](Self::new) (or `TryFrom<u64>`), which rejects an id S2
 /// does not define. Under the `serde` feature it serializes as the bare `u64`
 /// and deserializing validates it the same way.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::dgg::S2CellId;
+///
+/// let cell = S2CellId::encode(Coordinate::wgs84(40.7128, -74.006)?, 20)?;
+/// assert_eq!(S2CellId::new(cell.as_u64())?, cell);
+/// assert!(cell.decode().max_error_m() < 7.0);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(feature = "s2")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
@@ -146,6 +209,16 @@ pub struct S2CellId(u64);
 #[cfg(feature = "s2")]
 impl S2CellId {
     /// Wrap a raw 64-bit S2 cell id, validating it.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::dgg::S2CellId;
+    ///
+    /// let cell = S2CellId::new(9_926_595_630_970_437_632)?;
+    /// assert_eq!(cell.as_u64(), 9_926_595_630_970_437_632);
+    /// assert!(matches!(S2CellId::new(0), Err(Error::InvalidCellId { grid: "S2", .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     ///
     /// # Errors
     ///
@@ -161,12 +234,35 @@ impl S2CellId {
     }
 
     /// The raw 64-bit S2 cell id.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::dgg::S2CellId;
+    ///
+    /// let cell = S2CellId::encode(Coordinate::wgs84(40.7128, -74.006)?, 20)?;
+    /// assert_eq!(cell.as_u64(), 9_926_595_630_970_437_632);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn as_u64(self) -> u64 {
         self.0
     }
 
     /// Encode (index) a WGS-84 coordinate to its S2 cell at `level` (0–30).
+    ///
+    /// ```
+    /// use geocoordinates::dgg::S2CellId;
+    /// use geocoordinates::{Coordinate, Error};
+    ///
+    /// let nyc = Coordinate::wgs84(40.7128, -74.006)?;
+    /// assert_eq!(S2CellId::encode(nyc, 20)?.as_u64(), 9_926_595_630_970_437_632);
+    /// assert!(matches!(S2CellId::encode(nyc, 31), Err(Error::InvalidValue { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    /// [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
+    /// [`Error::InvalidValue`] for a `level` above 30.
     pub fn encode(coord: Coordinate, level: u8) -> Result<Self> {
         use s2::cellid::CellID;
         use s2::latlng::LatLng;
@@ -187,6 +283,16 @@ impl S2CellId {
     /// four actual vertices.
     ///
     /// Infallible: the id was validated when this value was built.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::dgg::S2CellId;
+    ///
+    /// let area = S2CellId::encode(Coordinate::wgs84(40.7128, -74.006)?, 20)?.decode();
+    /// assert!((area.lat() - 40.7128).abs() < 1e-4);
+    /// assert!((6.0..7.0).contains(&area.max_error_m()));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn decode(self) -> Approx<Coordinate> {
         use s2::cell::Cell;
