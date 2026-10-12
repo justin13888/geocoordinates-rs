@@ -51,8 +51,10 @@ const POLE_TOLERANCE: f64 = 1e-12;
 /// ellipsoid of their shared [`Crs`]. Across the antimeridian the line takes
 /// the shorter way round.
 ///
-/// Agrees with GeographicLib's `Rhumb` to well under a millimeter (see the
-/// [module docs](self)). To or from a pole the line is the meridian, so the
+/// Not exact: the meridian arc uses the 4th-order Krüger `n`-series, which
+/// agrees with GeographicLib's `Rhumb` (Karney 2014) to well under a
+/// millimeter for any line that stays clear of the poles. To or from a pole
+/// the line is the meridian, so the
 /// distance is the meridian arc between the two latitudes.
 ///
 /// # Errors
@@ -103,8 +105,9 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 /// `bearing_deg` rhumb line, on the ellipsoid of `start.crs()`. Returns a
 /// coordinate in `start.crs()` with no height.
 ///
-/// Agrees with GeographicLib's `Rhumb` to well under a millimeter (see the
-/// [module docs](self)). A meridional line (bearing 0° or 180°) passes over a
+/// Not exact: the meridian arc and its inverse use the 4th-order Krüger
+/// `n`-series, which agrees with GeographicLib's `Rhumb` (Karney 2014) to well
+/// under a millimeter for any line that stays clear of the poles. A meridional line (bearing 0° or 180°) passes over a
 /// pole onto the far meridian, `start.lon() + 180°`.
 ///
 /// # Errors
