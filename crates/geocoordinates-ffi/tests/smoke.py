@@ -150,35 +150,31 @@ assert approx(gc.confidence_new(2.0).value, 1.0, 1e-12)  # clamped into [0, 1]
 
 # --- Coordinate formatting (DD / DMS, plus accuracy-derived precision) ---
 dd_opts = gc.FormatOptions(
-    representation=gc.Representation.DECIMAL_DEGREES,
-    precision=6,
-    symbol_style=gc.SymbolStyle.UNICODE,
-    hemisphere_style=gc.HemisphereStyle.SIGNED,
-    locale=None,
+    representation=gc.Representation.DECIMAL_DEGREES(
+        decimals=6, hemisphere=gc.HemisphereStyle.SIGNED
+    ),
+    decimal_separator=gc.DecimalSeparator.POINT,
 )
 assert (
     gc.format_coordinate(wgs84_coord(40.7128, -74.006), dd_opts)
     == "40.712800, -74.006000"
 )
 dms_opts = gc.FormatOptions(
-    representation=gc.Representation.DMS,
-    precision=0,
-    symbol_style=gc.SymbolStyle.UNICODE,
-    hemisphere_style=gc.HemisphereStyle.CARDINAL,
-    locale=None,
+    representation=gc.Representation.DMS(
+        second_decimals=0,
+        symbols=gc.SymbolStyle.UNICODE,
+        hemisphere=gc.HemisphereStyle.CARDINAL,
+    ),
+    decimal_separator=gc.DecimalSeparator.POINT,
 )
 assert (
     gc.format_coordinate(wgs84_coord(10.5, 20.25), dms_opts)
     == "10°30′00″N 20°15′00″E"
 )
-# format_fix derives precision from accuracy when precision is None (~1 km -> 2 dp)
-auto_opts = gc.FormatOptions(
-    representation=gc.Representation.DECIMAL_DEGREES,
-    precision=None,
-    symbol_style=gc.SymbolStyle.UNICODE,
-    hemisphere_style=gc.HemisphereStyle.SIGNED,
-    locale=None,
-)
+# The default options leave the decimal count unset, so format_fix derives it
+# from accuracy (~1 km -> 2 dp).
+auto_opts = gc.format_options_default()
+assert auto_opts.decimal_separator == gc.DecimalSeparator.POINT
 km_fix = gc.Fix(
     coord=wgs84_coord(40.7128, -74.006),
     accuracy=gc.Accuracy(horizontal_m=1000.0, vertical_m=None),
@@ -186,6 +182,32 @@ km_fix = gc.Fix(
     source=None,
 )
 assert gc.format_fix(km_fix, auto_opts) == "40.71, -74.01"
+# The locale heuristic picks the separator; a comma rendering re-parses with
+# decimal_comma set.
+assert gc.decimal_separator_for_locale("de-DE") == gc.DecimalSeparator.COMMA
+assert gc.decimal_separator_for_locale("de-CH") == gc.DecimalSeparator.POINT
+comma_dd = gc.FormatOptions(
+    representation=gc.Representation.DECIMAL_DEGREES(
+        decimals=2, hemisphere=gc.HemisphereStyle.SIGNED
+    ),
+    decimal_separator=gc.decimal_separator_for_locale("de-DE"),
+)
+assert gc.format_coordinate(wgs84_coord(40.7128, -74.006), comma_dd) == "40,71 -74,01"
+# Every grid with a string form renders through format_coordinate.
+grid_cases = [
+    (gc.Representation.GEOHASH(length=5), (42.6, -5.6), "ezs42"),
+    (gc.Representation.MAIDENHEAD(pairs=2), (40.5, -75.0), "FN20"),
+    (
+        gc.Representation.MGRS(precision=gc.MgrsPrecision.M1),
+        (40.0, -75.0),
+        "18TWK0000027757",
+    ),
+]
+for representation, (lat, lon), expected in grid_cases:
+    grid_opts = gc.FormatOptions(
+        representation=representation, decimal_separator=gc.DecimalSeparator.POINT
+    )
+    assert gc.format_coordinate(wgs84_coord(lat, lon), grid_opts) == expected
 
 # --- Parsing (geo: URI, free text, explicit options) ---
 geo = gc.parse_coordinate("geo:48.2,16.3,183;crs=wgs84;u=40")
@@ -220,11 +242,8 @@ pc_fix = gc.parse_coordinate("8FVC2222+22")
 assert approx(pc_fix.coord.lat, 47.0000625, 1e-6)
 assert pc_fix.source.axis_order is None
 pc_opts = gc.FormatOptions(
-    representation=gc.Representation.PLUS_CODE,
-    precision=None,
-    symbol_style=gc.SymbolStyle.UNICODE,
-    hemisphere_style=gc.HemisphereStyle.SIGNED,
-    locale=None,
+    representation=gc.Representation.PLUS_CODE(length=10),
+    decimal_separator=gc.DecimalSeparator.POINT,
 )
 assert (
     gc.format_coordinate(wgs84_coord(47.0000625, 8.0000625), pc_opts)

@@ -59,8 +59,9 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 ///
 /// `options` applies only to the free-text DD/DMS/DDM path; a `geo:` URI or a
 /// Plus Code parses the same regardless. To re-parse output rendered with a
-/// decimal-comma locale, set `decimal_comma` from
-/// [`FormatOptions::uses_decimal_comma`](crate::format::FormatOptions::uses_decimal_comma).
+/// comma decimal separator, set `decimal_comma` exactly when
+/// [`FormatOptions::decimal_separator`](crate::format::FormatOptions::decimal_separator)
+/// is [`DecimalSeparator::Comma`](crate::format::DecimalSeparator::Comma).
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found.
@@ -321,7 +322,7 @@ mod tests {
 
     #[test]
     fn round_trip_every_style_and_locale() {
-        use crate::format::{HemisphereStyle, Representation, SymbolStyle};
+        use crate::format::{DecimalSeparator, HemisphereStyle, Representation, SymbolStyle};
         use text::TextParseOptions;
         // Hemispheres, the range rule, the antimeridian and both poles.
         let coords = [
@@ -334,45 +335,54 @@ mod tests {
             wgs(90.0, 45.0),
             wgs(-90.0, -135.5),
         ];
-        let representations = [
-            Representation::DecimalDegrees,
-            Representation::Dms,
-            Representation::Ddm,
-        ];
         let symbols = [
             SymbolStyle::Unicode,
             SymbolStyle::Ascii,
             SymbolStyle::Letters,
         ];
         let hemispheres = [HemisphereStyle::Signed, HemisphereStyle::Cardinal];
+        let mut representations = Vec::new();
+        for hemisphere in hemispheres {
+            representations.push(Representation::DecimalDegrees {
+                decimals: None,
+                hemisphere,
+            });
+            for symbols in symbols {
+                representations.push(Representation::Dms {
+                    second_decimals: None,
+                    symbols,
+                    hemisphere,
+                });
+                representations.push(Representation::Ddm {
+                    minute_decimals: None,
+                    symbols,
+                    hemisphere,
+                });
+            }
+        }
         let locales = [None, Some("en-US"), Some("de-DE"), Some("fr")];
         for c in coords {
-            for representation in representations {
-                for symbol_style in symbols {
-                    for hemisphere_style in hemispheres {
-                        for locale in locales {
-                            let options = FormatOptions {
-                                representation,
-                                precision: None,
-                                symbol_style,
-                                hemisphere_style,
-                                locale: locale.map(String::from),
-                            };
-                            let text = format(&c, &options).unwrap();
-                            let parse_options = TextParseOptions {
-                                decimal_comma: options.uses_decimal_comma(),
-                                ..TextParseOptions::default()
-                            };
-                            let parsed = parse_coordinate_with(&text, &parse_options)
-                                .unwrap_or_else(|e| panic!("{text:?} ({options:?}): {e}"));
-                            // Default precisions: DD 6 dp (0.11 m), DMS 0.01″
-                            // (0.3 m), DDM 0.001′ (1.9 m) — each rounds to half.
-                            assert_within_meters(&parsed.coord, &c, 1.0);
-                            if locale.is_none() {
-                                let plain = parse_coordinate(&text).unwrap();
-                                assert_eq!(plain.coord, parsed.coord, "{text:?}");
-                            }
-                        }
+            for &representation in &representations {
+                for locale in locales {
+                    let decimal_separator =
+                        locale.map_or(DecimalSeparator::Point, DecimalSeparator::for_locale);
+                    let options = FormatOptions {
+                        representation,
+                        decimal_separator,
+                    };
+                    let text = format(&c, &options).unwrap();
+                    let parse_options = TextParseOptions {
+                        decimal_comma: decimal_separator == DecimalSeparator::Comma,
+                        ..TextParseOptions::default()
+                    };
+                    let parsed = parse_coordinate_with(&text, &parse_options)
+                        .unwrap_or_else(|e| panic!("{text:?} ({options:?}): {e}"));
+                    // Default precisions: DD 6 dp (0.11 m), DMS 0.01″
+                    // (0.3 m), DDM 0.001′ (1.9 m) — each rounds to half.
+                    assert_within_meters(&parsed.coord, &c, 1.0);
+                    if locale.is_none() {
+                        let plain = parse_coordinate(&text).unwrap();
+                        assert_eq!(plain.coord, parsed.coord, "{text:?}");
                     }
                 }
             }
@@ -437,7 +447,7 @@ mod tests {
         use crate::format::Representation;
         let c = Coordinate::wgs84(40.7128, -74.006).unwrap();
         let options = FormatOptions {
-            representation: Representation::PlusCode,
+            representation: Representation::PlusCode { length: 10 },
             ..FormatOptions::default()
         };
         let code = format(&c, &options).unwrap();

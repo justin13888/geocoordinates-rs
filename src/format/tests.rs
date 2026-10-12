@@ -1,23 +1,46 @@
 use super::*;
-use crate::Coordinate;
 use crate::fix::{Accuracy, Fix};
+use crate::{Coordinate, Crs};
 
 /// Property tests of the `format → parse → format` round trip.
 mod round_trip;
 
-fn opts(
-    representation: Representation,
-    precision: Option<u8>,
-    symbol_style: SymbolStyle,
-    hemisphere_style: HemisphereStyle,
-    locale: Option<&str>,
-) -> FormatOptions {
+/// Options for `representation` with a point separator.
+fn opts(representation: Representation) -> FormatOptions {
     FormatOptions {
         representation,
-        precision,
-        symbol_style,
-        hemisphere_style,
-        locale: locale.map(String::from),
+        decimal_separator: DecimalSeparator::Point,
+    }
+}
+
+fn dd(decimals: Option<u8>, hemisphere: HemisphereStyle) -> Representation {
+    Representation::DecimalDegrees {
+        decimals,
+        hemisphere,
+    }
+}
+
+fn dms(
+    second_decimals: Option<u8>,
+    symbols: SymbolStyle,
+    hemisphere: HemisphereStyle,
+) -> Representation {
+    Representation::Dms {
+        second_decimals,
+        symbols,
+        hemisphere,
+    }
+}
+
+fn ddm(
+    minute_decimals: Option<u8>,
+    symbols: SymbolStyle,
+    hemisphere: HemisphereStyle,
+) -> Representation {
+    Representation::Ddm {
+        minute_decimals,
+        symbols,
+        hemisphere,
     }
 }
 
@@ -26,7 +49,19 @@ fn wgs(lat: f64, lon: f64) -> Coordinate {
 }
 
 fn fmt(coord: &Coordinate, options: &FormatOptions) -> String {
-    format(coord, options).expect("DD/DMS/DDM formatting is infallible")
+    format(coord, options).expect("formatting succeeds")
+}
+
+fn fix_with_accuracy(coord: Coordinate, horizontal_m: Option<f64>) -> Fix {
+    Fix {
+        coord,
+        accuracy: Some(Accuracy {
+            horizontal_m,
+            vertical_m: None,
+        }),
+        timestamp: None,
+        source: None,
+    }
 }
 
 #[test]
@@ -36,34 +71,22 @@ fn dd_default_matches_doc() {
 }
 
 #[test]
+fn default_options_leave_decimals_unset() {
+    assert_eq!(
+        FormatOptions::default(),
+        opts(dd(None, HemisphereStyle::Signed))
+    );
+}
+
+#[test]
 fn dd_cardinal_and_precision() {
     let c = wgs(40.7128, -74.006);
     assert_eq!(
-        fmt(
-            &c,
-            &opts(
-                Representation::DecimalDegrees,
-                Some(6),
-                SymbolStyle::Unicode,
-                HemisphereStyle::Cardinal,
-                None,
-            ),
-        ),
+        fmt(&c, &opts(dd(Some(6), HemisphereStyle::Cardinal))),
         "40.712800 N, 74.006000 W"
     );
     // Precision rounds.
-    let dd = |p| {
-        fmt(
-            &c,
-            &opts(
-                Representation::DecimalDegrees,
-                Some(p),
-                SymbolStyle::Unicode,
-                HemisphereStyle::Signed,
-                None,
-            ),
-        )
-    };
+    let dd = |p| fmt(&c, &opts(dd(Some(p), HemisphereStyle::Signed)));
     assert_eq!(dd(0), "41, -74");
     assert_eq!(dd(2), "40.71, -74.01");
 }
@@ -71,19 +94,10 @@ fn dd_cardinal_and_precision() {
 #[test]
 fn dms_clean_and_styles() {
     let c = wgs(10.5, 20.25);
-    let dms = |sym, hemi| fmt(&c, &opts(Representation::Dms, Some(0), sym, hemi, None));
-    assert_eq!(
-        dms(SymbolStyle::Unicode, HemisphereStyle::Cardinal),
-        "10°30′00″N 20°15′00″E"
-    );
-    assert_eq!(
-        dms(SymbolStyle::Ascii, HemisphereStyle::Cardinal),
-        "10°30'00\"N 20°15'00\"E"
-    );
-    assert_eq!(
-        dms(SymbolStyle::Letters, HemisphereStyle::Cardinal),
-        "10d30m00sN 20d15m00sE"
-    );
+    let dms = |sym| fmt(&c, &opts(dms(Some(0), sym, HemisphereStyle::Cardinal)));
+    assert_eq!(dms(SymbolStyle::Unicode), "10°30′00″N 20°15′00″E");
+    assert_eq!(dms(SymbolStyle::Ascii), "10°30'00\"N 20°15'00\"E");
+    assert_eq!(dms(SymbolStyle::Letters), "10d30m00sN 20d15m00sE");
 }
 
 #[test]
@@ -92,13 +106,7 @@ fn dms_signed_puts_minus_on_degrees() {
     assert_eq!(
         fmt(
             &c,
-            &opts(
-                Representation::Dms,
-                Some(0),
-                SymbolStyle::Unicode,
-                HemisphereStyle::Signed,
-                None,
-            ),
+            &opts(dms(Some(0), SymbolStyle::Unicode, HemisphereStyle::Signed))
         ),
         "10°30′00″ -20°15′00″"
     );
@@ -112,13 +120,11 @@ fn dms_seconds_carry_rolls_up() {
     assert_eq!(
         fmt(
             &c,
-            &opts(
-                Representation::Dms,
+            &opts(dms(
                 Some(2),
                 SymbolStyle::Unicode,
-                HemisphereStyle::Cardinal,
-                None,
-            ),
+                HemisphereStyle::Cardinal
+            ))
         ),
         "1°00′00.00″N 0°00′00.00″E"
     );
@@ -127,100 +133,56 @@ fn dms_seconds_carry_rolls_up() {
 #[test]
 fn ddm_clean_and_doc_example() {
     let c = wgs(40.5, -74.25);
-    assert_eq!(
-        fmt(
-            &c,
-            &opts(
-                Representation::Ddm,
-                Some(3),
-                SymbolStyle::Unicode,
-                HemisphereStyle::Cardinal,
-                None,
-            ),
-        ),
-        "40°30.000′N 74°15.000′W"
-    );
-    // The module-doc example: 40°42.766′N.
-    let doc = wgs(40.0 + 42.766 / 60.0, 0.0);
-    let out = fmt(
-        &doc,
-        &opts(
-            Representation::Ddm,
-            Some(3),
-            SymbolStyle::Unicode,
-            HemisphereStyle::Cardinal,
-            None,
-        ),
-    );
-    assert!(out.starts_with("40°42.766′N"), "{out}");
+    let cardinal = opts(ddm(
+        Some(3),
+        SymbolStyle::Unicode,
+        HemisphereStyle::Cardinal,
+    ));
+    assert_eq!(fmt(&c, &cardinal), "40°30.000′N 74°15.000′W");
+    // The variant-doc example: 40°42.768′N 74°00.360′W.
+    let out = fmt(&wgs(40.7128, -74.006), &cardinal);
+    assert_eq!(out, "40°42.768′N 74°00.360′W");
 }
 
 #[test]
-fn locale_decimal_comma() {
+fn comma_separator() {
     let c = wgs(40.7128, -74.006);
-    // Comma locale: comma decimals, whitespace list separator (round-trips
-    // through `parse_coordinate_with` with `decimal_comma` set).
+    // Comma decimals, whitespace list separator (round-trips through
+    // `parse_coordinate_with` with `decimal_comma` set).
+    let comma = FormatOptions {
+        representation: dd(Some(6), HemisphereStyle::Signed),
+        decimal_separator: DecimalSeparator::Comma,
+    };
+    assert_eq!(fmt(&c, &comma), "40,712800 -74,006000");
+    // So do the minutes and seconds of DMS / DDM.
+    let comma_dms = FormatOptions {
+        representation: dms(Some(1), SymbolStyle::Unicode, HemisphereStyle::Cardinal),
+        ..comma
+    };
+    assert_eq!(fmt(&c, &comma_dms), "40°42′46,1″N 74°00′21,6″W");
+    // A point separator is the default behaviour.
     assert_eq!(
-        fmt(
-            &c,
-            &opts(
-                Representation::DecimalDegrees,
-                Some(6),
-                SymbolStyle::Unicode,
-                HemisphereStyle::Signed,
-                Some("de-DE"),
-            ),
-        ),
-        "40,712800 -74,006000"
-    );
-    // Dot locale is the default behaviour.
-    assert_eq!(
-        fmt(
-            &c,
-            &opts(
-                Representation::DecimalDegrees,
-                Some(6),
-                SymbolStyle::Unicode,
-                HemisphereStyle::Signed,
-                Some("en-US"),
-            ),
-        ),
+        fmt(&c, &opts(dd(Some(6), HemisphereStyle::Signed))),
         "40.712800, -74.006000"
     );
 }
 
 #[test]
-fn uses_decimal_comma_follows_locale() {
-    let with_locale = |locale: Option<&str>| FormatOptions {
-        locale: locale.map(String::from),
-        ..FormatOptions::default()
+fn comma_separator_leaves_grid_output_unchanged() {
+    let c = wgs(47.0000625, 8.0000625);
+    let representation = Representation::PlusCode { length: 10 };
+    let comma = FormatOptions {
+        representation,
+        decimal_separator: DecimalSeparator::Comma,
     };
-    assert!(!with_locale(None).uses_decimal_comma());
-    assert!(!with_locale(Some("en-US")).uses_decimal_comma());
-    assert!(with_locale(Some("de-DE")).uses_decimal_comma());
-    assert!(with_locale(Some("fr_CA")).uses_decimal_comma());
-    assert!(with_locale(Some("PT")).uses_decimal_comma());
+    assert_eq!(fmt(&c, &comma), fmt(&c, &opts(representation)));
 }
 
 #[test]
 fn format_fix_derives_precision_from_accuracy() {
     let coord = wgs(40.7128, -74.006);
-    let fix = |horizontal_m: Option<f64>| Fix {
-        coord,
-        accuracy: Some(Accuracy {
-            horizontal_m,
-            vertical_m: None,
-        }),
-        timestamp: None,
-        source: None,
-    };
-    let dd_default = opts(
-        Representation::DecimalDegrees,
-        None,
-        SymbolStyle::Unicode,
-        HemisphereStyle::Signed,
-        None,
-    );
+    let fix = |horizontal_m| fix_with_accuracy(coord, horizontal_m);
+    let dd_default = opts(dd(None, HemisphereStyle::Signed));
     // ~1 km accuracy -> 2 decimals; ~1 m -> 5 decimals.
     assert_eq!(
         format_fix(&fix(Some(1000.0)), &dd_default).unwrap(),
@@ -232,17 +194,26 @@ fn format_fix_derives_precision_from_accuracy() {
     );
     // Unusable accuracy (none / zero / negative) falls back to the
     // representation default (6).
+    for unusable in [None, Some(0.0), Some(-5.0)] {
+        assert_eq!(
+            format_fix(&fix(unusable), &dd_default).unwrap(),
+            "40.712800, -74.006000"
+        );
+    }
+    // A set decimal count wins over the accuracy.
+    let three = opts(dd(Some(3), HemisphereStyle::Signed));
     assert_eq!(
-        format_fix(&fix(None), &dd_default).unwrap(),
-        "40.712800, -74.006000"
+        format_fix(&fix(Some(1000.0)), &three).unwrap(),
+        "40.713, -74.006"
     );
+    // A fix without any accuracy record renders as `format` does.
+    let bare = Fix {
+        accuracy: None,
+        ..fix(None)
+    };
     assert_eq!(
-        format_fix(&fix(Some(0.0)), &dd_default).unwrap(),
-        "40.712800, -74.006000"
-    );
-    assert_eq!(
-        format_fix(&fix(Some(-5.0)), &dd_default).unwrap(),
-        "40.712800, -74.006000"
+        format_fix(&bare, &dd_default).unwrap(),
+        fmt(&coord, &dd_default)
     );
 }
 
@@ -250,15 +221,7 @@ fn format_fix_derives_precision_from_accuracy() {
 /// it from the fix's accuracy instead of printing a fixed six decimals.
 #[test]
 fn format_fix_with_default_options_follows_accuracy() {
-    let fix = Fix {
-        coord: wgs(40.7128, -74.006),
-        accuracy: Some(Accuracy {
-            horizontal_m: Some(1000.0),
-            vertical_m: None,
-        }),
-        timestamp: None,
-        source: None,
-    };
+    let fix = fix_with_accuracy(wgs(40.7128, -74.006), Some(1000.0));
     assert_eq!(
         format_fix(&fix, &FormatOptions::default()).unwrap(),
         "40.71, -74.01"
@@ -273,26 +236,9 @@ fn format_fix_with_default_options_follows_accuracy() {
 #[test]
 fn format_fix_derives_dms_ddm_precision_in_their_own_units() {
     let coord = wgs(40.7128, -74.006);
-    let fix = |horizontal_m: Option<f64>| Fix {
-        coord,
-        accuracy: Some(Accuracy {
-            horizontal_m,
-            vertical_m: None,
-        }),
-        timestamp: None,
-        source: None,
-    };
-    let derived = |representation| {
-        opts(
-            representation,
-            None,
-            SymbolStyle::Unicode,
-            HemisphereStyle::Cardinal,
-            None,
-        )
-    };
-    let dms = derived(Representation::Dms);
-    let ddm = derived(Representation::Ddm);
+    let fix = |horizontal_m| fix_with_accuracy(coord, horizontal_m);
+    let dms = opts(dms(None, SymbolStyle::Unicode, HemisphereStyle::Cardinal));
+    let ddm = opts(ddm(None, SymbolStyle::Unicode, HemisphereStyle::Cardinal));
     // DMS counts decimals of arcseconds (1″ ≈ 30.9 m): ~1 m -> 1 decimal,
     // ~1 km -> whole seconds.
     assert_eq!(
@@ -318,26 +264,57 @@ fn format_fix_derives_dms_ddm_precision_in_their_own_units() {
         format_fix(&fix(None), &dms).unwrap(),
         format(&coord, &dms).unwrap()
     );
-    // Plus Code has no precision knob; accuracy leaves it unchanged.
-    let plus = derived(Representation::PlusCode);
-    assert_eq!(
-        format_fix(&fix(Some(1.0)), &plus).unwrap(),
-        format(&coord, &plus).unwrap()
-    );
+    // The grid representations have no decimal count; accuracy leaves them
+    // unchanged.
+    for representation in [
+        Representation::PlusCode { length: 10 },
+        Representation::Geohash { length: 7 },
+        Representation::Maidenhead { pairs: 3 },
+        Representation::Mgrs {
+            precision: MgrsPrecision::M10,
+        },
+    ] {
+        assert_eq!(
+            format_fix(&fix(Some(1.0)), &opts(representation)).unwrap(),
+            format(&coord, &opts(representation)).unwrap()
+        );
+    }
 }
 
 #[test]
 fn precision_for_accuracy_uses_the_representations_unit() {
-    use Representation::{Ddm, DecimalDegrees, Dms, PlusCode};
-    assert_eq!(precision_for_accuracy(1.0, DecimalDegrees), Some(5));
-    assert_eq!(precision_for_accuracy(1.0, Dms), Some(1));
-    assert_eq!(precision_for_accuracy(1.0, Ddm), Some(3));
-    assert_eq!(precision_for_accuracy(0.03, Dms), Some(3));
-    assert_eq!(precision_for_accuracy(1.0e-9, Dms), Some(8));
-    assert_eq!(precision_for_accuracy(1.0e6, Ddm), Some(0));
-    assert_eq!(precision_for_accuracy(1.0, PlusCode), None);
-    assert_eq!(precision_for_accuracy(f64::NAN, Dms), None);
-    assert_eq!(precision_for_accuracy(0.0, Ddm), None);
+    let dd = dd(None, HemisphereStyle::Signed);
+    let dms = dms(None, SymbolStyle::Unicode, HemisphereStyle::Signed);
+    let ddm = ddm(None, SymbolStyle::Unicode, HemisphereStyle::Signed);
+    assert_eq!(precision_for_accuracy(1.0, dd), Some(5));
+    assert_eq!(precision_for_accuracy(1.0, dms), Some(1));
+    assert_eq!(precision_for_accuracy(1.0, ddm), Some(3));
+    assert_eq!(precision_for_accuracy(0.03, dms), Some(3));
+    assert_eq!(precision_for_accuracy(1.0e-9, dms), Some(8));
+    assert_eq!(precision_for_accuracy(1.0e6, ddm), Some(0));
+    assert_eq!(
+        precision_for_accuracy(1.0, Representation::PlusCode { length: 10 }),
+        None
+    );
+    assert_eq!(
+        precision_for_accuracy(1.0, Representation::Geohash { length: 7 }),
+        None
+    );
+    assert_eq!(
+        precision_for_accuracy(1.0, Representation::Maidenhead { pairs: 3 }),
+        None
+    );
+    assert_eq!(
+        precision_for_accuracy(
+            1.0,
+            Representation::Mgrs {
+                precision: MgrsPrecision::M1
+            }
+        ),
+        None
+    );
+    assert_eq!(precision_for_accuracy(f64::NAN, dms), None);
+    assert_eq!(precision_for_accuracy(0.0, ddm), None);
 }
 
 #[test]
@@ -347,13 +324,11 @@ fn ddm_minutes_carry_rolls_up() {
     assert_eq!(
         fmt(
             &c,
-            &opts(
-                Representation::Ddm,
+            &opts(ddm(
                 Some(3),
                 SymbolStyle::Unicode,
-                HemisphereStyle::Cardinal,
-                None,
-            ),
+                HemisphereStyle::Cardinal
+            ))
         ),
         "1°00.000′N 0°00.000′E"
     );
@@ -366,13 +341,7 @@ fn signed_zero_has_no_minus() {
     assert_eq!(
         fmt(
             &c,
-            &opts(
-                Representation::Dms,
-                Some(0),
-                SymbolStyle::Unicode,
-                HemisphereStyle::Signed,
-                None,
-            ),
+            &opts(dms(Some(0), SymbolStyle::Unicode, HemisphereStyle::Signed))
         ),
         "0°00′00″ 10°00′00″"
     );
@@ -384,32 +353,166 @@ fn negative_zero_longitude_is_east() {
     assert_eq!(
         fmt(
             &c,
-            &opts(
-                Representation::Dms,
+            &opts(dms(
                 Some(0),
                 SymbolStyle::Unicode,
-                HemisphereStyle::Cardinal,
-                None,
-            ),
+                HemisphereStyle::Cardinal
+            ))
         ),
         "0°00′00″N 0°00′00″E"
     );
 }
 
 #[test]
-fn plus_code_representation() {
-    let c = wgs(47.0000625, 8.0000625);
+fn value_rounding_to_zero_takes_the_positive_hemisphere() {
+    // C11: the sign is chosen after rounding, in every angle representation.
+    let c = wgs(-1e-9, -1e-9);
+    assert_eq!(
+        fmt(&c, &opts(dd(Some(3), HemisphereStyle::Cardinal))),
+        "0.000 N, 0.000 E"
+    );
     assert_eq!(
         fmt(
             &c,
-            &opts(
-                Representation::PlusCode,
-                None,
-                SymbolStyle::Unicode,
-                HemisphereStyle::Signed,
-                None,
-            ),
+            &opts(ddm(Some(2), SymbolStyle::Ascii, HemisphereStyle::Signed))
         ),
-        "8FVC2222+22"
+        "0°00.00' 0°00.00'"
     );
+    assert_eq!(
+        fmt(
+            &c,
+            &opts(dms(
+                Some(1),
+                SymbolStyle::Letters,
+                HemisphereStyle::Cardinal
+            ))
+        ),
+        "0d00m00.0sN 0d00m00.0sE"
+    );
+    // A value that rounds away from zero keeps its sign.
+    let c = wgs(-0.004, -0.006);
+    assert_eq!(
+        fmt(&c, &opts(dd(Some(2), HemisphereStyle::Signed))),
+        "0.00, -0.01"
+    );
+}
+
+#[test]
+fn plus_code_representation() {
+    let c = wgs(47.0000625, 8.0000625);
+    let plus = |length| fmt(&c, &opts(Representation::PlusCode { length }));
+    assert_eq!(plus(10), "8FVC2222+22");
+    assert_eq!(plus(8), "8FVC2222+");
+    assert_eq!(plus(11), PlusCode::encode(c, 11).unwrap().to_string());
+}
+
+#[test]
+fn geohash_maidenhead_and_mgrs_representations() {
+    let geohash = fmt(
+        &wgs(42.6, -5.6),
+        &opts(Representation::Geohash { length: 5 }),
+    );
+    assert_eq!(geohash, "ezs42");
+    let maidenhead = fmt(
+        &wgs(40.5, -75.0),
+        &opts(Representation::Maidenhead { pairs: 2 }),
+    );
+    assert_eq!(maidenhead, "FN20");
+    let mgrs = |precision| fmt(&wgs(40.0, -75.0), &opts(Representation::Mgrs { precision }));
+    assert_eq!(mgrs(MgrsPrecision::M1), "18TWK0000027757");
+    assert_eq!(mgrs(MgrsPrecision::Km100), "18TWK");
+}
+
+#[test]
+fn too_many_decimals_is_an_error_naming_the_field() {
+    let c = wgs(40.7128, -74.006);
+    let cases = [
+        (dd(Some(16), HemisphereStyle::Signed), "decimals"),
+        (
+            dms(Some(16), SymbolStyle::Unicode, HemisphereStyle::Signed),
+            "second_decimals",
+        ),
+        (
+            ddm(Some(16), SymbolStyle::Unicode, HemisphereStyle::Signed),
+            "minute_decimals",
+        ),
+    ];
+    for (representation, expected) in cases {
+        match format(&c, &opts(representation)) {
+            Err(Error::InvalidValue { field, .. }) => assert_eq!(field, expected),
+            other => panic!("expected InvalidValue for {representation:?}, got {other:?}"),
+        }
+    }
+    // Fifteen is the limit, and it renders.
+    assert!(format(&c, &opts(dd(Some(15), HemisphereStyle::Signed))).is_ok());
+    // `format_fix` applies the same limit to a set count.
+    let fix = fix_with_accuracy(c, Some(1.0));
+    assert!(format_fix(&fix, &opts(dd(Some(16), HemisphereStyle::Signed))).is_err());
+}
+
+#[test]
+fn grid_sizes_out_of_range_are_errors() {
+    let c = wgs(40.7128, -74.006);
+    for representation in [
+        Representation::PlusCode { length: 9 },
+        Representation::PlusCode { length: 16 },
+        Representation::Geohash { length: 0 },
+        Representation::Geohash { length: 13 },
+        Representation::Maidenhead { pairs: 0 },
+        Representation::Maidenhead { pairs: 4 },
+    ] {
+        assert!(
+            matches!(
+                format(&c, &opts(representation)),
+                Err(Error::InvalidValue { .. })
+            ),
+            "{representation:?}"
+        );
+    }
+}
+
+#[test]
+fn grids_require_wgs84_but_angles_render_any_datum() {
+    let gcj = Coordinate::gcj02(39.915, 116.404).unwrap();
+    let mismatch = Err(Error::CrsMismatch {
+        expected: Crs::Wgs84,
+        found: Crs::Gcj02,
+    });
+    for representation in [
+        Representation::PlusCode { length: 10 },
+        Representation::Geohash { length: 7 },
+        Representation::Maidenhead { pairs: 3 },
+        Representation::Mgrs {
+            precision: MgrsPrecision::M1,
+        },
+    ] {
+        assert_eq!(format(&gcj, &opts(representation)), mismatch);
+    }
+    assert_eq!(
+        fmt(&gcj, &FormatOptions::default()),
+        "39.915000, 116.404000"
+    );
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn format_options_serde_round_trips() {
+    let options = FormatOptions {
+        representation: dms(Some(1), SymbolStyle::Ascii, HemisphereStyle::Cardinal),
+        decimal_separator: DecimalSeparator::Comma,
+    };
+    let json = serde_json::to_string(&options).unwrap();
+    assert_eq!(
+        json,
+        r#"{"representation":{"Dms":{"second_decimals":1,"symbols":"Ascii","hemisphere":"Cardinal"}},"decimal_separator":"Comma"}"#
+    );
+    assert_eq!(
+        serde_json::from_str::<FormatOptions>(&json).unwrap(),
+        options
+    );
+    let mgrs = opts(Representation::Mgrs {
+        precision: MgrsPrecision::M10,
+    });
+    let json = serde_json::to_string(&mgrs).unwrap();
+    assert_eq!(serde_json::from_str::<FormatOptions>(&json).unwrap(), mgrs);
 }

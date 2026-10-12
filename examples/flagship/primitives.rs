@@ -8,7 +8,9 @@ use geocoordinates::angle::{
 };
 use geocoordinates::dgg::{H3Cell, S2CellId};
 use geocoordinates::fix::{AxisOrder, DatumAmbiguity};
-use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, SymbolStyle};
+use geocoordinates::format::{
+    DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle,
+};
 use geocoordinates::geodesy::{Aer, DatumTransform, Ecef, Ellipsoid, Enu, Helmert, Ned};
 use geocoordinates::grids::{
     Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
@@ -55,6 +57,7 @@ fn all_public_value_types_are_serde() {
     assert_serde::<SymbolStyle>();
     assert_serde::<HemisphereStyle>();
     assert_serde::<FormatOptions>();
+    assert_serde::<DecimalSeparator>();
     assert_serde::<TextParseOptions>();
     assert_serde::<Ellipsoid>();
     assert_serde::<Ecef>();

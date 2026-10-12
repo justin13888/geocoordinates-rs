@@ -2,7 +2,7 @@
 
 use geocoordinates::angle::{Axis, Ddm, Dms, Hemisphere as AngleHemisphere, wrap_longitude};
 use geocoordinates::dgg::{H3Cell, S2CellId};
-use geocoordinates::format::{FormatOptions, format};
+use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format};
 use geocoordinates::geodesy::{
     DatumTransform, Ecef, Ellipsoid, Enu, destination, geodesic_distance, rhumb_destination,
 };
@@ -108,7 +108,10 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         format(
             &new_york(),
             &FormatOptions {
-                precision: Some(16),
+                representation: Representation::DecimalDegrees {
+                    decimals: Some(16),
+                    hemisphere: HemisphereStyle::Signed,
+                },
                 ..FormatOptions::default()
             }
         )

@@ -1907,51 +1907,27 @@ public func FfiConverterTypeFix_lower(_ value: Fix) -> RustBuffer {
  */
 public struct FormatOptions: Equatable, Hashable {
     /**
-     * Target representation.
+     * Target representation and its settings.
      */
     public var representation: Representation
     /**
-     * Decimal places (DD) or sub-second/minute precision; `None` → a sensible
-     * per-representation default.
+     * Decimal separator for the angle representations (the grids ignore
+     * it); pick it from a locale with [`decimal_separator_for_locale`].
      */
-    public var precision: UInt8?
-    /**
-     * Symbol style for DMS/DDM.
-     */
-    public var symbolStyle: SymbolStyle
-    /**
-     * Hemisphere rendering.
-     */
-    public var hemisphereStyle: HemisphereStyle
-    /**
-     * BCP-47 locale tag for number formatting (e.g. decimal comma).
-     */
-    public var locale: String?
+    public var decimalSeparator: DecimalSeparator
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
-         * Target representation.
+         * Target representation and its settings.
          */representation: Representation, 
         /**
-         * Decimal places (DD) or sub-second/minute precision; `None` → a sensible
-         * per-representation default.
-         */precision: UInt8?, 
-        /**
-         * Symbol style for DMS/DDM.
-         */symbolStyle: SymbolStyle, 
-        /**
-         * Hemisphere rendering.
-         */hemisphereStyle: HemisphereStyle, 
-        /**
-         * BCP-47 locale tag for number formatting (e.g. decimal comma).
-         */locale: String?) {
+         * Decimal separator for the angle representations (the grids ignore
+         * it); pick it from a locale with [`decimal_separator_for_locale`].
+         */decimalSeparator: DecimalSeparator) {
         self.representation = representation
-        self.precision = precision
-        self.symbolStyle = symbolStyle
-        self.hemisphereStyle = hemisphereStyle
-        self.locale = locale
+        self.decimalSeparator = decimalSeparator
     }
 
     
@@ -1971,19 +1947,13 @@ public struct FfiConverterTypeFormatOptions: FfiConverterRustBuffer {
         return
             try FormatOptions(
                 representation: FfiConverterTypeRepresentation.read(from: &buf), 
-                precision: FfiConverterOptionUInt8.read(from: &buf), 
-                symbolStyle: FfiConverterTypeSymbolStyle.read(from: &buf), 
-                hemisphereStyle: FfiConverterTypeHemisphereStyle.read(from: &buf), 
-                locale: FfiConverterOptionString.read(from: &buf)
+                decimalSeparator: FfiConverterTypeDecimalSeparator.read(from: &buf)
         )
     }
 
     public static func write(_ value: FormatOptions, into buf: inout [UInt8]) {
         FfiConverterTypeRepresentation.write(value.representation, into: &buf)
-        FfiConverterOptionUInt8.write(value.precision, into: &buf)
-        FfiConverterTypeSymbolStyle.write(value.symbolStyle, into: &buf)
-        FfiConverterTypeHemisphereStyle.write(value.hemisphereStyle, into: &buf)
-        FfiConverterOptionString.write(value.locale, into: &buf)
+        FfiConverterTypeDecimalSeparator.write(value.decimalSeparator, into: &buf)
     }
 }
 
@@ -3145,6 +3115,83 @@ public func FfiConverterTypeDatumAmbiguity_lower(_ value: DatumAmbiguity) -> Rus
 }
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Decimal separator — mirror of [`gc::format::DecimalSeparator`].
+ */
+
+public enum DecimalSeparator: Equatable, Hashable {
+    
+    /**
+     * `.` (`40.712800, -74.006000`).
+     */
+    case point
+    /**
+     * `,`; the two components are then separated by whitespace
+     * (`40,712800 -74,006000`).
+     */
+    case comma
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DecimalSeparator: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDecimalSeparator: FfiConverterRustBuffer {
+    typealias SwiftType = DecimalSeparator
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DecimalSeparator {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .point
+        
+        case 2: return .comma
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DecimalSeparator, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .point:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .comma:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecimalSeparator_lift(_ buf: RustBuffer) throws -> DecimalSeparator {
+    return try FfiConverterTypeDecimalSeparator.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecimalSeparator_lower(_ value: DecimalSeparator) -> RustBuffer {
+    return FfiConverterTypeDecimalSeparator.lower(value)
+}
+
+
 
 /**
  * Errors surfaced across the FFI boundary — a one-to-one mirror of [`gc::Error`].
@@ -3866,7 +3913,11 @@ public func FfiConverterTypeMgrsPrecision_lower(_ value: MgrsPrecision) -> RustB
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * Target representation for rendering — mirror of [`gc::format::Representation`].
+ * Target representation for rendering, carrying the settings that apply to
+ * it — mirror of [`gc::format::Representation`].
+ *
+ * An unset decimal count (`None`) lets [`format_fix`] derive it from the
+ * fix's accuracy, and otherwise uses the default (DD 6, DMS 2, DDM 3).
  */
 
 public enum Representation: Equatable, Hashable {
@@ -3874,19 +3925,74 @@ public enum Representation: Equatable, Hashable {
     /**
      * Decimal degrees (`40.712800, -74.006000`).
      */
-    case decimalDegrees
+    case decimalDegrees(
+        /**
+         * Decimal places of degrees, at most 15.
+         */decimals: UInt8?, 
+        /**
+         * Sign or cardinal letter.
+         */hemisphere: HemisphereStyle
+    )
     /**
-     * Degrees-minutes-seconds (`40°42′46″N 74°00′22″W`).
+     * Degrees-minutes-seconds (`40°42′46.08″N 74°00′21.60″W`).
      */
-    case dms
+    case dms(
+        /**
+         * Decimal places of arcseconds, at most 15.
+         */secondDecimals: UInt8?, 
+        /**
+         * Degree / minute / second glyphs.
+         */symbols: SymbolStyle, 
+        /**
+         * Sign or cardinal letter.
+         */hemisphere: HemisphereStyle
+    )
     /**
-     * Degrees-decimal-minutes (`40°42.766′N`).
+     * Degrees-decimal-minutes (`40°42.768′N 74°00.360′W`).
      */
-    case ddm
+    case ddm(
+        /**
+         * Decimal places of arcminutes, at most 15.
+         */minuteDecimals: UInt8?, 
+        /**
+         * Degree / minute glyphs.
+         */symbols: SymbolStyle, 
+        /**
+         * Sign or cardinal letter.
+         */hemisphere: HemisphereStyle
+    )
     /**
      * Open Location Code / Plus Code (`8FVC2222+22`).
      */
-    case plusCode
+    case plusCode(
+        /**
+         * Code length: 2, 4, 6, 8, or 10 through 15.
+         */length: UInt8
+    )
+    /**
+     * Geohash (`ezs42`).
+     */
+    case geohash(
+        /**
+         * Character count, 1 through 12.
+         */length: UInt8
+    )
+    /**
+     * Maidenhead locator (`FN20`).
+     */
+    case maidenhead(
+        /**
+         * Letter/digit pairs, 1 through 3.
+         */pairs: UInt8
+    )
+    /**
+     * MGRS reference (`18TWK0000027757`).
+     */
+    case mgrs(
+        /**
+         * The square size.
+         */precision: MgrsPrecision
+    )
 
 
 
@@ -3908,13 +4014,26 @@ public struct FfiConverterTypeRepresentation: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .decimalDegrees
+        case 1: return .decimalDegrees(decimals: try FfiConverterOptionUInt8.read(from: &buf), hemisphere: try FfiConverterTypeHemisphereStyle.read(from: &buf)
+        )
         
-        case 2: return .dms
+        case 2: return .dms(secondDecimals: try FfiConverterOptionUInt8.read(from: &buf), symbols: try FfiConverterTypeSymbolStyle.read(from: &buf), hemisphere: try FfiConverterTypeHemisphereStyle.read(from: &buf)
+        )
         
-        case 3: return .ddm
+        case 3: return .ddm(minuteDecimals: try FfiConverterOptionUInt8.read(from: &buf), symbols: try FfiConverterTypeSymbolStyle.read(from: &buf), hemisphere: try FfiConverterTypeHemisphereStyle.read(from: &buf)
+        )
         
-        case 4: return .plusCode
+        case 4: return .plusCode(length: try FfiConverterUInt8.read(from: &buf)
+        )
+        
+        case 5: return .geohash(length: try FfiConverterUInt8.read(from: &buf)
+        )
+        
+        case 6: return .maidenhead(pairs: try FfiConverterUInt8.read(from: &buf)
+        )
+        
+        case 7: return .mgrs(precision: try FfiConverterTypeMgrsPrecision.read(from: &buf)
+        )
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -3924,21 +4043,45 @@ public struct FfiConverterTypeRepresentation: FfiConverterRustBuffer {
         switch value {
         
         
-        case .decimalDegrees:
+        case let .decimalDegrees(decimals,hemisphere):
             writeInt(&buf, Int32(1))
+            FfiConverterOptionUInt8.write(decimals, into: &buf)
+            FfiConverterTypeHemisphereStyle.write(hemisphere, into: &buf)
+            
         
-        
-        case .dms:
+        case let .dms(secondDecimals,symbols,hemisphere):
             writeInt(&buf, Int32(2))
+            FfiConverterOptionUInt8.write(secondDecimals, into: &buf)
+            FfiConverterTypeSymbolStyle.write(symbols, into: &buf)
+            FfiConverterTypeHemisphereStyle.write(hemisphere, into: &buf)
+            
         
-        
-        case .ddm:
+        case let .ddm(minuteDecimals,symbols,hemisphere):
             writeInt(&buf, Int32(3))
+            FfiConverterOptionUInt8.write(minuteDecimals, into: &buf)
+            FfiConverterTypeSymbolStyle.write(symbols, into: &buf)
+            FfiConverterTypeHemisphereStyle.write(hemisphere, into: &buf)
+            
         
-        
-        case .plusCode:
+        case let .plusCode(length):
             writeInt(&buf, Int32(4))
+            FfiConverterUInt8.write(length, into: &buf)
+            
         
+        case let .geohash(length):
+            writeInt(&buf, Int32(5))
+            FfiConverterUInt8.write(length, into: &buf)
+            
+        
+        case let .maidenhead(pairs):
+            writeInt(&buf, Int32(6))
+            FfiConverterUInt8.write(pairs, into: &buf)
+            
+        
+        case let .mgrs(precision):
+            writeInt(&buf, Int32(7))
+            FfiConverterTypeMgrsPrecision.write(precision, into: &buf)
+            
         }
     }
 }
@@ -4165,30 +4308,6 @@ fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterDouble.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
-    typealias SwiftType = String?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterString.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -5716,11 +5835,30 @@ public func fromWkt(input: String)throws  -> [Fix]  {
 })
 }
 /**
+ * The decimal separator a BCP-47 locale tag conventionally uses.
+ *
+ * A **heuristic**, not locale data: a small allowlist of decimal-comma
+ * languages, overridden by the regions known to use a point (`de-CH`,
+ * `es-MX`, …). An unknown or malformed tag yields `Point`. Set
+ * [`TextParseOptions::decimal_comma`] when this is `Comma` to re-parse the
+ * output with [`parse_coordinate_with`].
+ */
+public func decimalSeparatorForLocale(tag: String) -> DecimalSeparator  {
+    return try!  FfiConverterTypeDecimalSeparator_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_decimal_separator_for_locale(
+        FfiConverterString.lower(tag),$0
+    )
+})
+}
+/**
  * Render a coordinate to a string using the given options.
  *
  * # Errors
- * Returns a [`GeoError`] if the representation is undefined for the coordinate
- * (the DD/DMS/DDM representations never fail).
+ * - `GeoError::OutOfRange` for an out-of-range coordinate record.
+ * - `GeoError::InvalidValue` when a decimal count exceeds 15, or a grid
+ * representation's size is outside the range its variant documents.
+ * - `GeoError::CrsMismatch` when a grid representation is asked to render a
+ * non-WGS-84 coordinate.
  */
 public func formatCoordinate(coord: Coordinate, options: FormatOptions)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5731,8 +5869,8 @@ public func formatCoordinate(coord: Coordinate, options: FormatOptions)throws  -
 })
 }
 /**
- * Render a [`Fix`] to a string, deriving display precision from its accuracy
- * when `options.precision` is `None`.
+ * Render a [`Fix`] to a string, deriving the decimal count from its accuracy
+ * where the representation leaves it unset.
  *
  * # Errors
  * As [`format_coordinate`].
@@ -5746,15 +5884,13 @@ public func formatFix(fix: Fix, options: FormatOptions)throws  -> String  {
 })
 }
 /**
- * Whether `options` render `,` as the decimal separator (the locale's primary
- * language uses a decimal comma). Pass it as
- * [`TextParseOptions::decimal_comma`] to re-parse the output with
- * [`parse_coordinate_with`].
+ * The default options: signed decimal degrees with the decimal count unset
+ * (6 for a bare coordinate, derived from accuracy by [`format_fix`]) and a
+ * point separator.
  */
-public func formatOptionsUsesDecimalComma(options: FormatOptions) -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_format_options_uses_decimal_comma(
-        FfiConverterTypeFormatOptions_lower(options),$0
+public func formatOptionsDefault() -> FormatOptions  {
+    return try!  FfiConverterTypeFormatOptions_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_format_options_default($0
     )
 })
 }
@@ -5790,7 +5926,8 @@ public func parseCoordinate(input: String)throws  -> Fix  {
 /**
  * [`parse_coordinate`] with explicit options for the free-text fallback
  * (`geo:` URIs and Plus Codes ignore them). Re-parses decimal-comma output
- * when `decimal_comma` comes from [`format_options_uses_decimal_comma`].
+ * when `decimal_comma` is set exactly when the [`FormatOptions`]'
+ * `decimal_separator` is `Comma`.
  *
  * # Errors
  * Returns a [`GeoError`] when no interpretation is found.
@@ -6145,13 +6282,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 47392) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 46243) {
+    if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 55533) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 47017) {
+    if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 57575) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_options_uses_decimal_comma() != 48822) {
+    if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 30151) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_format_options_default() != 44227) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_geo_uri() != 1309) {
@@ -6160,7 +6300,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 33133) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 62433) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 18292) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 13914) {
