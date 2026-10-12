@@ -6339,8 +6339,15 @@ public func fromKml(input: String)throws  -> [Fix]  {
  * Parse a single NMEA 0183 sentence (GGA/RMC/GLL) into a [`Fix`]. The optional
  * `*HH` checksum is verified when present.
  *
+ * Only a sentence that reports a fix yields one. `RMC` fills the fix's
+ * `timestamp` from its UTC date and time (two-digit year read as 1980–2079);
+ * `GGA` and `GLL` carry no date, so theirs is `None`.
+ *
  * # Errors
- * `GeoError` on an unrecognized/invalid sentence or a checksum mismatch.
+ * `GeoError::Parse` on an unrecognized/invalid sentence or a checksum
+ * mismatch; on a sentence reporting no fix (`RMC`/`GLL` status `V` or mode
+ * `N`, `GGA` quality `0`); on a coordinate whose minutes are not two integer
+ * digits; and on a `GGA` altitude whose unit is not `M`.
  */
 public func fromNmeaSentence(sentence: String)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6869,7 +6876,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 18499) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 26367) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 7977) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 54808) {
