@@ -541,7 +541,12 @@ mod tests {
     #[test]
     fn easting_mapping_exactly_to_180_degrees_is_inside() {
         let row = &MC2LL[4];
-        let mut x = (180.0 - row[0]) / row[1];
+        let mut x: f64 = (180.0 - row[0]) / row[1];
+        // `x` is a positive finite easting, so adjacent floats are one bit
+        // pattern apart (`next_up`/`next_down` need Rust 1.86; MSRV is 1.85).
+        assert!(x.is_finite() && x > 0.0);
+        let next_up = |v: f64| f64::from_bits(v.to_bits() + 1);
+        let next_down = |v: f64| f64::from_bits(v.to_bits() - 1);
         // Step to the float whose image is exactly 180.0.
         for _ in 0..64 {
             let lon = row[0] + row[1] * x;
@@ -549,14 +554,14 @@ mod tests {
                 break;
             }
             x = if lon < 180.0 {
-                x.next_up()
+                next_up(x)
             } else {
-                x.next_down()
+                next_down(x)
             };
         }
         assert_eq!(row[0] + row[1] * x, 180.0, "no float maps exactly to 180°");
         assert_eq!(merc(x, 0.0).try_to_bd09().unwrap().lon(), 180.0);
-        assert!(merc(x.next_up().next_up(), 0.0).try_to_bd09().is_err());
+        assert!(merc(next_up(next_up(x)), 0.0).try_to_bd09().is_err());
     }
 
     /// The northing limit is the forward image of 74°, to the last digit.
