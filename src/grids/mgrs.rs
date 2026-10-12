@@ -35,6 +35,14 @@ const UPS_ROW: &str = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 /// The side of an MGRS square: the closed set of precisions an MGRS reference
 /// can express, one per easting/northing digit count (0 through 5 digits each).
+///
+/// ```
+/// use geocoordinates::grids::{Mgrs, MgrsPrecision};
+///
+/// // Two easting and two northing digits: a 1 km square.
+/// assert_eq!(Mgrs::try_from("18TWL8307")?.precision(), MgrsPrecision::Km1);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MgrsPrecision {
@@ -54,6 +62,13 @@ pub enum MgrsPrecision {
 
 impl MgrsPrecision {
     /// The square's side in meters: 100 000, 10 000, 1 000, 100, 10, or 1.
+    ///
+    /// ```
+    /// use geocoordinates::grids::MgrsPrecision;
+    ///
+    /// assert_eq!(MgrsPrecision::Km100.meters(), 100_000);
+    /// assert_eq!(MgrsPrecision::M1.meters(), 1);
+    /// ```
     #[must_use]
     pub fn meters(self) -> u32 {
         10u32.pow(5 - self.digits())
@@ -92,6 +107,15 @@ impl MgrsPrecision {
 /// [`Display`](core::fmt::Display) writes the canonical string, which parses
 /// back to an equal value. Under the `serde` feature it (de)serializes as that
 /// bare string, and deserialization validates it exactly as parsing does.
+///
+/// ```
+/// use geocoordinates::grids::Mgrs;
+///
+/// let mgrs: Mgrs = "4q fj 1234 5678".parse()?;
+/// assert_eq!(mgrs.to_string(), "04QFJ12345678");
+/// assert!("4QFJ123".parse::<Mgrs>().is_err()); // odd digit count
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
@@ -104,13 +128,28 @@ pub struct Mgrs {
 }
 
 impl Mgrs {
-    /// The canonical MGRS string.
+    /// The canonical MGRS string: uppercase, no whitespace, two-digit zone.
+    ///
+    /// ```
+    /// use geocoordinates::grids::Mgrs;
+    ///
+    /// assert_eq!(Mgrs::try_from("4qfj12345678")?.as_str(), "04QFJ12345678");
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.text
     }
 
     /// The square size implied by the digit count.
+    ///
+    /// ```
+    /// use geocoordinates::grids::{Mgrs, MgrsPrecision};
+    ///
+    /// assert_eq!(Mgrs::try_from("04QFJ12345678")?.precision(), MgrsPrecision::M10);
+    /// assert_eq!(Mgrs::try_from("18TWL")?.precision(), MgrsPrecision::Km100);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn precision(&self) -> MgrsPrecision {
         self.precision
@@ -128,6 +167,17 @@ impl Mgrs {
     /// square. It overstates the true worst case by the local excess of k over
     /// `k_min`: about 0.14% at a standard UTM zone edge on the equator, and
     /// under 0.8% at the UPS cap's 80°S edge.
+    ///
+    /// ```
+    /// use geocoordinates::grids::Mgrs;
+    ///
+    /// // A 1 m square in lower Manhattan.
+    /// let center = Mgrs::try_from("18TWL8395907350")?.to_coordinate();
+    /// assert!((center.lat() - 40.7128).abs() < 1e-5);
+    /// assert!((center.lon() + 74.006).abs() < 1e-5);
+    /// assert!(center.max_error_m() < 0.71); // 1 m / √2 / 0.9996
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn to_coordinate(&self) -> Approx<Coordinate> {
         let (coord, _) = decode(&self.text).expect("MGRS was validated at construction");
@@ -141,6 +191,23 @@ impl Mgrs {
     /// Encode a WGS-84 coordinate to the MGRS square of the given size that
     /// contains it: UTM-based between 80°S and 84°N, UPS-based (zone letters
     /// A/B/Y/Z) in the polar caps.
+    ///
+    /// ```
+    /// use geocoordinates::grids::{Mgrs, MgrsPrecision};
+    /// use geocoordinates::{Coordinate, Error};
+    ///
+    /// let nyc = Coordinate::wgs84(40.7128, -74.006)?;
+    /// let mgrs = Mgrs::try_from_coordinate(nyc, MgrsPrecision::Km1)?;
+    /// assert_eq!(mgrs.as_str(), "18TWL8307");
+    /// let pole_cap = Coordinate::wgs84(-85.0, 30.0)?;
+    /// let mgrs = Mgrs::try_from_coordinate(pole_cap, MgrsPrecision::Km1)?;
+    /// assert_eq!(mgrs.as_str(), "BCS7781"); // UPS south, east of 0°
+    ///
+    /// let gcj = Coordinate::gcj02(39.9, 116.4)?;
+    /// let err = Mgrs::try_from_coordinate(gcj, MgrsPrecision::Km1);
+    /// assert!(matches!(err, Err(Error::CrsMismatch { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     ///
     /// # Errors
     /// Returns [`crate::Error::CrsMismatch`] for a non-WGS-84 coordinate.

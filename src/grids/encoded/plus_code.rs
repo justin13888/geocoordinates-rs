@@ -73,11 +73,13 @@ impl PlusCode {
     /// validates.
     ///
     /// ```
-    /// use geocoordinates::Coordinate;
     /// use geocoordinates::grids::PlusCode;
+    /// use geocoordinates::{Coordinate, Error};
     ///
-    /// let code = PlusCode::encode(Coordinate::wgs84(47.000_062_5, 8.000_062_5)?, 10)?;
-    /// assert_eq!(code.as_str(), "8FVC2222+22");
+    /// let point = Coordinate::wgs84(47.000_062_5, 8.000_062_5)?;
+    /// assert_eq!(PlusCode::encode(point, 10)?.as_str(), "8FVC2222+22");
+    /// assert_eq!(PlusCode::encode(point, 4)?.as_str(), "8FVC0000+");
+    /// assert!(matches!(PlusCode::encode(point, 9), Err(Error::InvalidValue { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
@@ -124,6 +126,13 @@ impl PlusCode {
     }
 
     /// The canonical (uppercase) Plus Code string.
+    ///
+    /// ```
+    /// use geocoordinates::grids::PlusCode;
+    ///
+    /// assert_eq!(PlusCode::try_from("8fvc2222+22")?.as_str(), "8FVC2222+22");
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
