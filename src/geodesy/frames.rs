@@ -8,6 +8,19 @@
 //! [`Ecef::try_to_coordinate`]'s closed-form inverse. Construction remains
 //! fallible so both positions must be valid WGS-84 coordinates with compatible
 //! ellipsoidal heights.
+//!
+//! ```
+//! use geocoordinates::{Coordinate, geodesy::frames::{Aer, Enu, Ned}};
+//!
+//! let origin = Coordinate::wgs84(40.0, -75.0)?;
+//! let target = Coordinate::wgs84(40.01, -75.0)?; // ~1.1 km due north
+//! let enu = Enu::try_from_coordinate(target, origin)?;
+//! let ned: Ned = enu.into(); // exact repackaging; `to_ned` is the named form
+//! let aer: Aer = enu.to_aer();
+//! assert_eq!(ned.north, enu.north);
+//! assert!(enu.east.abs() < 1e-6 && aer.elevation_deg < 0.0); // the Earth curves away
+//! # Ok::<(), geocoordinates::Error>(())
+//! ```
 
 use super::ecef::Ecef;
 use crate::coord::Coordinate;
@@ -15,6 +28,13 @@ use crate::error::{Error, Result};
 use crate::units::Length;
 
 /// East-North-Up offset from a reference origin, in meters.
+///
+/// ```
+/// use geocoordinates::geodesy::Enu;
+///
+/// let up_and_east = Enu { east: 3.0, north: 0.0, up: 4.0 };
+/// assert_eq!(up_and_east.to_aer().range.meters(), 5.0);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Enu {
@@ -27,6 +47,14 @@ pub struct Enu {
 }
 
 /// North-East-Down offset from a reference origin, in meters.
+///
+/// ```
+/// use geocoordinates::geodesy::Ned;
+///
+/// // 10 m below the origin: a positive `down`.
+/// let below = Ned { north: 0.0, east: 0.0, down: 10.0 };
+/// assert_eq!(below.to_enu().up, -10.0);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ned {
@@ -39,6 +67,14 @@ pub struct Ned {
 }
 
 /// Azimuth-Elevation-Range relative to a reference origin.
+///
+/// ```
+/// use geocoordinates::{Length, geodesy::Aer};
+///
+/// let due_east = Aer { azimuth_deg: 90.0, elevation_deg: 0.0, range: Length::from_meters(100.0) };
+/// let enu = due_east.to_enu();
+/// assert!((enu.east - 100.0).abs() < 1e-9 && enu.north.abs() < 1e-9);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Aer {
@@ -52,6 +88,28 @@ pub struct Aer {
 
 impl Enu {
     /// The ENU offset of `target` relative to `origin` (exact, WGS-84).
+    ///
+    /// # Errors
+    /// - [`Error::CrsMismatch`] (expecting [`Crs::Wgs84`](crate::Crs::Wgs84))
+    ///   when either coordinate is not WGS-84;
+    /// - [`Error::InvalidValue`] (field `"height"`) when either carries an
+    ///   orthometric height.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs, Error, Height, geodesy::Enu};
+    ///
+    /// let origin = Coordinate::wgs84(51.5, 0.0)?;
+    /// let mast = Coordinate::wgs84(51.5, 0.0)?.with_height(Height::Ellipsoidal(120.0))?;
+    /// let enu = Enu::try_from_coordinate(mast, origin)?;
+    /// assert!((enu.up - 120.0).abs() < 1e-6 && enu.east.abs() < 1e-6);
+    /// // Local frames are WGS-84 only.
+    /// let nad27 = Coordinate::new(51.5, 0.0, Crs::Nad27)?;
+    /// assert!(matches!(
+    ///     Enu::try_from_coordinate(nad27, origin),
+    ///     Err(Error::CrsMismatch { .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Self> {
         validate_frame_coordinate(target)?;
         validate_frame_coordinate(origin)?;
@@ -75,6 +133,29 @@ impl Enu {
 
     /// Recover the absolute coordinate of this ENU offset about `origin`
     /// (exact, through [`Ecef::try_to_coordinate`]'s closed-form inverse).
+    ///
+    /// # Errors
+    /// - [`Error::CrsMismatch`] and [`Error::InvalidValue`] (field `"height"`)
+    ///   for an `origin` [`try_from_coordinate`](Self::try_from_coordinate)
+    ///   would reject;
+    /// - [`Error::InvalidValue`] (field `"ENU"`) when a component is not
+    ///   finite, and as for [`Ecef::try_to_coordinate`] when the offset is so
+    ///   large that the position overflows.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Error, geodesy::Enu};
+    ///
+    /// let origin = Coordinate::wgs84(51.5, 0.0)?;
+    /// let target = Coordinate::wgs84(51.51, 0.01)?;
+    /// let back = Enu::try_from_coordinate(target, origin)?.try_to_coordinate(origin)?;
+    /// assert!((back.lat() - 51.51).abs() < 1e-9 && (back.lon() - 0.01).abs() < 1e-9);
+    /// let bad = Enu { east: f64::NAN, north: 0.0, up: 0.0 };
+    /// assert!(matches!(
+    ///     bad.try_to_coordinate(origin),
+    ///     Err(Error::InvalidValue { field: "ENU", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         validate_frame_coordinate(origin)?;
         if !self.east.is_finite() || !self.north.is_finite() || !self.up.is_finite() {
@@ -95,6 +176,13 @@ impl Enu {
     }
 
     /// Convert to the NED convention (exact).
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::{Enu, Ned};
+    ///
+    /// let enu = Enu { east: 1.0, north: 2.0, up: 3.0 };
+    /// assert_eq!(enu.to_ned(), Ned { north: 2.0, east: 1.0, down: -3.0 });
+    /// ```
     #[must_use]
     pub fn to_ned(self) -> Ned {
         Ned {
@@ -104,7 +192,25 @@ impl Enu {
         }
     }
 
-    /// Convert to azimuth/elevation/range (exact).
+    /// Convert to azimuth/elevation/range (exact). Azimuth is normalized to
+    /// `[0, 360)`. A zero offset has elevation 0° and a finite azimuth that
+    /// follows the signs of its zeros, as [`f64::atan2`] does: 0° when `north`
+    /// is `+0.0`, but 180° when `north` is `-0.0`.
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Enu;
+    ///
+    /// let aer = Enu { east: -100.0, north: 0.0, up: 100.0 }.to_aer();
+    /// assert!((aer.azimuth_deg - 270.0).abs() < 1e-9);
+    /// assert!((aer.elevation_deg - 45.0).abs() < 1e-9);
+    /// assert!((aer.range.meters() - 100.0 * 2f64.sqrt()).abs() < 1e-9);
+    ///
+    /// // A zero offset: the azimuth depends on the sign of the zero `north`.
+    /// let zero = Enu { east: 0.0, north: 0.0, up: 0.0 }.to_aer();
+    /// assert_eq!((zero.azimuth_deg, zero.elevation_deg), (0.0, 0.0));
+    /// let neg = Enu { east: 0.0, north: -0.0, up: 0.0 }.to_aer();
+    /// assert_eq!((neg.azimuth_deg, neg.elevation_deg), (180.0, 0.0));
+    /// ```
     #[must_use]
     pub fn to_aer(self) -> Aer {
         // `hypot` neither overflows nor underflows where the squares would.
@@ -125,17 +231,58 @@ impl Enu {
 
 impl Ned {
     /// The NED offset of `target` relative to `origin` (exact).
+    ///
+    /// # Errors
+    /// As for [`Enu::try_from_coordinate`].
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Error, Height, geodesy::Ned};
+    ///
+    /// let origin = Coordinate::wgs84(-33.9, 151.2)?.with_height(Height::Ellipsoidal(50.0))?;
+    /// let ground = Coordinate::wgs84(-33.9, 151.2)?;
+    /// assert!((Ned::try_from_coordinate(ground, origin)?.down - 50.0).abs() < 1e-6);
+    /// let msl = Coordinate::wgs84(-33.9, 151.2)?.with_height(Height::Orthometric(50.0))?;
+    /// assert!(matches!(
+    ///     Ned::try_from_coordinate(ground, msl),
+    ///     Err(Error::InvalidValue { field: "height", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Self> {
         Ok(Enu::try_from_coordinate(target, origin)?.to_ned())
     }
 
     /// Recover the absolute coordinate of this NED offset about `origin`
     /// (exact; see [`Enu::try_to_coordinate`]).
+    ///
+    /// # Errors
+    /// As for [`Enu::try_to_coordinate`].
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs, Error, Height, geodesy::Ned};
+    ///
+    /// let origin = Coordinate::wgs84(10.0, 20.0)?;
+    /// let below = Ned { north: 0.0, east: 0.0, down: 25.0 }.try_to_coordinate(origin)?;
+    /// assert!(matches!(below.height(), Some(Height::Ellipsoidal(h)) if (h + 25.0).abs() < 1e-6));
+    /// let tokyo = Coordinate::new(10.0, 20.0, Crs::Tokyo)?;
+    /// assert!(matches!(
+    ///     Ned { north: 0.0, east: 0.0, down: 25.0 }.try_to_coordinate(tokyo),
+    ///     Err(Error::CrsMismatch { .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         self.to_enu().try_to_coordinate(origin)
     }
 
     /// Convert to the ENU convention (exact).
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::{Enu, Ned};
+    ///
+    /// let ned = Ned { north: 2.0, east: 1.0, down: -3.0 };
+    /// assert_eq!(ned.to_enu(), Enu { east: 1.0, north: 2.0, up: 3.0 });
+    /// ```
     #[must_use]
     pub fn to_enu(self) -> Enu {
         Enu {
@@ -145,7 +292,15 @@ impl Ned {
         }
     }
 
-    /// Convert to azimuth/elevation/range (exact).
+    /// Convert to azimuth/elevation/range (exact; see [`Enu::to_aer`]).
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ned;
+    ///
+    /// // Straight down: elevation −90°.
+    /// let aer = Ned { north: 0.0, east: 0.0, down: 30.0 }.to_aer();
+    /// assert_eq!((aer.elevation_deg, aer.range.meters()), (-90.0, 30.0));
+    /// ```
     #[must_use]
     pub fn to_aer(self) -> Aer {
         self.to_enu().to_aer()
@@ -154,17 +309,63 @@ impl Ned {
 
 impl Aer {
     /// The azimuth/elevation/range of `target` relative to `origin` (exact).
+    ///
+    /// # Errors
+    /// As for [`Enu::try_from_coordinate`].
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs, Error, Height, geodesy::Aer};
+    ///
+    /// let observer = Coordinate::wgs84(0.0, 0.0)?;
+    /// let balloon = Coordinate::wgs84(0.0, 0.0)?.with_height(Height::Ellipsoidal(1000.0))?;
+    /// let aer = Aer::try_from_coordinate(balloon, observer)?;
+    /// assert!((aer.elevation_deg - 90.0).abs() < 1e-9);
+    /// assert!((aer.range.meters() - 1000.0).abs() < 1e-6);
+    /// let gcj = Coordinate::new(0.0, 0.0, Crs::Gcj02)?;
+    /// assert!(matches!(
+    ///     Aer::try_from_coordinate(gcj, observer),
+    ///     Err(Error::CrsMismatch { .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Self> {
         Ok(Enu::try_from_coordinate(target, origin)?.to_aer())
     }
 
     /// Recover the absolute coordinate of this AER offset about `origin`
     /// (exact; see [`Enu::try_to_coordinate`]).
+    ///
+    /// # Errors
+    /// As for [`Enu::try_to_coordinate`]; a non-finite azimuth, elevation, or
+    /// range is reported with field `"ENU"`.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Error, Length, geodesy::Aer};
+    ///
+    /// let origin = Coordinate::wgs84(45.0, 7.0)?;
+    /// let north = Aer { azimuth_deg: 0.0, elevation_deg: 0.0, range: Length::from_meters(1000.0) };
+    /// let p = north.try_to_coordinate(origin)?;
+    /// assert!(p.lat() > 45.0 && (p.lon() - 7.0).abs() < 1e-9);
+    /// let bad = Aer { range: Length::from_meters(f64::INFINITY), ..north };
+    /// assert!(matches!(
+    ///     bad.try_to_coordinate(origin),
+    ///     Err(Error::InvalidValue { field: "ENU", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         self.to_enu().try_to_coordinate(origin)
     }
 
     /// Convert to the ENU convention (exact).
+    ///
+    /// ```
+    /// use geocoordinates::{Length, geodesy::Aer};
+    ///
+    /// let overhead = Aer { azimuth_deg: 0.0, elevation_deg: 90.0, range: Length::from_meters(50.0) };
+    /// let enu = overhead.to_enu();
+    /// assert!((enu.up - 50.0).abs() < 1e-12 && enu.north.abs() < 1e-12);
+    /// ```
     #[must_use]
     pub fn to_enu(self) -> Enu {
         let az = self.azimuth_deg.to_radians();
@@ -178,6 +379,13 @@ impl Aer {
     }
 
     /// Convert to the NED convention (exact).
+    ///
+    /// ```
+    /// use geocoordinates::{Length, geodesy::Aer};
+    ///
+    /// let below = Aer { azimuth_deg: 0.0, elevation_deg: -90.0, range: Length::from_meters(5.0) };
+    /// assert!((below.to_ned().down - 5.0).abs() < 1e-12);
+    /// ```
     #[must_use]
     pub fn to_ned(self) -> Ned {
         self.to_enu().to_ned()

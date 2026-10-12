@@ -35,6 +35,17 @@
 //! models, the 14-parameter (rate-of-change) transforms, and distinct ITRF
 //! realizations — is out of scope for v1; sub-centimeter, time-varying work is
 //! not a goal here.
+//!
+//! ```
+//! use geocoordinates::{Coordinate, Crs, geodesy::datum::DatumTransform};
+//!
+//! let tokyo_to_wgs84 = DatumTransform::catalog_to_wgs84(Crs::Tokyo).unwrap();
+//! let tokyo = Coordinate::new(35.68, 139.77, Crs::Tokyo)?;
+//! let wgs = tokyo_to_wgs84.apply(tokyo)?;
+//! // The Tokyo datum sits several hundred meters off WGS 84.
+//! assert!((wgs.lon() - tokyo.lon()).abs() > 0.002);
+//! # Ok::<(), geocoordinates::Error>(())
+//! ```
 
 use core::f64::consts::PI;
 
@@ -50,6 +61,15 @@ const ARCSEC_TO_RAD: f64 = PI / (180.0 * 3600.0);
 /// Translations are in meters, rotations in arc-seconds, and scale in
 /// parts-per-million — the convention published by EPSG and national geodetic
 /// agencies. Rotations use the **position-vector** (`PV`) sign convention.
+///
+/// ```
+/// use geocoordinates::geodesy::{Ecef, Helmert};
+///
+/// // A 1 ppm scale change moves a point at one Earth radius by about 6.4 m.
+/// let scale = Helmert { scale_ppm: 1.0, ..Helmert::IDENTITY };
+/// let moved = scale.apply_ecef(Ecef::new(6_378_137.0, 0.0, 0.0));
+/// assert!((moved.x - 6_378_137.0 - 6.378_137).abs() < 1e-6);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Helmert {
@@ -71,6 +91,13 @@ pub struct Helmert {
 
 impl Helmert {
     /// The identity transform (no translation, rotation, or scale).
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::{Ecef, Helmert};
+    ///
+    /// let p = Ecef::new(1.0, 2.0, 3.0);
+    /// assert_eq!(Helmert::IDENTITY.apply_ecef(p), p);
+    /// ```
     pub const IDENTITY: Helmert = Helmert {
         tx_m: 0.0,
         ty_m: 0.0,
@@ -86,6 +113,13 @@ impl Helmert {
     /// Position-vector (`PV`) convention, linearized for the small rotation
     /// angles: `x' = T + (1 + s)·R·x`, where `R = I + Ω` and `Ω` is the
     /// skew-symmetric matrix of the rotation vector (so `R·x ≈ x + ω × x`).
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::{Ecef, Helmert};
+    ///
+    /// let shift = Helmert { tx_m: -8.0, ty_m: 160.0, tz_m: 176.0, ..Helmert::IDENTITY };
+    /// assert_eq!(shift.apply_ecef(Ecef::new(0.0, 0.0, 0.0)), Ecef::new(-8.0, 160.0, 176.0));
+    /// ```
     #[must_use]
     pub fn apply_ecef(&self, ecef: Ecef) -> Ecef {
         let rx = self.rx_arcsec * ARCSEC_TO_RAD;
@@ -285,18 +319,41 @@ impl DatumTransform {
     }
 
     /// The source reference system.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::DatumTransform};
+    ///
+    /// let t = DatumTransform::catalog_to_wgs84(Crs::Pulkovo42).unwrap();
+    /// assert_eq!(t.from_crs(), Crs::Pulkovo42);
+    /// ```
     #[must_use]
     pub fn from_crs(&self) -> Crs {
         self.from_crs
     }
 
     /// The target reference system.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::DatumTransform};
+    ///
+    /// let t = DatumTransform::catalog_to_wgs84(Crs::Pulkovo42).unwrap();
+    /// assert_eq!(t.to_crs(), Crs::Wgs84);
+    /// ```
     #[must_use]
     pub fn to_crs(&self) -> Crs {
         self.to_crs
     }
 
     /// The Helmert parameters carrying the source frame to the target frame.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::DatumTransform};
+    ///
+    /// // The catalog is translation-only.
+    /// let h = DatumTransform::catalog_to_wgs84(Crs::Nad27).unwrap().helmert();
+    /// assert_eq!((h.tx_m, h.ty_m, h.tz_m), (-8.0, 160.0, 176.0));
+    /// assert_eq!((h.rx_arcsec, h.ry_arcsec, h.rz_arcsec, h.scale_ppm), (0.0, 0.0, 0.0, 0.0));
+    /// ```
     #[must_use]
     pub fn helmert(&self) -> Helmert {
         self.helmert
@@ -311,6 +368,15 @@ impl DatumTransform {
     /// [`catalog_to_wgs84`](Self::catalog_to_wgs84)). Those are statistical
     /// estimates over the stations the mean was fitted to, not a hard maximum,
     /// and a point far from that region can be worse.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::DatumTransform};
+    ///
+    /// let tokyo = DatumTransform::catalog_to_wgs84(Crs::Tokyo).unwrap();
+    /// assert_eq!(tokyo.accuracy_m(), Some(825f64.sqrt()));
+    /// // TR8350.2 publishes no error estimate for Pulkovo-1942.
+    /// assert_eq!(DatumTransform::catalog_to_wgs84(Crs::Pulkovo42).unwrap().accuracy_m(), None);
+    /// ```
     #[must_use]
     pub fn accuracy_m(&self) -> Option<f64> {
         self.accuracy_m
@@ -328,6 +394,21 @@ impl DatumTransform {
     ///   [`from_crs`](Self::from_crs);
     /// - [`Error::InvalidValue`] (field `"height"`) when `coord` carries an
     ///   orthometric height, which needs a geoid model to become ellipsoidal.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs, Error, geodesy::DatumTransform};
+    ///
+    /// let nad27_to_wgs84 = DatumTransform::catalog_to_wgs84(Crs::Nad27).unwrap();
+    /// let wgs = nad27_to_wgs84.apply(Coordinate::new(40.0, -100.0, Crs::Nad27)?)?;
+    /// assert_eq!(wgs.crs(), Crs::Wgs84);
+    /// assert!(wgs.height().is_none()); // 2-D in, 2-D out
+    /// // A coordinate already in WGS-84 is not this transform's input.
+    /// assert!(matches!(
+    ///     nad27_to_wgs84.apply(Coordinate::wgs84(40.0, -100.0)?),
+    ///     Err(Error::CrsMismatch { expected: Crs::Nad27, found: Crs::Wgs84 })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn apply(&self, coord: Coordinate) -> Result<Coordinate> {
         if coord.crs() != self.from_crs {
             return Err(Error::CrsMismatch {

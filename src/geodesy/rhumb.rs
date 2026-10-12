@@ -62,6 +62,21 @@ const POLE_TOLERANCE: f64 = 1e-12;
 /// [`Error::OutOfRange`] for an out-of-range position, and
 /// [`Error::CrsMismatch`] when the points' CRSs differ or are GCJ-02 / BD-09
 /// (obfuscated renderings with no ellipsoid; convert them to WGS-84 first).
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, Error, geodesy::{geodesic_distance, rhumb_distance}};
+///
+/// // Along a parallel the rhumb line is longer than the geodesic.
+/// let (a, b) = (Coordinate::wgs84(60.0, -10.0)?, Coordinate::wgs84(60.0, 30.0)?);
+/// assert!(rhumb_distance(&a, &b)?.meters() > geodesic_distance(&a, &b)?.meters() + 10_000.0);
+/// // Along a meridian the two agree.
+/// let north = Coordinate::wgs84(70.0, -10.0)?;
+/// let gap = rhumb_distance(&a, &north)?.meters() - geodesic_distance(&a, &north)?.meters();
+/// assert!(gap.abs() < 1e-3);
+/// let bd = Coordinate::new(39.9, 116.4, Crs::Bd09)?;
+/// assert!(matches!(rhumb_distance(&bd, &bd), Err(Error::CrsMismatch { .. })));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
     let series = series_for_pair(a, b)?;
     let (phi1, phi2) = (a.lat().to_radians(), b.lat().to_radians());
@@ -91,6 +106,23 @@ pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 /// As for [`rhumb_distance`], and [`Error::InvalidValue`] (`field: "points"`)
 /// for coincident points (including one pole named at two longitudes), which
 /// have no bearing, as for [`initial_bearing`](super::geodesic::initial_bearing).
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, geodesy::rhumb_bearing};
+///
+/// // Along a parallel the constant bearing is due east (or west).
+/// let a = Coordinate::wgs84(60.0, -10.0)?;
+/// assert!((rhumb_bearing(&a, &Coordinate::wgs84(60.0, 30.0)?)? - 90.0).abs() < 1e-9);
+/// // Toward the north pole it is 0° from any longitude.
+/// assert_eq!(rhumb_bearing(&a, &Coordinate::wgs84(90.0, 123.0)?)?, 0.0);
+/// // One pole named at two longitudes is still one place.
+/// let (p1, p2) = (Coordinate::wgs84(90.0, 0.0)?, Coordinate::wgs84(90.0, 45.0)?);
+/// assert!(matches!(
+///     rhumb_bearing(&p1, &p2),
+///     Err(Error::InvalidValue { field: "points", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
     let series = series_for_pair(a, b)?;
     if a.lat() == b.lat() && (a.lat().abs() == 90.0 || shortest_d_lon(a, b) == 0.0) {
@@ -131,6 +163,21 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 /// bearing other than 0° or 180° from a pole; and [`Error::InvalidValue`]
 /// (`field: "distance"`) when a bearing other than 0° or 180° would carry the
 /// line to or past a pole, which it only approaches in the limit.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, Length, geodesy::rhumb_destination};
+///
+/// // A constant 90° heading keeps its latitude.
+/// let start = Coordinate::wgs84(45.0, 7.0)?;
+/// let east = rhumb_destination(&start, 90.0, Length::from_meters(100_000.0))?;
+/// assert!((east.lat() - 45.0).abs() < 1e-9 && east.lon() > 7.0);
+/// // A north-east heading spirals into the pole and never reaches it.
+/// assert!(matches!(
+///     rhumb_destination(&start, 45.0, Length::from_meters(20_000_000.0)),
+///     Err(Error::InvalidValue { field: "distance", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn rhumb_destination(
     start: &Coordinate,
     bearing_deg: f64,
