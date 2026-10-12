@@ -69,8 +69,8 @@ fn maidenhead_encoder_output_always_validates() {
 
 #[test]
 fn geohash_longer_than_twelve_is_rejected() {
-    // Twelve characters already resolve ~19 mm x 37 mm; a longer string
-    // carries bits an `f64` degree cannot hold.
+    // Twelve characters already resolve ~37 mm x 19 mm, finer than any real
+    // positioning, so a longer string adds only spurious precision.
     assert!(Geohash::try_from("u4pruydqqvjz").is_ok());
     assert_invalid_grid_ref(Geohash::try_from("u4pruydqqvjzz"));
     assert_invalid_value(Geohash::encode(wgs(0.0, 0.0), 13), "geohash length");

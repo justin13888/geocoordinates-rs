@@ -10,8 +10,11 @@ use crate::error::{Error, Result};
 const GEOHASH_ALPHABET: &[u8; 32] = b"0123456789bcdefghjkmnpqrstuvwxyz";
 
 /// The longest geohash accepted by [`Geohash::encode`] and
-/// `TryFrom<&str>`: twelve characters resolve a cell of about 37 mm × 19 mm,
-/// and a longer one carries bits finer than an `f64` degree near ±180° holds.
+/// `TryFrom<&str>`: twelve characters already resolve a cell of about
+/// 37 mm × 19 mm, finer than any real positioning fix, so a longer code adds
+/// only spurious precision. (An `f64` still holds it: thirteen characters
+/// resolve 360°/2³³ ≈ 4.2e-8° of longitude, far above `f64`'s ≈ 2.8e-14°
+/// near ±180°.)
 pub(super) const GEOHASH_MAX_LENGTH: u8 = 12;
 
 /// A validated geohash string (base-32, 1–12 characters), e.g. `dr5regy`.
