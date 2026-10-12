@@ -2,8 +2,10 @@
 
 use geocoordinates::fix::AxisOrder;
 use geocoordinates::format::{
-    FormatOptions, HemisphereStyle, Representation, SymbolStyle, format, format_fix,
+    DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
+    format_fix,
 };
+use geocoordinates::grids::MgrsPrecision;
 use geocoordinates::parse::text::{TextParseOptions, parse as parse_text, parse_with};
 use geocoordinates::parse::{from_geo_uri, parse_coordinate, parse_coordinate_with};
 use geocoordinates::{Accuracy, Coordinate, Crs, Fix, Height};
@@ -31,12 +33,43 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     let retagged = Coordinate::new(reparsed_mars.lat(), reparsed_mars.lon(), Crs::Gcj02)?;
     assert_within_meters(&retagged, &mars, 0.2);
 
-    for representation in [
-        Representation::DecimalDegrees,
-        Representation::Dms,
-        Representation::Ddm,
-        Representation::PlusCode,
-    ] {
+    // Each representation carries only the settings that apply to it, and
+    // every grid with a string form renders through the same `format`.
+    let representations = [
+        (
+            Representation::DecimalDegrees {
+                decimals: Some(4),
+                hemisphere: HemisphereStyle::Signed,
+            },
+            "40.7128, -74.0060",
+        ),
+        (
+            Representation::Dms {
+                second_decimals: Some(1),
+                symbols: SymbolStyle::Unicode,
+                hemisphere: HemisphereStyle::Cardinal,
+            },
+            "40°42′46.1″N 74°00′21.6″W",
+        ),
+        (
+            Representation::Ddm {
+                minute_decimals: Some(3),
+                symbols: SymbolStyle::Unicode,
+                hemisphere: HemisphereStyle::Cardinal,
+            },
+            "40°42.768′N 74°00.360′W",
+        ),
+        (Representation::PlusCode { length: 10 }, "87G7PX7V+4J"),
+        (Representation::Geohash { length: 7 }, "dr5regw"),
+        (Representation::Maidenhead { pairs: 3 }, "FN20xr"),
+        (
+            Representation::Mgrs {
+                precision: MgrsPrecision::M10,
+            },
+            "18TWL83950735",
+        ),
+    ];
+    for (representation, expected) in representations {
         let rendered = format(
             &new_york,
             &FormatOptions {
@@ -44,7 +77,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
                 ..FormatOptions::default()
             },
         )?;
-        assert!(!rendered.is_empty());
+        assert_eq!(rendered, expected);
     }
 
     let symbols = [
@@ -52,15 +85,16 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         (SymbolStyle::Ascii, "10°30'00\"N 20°15'00\"E"),
         (SymbolStyle::Letters, "10d30m00sN 20d15m00sE"),
     ];
-    for (symbol_style, expected) in symbols {
+    for (symbols, expected) in symbols {
         let rendered = format(
             &Coordinate::wgs84(10.5, 20.25)?,
             &FormatOptions {
-                representation: Representation::Dms,
-                precision: Some(0),
-                symbol_style,
-                hemisphere_style: HemisphereStyle::Cardinal,
-                locale: None,
+                representation: Representation::Dms {
+                    second_decimals: Some(0),
+                    symbols,
+                    hemisphere: HemisphereStyle::Cardinal,
+                },
+                decimal_separator: DecimalSeparator::Point,
             },
         )?;
         assert_eq!(rendered, expected);
@@ -69,22 +103,36 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         format(
             &new_york,
             &FormatOptions {
-                hemisphere_style: HemisphereStyle::Cardinal,
+                representation: Representation::DecimalDegrees {
+                    decimals: None,
+                    hemisphere: HemisphereStyle::Cardinal,
+                },
                 ..FormatOptions::default()
             },
         )?,
         "40.712800 N, 74.006000 W"
     );
+    // The locale heuristic picks the separator; the options carry only it.
+    assert_eq!(
+        DecimalSeparator::for_locale("de-DE"),
+        DecimalSeparator::Comma
+    );
+    assert_eq!(
+        DecimalSeparator::for_locale("de-CH"),
+        DecimalSeparator::Point
+    );
     assert_eq!(
         format(
             &new_york,
             &FormatOptions {
-                locale: Some("de-DE".to_owned()),
+                decimal_separator: DecimalSeparator::for_locale("de-DE"),
                 ..FormatOptions::default()
             },
         )?,
         "40,712800 -74,006000"
     );
+    // The default options leave the decimal count unset, so `format_fix`
+    // derives it from the fix's accuracy.
     let low_accuracy = Fix {
         coord: new_york,
         accuracy: Some(Accuracy {
@@ -95,14 +143,24 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         source: None,
     };
     assert_eq!(
-        format_fix(
-            &low_accuracy,
-            &FormatOptions {
-                precision: None,
-                ..FormatOptions::default()
-            }
-        )?,
+        format_fix(&low_accuracy, &FormatOptions::default())?,
         "40.71, -74.01"
+    );
+    // A value that rounds to zero renders unsigned, so it re-parses to the
+    // same rendering.
+    let near_equator = Coordinate::wgs84(-1e-9, 10.0)?;
+    let cardinal = FormatOptions {
+        representation: Representation::DecimalDegrees {
+            decimals: Some(2),
+            hemisphere: HemisphereStyle::Cardinal,
+        },
+        ..FormatOptions::default()
+    };
+    let rendered = format(&near_equator, &cardinal)?;
+    assert_eq!(rendered, "0.00 N, 10.00 E");
+    assert_eq!(
+        format(&parse_coordinate(&rendered)?.coord, &cardinal)?,
+        rendered
     );
 
     let dms = parse_text("40°42′46″N 74°00′22″W")?;
@@ -160,25 +218,29 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     let letters = format(
         &new_york,
         &FormatOptions {
-            representation: Representation::Dms,
-            symbol_style: SymbolStyle::Letters,
-            hemisphere_style: HemisphereStyle::Cardinal,
+            representation: Representation::Dms {
+                second_decimals: None,
+                symbols: SymbolStyle::Letters,
+                hemisphere: HemisphereStyle::Cardinal,
+            },
             ..FormatOptions::default()
         },
     )?;
     assert_within_meters(&parse_coordinate(&letters)?.coord, &new_york, 0.5);
     let german = FormatOptions {
-        representation: Representation::Ddm,
-        locale: Some("de-DE".to_owned()),
-        ..FormatOptions::default()
+        representation: Representation::Ddm {
+            minute_decimals: None,
+            symbols: SymbolStyle::Unicode,
+            hemisphere: HemisphereStyle::Signed,
+        },
+        decimal_separator: DecimalSeparator::for_locale("de-DE"),
     };
-    assert!(german.uses_decimal_comma());
     let rendered = format(&new_york, &german)?;
     assert!(parse_coordinate(&rendered).is_err());
     let reparsed = parse_coordinate_with(
         &rendered,
         &TextParseOptions {
-            decimal_comma: german.uses_decimal_comma(),
+            decimal_comma: german.decimal_separator == DecimalSeparator::Comma,
             ..TextParseOptions::default()
         },
     )?;

@@ -33,19 +33,18 @@ const OUT_OF_RANGE: Coordinate = Coordinate {
     crs: Crs::Wgs84,
 };
 
-fn opts(
-    representation: Representation,
-    precision: Option<u8>,
-    symbol_style: SymbolStyle,
-    hemisphere_style: HemisphereStyle,
-    locale: Option<&str>,
-) -> FormatOptions {
+/// Options for `representation` with a point separator.
+fn opts(representation: Representation) -> FormatOptions {
     FormatOptions {
         representation,
-        precision,
-        symbol_style,
-        hemisphere_style,
-        locale: locale.map(String::from),
+        decimal_separator: DecimalSeparator::Point,
+    }
+}
+
+fn dd(decimals: Option<u8>) -> Representation {
+    Representation::DecimalDegrees {
+        decimals,
+        hemisphere: HemisphereStyle::Signed,
     }
 }
 
@@ -93,14 +92,9 @@ fn exports_reject_a_hand_built_out_of_range_record() {
     assert!(is_out_of_range(
         geodesic_distance_m(bad, wgs84(0.0, 0.0)).unwrap_err()
     ));
-    let dd = opts(
-        Representation::DecimalDegrees,
-        Some(4),
-        SymbolStyle::Unicode,
-        HemisphereStyle::Signed,
-        None,
-    );
-    assert!(is_out_of_range(format_coordinate(bad, dd).unwrap_err()));
+    assert!(is_out_of_range(
+        format_coordinate(bad, opts(dd(Some(4)))).unwrap_err()
+    ));
 }
 
 // --- China datums: exact forward ---
@@ -450,58 +444,76 @@ fn confidence_new_clamps_into_the_unit_interval() {
 #[test]
 fn format_coordinate_renders_each_representation() {
     let ny = wgs84(40.7128, -74.006);
-    let dd = opts(
-        Representation::DecimalDegrees,
-        Some(6),
-        SymbolStyle::Unicode,
-        HemisphereStyle::Signed,
-        None,
+    assert_eq!(
+        format_coordinate(ny, opts(dd(Some(6)))).unwrap(),
+        "40.712800, -74.006000"
     );
-    assert_eq!(format_coordinate(ny, dd).unwrap(), "40.712800, -74.006000");
-    let dms = opts(
-        Representation::Dms,
-        Some(0),
-        SymbolStyle::Unicode,
-        HemisphereStyle::Cardinal,
-        None,
-    );
+    let dms = opts(Representation::Dms {
+        second_decimals: Some(0),
+        symbols: SymbolStyle::Unicode,
+        hemisphere: HemisphereStyle::Cardinal,
+    });
     assert_eq!(
         format_coordinate(wgs84(10.5, 20.25), dms).unwrap(),
         "10°30′00″N 20°15′00″E"
     );
-    let ddm = opts(
-        Representation::Ddm,
-        Some(3),
-        SymbolStyle::Ascii,
-        HemisphereStyle::Cardinal,
-        None,
-    );
+    let ddm = opts(Representation::Ddm {
+        minute_decimals: Some(3),
+        symbols: SymbolStyle::Ascii,
+        hemisphere: HemisphereStyle::Cardinal,
+    });
     assert_eq!(
         format_coordinate(ny, ddm).unwrap(),
         "40°42.768'N 74°00.360'W"
     );
-    let plus = opts(
-        Representation::PlusCode,
-        None,
-        SymbolStyle::Unicode,
-        HemisphereStyle::Signed,
-        None,
-    );
+    let plus = opts(Representation::PlusCode { length: 10 });
     assert_eq!(
         format_coordinate(wgs84(47.000_062_5, 8.000_062_5), plus).unwrap(),
         "8FVC2222+22"
     );
+    let geohash = opts(Representation::Geohash { length: 5 });
+    assert_eq!(
+        format_coordinate(wgs84(42.6, -5.6), geohash).unwrap(),
+        "ezs42"
+    );
+    let maidenhead = opts(Representation::Maidenhead { pairs: 2 });
+    assert_eq!(
+        format_coordinate(wgs84(40.5, -75.0), maidenhead).unwrap(),
+        "FN20"
+    );
+    let mgrs = opts(Representation::Mgrs {
+        precision: MgrsPrecision::M1,
+    });
+    assert_eq!(
+        format_coordinate(wgs84(40.0, -75.0), mgrs).unwrap(),
+        "18TWK0000027757"
+    );
 }
 
 #[test]
-fn format_coordinate_honours_a_decimal_comma_locale() {
-    let de = opts(
-        Representation::DecimalDegrees,
-        Some(2),
-        SymbolStyle::Unicode,
-        HemisphereStyle::Signed,
-        Some("de-DE"),
-    );
+fn format_coordinate_reports_typed_errors() {
+    let ny = wgs84(40.7128, -74.006);
+    match format_coordinate(ny, opts(dd(Some(16)))) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "decimals"),
+        other => panic!("expected InvalidValue, got {other:?}"),
+    }
+    assert!(matches!(
+        format_coordinate(ny, opts(Representation::Geohash { length: 13 })),
+        Err(GeoError::InvalidValue { .. })
+    ));
+    let gcj = coordinate_new(39.915, 116.404, Crs::Gcj02).unwrap();
+    assert!(matches!(
+        format_coordinate(gcj, opts(Representation::Maidenhead { pairs: 3 })),
+        Err(GeoError::CrsMismatch { .. })
+    ));
+}
+
+#[test]
+fn format_coordinate_honours_a_comma_separator() {
+    let de = FormatOptions {
+        representation: dd(Some(2)),
+        decimal_separator: decimal_separator_for_locale("de-DE".to_string()),
+    };
     assert_eq!(
         format_coordinate(wgs84(40.7128, -74.006), de).unwrap(),
         "40,71 -74,01"
@@ -519,31 +531,34 @@ fn format_fix_derives_precision_from_accuracy() {
         timestamp: None,
         source: None,
     };
-    let auto = opts(
-        Representation::DecimalDegrees,
-        None,
-        SymbolStyle::Unicode,
-        HemisphereStyle::Signed,
-        None,
+    assert_eq!(
+        format_fix(fix.clone(), opts(dd(None))).unwrap(),
+        "40.71, -74.01"
     );
-    assert_eq!(format_fix(fix, auto).unwrap(), "40.71, -74.01");
+    // The default options leave the decimal count unset, so they derive it too.
+    assert_eq!(
+        format_fix(fix, format_options_default()).unwrap(),
+        "40.71, -74.01"
+    );
 }
 
 #[test]
-fn format_options_uses_decimal_comma_follows_the_locale() {
-    let with = |locale: Option<&str>| {
-        format_options_uses_decimal_comma(opts(
-            Representation::DecimalDegrees,
-            None,
-            SymbolStyle::Unicode,
-            HemisphereStyle::Signed,
-            locale,
-        ))
-    };
-    assert!(!with(None));
-    assert!(!with(Some("en-US")));
-    assert!(with(Some("de-DE")));
-    assert!(with(Some("fr_CA")));
+fn format_options_default_is_signed_dd_with_a_point() {
+    assert_eq!(format_options_default(), opts(dd(None)));
+    assert_eq!(
+        format_coordinate(wgs84(40.7128, -74.006), format_options_default()).unwrap(),
+        "40.712800, -74.006000"
+    );
+}
+
+#[test]
+fn decimal_separator_for_locale_follows_the_heuristic() {
+    let sep = |tag: &str| decimal_separator_for_locale(tag.to_string());
+    assert_eq!(sep("en-US"), DecimalSeparator::Point);
+    assert_eq!(sep("de-DE"), DecimalSeparator::Comma);
+    assert_eq!(sep("fr_CA"), DecimalSeparator::Comma);
+    assert_eq!(sep("de-CH"), DecimalSeparator::Point);
+    assert_eq!(sep("not a tag"), DecimalSeparator::Point);
 }
 
 // --- Parsing ---

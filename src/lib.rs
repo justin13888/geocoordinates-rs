@@ -58,7 +58,7 @@ pub mod geodesy;
 pub mod units;
 
 pub mod convert; // runtime CRS dispatch (China typed + classic-datum Helmert)
-pub mod format; // DD/DMS/DDM/Plus Code presentation
+pub mod format; // DD/DMS/DDM and grid-string presentation
 pub mod grids; // Plus Code, Geohash, Maidenhead, UTM/UPS, MGRS
 pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 
@@ -101,7 +101,10 @@ pub mod prelude {
     pub use crate::geodesy::haversine_distance;
 
     pub use crate::convert::{can_convert, convert};
-    pub use crate::format::{FormatOptions, Representation, format, format_fix};
+    pub use crate::format::{
+        DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
+        format_fix,
+    };
     pub use crate::geodesy::{
         Aer, Ecef, Ellipsoid, Enu, Ned, along_track_distance, cross_track_distance, destination,
         final_bearing, geodesic_distance, initial_bearing, intermediate, intersection, midpoint,

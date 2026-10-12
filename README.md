@@ -19,7 +19,7 @@ subsystem meets the five-point stabilization bar defined in
 | **Angles & units** | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees`, `Length`, `LengthUnit` | ✅ | ✅ |
 | **China datums** | `Wgs84`, `Gcj02`, `Bd09` (exact forward, `_fast` / `_refined` inverses), `BaiduMercator`, `out_of_china` | ✅ | ⚠️ G3, G5 |
 | **Runtime dispatch** | `convert`, `can_convert` | ✅ | ✅ |
-| **Format** | `format`, `format_fix`, `FormatOptions`, `Representation`, `SymbolStyle`, `HemisphereStyle` | ⚠️ G16 | ✅ |
+| **Format** | `format`, `format_fix`, `FormatOptions`, `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ⚠️ G16 | ✅ |
 | **Parse** | `parse_coordinate`, `parse_coordinate_with`, `from_geo_uri`, `text::parse`, `text::parse_with`, `TextParseOptions` | ⚠️ G16 | ✅ |
 | **Interchange & sensors** *(feature-gated)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
 | **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate`, `intersection`, rhumb and cross/along-track utilities, `Helmert`, `DatumTransform` | ⚠️ G9 | ⚠️ G5 |

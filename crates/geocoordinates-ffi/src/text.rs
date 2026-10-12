@@ -3,21 +3,72 @@
 
 use geocoordinates as gc;
 
-use crate::{AxisOrder, Coordinate, Fix, GeoError};
+use crate::{AxisOrder, Coordinate, Fix, GeoError, MgrsPrecision};
 
 // --- Coordinate formatting (mirror of `gc::format`) ---
 
-/// Target representation for rendering — mirror of [`gc::format::Representation`].
+/// Target representation for rendering, carrying the settings that apply to
+/// it — mirror of [`gc::format::Representation`].
+///
+/// An unset decimal count (`None`) lets [`format_fix`] derive it from the
+/// fix's accuracy, and otherwise uses the default (DD 6, DMS 2, DDM 3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum Representation {
     /// Decimal degrees (`40.712800, -74.006000`).
-    DecimalDegrees,
-    /// Degrees-minutes-seconds (`40°42′46″N 74°00′22″W`).
-    Dms,
-    /// Degrees-decimal-minutes (`40°42.766′N`).
-    Ddm,
+    DecimalDegrees {
+        /// Decimal places of degrees, at most 15.
+        decimals: Option<u8>,
+        /// Sign or cardinal letter.
+        hemisphere: HemisphereStyle,
+    },
+    /// Degrees-minutes-seconds (`40°42′46.08″N 74°00′21.60″W`).
+    Dms {
+        /// Decimal places of arcseconds, at most 15.
+        second_decimals: Option<u8>,
+        /// Degree / minute / second glyphs.
+        symbols: SymbolStyle,
+        /// Sign or cardinal letter.
+        hemisphere: HemisphereStyle,
+    },
+    /// Degrees-decimal-minutes (`40°42.768′N 74°00.360′W`).
+    Ddm {
+        /// Decimal places of arcminutes, at most 15.
+        minute_decimals: Option<u8>,
+        /// Degree / minute glyphs.
+        symbols: SymbolStyle,
+        /// Sign or cardinal letter.
+        hemisphere: HemisphereStyle,
+    },
     /// Open Location Code / Plus Code (`8FVC2222+22`).
-    PlusCode,
+    PlusCode {
+        /// Code length: 2, 4, 6, 8, or 10 through 15.
+        length: u8,
+    },
+    /// Geohash (`ezs42`).
+    Geohash {
+        /// Character count, 1 through 12.
+        length: u8,
+    },
+    /// Maidenhead locator (`FN20`).
+    Maidenhead {
+        /// Letter/digit pairs, 1 through 3.
+        pairs: u8,
+    },
+    /// MGRS reference (`18TWK0000027757`).
+    Mgrs {
+        /// The square size.
+        precision: MgrsPrecision,
+    },
+}
+
+/// Decimal separator — mirror of [`gc::format::DecimalSeparator`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum DecimalSeparator {
+    /// `.` (`40.712800, -74.006000`).
+    Point,
+    /// `,`; the two components are then separated by whitespace
+    /// (`40,712800 -74,006000`).
+    Comma,
 }
 
 /// Symbol style for DMS/DDM rendering — mirror of [`gc::format::SymbolStyle`].
@@ -42,19 +93,13 @@ pub enum HemisphereStyle {
 
 /// Options controlling how a coordinate is rendered — mirror of
 /// [`gc::FormatOptions`](gc::format::FormatOptions).
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
 pub struct FormatOptions {
-    /// Target representation.
+    /// Target representation and its settings.
     pub representation: Representation,
-    /// Decimal places (DD) or sub-second/minute precision; `None` → a sensible
-    /// per-representation default.
-    pub precision: Option<u8>,
-    /// Symbol style for DMS/DDM.
-    pub symbol_style: SymbolStyle,
-    /// Hemisphere rendering.
-    pub hemisphere_style: HemisphereStyle,
-    /// BCP-47 locale tag for number formatting (e.g. decimal comma).
-    pub locale: Option<String>,
+    /// Decimal separator for the angle representations (the grids ignore
+    /// it); pick it from a locale with [`decimal_separator_for_locale`].
+    pub decimal_separator: DecimalSeparator,
 }
 
 /// Options controlling tolerant text parsing — mirror of
@@ -69,22 +114,96 @@ pub struct TextParseOptions {
 
 impl From<gc::format::Representation> for Representation {
     fn from(r: gc::format::Representation) -> Self {
+        use gc::format::Representation as R;
         match r {
-            gc::format::Representation::DecimalDegrees => Representation::DecimalDegrees,
-            gc::format::Representation::Dms => Representation::Dms,
-            gc::format::Representation::Ddm => Representation::Ddm,
-            gc::format::Representation::PlusCode => Representation::PlusCode,
+            R::DecimalDegrees {
+                decimals,
+                hemisphere,
+            } => Representation::DecimalDegrees {
+                decimals,
+                hemisphere: hemisphere.into(),
+            },
+            R::Dms {
+                second_decimals,
+                symbols,
+                hemisphere,
+            } => Representation::Dms {
+                second_decimals,
+                symbols: symbols.into(),
+                hemisphere: hemisphere.into(),
+            },
+            R::Ddm {
+                minute_decimals,
+                symbols,
+                hemisphere,
+            } => Representation::Ddm {
+                minute_decimals,
+                symbols: symbols.into(),
+                hemisphere: hemisphere.into(),
+            },
+            R::PlusCode { length } => Representation::PlusCode { length },
+            R::Geohash { length } => Representation::Geohash { length },
+            R::Maidenhead { pairs } => Representation::Maidenhead { pairs },
+            R::Mgrs { precision } => Representation::Mgrs {
+                precision: precision.into(),
+            },
         }
     }
 }
 
 impl From<Representation> for gc::format::Representation {
     fn from(r: Representation) -> Self {
+        use gc::format::Representation as R;
         match r {
-            Representation::DecimalDegrees => gc::format::Representation::DecimalDegrees,
-            Representation::Dms => gc::format::Representation::Dms,
-            Representation::Ddm => gc::format::Representation::Ddm,
-            Representation::PlusCode => gc::format::Representation::PlusCode,
+            Representation::DecimalDegrees {
+                decimals,
+                hemisphere,
+            } => R::DecimalDegrees {
+                decimals,
+                hemisphere: hemisphere.into(),
+            },
+            Representation::Dms {
+                second_decimals,
+                symbols,
+                hemisphere,
+            } => R::Dms {
+                second_decimals,
+                symbols: symbols.into(),
+                hemisphere: hemisphere.into(),
+            },
+            Representation::Ddm {
+                minute_decimals,
+                symbols,
+                hemisphere,
+            } => R::Ddm {
+                minute_decimals,
+                symbols: symbols.into(),
+                hemisphere: hemisphere.into(),
+            },
+            Representation::PlusCode { length } => R::PlusCode { length },
+            Representation::Geohash { length } => R::Geohash { length },
+            Representation::Maidenhead { pairs } => R::Maidenhead { pairs },
+            Representation::Mgrs { precision } => R::Mgrs {
+                precision: precision.into(),
+            },
+        }
+    }
+}
+
+impl From<gc::format::DecimalSeparator> for DecimalSeparator {
+    fn from(s: gc::format::DecimalSeparator) -> Self {
+        match s {
+            gc::format::DecimalSeparator::Point => DecimalSeparator::Point,
+            gc::format::DecimalSeparator::Comma => DecimalSeparator::Comma,
+        }
+    }
+}
+
+impl From<DecimalSeparator> for gc::format::DecimalSeparator {
+    fn from(s: DecimalSeparator) -> Self {
+        match s {
+            DecimalSeparator::Point => gc::format::DecimalSeparator::Point,
+            DecimalSeparator::Comma => gc::format::DecimalSeparator::Comma,
         }
     }
 }
@@ -131,10 +250,7 @@ impl From<gc::format::FormatOptions> for FormatOptions {
     fn from(o: gc::format::FormatOptions) -> Self {
         FormatOptions {
             representation: o.representation.into(),
-            precision: o.precision,
-            symbol_style: o.symbol_style.into(),
-            hemisphere_style: o.hemisphere_style.into(),
-            locale: o.locale,
+            decimal_separator: o.decimal_separator.into(),
         }
     }
 }
@@ -143,10 +259,7 @@ impl From<FormatOptions> for gc::format::FormatOptions {
     fn from(o: FormatOptions) -> Self {
         gc::format::FormatOptions {
             representation: o.representation.into(),
-            precision: o.precision,
-            symbol_style: o.symbol_style.into(),
-            hemisphere_style: o.hemisphere_style.into(),
-            locale: o.locale,
+            decimal_separator: o.decimal_separator.into(),
         }
     }
 }
@@ -171,11 +284,34 @@ impl From<TextParseOptions> for gc::parse::text::TextParseOptions {
 
 // --- Coordinate formatting ---
 
+/// The default options: signed decimal degrees with the decimal count unset
+/// (6 for a bare coordinate, derived from accuracy by [`format_fix`]) and a
+/// point separator.
+#[uniffi::export]
+pub fn format_options_default() -> FormatOptions {
+    gc::format::FormatOptions::default().into()
+}
+
+/// The decimal separator a BCP-47 locale tag conventionally uses.
+///
+/// A **heuristic**, not locale data: a small allowlist of decimal-comma
+/// languages, overridden by the regions known to use a point (`de-CH`,
+/// `es-MX`, …). An unknown or malformed tag yields `Point`. Set
+/// [`TextParseOptions::decimal_comma`] when this is `Comma` to re-parse the
+/// output with [`parse_coordinate_with`].
+#[uniffi::export]
+pub fn decimal_separator_for_locale(tag: String) -> DecimalSeparator {
+    gc::format::DecimalSeparator::for_locale(&tag).into()
+}
+
 /// Render a coordinate to a string using the given options.
 ///
 /// # Errors
-/// Returns a [`GeoError`] if the representation is undefined for the coordinate
-/// (the DD/DMS/DDM representations never fail).
+/// - `GeoError::OutOfRange` for an out-of-range coordinate record.
+/// - `GeoError::InvalidValue` when a decimal count exceeds 15, or a grid
+///   representation's size is outside the range its variant documents.
+/// - `GeoError::CrsMismatch` when a grid representation is asked to render a
+///   non-WGS-84 coordinate.
 #[uniffi::export]
 pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<String, GeoError> {
     let coord: gc::Coordinate = coord.try_into()?;
@@ -183,8 +319,8 @@ pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<St
     gc::format::format(&coord, &options).map_err(GeoError::from)
 }
 
-/// Render a [`Fix`] to a string, deriving display precision from its accuracy
-/// when `options.precision` is `None`.
+/// Render a [`Fix`] to a string, deriving the decimal count from its accuracy
+/// where the representation leaves it unset.
 ///
 /// # Errors
 /// As [`format_coordinate`].
@@ -193,16 +329,6 @@ pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> 
     let fix: gc::Fix = fix.try_into()?;
     let options: gc::format::FormatOptions = options.into();
     gc::format::format_fix(&fix, &options).map_err(GeoError::from)
-}
-
-/// Whether `options` render `,` as the decimal separator (the locale's primary
-/// language uses a decimal comma). Pass it as
-/// [`TextParseOptions::decimal_comma`] to re-parse the output with
-/// [`parse_coordinate_with`].
-#[uniffi::export]
-pub fn format_options_uses_decimal_comma(options: FormatOptions) -> bool {
-    let options: gc::format::FormatOptions = options.into();
-    options.uses_decimal_comma()
 }
 
 // --- Coordinate parsing ---
@@ -222,7 +348,8 @@ pub fn parse_coordinate(input: String) -> Result<Fix, GeoError> {
 
 /// [`parse_coordinate`] with explicit options for the free-text fallback
 /// (`geo:` URIs and Plus Codes ignore them). Re-parses decimal-comma output
-/// when `decimal_comma` comes from [`format_options_uses_decimal_comma`].
+/// when `decimal_comma` is set exactly when the [`FormatOptions`]'
+/// `decimal_separator` is `Comma`.
 ///
 /// # Errors
 /// Returns a [`GeoError`] when no interpretation is found.
