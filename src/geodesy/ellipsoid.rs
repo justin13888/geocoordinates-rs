@@ -95,7 +95,9 @@ impl Ellipsoid {
 
     /// The Airy-1830 ellipsoid (OSGB36 / Ordnance Survey of Great Britain).
     ///
-    /// No built-in [`Crs`] uses it; it parameterizes user-built transforms.
+    /// No built-in [`Crs`] uses it, so [`Ellipsoid::for_crs`] never returns it
+    /// and no transform in this crate is parameterized by it; it is provided
+    /// as a reference value only.
     ///
     /// ```
     /// use geocoordinates::geodesy::Ellipsoid;
