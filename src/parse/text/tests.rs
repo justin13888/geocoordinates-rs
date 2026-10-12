@@ -2,8 +2,17 @@ use super::normalize::{is_isolated, rewrite_decimal_comma, rewrite_unit_letters,
 use super::*;
 use crate::test_support::assert_close;
 
+use crate::parse::AxisOrder;
+
 fn source(fix: &Fix) -> &RawSource {
     fix.source.as_ref().expect("text parse records a source")
+}
+
+fn comma_options() -> ParseOptions {
+    ParseOptions {
+        decimal_separator: DecimalSeparator::Comma,
+        ..ParseOptions::default()
+    }
 }
 
 #[test]
@@ -71,10 +80,7 @@ fn space_separated_ddm_with_suffix_hemispheres() {
 
 #[test]
 fn decimal_comma_option() {
-    let opts = TextParseOptions {
-        decimal_comma: true,
-        default_axis_order: AxisOrder::LatLon,
-    };
+    let opts = comma_options();
     let fix = parse_with("40,7128 -74,006", &opts).unwrap();
     assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_close(fix.coord.lon(), -74.006, 1e-9);
@@ -84,9 +90,9 @@ fn decimal_comma_option() {
 
 #[test]
 fn default_lonlat_swaps_assignment() {
-    let opts = TextParseOptions {
-        decimal_comma: false,
+    let opts = ParseOptions {
         default_axis_order: AxisOrder::LonLat,
+        ..ParseOptions::default()
     };
     let fix = parse_with("-74.006, 40.7128", &opts).unwrap();
     assert_close(fix.coord.lon(), -74.006, 1e-9);
@@ -219,10 +225,7 @@ fn letter_markers_parse_like_symbols() {
         assert_close(fix.coord.lon(), lon, 1e-9);
     }
     // Letter markers combine with the decimal-comma option.
-    let opts = TextParseOptions {
-        decimal_comma: true,
-        default_axis_order: AxisOrder::LatLon,
-    };
+    let opts = comma_options();
     let fix = parse_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
     assert_close(fix.coord.lat(), -lat, 1e-9);
     assert_close(fix.coord.lon(), lon, 1e-9);
@@ -233,6 +236,12 @@ fn split_two_rejects_half_empty_comma_split() {
     // "5," splits to ("5", "") on the comma; the empty half must not be
     // returned as a component pair.
     assert!(split_two("5,", false).is_none());
+    // `;` separates only decimal-comma text, whose decimals are already `.`.
+    assert_eq!(
+        split_two("48.8566; 2.3522", true),
+        Some(("48.8566".to_string(), "2.3522".to_string()))
+    );
+    assert!(split_two("48.8566;2.3522", false).is_none());
     assert_eq!(
         split_two("40, -74", false),
         Some(("40".to_string(), "-74".to_string()))
@@ -247,4 +256,51 @@ fn is_isolated_excludes_word_letters() {
     assert!(!is_isolated(&word, 0)); // N before 'o'
     let flanked: Vec<char> = "aNa".chars().collect();
     assert!(!is_isolated(&flanked, 1)); // N between letters
+}
+
+#[test]
+fn concatenated_ddmm_needs_a_hemisphere_letter() {
+    // C12: four or more integer digits are DDMM only beside a hemisphere
+    // letter; bare, `1234.5` is no degree value at all, not 12°34.5′.
+    assert!(parse("1234.5, 10").is_err());
+    assert!(parse("10, 01234.5").is_err());
+    let fix = parse("1234.5N, 10E").unwrap();
+    assert_close(fix.coord.lat(), 12.0 + 34.5 / 60.0, 1e-9);
+}
+
+#[test]
+fn a_fractional_field_must_be_the_last_one() {
+    // C12: `40.5 30` is not 40.5° plus 30′; fractional degrees with minutes,
+    // or fractional minutes with seconds, are rejected rather than summed.
+    assert!(parse("40.5 30, 10").is_err());
+    assert!(parse("40.5 30 0, 10").is_err());
+    assert!(parse("40 30.5 10, 74").is_err());
+    assert!(parse("40.5°30′N 74°W").is_err());
+    // The last field may carry the fraction.
+    let fix = parse("40 30.5, 10").unwrap();
+    assert_close(fix.coord.lat(), 40.0 + 30.5 / 60.0, 1e-9);
+    let fix = parse("40 30 10.5, 74").unwrap();
+    assert_close(fix.coord.lat(), 40.0 + 30.0 / 60.0 + 10.5 / 3600.0, 1e-9);
+}
+
+#[test]
+fn exponent_notation_is_rejected() {
+    // C12: the `e` of `4e1` is neither East nor an exponent a coordinate is
+    // written with.
+    for input in ["4e1 3e1", "4E1 3E1", "4e1, 3e1", "40, 7e1", "4e1N 3e1W"] {
+        let r = parse(input);
+        assert!(r.is_err(), "{input:?}: {r:?}");
+    }
+}
+
+#[test]
+fn decimal_comma_text_splits_on_the_remaining_list_separators() {
+    // C12: with a decimal comma, the commas left after the decimal rewrite
+    // (and `;`) separate the two components.
+    let opts = comma_options();
+    for input in ["48,8566, 2,3522", "48,8566 , 2,3522", "48,8566; 2,3522"] {
+        let fix = parse_with(input, &opts).unwrap_or_else(|e| panic!("{input:?}: {e}"));
+        assert_close(fix.coord.lat(), 48.8566, 1e-9);
+        assert_close(fix.coord.lon(), 2.3522, 1e-9);
+    }
 }

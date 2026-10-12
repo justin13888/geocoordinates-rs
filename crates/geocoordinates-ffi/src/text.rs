@@ -102,14 +102,39 @@ pub struct FormatOptions {
     pub decimal_separator: DecimalSeparator,
 }
 
-/// Options controlling tolerant text parsing — mirror of
-/// [`gc::TextParseOptions`](gc::parse::text::TextParseOptions).
+/// A grid whose strings [`parse_coordinate_with`] can decode — mirror of
+/// [`gc::parse::GridKind`].
+///
+/// Plus Code and MGRS strings are always detected; Geohash and Maidenhead
+/// strings (`"42"` and `"bed"` are valid geohashes) only when
+/// [`ParseOptions::expect_grid`] names them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum GridKind {
+    /// Open Location Code / Plus Code (`8FVC2222+22`).
+    PlusCode,
+    /// Geohash (`ezs42`).
+    Geohash,
+    /// Maidenhead locator (`FN20`).
+    Maidenhead,
+    /// MGRS reference (`18TWK0000027757`).
+    Mgrs,
+}
+
+/// Options controlling [`parse_coordinate_with`] and [`parse_text_with`] —
+/// mirror of [`gc::parse::ParseOptions`]. Take them from
+/// [`format_options_parse_options`] to read back a rendering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
-pub struct TextParseOptions {
-    /// Axis order to assume when the range heuristics are inconclusive.
+pub struct ParseOptions {
+    /// Axis order to assume for free text when neither a hemisphere letter
+    /// nor the `|value| > 90` range rule decides it.
     pub default_axis_order: AxisOrder,
-    /// Whether to interpret `,` as a decimal separator (European locales).
-    pub decimal_comma: bool,
+    /// Decimal separator of free text. With `Comma`, a comma between two
+    /// digits is a decimal point, and the remaining commas, `;` and
+    /// whitespace separate the two components.
+    pub decimal_separator: DecimalSeparator,
+    /// A grid whose strings to try before anything but a `geo:` URI; needed
+    /// for `Geohash` and `Maidenhead`, which are never detected otherwise.
+    pub expect_grid: Option<GridKind>,
 }
 
 impl From<gc::format::Representation> for Representation {
@@ -264,20 +289,44 @@ impl From<FormatOptions> for gc::format::FormatOptions {
     }
 }
 
-impl From<gc::parse::text::TextParseOptions> for TextParseOptions {
-    fn from(o: gc::parse::text::TextParseOptions) -> Self {
-        TextParseOptions {
-            default_axis_order: o.default_axis_order.into(),
-            decimal_comma: o.decimal_comma,
+impl From<gc::parse::GridKind> for GridKind {
+    fn from(k: gc::parse::GridKind) -> Self {
+        match k {
+            gc::parse::GridKind::PlusCode => GridKind::PlusCode,
+            gc::parse::GridKind::Geohash => GridKind::Geohash,
+            gc::parse::GridKind::Maidenhead => GridKind::Maidenhead,
+            gc::parse::GridKind::Mgrs => GridKind::Mgrs,
         }
     }
 }
 
-impl From<TextParseOptions> for gc::parse::text::TextParseOptions {
-    fn from(o: TextParseOptions) -> Self {
-        gc::parse::text::TextParseOptions {
+impl From<GridKind> for gc::parse::GridKind {
+    fn from(k: GridKind) -> Self {
+        match k {
+            GridKind::PlusCode => gc::parse::GridKind::PlusCode,
+            GridKind::Geohash => gc::parse::GridKind::Geohash,
+            GridKind::Maidenhead => gc::parse::GridKind::Maidenhead,
+            GridKind::Mgrs => gc::parse::GridKind::Mgrs,
+        }
+    }
+}
+
+impl From<gc::parse::ParseOptions> for ParseOptions {
+    fn from(o: gc::parse::ParseOptions) -> Self {
+        ParseOptions {
             default_axis_order: o.default_axis_order.into(),
-            decimal_comma: o.decimal_comma,
+            decimal_separator: o.decimal_separator.into(),
+            expect_grid: o.expect_grid.map(Into::into),
+        }
+    }
+}
+
+impl From<ParseOptions> for gc::parse::ParseOptions {
+    fn from(o: ParseOptions) -> Self {
+        gc::parse::ParseOptions {
+            default_axis_order: o.default_axis_order.into(),
+            decimal_separator: o.decimal_separator.into(),
+            expect_grid: o.expect_grid.map(Into::into),
         }
     }
 }
@@ -296,9 +345,9 @@ pub fn format_options_default() -> FormatOptions {
 ///
 /// A **heuristic**, not locale data: a small allowlist of decimal-comma
 /// languages, overridden by the regions known to use a point (`de-CH`,
-/// `es-MX`, …). An unknown or malformed tag yields `Point`. Set
-/// [`TextParseOptions::decimal_comma`] when this is `Comma` to re-parse the
-/// output with [`parse_coordinate_with`].
+/// `es-MX`, …). An unknown or malformed tag yields `Point`. The same value
+/// as [`ParseOptions::decimal_separator`] re-parses the output with
+/// [`parse_coordinate_with`].
 #[uniffi::export]
 pub fn decimal_separator_for_locale(tag: String) -> DecimalSeparator {
     gc::format::DecimalSeparator::for_locale(&tag).into()
@@ -331,11 +380,28 @@ pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> 
     gc::format::format_fix(&fix, &options).map_err(GeoError::from)
 }
 
+/// The [`ParseOptions`] that read back every string `options` renders through
+/// [`parse_coordinate_with`]: lat-first, its decimal separator, and, for a
+/// grid representation, that grid as `expect_grid`.
+#[uniffi::export]
+pub fn format_options_parse_options(options: FormatOptions) -> ParseOptions {
+    let options: gc::format::FormatOptions = options.into();
+    options.parse_options().into()
+}
+
 // --- Coordinate parsing ---
 
-/// Best-effort parse of a single coordinate from arbitrary input (a `geo:` URI,
-/// a Plus Code, else free-text DD/DMS/DDM heuristics with default options).
-/// The [`Fix`] records the assumed axis order and parse confidence.
+/// The default parse options: lat-first, point decimals, no expected grid.
+#[uniffi::export]
+pub fn parse_options_default() -> ParseOptions {
+    gc::parse::ParseOptions::default().into()
+}
+
+/// Best-effort parse of a single coordinate from arbitrary input, with the
+/// default options: a `geo:` URI, a Plus Code, an MGRS reference, else
+/// free-text DD/DMS/DDM heuristics. Geohash and Maidenhead strings are not
+/// detected; ask for them with [`parse_coordinate_with`]. The [`Fix`] records
+/// the assumed axis order and parse confidence.
 ///
 /// # Errors
 /// Returns a [`GeoError`] when no interpretation is found.
@@ -346,16 +412,15 @@ pub fn parse_coordinate(input: String) -> Result<Fix, GeoError> {
         .map_err(GeoError::from)
 }
 
-/// [`parse_coordinate`] with explicit options for the free-text fallback
-/// (`geo:` URIs and Plus Codes ignore them). Re-parses decimal-comma output
-/// when `decimal_comma` is set exactly when the [`FormatOptions`]'
-/// `decimal_separator` is `Comma`.
+/// [`parse_coordinate`] with explicit options: after a `geo:` URI, the grid
+/// `expect_grid` names is tried first, then Plus Code and MGRS, then free
+/// text. Pass [`format_options_parse_options`] to read back a rendering.
 ///
 /// # Errors
 /// Returns a [`GeoError`] when no interpretation is found.
 #[uniffi::export]
-pub fn parse_coordinate_with(input: String, options: TextParseOptions) -> Result<Fix, GeoError> {
-    let options: gc::parse::text::TextParseOptions = options.into();
+pub fn parse_coordinate_with(input: String, options: ParseOptions) -> Result<Fix, GeoError> {
+    let options: gc::parse::ParseOptions = options.into();
     gc::parse::parse_coordinate_with(&input, &options)
         .map(Into::into)
         .map_err(GeoError::from)
@@ -373,13 +438,14 @@ pub fn from_geo_uri(input: String) -> Result<Fix, GeoError> {
         .map_err(GeoError::from)
 }
 
-/// Parse a free-text coordinate with explicit tolerant-parsing options.
+/// Parse a free-text coordinate (no `geo:` URI or grid detection) with
+/// explicit options; `expect_grid` does not apply here.
 ///
 /// # Errors
 /// Returns a [`GeoError`] when the input cannot be interpreted.
 #[uniffi::export]
-pub fn parse_text_with(input: String, options: TextParseOptions) -> Result<Fix, GeoError> {
-    let options: gc::parse::text::TextParseOptions = options.into();
+pub fn parse_text_with(input: String, options: ParseOptions) -> Result<Fix, GeoError> {
+    let options: gc::parse::ParseOptions = options.into();
     gc::parse::text::parse_with(&input, &options)
         .map(Into::into)
         .map_err(GeoError::from)

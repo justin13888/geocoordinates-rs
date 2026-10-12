@@ -6,8 +6,10 @@ use geocoordinates::format::{
     format_fix,
 };
 use geocoordinates::grids::MgrsPrecision;
-use geocoordinates::parse::text::{TextParseOptions, parse as parse_text, parse_with};
-use geocoordinates::parse::{from_geo_uri, parse_coordinate, parse_coordinate_with};
+use geocoordinates::parse::text::{parse as parse_text, parse_with};
+use geocoordinates::parse::{
+    GridKind, ParseOptions, from_geo_uri, parse_coordinate, parse_coordinate_with,
+};
 use geocoordinates::{Accuracy, Coordinate, Crs, Fix, Height};
 
 use crate::support::{DemoResult, assert_close, assert_within_meters, new_york};
@@ -173,9 +175,9 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
 
     let lon_lat = parse_with(
         "-74.006, 40.7128",
-        &TextParseOptions {
+        &ParseOptions {
             default_axis_order: AxisOrder::LonLat,
-            decimal_comma: false,
+            ..ParseOptions::default()
         },
     )?;
     assert_eq!(
@@ -183,14 +185,21 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         Some(AxisOrder::LonLat)
     );
     assert_within_meters(&lon_lat.coord, &new_york, 0.01);
-    let decimal_comma = parse_with(
-        "40,7128 -74,006",
-        &TextParseOptions {
-            default_axis_order: AxisOrder::LatLon,
-            decimal_comma: true,
-        },
-    )?;
+    let comma_options = ParseOptions {
+        decimal_separator: DecimalSeparator::Comma,
+        ..ParseOptions::default()
+    };
+    let decimal_comma = parse_with("40,7128 -74,006", &comma_options)?;
     assert_within_meters(&decimal_comma.coord, &new_york, 0.01);
+    // With a decimal comma, a remaining `,` (or `;`) separates the pair.
+    let listed = parse_with("40,7128, -74,006", &comma_options)?;
+    assert_within_meters(&listed.coord, &new_york, 0.01);
+    // Input with no single reading is rejected, not guessed at: bare DDMM
+    // without a hemisphere letter, a fraction before the last field, and
+    // exponent notation.
+    assert!(parse_text("1234.5, 10").is_err());
+    assert!(parse_text("40.5 30, 10").is_err());
+    assert!(parse_text("4e1 3e1").is_err());
 
     let uri = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
     assert_eq!(uri.coord.height(), Some(Height::Ellipsoidal(183.0)));
@@ -209,12 +218,28 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         )
     );
 
+    // MGRS is self-delimiting, so it is always detected; a geohash or
+    // Maidenhead locator is not (`42` and `bed` are valid geohashes), so it
+    // decodes only when the options expect it.
+    let mgrs = parse_coordinate("18TWK0000027757")?;
+    assert_eq!(mgrs.source.as_ref().and_then(|s| s.axis_order), None);
+    assert!(parse_coordinate("ezs42").is_err());
+    assert!(parse_coordinate("42").is_err());
+    let geohash = parse_coordinate_with(
+        "ezs42",
+        &ParseOptions {
+            expect_grid: Some(GridKind::Geohash),
+            ..ParseOptions::default()
+        },
+    )?;
+    assert_close(geohash.coord.lat(), 42.6, 0.03);
+
     let rendered = format(&new_york, &FormatOptions::default())?;
     let reparsed = parse_coordinate(&rendered)?;
     assert_within_meters(&reparsed.coord, &new_york, 0.2);
 
-    // Letter-style DMS re-parses through `parse_coordinate`; a decimal-comma
-    // locale re-parses once `decimal_comma` follows the format options.
+    // Letter-style DMS re-parses through `parse_coordinate`; every other
+    // rendering re-parses given the format options' own `parse_options`.
     let letters = format(
         &new_york,
         &FormatOptions {
@@ -237,14 +262,19 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     };
     let rendered = format(&new_york, &german)?;
     assert!(parse_coordinate(&rendered).is_err());
-    let reparsed = parse_coordinate_with(
-        &rendered,
-        &TextParseOptions {
-            decimal_comma: german.decimal_separator == DecimalSeparator::Comma,
-            ..TextParseOptions::default()
-        },
-    )?;
+    let reparsed = parse_coordinate_with(&rendered, &german.parse_options())?;
     assert_within_meters(&reparsed.coord, &new_york, 1.0);
+    let maidenhead = FormatOptions {
+        representation: Representation::Maidenhead { pairs: 3 },
+        ..FormatOptions::default()
+    };
+    let locator = format(&new_york, &maidenhead)?;
+    let cell = parse_coordinate_with(&locator, &maidenhead.parse_options())?;
+    let bound = cell
+        .accuracy
+        .and_then(|accuracy| accuracy.horizontal_m)
+        .expect("a grid cell reports its bound");
+    assert_within_meters(&cell.coord, &new_york, bound);
 
     Ok("formatting and parsing")
 }

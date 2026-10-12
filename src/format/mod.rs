@@ -14,23 +14,23 @@
 //! it by one (`…16.7753336411″W` re-renders as `…16.7753336410″W` at 10
 //! second decimals). Every rendering still re-parses, to within that digit.
 //!
-//! Every DD / DMS / DDM output, in every [`SymbolStyle`] and
-//! [`HemisphereStyle`], re-parses through
+//! Every output re-parses through
 //! [`parse_coordinate_with`](crate::parse::parse_coordinate_with) given
-//! `decimal_comma` set exactly when [`FormatOptions::decimal_separator`] is
-//! [`DecimalSeparator::Comma`], and the default (lat-first) axis order. For a
-//! point separator (the default) that is exactly
-//! [`parse_coordinate`](crate::parse::parse_coordinate), which also re-parses
-//! Plus Code output to the decoded cell's center. A value that rounds to zero
-//! renders unsigned (and N / E), so the round trip holds at the equator and
-//! the prime meridian too. Geohash, Maidenhead and MGRS output is the grid's
-//! canonical string, which its own type ([`Geohash`], [`Maidenhead`],
-//! [`Mgrs`]) parses back.
+//! [`FormatOptions::parse_options`]: DD / DMS / DDM in every [`SymbolStyle`],
+//! [`HemisphereStyle`] and [`DecimalSeparator`], and every grid, to the
+//! decoded cell's center. With the default options, and for DD / DMS / DDM
+//! with a point separator, Plus Code or MGRS output, that is exactly
+//! [`parse_coordinate`](crate::parse::parse_coordinate). A value that rounds
+//! to zero renders unsigned (and N / E), so the round trip holds at the
+//! equator and the prime meridian too. Grid output is the grid's canonical
+//! string, which its own type ([`PlusCode`], [`Geohash`], [`Maidenhead`],
+//! [`Mgrs`]) also parses back.
 
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 use crate::fix::Fix;
 use crate::grids::{Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode};
+use crate::parse::{AxisOrder, GridKind, ParseOptions};
 
 mod render;
 mod separator;
@@ -145,6 +145,48 @@ pub struct FormatOptions {
     /// representations have no decimals and ignore it. Pick it from a locale
     /// with [`DecimalSeparator::for_locale`].
     pub decimal_separator: DecimalSeparator,
+}
+
+impl FormatOptions {
+    /// The [`ParseOptions`] that read back every string these options render
+    /// through [`parse_coordinate_with`](crate::parse::parse_coordinate_with):
+    /// lat-first, this [`decimal_separator`](Self::decimal_separator), and,
+    /// for a grid representation, that grid as
+    /// [`expect_grid`](ParseOptions::expect_grid) (so a Geohash or Maidenhead
+    /// rendering, which is never detected unasked, decodes too).
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::format::{FormatOptions, Representation, format};
+    /// use geocoordinates::parse::parse_coordinate_with;
+    ///
+    /// let options = FormatOptions {
+    ///     representation: Representation::Geohash { length: 5 },
+    ///     ..FormatOptions::default()
+    /// };
+    /// let c = Coordinate::wgs84(42.6, -5.6)?;
+    /// let text = format(&c, &options)?; // "ezs42"
+    /// let fix = parse_coordinate_with(&text, &options.parse_options())?;
+    /// assert!((fix.coord.lat() - 42.6).abs() < 0.03);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn parse_options(&self) -> ParseOptions {
+        let expect_grid = match self.representation {
+            Representation::DecimalDegrees { .. }
+            | Representation::Dms { .. }
+            | Representation::Ddm { .. } => None,
+            Representation::PlusCode { .. } => Some(GridKind::PlusCode),
+            Representation::Geohash { .. } => Some(GridKind::Geohash),
+            Representation::Maidenhead { .. } => Some(GridKind::Maidenhead),
+            Representation::Mgrs { .. } => Some(GridKind::Mgrs),
+        };
+        ParseOptions {
+            default_axis_order: AxisOrder::LatLon,
+            decimal_separator: self.decimal_separator,
+            expect_grid,
+        }
+    }
 }
 
 impl Default for FormatOptions {

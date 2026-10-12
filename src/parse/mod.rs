@@ -18,6 +18,7 @@
 //! intentionally **not** parsed here — the structured interchange surface is
 //! limited to the text formats above plus `geo:` URIs.
 
+mod options;
 pub mod text;
 
 #[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml"))]
@@ -26,46 +27,55 @@ pub mod interchange;
 #[cfg(feature = "nmea")]
 pub mod sensors;
 
+#[cfg(test)]
+mod detection_tests;
+
+use crate::approx::Approx;
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, Confidence, Fix, RawSource};
-use crate::grids::PlusCode;
+use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode};
+
+pub use options::{GridKind, ParseOptions};
 
 /// Axis ordering of a textual/structured coordinate. Re-exported from
 /// [`fix`](crate::fix), where it lives so parsers can record it on a [`Fix`]'s
 /// [`RawSource`].
 pub use crate::fix::AxisOrder;
 
-/// Best-effort parse of a single coordinate from arbitrary input.
+/// Best-effort parse of a single coordinate from arbitrary input, with the
+/// default [`ParseOptions`] (lat-first, `.` decimals, no expected grid).
 ///
-/// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]); then falls back
-/// to free-text DD/DMS/DDM heuristics (see [`text`]). Plus Code tokens are
-/// detected; the remaining grid tokens (UTM / MGRS / geohash / Maidenhead) are
-/// not yet — see
-/// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md).
-/// The returned [`Fix`] records confidence and the
-/// assumed [`AxisOrder`] in its [`RawSource`].
-///
-/// Uses the default [`text::TextParseOptions`] (lat-first, `.` decimals); use
-/// [`parse_coordinate_with`] to read decimal-comma text.
+/// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]), a Plus Code, an
+/// MGRS reference, and then free-text DD/DMS/DDM (see [`text`]). A grid
+/// reference decodes to its cell's center, with the cell's error bound as the
+/// horizontal accuracy. Geohash and Maidenhead strings are **not** detected,
+/// because short ones are indistinguishable from other input (`"42"` and
+/// `"bed"` are valid geohashes); ask for them through
+/// [`ParseOptions::expect_grid`] with [`parse_coordinate_with`]. UTM has no
+/// string form here and is not detected either. The returned [`Fix`] records
+/// confidence and the assumed [`AxisOrder`] in its [`RawSource`].
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found.
 pub fn parse_coordinate(input: &str) -> Result<Fix> {
-    parse_coordinate_with(input, &text::TextParseOptions::default())
+    parse_coordinate_with(input, &ParseOptions::default())
 }
 
-/// [`parse_coordinate`] with explicit options for the free-text fallback.
+/// [`parse_coordinate`] with explicit options.
 ///
-/// `options` applies only to the free-text DD/DMS/DDM path; a `geo:` URI or a
-/// Plus Code parses the same regardless. To re-parse output rendered with a
-/// comma decimal separator, set `decimal_comma` exactly when
-/// [`FormatOptions::decimal_separator`](crate::format::FormatOptions::decimal_separator)
-/// is [`DecimalSeparator::Comma`](crate::format::DecimalSeparator::Comma).
+/// After a `geo:` URI, the grid [`ParseOptions::expect_grid`] names is tried
+/// first, then Plus Code and MGRS, then free text read with
+/// [`ParseOptions::default_axis_order`] and
+/// [`ParseOptions::decimal_separator`]. To read back what
+/// [`format`](crate::format::format) rendered, pass
+/// [`FormatOptions::parse_options`](crate::format::FormatOptions::parse_options).
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when no interpretation is found.
-pub fn parse_coordinate_with(input: &str, options: &text::TextParseOptions) -> Result<Fix> {
+/// Returns [`crate::Error::Parse`] when no interpretation is found. When
+/// `expect_grid` is set, the message also gives why the input is not a valid
+/// reference of that kind.
+pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix> {
     // Dispatch on the trimmed input, but hand every builder the verbatim
     // `input` so `RawSource::raw` never depends on which path matched. Each
     // builder trims for itself.
@@ -74,18 +84,41 @@ pub fn parse_coordinate_with(input: &str, options: &text::TextParseOptions) -> R
         .get(..4)
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("geo:"))
     {
-        from_geo_uri(input)
-    } else if let Ok(code) = PlusCode::try_from(trimmed) {
-        Ok(plus_code_fix(&code, input))
-    } else {
-        text::parse_with(input, options)
+        return from_geo_uri(input);
+    }
+    let expected = options
+        .expect_grid
+        .map(|kind| decode_grid(kind, trimmed).map_err(|e| (kind, e)));
+    let decoded = match expected {
+        Some(Ok(area)) => Ok(area),
+        _ => decode_grid(GridKind::PlusCode, trimmed)
+            .or_else(|_| decode_grid(GridKind::Mgrs, trimmed)),
+    };
+    if let Ok(area) = decoded {
+        return Ok(grid_fix(area, input));
+    }
+    text::parse_with(input, options).map_err(|text_error| match (expected, text_error) {
+        (Some(Err((kind, grid_error))), Error::Parse(detail)) => {
+            Error::Parse(format!("not a {kind:?} reference ({grid_error}); {detail}"))
+        }
+        (_, text_error) => text_error,
+    })
+}
+
+/// Decode `trimmed` as a reference of the given grid kind, to its cell's
+/// center and error bound.
+fn decode_grid(kind: GridKind, trimmed: &str) -> Result<Approx<Coordinate>> {
+    match kind {
+        GridKind::PlusCode => PlusCode::try_from(trimmed).map(|c| c.decode()),
+        GridKind::Geohash => Geohash::try_from(trimmed).map(|g| g.decode()),
+        GridKind::Maidenhead => Maidenhead::try_from(trimmed).map(|m| m.decode()),
+        GridKind::Mgrs => Mgrs::try_from(trimmed).map(|m| m.to_coordinate()),
     }
 }
 
-/// Build a [`Fix`] from a decoded Plus Code: the cell center, with the cell's
+/// Build a [`Fix`] from a decoded grid cell: the cell center, with the cell's
 /// error bound recorded as horizontal accuracy. Axis order is unambiguous.
-fn plus_code_fix(code: &PlusCode, raw: &str) -> Fix {
-    let area = code.decode();
+fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Fix {
     let bound = area.max_error_m();
     Fix {
         coord: area.into_inner(),
@@ -323,7 +356,6 @@ mod tests {
     #[test]
     fn round_trip_every_style_and_locale() {
         use crate::format::{DecimalSeparator, HemisphereStyle, Representation, SymbolStyle};
-        use text::TextParseOptions;
         // Hemispheres, the range rule, the antimeridian and both poles.
         let coords = [
             wgs(40.7128, -74.006),
@@ -371,11 +403,7 @@ mod tests {
                         decimal_separator,
                     };
                     let text = format(&c, &options).unwrap();
-                    let parse_options = TextParseOptions {
-                        decimal_comma: decimal_separator == DecimalSeparator::Comma,
-                        ..TextParseOptions::default()
-                    };
-                    let parsed = parse_coordinate_with(&text, &parse_options)
+                    let parsed = parse_coordinate_with(&text, &options.parse_options())
                         .unwrap_or_else(|e| panic!("{text:?} ({options:?}): {e}"));
                     // Default precisions: DD 6 dp (0.11 m), DMS 0.01″
                     // (0.3 m), DDM 0.001′ (1.9 m) — each rounds to half.
@@ -391,9 +419,9 @@ mod tests {
 
     #[test]
     fn parse_coordinate_with_reads_decimal_comma_on_the_text_path_only() {
-        let comma = text::TextParseOptions {
-            decimal_comma: true,
-            ..text::TextParseOptions::default()
+        let comma = ParseOptions {
+            decimal_separator: crate::format::DecimalSeparator::Comma,
+            ..ParseOptions::default()
         };
         let fix = parse_coordinate_with("40,7128 -74,006", &comma).unwrap();
         assert_close(fix.coord.lat(), 40.7128, 1e-9);
@@ -404,29 +432,6 @@ mod tests {
         assert_close(geo.coord.lon(), 103.8667, 1e-9);
         let plus = parse_coordinate_with("8FVC2222+22", &comma).unwrap();
         assert_close(plus.coord.lat(), 47.0000625, 1e-6);
-    }
-
-    #[test]
-    fn parse_coordinate_does_not_recognise_other_grid_references_yet() {
-        // Only geo: URIs, Plus Codes and free text are dispatched today. An
-        // MGRS, geohash, Maidenhead or UTM string falls through to the text
-        // parser and fails to split into two components.
-        // KNOWN GAP (flipped by #118, which recognises grids deliberately):
-        // the MGRS reference below parses there; geohash, Maidenhead and UTM
-        // are decided by that issue.
-        for input in ["18TWK0000027757", "ezs42", "FN20", "18N 500000 4427757"] {
-            let r = parse_coordinate(input);
-            assert!(
-                matches!(&r, Err(Error::Parse(m)) if m.contains("two components")),
-                "{input:?}: {r:?}"
-            );
-        }
-        // A lone number and a bare word are not coordinates; #118 keeps them
-        // errors.
-        for input in ["42", "bed"] {
-            let r = parse_coordinate(input);
-            assert!(matches!(r, Err(Error::Parse(_))), "{input:?}: {r:?}");
-        }
     }
 
     #[test]
