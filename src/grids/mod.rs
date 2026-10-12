@@ -17,5 +17,5 @@ pub mod mgrs; // UTM/UPS-backed military grid
 pub mod utm; // transverse Mercator / polar stereographic
 
 pub use encoded::{Geohash, Maidenhead, PlusCode};
-pub use mgrs::Mgrs;
+pub use mgrs::{Mgrs, MgrsPrecision};
 pub use utm::{Ups, Utm, UtmHemisphere};

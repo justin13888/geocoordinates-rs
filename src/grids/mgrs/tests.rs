@@ -25,7 +25,9 @@ const REFS: &[(f64, f64, &str)] = &[
 fn encode_reference_strings() {
     for &(lat, lon, expected) in REFS {
         assert_eq!(
-            Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap().as_str(),
+            Mgrs::try_from_coordinate(c(lat, lon), MgrsPrecision::M1)
+                .unwrap()
+                .as_str(),
             expected,
             "({lat},{lon})"
         );
@@ -34,37 +36,65 @@ fn encode_reference_strings() {
 
 #[test]
 fn encode_precision_levels() {
-    let m = Mgrs::try_from_coordinate(c(40.0, -75.0), 100).unwrap();
+    let m = Mgrs::try_from_coordinate(c(40.0, -75.0), MgrsPrecision::M100).unwrap();
     assert_eq!(m.as_str(), "18TWK000277"); // 3+3 digits
-    assert_eq!(m.precision_m(), 100);
+    assert_eq!(m.precision(), MgrsPrecision::M100);
     // A non-zero easting remainder confirms the digits are scaled (divided),
     // not multiplied: 48 252 m → "482" at 100 m precision.
     assert_eq!(
-        Mgrs::try_from_coordinate(c(48.8584, 2.2945), 100)
+        Mgrs::try_from_coordinate(c(48.8584, 2.2945), MgrsPrecision::M100)
             .unwrap()
             .as_str(),
         "31UDQ482119"
     );
-    // 10 km square (1 digit each), and the bare 100 km square.
-    assert_eq!(
-        Mgrs::try_from_coordinate(c(40.0, -75.0), 10_000)
-            .unwrap()
-            .as_str(),
-        "18TWK02"
-    );
-    assert_eq!(
-        Mgrs::try_from_coordinate(c(40.0, -75.0), 100_000)
-            .unwrap()
-            .as_str(),
-        "18TWK"
-    );
-    for precision in [0, 2, 250, 1_000_000] {
-        let r = Mgrs::try_from_coordinate(c(40.0, -75.0), precision);
-        assert!(
-            matches!(&r, Err(Error::InvalidValue { field, .. }) if *field == "MGRS precision"),
-            "{precision}: {r:?}"
-        );
+    // Every precision, coarsest to finest, adds one digit to each half.
+    let expected = [
+        (MgrsPrecision::Km100, "18TWK"),
+        (MgrsPrecision::Km10, "18TWK02"),
+        (MgrsPrecision::Km1, "18TWK0027"),
+        (MgrsPrecision::M100, "18TWK000277"),
+        (MgrsPrecision::M10, "18TWK00002775"),
+        (MgrsPrecision::M1, "18TWK0000027757"),
+    ];
+    for (precision, s) in expected {
+        let m = Mgrs::try_from_coordinate(c(40.0, -75.0), precision).unwrap();
+        assert_eq!(m.as_str(), s);
+        assert_eq!(m.precision(), precision);
+        assert_eq!(Mgrs::try_from(s).unwrap().precision(), precision);
     }
+}
+
+#[test]
+fn precision_meters_are_the_square_sides() {
+    let sides = [
+        (MgrsPrecision::Km100, 100_000),
+        (MgrsPrecision::Km10, 10_000),
+        (MgrsPrecision::Km1, 1_000),
+        (MgrsPrecision::M100, 100),
+        (MgrsPrecision::M10, 10),
+        (MgrsPrecision::M1, 1),
+    ];
+    for (precision, meters) in sides {
+        assert_eq!(precision.meters(), meters, "{precision:?}");
+    }
+}
+
+#[test]
+fn encode_rejects_a_non_wgs84_coordinate() {
+    let gcj = Coordinate::gcj02(40.0, 116.0).unwrap();
+    assert!(matches!(
+        Mgrs::try_from_coordinate(gcj, MgrsPrecision::M1),
+        Err(Error::CrsMismatch { .. })
+    ));
+}
+
+#[test]
+fn display_and_string_conversions_round_trip() {
+    let m = Mgrs::try_from(String::from("z ab 0000 044542")).expect("valid");
+    assert_eq!(m.to_string(), "ZAB0000044542");
+    assert_eq!(m.to_string().parse::<Mgrs>().unwrap(), m);
+    assert_eq!(String::from(m.clone()), m.as_str());
+    assert_invalid_grid_ref(Mgrs::try_from(String::from("99TWK")));
 }
 
 #[test]
@@ -110,7 +140,7 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
 
     // UTM: zone 31's central meridian (easting 500 km) at the equator.
     let utm = Mgrs::try_from("31NEA0000").expect("valid");
-    assert_eq!(utm.precision_m(), 1000);
+    assert_eq!(utm.precision(), MgrsPrecision::Km1);
     let approx = utm.to_coordinate();
     let corner = |e: f64, n: f64| {
         Utm::new(31, UtmHemisphere::North, e, n)
@@ -131,7 +161,7 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
 
     // UPS: the cell whose south-west corner is the North Pole.
     let ups = Mgrs::try_from("ZAH0000").expect("valid");
-    assert_eq!(ups.precision_m(), 1000);
+    assert_eq!(ups.precision(), MgrsPrecision::Km1);
     let approx = ups.to_coordinate();
     let corner = |e: f64, n: f64| {
         Ups::new(UtmHemisphere::North, e, n)
@@ -154,7 +184,7 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
 #[test]
 fn encode_decode_round_trips_within_bound() {
     for &(lat, lon, _) in REFS {
-        let m = Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap();
+        let m = Mgrs::try_from_coordinate(c(lat, lon), MgrsPrecision::M1).unwrap();
         let back = m.to_coordinate();
         assert_within_geodesic_meters(back.value(), &c(lat, lon), back.max_error_m());
     }
@@ -168,13 +198,13 @@ fn from_str_round_trips_the_canonical_string() {
     for &(lat, lon, s) in REFS {
         let parsed: Mgrs = s.parse().expect("valid MGRS");
         assert_eq!(parsed.as_str(), s);
-        assert_eq!(parsed.precision_m(), 1);
-        let encoded = Mgrs::try_from_coordinate(c(lat, lon), 1).unwrap();
+        assert_eq!(parsed.precision(), MgrsPrecision::M1);
+        let encoded = Mgrs::try_from_coordinate(c(lat, lon), MgrsPrecision::M1).unwrap();
         assert_eq!(encoded.as_str().parse::<Mgrs>().unwrap(), encoded);
     }
     // A coarse UPS reference keeps its precision through the round trip.
     let z: Mgrs = "ZAB000044".parse().expect("valid UPS ref");
-    assert_eq!(z.precision_m(), 100);
+    assert_eq!(z.precision(), MgrsPrecision::M100);
     assert_eq!(z.as_str().parse::<Mgrs>().unwrap(), z);
     // Non-canonical input (lowercase, spaces) parses to the canonical form,
     // which is then a fixed point.
@@ -185,8 +215,8 @@ fn from_str_round_trips_the_canonical_string() {
 
 #[test]
 fn coarser_cells_have_larger_bounds() {
-    let m = Mgrs::try_from_coordinate(c(48.8584, 2.2945), 1000).unwrap();
-    assert_eq!(m.precision_m(), 1000);
+    let m = Mgrs::try_from_coordinate(c(48.8584, 2.2945), MgrsPrecision::Km1).unwrap();
+    assert_eq!(m.precision(), MgrsPrecision::Km1);
     assert_close(
         m.to_coordinate().max_error_m(),
         1000.0 * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
@@ -205,7 +235,7 @@ fn decode_coarse_precision_scales_the_digits() {
     // 100 m precision (3+3 digits): the digit value must be multiplied by the
     // cell size, not divided — and the result lands within one cell.
     let m = Mgrs::try_from("31UDQ482119").expect("valid");
-    assert_eq!(m.precision_m(), 100);
+    assert_eq!(m.precision(), MgrsPrecision::M100);
     let approx = m.to_coordinate();
     assert_close(
         approx.max_error_m(),
@@ -223,7 +253,7 @@ fn decode_bare_hundred_kilometer_square() {
     // No digits at all: a valid 100 km reference (the trailing length is
     // exactly the three letters — must not be rejected as too short).
     let m = Mgrs::try_from("18TWK").expect("valid 100 km ref");
-    assert_eq!(m.precision_m(), 100_000);
+    assert_eq!(m.precision(), MgrsPrecision::Km100);
     assert_within_geodesic_meters(m.to_coordinate().value(), &c(40.0, -75.0), 80_000.0);
 }
 
@@ -232,6 +262,16 @@ fn decode_accepts_single_digit_zone() {
     // Zone 4 written without the leading zero (split == 1 is valid).
     let m = Mgrs::try_from("4QFH0460911793").expect("valid");
     assert_within_geodesic_meters(m.to_coordinate().value(), &c(20.0, -158.0), 1.0);
+    // The stored form is canonical: the zone is zero-padded, so the parsed
+    // value equals the encoder's output for the same square and displays,
+    // serializes, and re-parses as `04Q…`.
+    assert_eq!(m.as_str(), "04QFH0460911793");
+    assert_eq!(m.to_string(), "04QFH0460911793");
+    assert_eq!(Mgrs::try_from("04QFH0460911793").unwrap(), m);
+    assert_eq!(Mgrs::try_from(" 4qfh 04609 11793").unwrap(), m);
+    let encoded = Mgrs::try_from_coordinate(m.to_coordinate().into_inner(), MgrsPrecision::M1)
+        .expect("WGS-84");
+    assert_eq!(encoded, m);
 }
 
 #[test]
@@ -327,4 +367,23 @@ fn squares_across_the_antimeridian_decode_wrapped() {
     let east = Mgrs::try_from("60NZF5000050000").expect("valid");
     let east = east.to_coordinate();
     assert!(east.value().lon() < -179.8, "{:?}", east.value());
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_validates_and_uses_the_canonical_string() {
+    // C9: a derived struct form let an invalid reference deserialize, and
+    // `to_coordinate` then panicked on it. The wire form is the canonical
+    // string, validated exactly as parsing is.
+    let invalid_struct = r#"{"text":"99TWK","precision_m":1}"#;
+    assert!(serde_json::from_str::<Mgrs>(invalid_struct).is_err());
+    for bad in [r#""99TWK""#, r#""18TWK000""#, r#""""#] {
+        assert!(serde_json::from_str::<Mgrs>(bad).is_err(), "{bad}");
+    }
+    let m: Mgrs = serde_json::from_str(r#""18t wk 00000 27757""#).unwrap();
+    assert_eq!(m.as_str(), "18TWK0000027757");
+    assert_eq!(serde_json::to_string(&m).unwrap(), r#""18TWK0000027757""#);
+    // A one-digit zone deserializes to, and serializes as, the padded form.
+    let one: Mgrs = serde_json::from_str(r#""4QFH0460911793""#).unwrap();
+    assert_eq!(serde_json::to_string(&one).unwrap(), r#""04QFH0460911793""#);
 }

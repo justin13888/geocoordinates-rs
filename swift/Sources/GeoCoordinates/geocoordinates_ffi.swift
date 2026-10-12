@@ -759,8 +759,8 @@ public func FfiConverterTypeAer_lower(_ value: Aer) -> RustBuffer {
  * - **Grid / cell decoders** return the WGS-84 cell center; the bound is the
  * distance from that center to the farthest point of the cell, as each
  * decoder documents it: the maximum geodesic corner distance (Plus Code,
- * geohash, Maidenhead, S2), the half-square (MGRS), or the cell radius
- * (H3).
+ * geohash, Maidenhead, S2), the half diagonal in ground meters (MGRS), or
+ * the cell radius (H3).
  * - **[`convert`]** bounds only the error of the iterative GCJ-02 / BD-09
  * inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
  * legs that `0.0` is not a claim of exactness: the catalogued mean shifts
@@ -3750,6 +3750,122 @@ public func FfiConverterTypeLengthUnit_lower(_ value: LengthUnit) -> RustBuffer 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The side of an MGRS square — mirror of [`gc::grids::MgrsPrecision`].
+ */
+
+public enum MgrsPrecision: Equatable, Hashable {
+    
+    /**
+     * 100 km square: no digits.
+     */
+    case km100
+    /**
+     * 10 km square: one easting and one northing digit.
+     */
+    case km10
+    /**
+     * 1 km square: two digits each.
+     */
+    case km1
+    /**
+     * 100 m square: three digits each.
+     */
+    case m100
+    /**
+     * 10 m square: four digits each.
+     */
+    case m10
+    /**
+     * 1 m square: five digits each.
+     */
+    case m1
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MgrsPrecision: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMgrsPrecision: FfiConverterRustBuffer {
+    typealias SwiftType = MgrsPrecision
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MgrsPrecision {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .km100
+        
+        case 2: return .km10
+        
+        case 3: return .km1
+        
+        case 4: return .m100
+        
+        case 5: return .m10
+        
+        case 6: return .m1
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MgrsPrecision, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .km100:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .km10:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .km1:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .m100:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .m10:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .m1:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMgrsPrecision_lift(_ buf: RustBuffer) throws -> MgrsPrecision {
+    return try FfiConverterTypeMgrsPrecision.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMgrsPrecision_lower(_ value: MgrsPrecision) -> RustBuffer {
+    return FfiConverterTypeMgrsPrecision.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Target representation for rendering — mirror of [`gc::format::Representation`].
  */
 
@@ -5347,36 +5463,50 @@ public func maidenheadEncode(coord: Coordinate, pairs: UInt8)throws  -> String  
 })
 }
 /**
- * Encode a coordinate to an MGRS string at the given precision in meters
- * (1 m … 100 km, as a power of ten).
+ * Encode a coordinate to the canonical string of the MGRS square of the given
+ * size that contains it.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
  */
-public func mgrsFromCoordinate(coord: Coordinate, precisionM: UInt32)throws  -> String  {
+public func mgrsFromCoordinate(coord: Coordinate, precision: MgrsPrecision)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_mgrs_from_coordinate(
         FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterUInt32.lower(precisionM),$0
+        FfiConverterTypeMgrsPrecision_lower(precision),$0
     )
 })
 }
 /**
- * The precision in meters implied by an MGRS string's digit count.
+ * The square size implied by an MGRS string's digit count.
  *
  * # Errors
- * `GeoError` when the string is not a valid MGRS reference.
+ * `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
  */
-public func mgrsPrecisionM(mgrs: String)throws  -> UInt32  {
-    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_mgrs_precision_m(
+public func mgrsPrecision(mgrs: String)throws  -> MgrsPrecision  {
+    return try  FfiConverterTypeMgrsPrecision_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_mgrs_precision(
         FfiConverterString.lower(mgrs),$0
     )
 })
 }
 /**
- * Decode an MGRS string to the center of its square, with the half-square
- * error bound.
+ * The square's side in meters: 100 000, 10 000, 1 000, 100, 10, or 1.
+ */
+public func mgrsPrecisionMeters(precision: MgrsPrecision) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_mgrs_precision_meters(
+        FfiConverterTypeMgrsPrecision_lower(precision),$0
+    )
+})
+}
+/**
+ * Decode an MGRS string to the center of its square. The error bound is the
+ * square's half diagonal in ground meters, `side / √2 / k_min` (`k_min` is
+ * 0.9996 for UTM, 0.994 for UPS), which covers every point of the square.
  *
  * # Errors
- * `GeoError` when the string is not a valid MGRS reference.
+ * `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
  */
 public func mgrsToCoordinate(mgrs: String)throws  -> ApproxCoordinate  {
     return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5961,13 +6091,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_encode() != 53257) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_from_coordinate() != 708) {
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_from_coordinate() != 32862) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_precision_m() != 21211) {
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_precision() != 64312) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_to_coordinate() != 17994) {
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_precision_meters() != 48624) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_to_coordinate() != 28561) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_plus_code_canonicalize() != 31071) {

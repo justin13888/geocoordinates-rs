@@ -287,33 +287,88 @@ pub fn ups_to_coordinate(ups: Ups) -> Result<Coordinate, GeoError> {
     Ok(ups.to_coordinate().into())
 }
 
-/// Encode a coordinate to an MGRS string at the given precision in meters
-/// (1 m … 100 km, as a power of ten).
+/// The side of an MGRS square — mirror of [`gc::grids::MgrsPrecision`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum MgrsPrecision {
+    /// 100 km square: no digits.
+    Km100,
+    /// 10 km square: one easting and one northing digit.
+    Km10,
+    /// 1 km square: two digits each.
+    Km1,
+    /// 100 m square: three digits each.
+    M100,
+    /// 10 m square: four digits each.
+    M10,
+    /// 1 m square: five digits each.
+    M1,
+}
+
+impl From<gc::grids::MgrsPrecision> for MgrsPrecision {
+    fn from(p: gc::grids::MgrsPrecision) -> Self {
+        match p {
+            gc::grids::MgrsPrecision::Km100 => MgrsPrecision::Km100,
+            gc::grids::MgrsPrecision::Km10 => MgrsPrecision::Km10,
+            gc::grids::MgrsPrecision::Km1 => MgrsPrecision::Km1,
+            gc::grids::MgrsPrecision::M100 => MgrsPrecision::M100,
+            gc::grids::MgrsPrecision::M10 => MgrsPrecision::M10,
+            gc::grids::MgrsPrecision::M1 => MgrsPrecision::M1,
+        }
+    }
+}
+impl From<MgrsPrecision> for gc::grids::MgrsPrecision {
+    fn from(p: MgrsPrecision) -> Self {
+        match p {
+            MgrsPrecision::Km100 => gc::grids::MgrsPrecision::Km100,
+            MgrsPrecision::Km10 => gc::grids::MgrsPrecision::Km10,
+            MgrsPrecision::Km1 => gc::grids::MgrsPrecision::Km1,
+            MgrsPrecision::M100 => gc::grids::MgrsPrecision::M100,
+            MgrsPrecision::M10 => gc::grids::MgrsPrecision::M10,
+            MgrsPrecision::M1 => gc::grids::MgrsPrecision::M1,
+        }
+    }
+}
+
+/// The square's side in meters: 100 000, 10 000, 1 000, 100, 10, or 1.
 #[uniffi::export]
-pub fn mgrs_from_coordinate(coord: Coordinate, precision_m: u32) -> Result<String, GeoError> {
-    gc::grids::Mgrs::try_from_coordinate(coord.try_into()?, precision_m)
+pub fn mgrs_precision_meters(precision: MgrsPrecision) -> u32 {
+    gc::grids::MgrsPrecision::from(precision).meters()
+}
+
+/// Encode a coordinate to the canonical string of the MGRS square of the given
+/// size that contains it.
+///
+/// # Errors
+/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
+#[uniffi::export]
+pub fn mgrs_from_coordinate(
+    coord: Coordinate,
+    precision: MgrsPrecision,
+) -> Result<String, GeoError> {
+    gc::grids::Mgrs::try_from_coordinate(coord.try_into()?, precision.into())
         .map(|mgrs| mgrs.as_str().to_string())
         .map_err(Into::into)
 }
 
-/// Decode an MGRS string to the center of its square, with the half-square
-/// error bound.
+/// Decode an MGRS string to the center of its square. The error bound is the
+/// square's half diagonal in ground meters, `side / √2 / k_min` (`k_min` is
+/// 0.9996 for UTM, 0.994 for UPS), which covers every point of the square.
 ///
 /// # Errors
-/// `GeoError` when the string is not a valid MGRS reference.
+/// `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
 #[uniffi::export]
 pub fn mgrs_to_coordinate(mgrs: String) -> Result<ApproxCoordinate, GeoError> {
     let parsed = gc::grids::Mgrs::try_from(mgrs.as_str()).map_err(GeoError::from)?;
     Ok(approx_coordinate(parsed.to_coordinate()))
 }
 
-/// The precision in meters implied by an MGRS string's digit count.
+/// The square size implied by an MGRS string's digit count.
 ///
 /// # Errors
-/// `GeoError` when the string is not a valid MGRS reference.
+/// `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
 #[uniffi::export]
-pub fn mgrs_precision_m(mgrs: String) -> Result<u32, GeoError> {
+pub fn mgrs_precision(mgrs: String) -> Result<MgrsPrecision, GeoError> {
     gc::grids::Mgrs::try_from(mgrs.as_str())
-        .map(|m| m.precision_m())
+        .map(|m| m.precision().into())
         .map_err(GeoError::from)
 }

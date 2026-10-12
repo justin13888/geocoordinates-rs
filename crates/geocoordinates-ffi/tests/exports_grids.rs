@@ -194,9 +194,36 @@ fn ups_covers_the_poles_and_round_trips() {
 #[test]
 fn mgrs_encodes_decodes_and_reports_precision() {
     let origin = wgs84(40.0, -75.0);
-    assert_eq!(mgrs_from_coordinate(origin, 1).unwrap(), "18TWK0000027757");
-    assert_eq!(mgrs_from_coordinate(origin, 1000).unwrap(), "18TWK0027");
-    assert_eq!(mgrs_precision_m("18TWK000277".to_string()).unwrap(), 100);
+    assert_eq!(
+        mgrs_from_coordinate(origin, MgrsPrecision::M1).unwrap(),
+        "18TWK0000027757"
+    );
+    assert_eq!(
+        mgrs_from_coordinate(origin, MgrsPrecision::Km1).unwrap(),
+        "18TWK0027"
+    );
+    assert_eq!(
+        mgrs_precision("18TWK000277".to_string()).unwrap(),
+        MgrsPrecision::M100
+    );
+    // Every mirror variant crosses both ways and keeps its side length.
+    let sides = [
+        (MgrsPrecision::Km100, 100_000),
+        (MgrsPrecision::Km10, 10_000),
+        (MgrsPrecision::Km1, 1_000),
+        (MgrsPrecision::M100, 100),
+        (MgrsPrecision::M10, 10),
+        (MgrsPrecision::M1, 1),
+    ];
+    for (precision, meters) in sides {
+        assert_eq!(mgrs_precision_meters(precision), meters);
+        let code = mgrs_from_coordinate(origin, precision).unwrap();
+        assert_eq!(mgrs_precision(code).unwrap(), precision);
+    }
+    assert!(matches!(
+        mgrs_from_coordinate(gcj02(40.0, 116.0), MgrsPrecision::M1),
+        Err(GeoError::CrsMismatch { .. })
+    ));
     let square = mgrs_to_coordinate("18TWK0000027757".to_string()).unwrap();
     // Half-diagonal of a 1 m square, scaled by the UTM central scale factor.
     close(square.max_error_m, 0.5f64.sqrt() / 0.9996, 1e-12);
@@ -207,7 +234,7 @@ fn mgrs_encodes_decodes_and_reports_precision() {
         Err(GeoError::InvalidGridRef { .. })
     ));
     assert!(matches!(
-        mgrs_precision_m("not-an-mgrs".to_string()),
+        mgrs_precision("not-an-mgrs".to_string()),
         Err(GeoError::InvalidGridRef { .. })
     ));
 }

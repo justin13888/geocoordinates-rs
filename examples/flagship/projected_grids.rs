@@ -2,7 +2,7 @@
 
 use geocoordinates::geodesy::{DatumTransform, Ecef, Helmert};
 use geocoordinates::grids::utm::{central_meridian_deg, zone_for};
-use geocoordinates::grids::{Mgrs, Ups, Utm, UtmHemisphere};
+use geocoordinates::grids::{Mgrs, MgrsPrecision, Ups, Utm, UtmHemisphere};
 use geocoordinates::{Coordinate, Crs, Height};
 
 use crate::support::{DemoResult, assert_close, assert_within_meters};
@@ -58,11 +58,15 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
         UtmHemisphere::South
     );
 
-    let mgrs = Mgrs::try_from_coordinate(philadelphia, 1)?;
+    let mgrs = Mgrs::try_from_coordinate(philadelphia, MgrsPrecision::M1)?;
     assert_eq!(mgrs.as_str(), "18TWK0000027757");
-    assert_eq!(mgrs.precision_m(), 1);
+    assert_eq!(mgrs.precision(), MgrsPrecision::M1);
+    assert_eq!(mgrs.precision().meters(), 1);
     let parsed: Mgrs = "18t wk 00000 27757".parse()?;
     assert_eq!(parsed, mgrs);
+    // Display writes the canonical string, which parses back to an equal value.
+    assert_eq!(parsed.to_string(), "18TWK0000027757");
+    assert_eq!(parsed.to_string().parse::<Mgrs>()?, mgrs);
     assert_eq!(Mgrs::try_from("18TWK0000027757")?, mgrs);
     let decoded = mgrs.to_coordinate();
     // Half the 1 m square's diagonal, in ground meters (grid / UTM k0).

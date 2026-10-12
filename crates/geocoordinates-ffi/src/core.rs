@@ -449,8 +449,8 @@ pub fn confidence_new(value: f64) -> Confidence {
 /// - **Grid / cell decoders** return the WGS-84 cell center; the bound is the
 ///   distance from that center to the farthest point of the cell, as each
 ///   decoder documents it: the maximum geodesic corner distance (Plus Code,
-///   geohash, Maidenhead, S2), the half-square (MGRS), or the cell radius
-///   (H3).
+///   geohash, Maidenhead, S2), the half diagonal in ground meters (MGRS), or
+///   the cell radius (H3).
 /// - **[`convert`]** bounds only the error of the iterative GCJ-02 / BD-09
 ///   inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
 ///   legs that `0.0` is not a claim of exactness: the catalogued mean shifts

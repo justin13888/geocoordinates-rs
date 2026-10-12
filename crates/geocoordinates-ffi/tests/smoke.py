@@ -338,8 +338,9 @@ except gc.GeoError.InvalidValue as e:
     assert e.field == "zone"
 ups = gc.ups_from_coordinate(wgs84_coord(85.0, 0.0))
 assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_000.0, 1e-3)
-assert gc.mgrs_from_coordinate(wgs84_coord(40.0, -75.0), 1) == "18TWK0000027757"
-assert gc.mgrs_precision_m("18TWK000277") == 100
+assert gc.mgrs_from_coordinate(wgs84_coord(40.0, -75.0), gc.MgrsPrecision.M1) == "18TWK0000027757"
+assert gc.mgrs_precision("18TWK000277") == gc.MgrsPrecision.M100
+assert gc.mgrs_precision_meters(gc.MgrsPrecision.KM10) == 10_000
 dec = gc.mgrs_to_coordinate("18TWK0000027757")
 assert approx(dec.max_error_m, math.sqrt(0.5) / 0.9996, 1e-12)  # half-diagonal / UTM k0
 assert approx(dec.coord.lat, 40.0, 1e-3)

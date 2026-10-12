@@ -164,8 +164,12 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert!(PlusCode::encode(new_york(), 3).is_err());
     assert!(Geohash::encode(new_york(), 23).is_err());
     assert!(Maidenhead::encode(new_york(), 0).is_err());
-    assert!(Mgrs::try_from_coordinate(new_york(), 250).is_err());
+    // MGRS precision is the closed `MgrsPrecision` set, so an off-grid size
+    // such as 250 m is unrepresentable; only the string side can be invalid,
+    // and deserialization validates it as parsing does.
     assert!(Mgrs::try_from("18TWK000000277577").is_err());
+    assert!(serde_json::from_str::<Mgrs>(r#""18TWK0000027757""#).is_ok());
+    assert!(serde_json::from_str::<Mgrs>(r#""99TWK0000027757""#).is_err());
     assert!(H3Cell::encode(new_york(), 16).is_err());
     assert!(H3Cell::encode(Coordinate::gcj02(40.0, -75.0)?, 9).is_err());
     assert_eq!(
