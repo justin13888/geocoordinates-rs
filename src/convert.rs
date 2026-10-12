@@ -41,8 +41,10 @@ use crate::geodesy::datum::DatumTransform;
 ///   [`geodesy::datum`](crate::geodesy::datum)).
 ///
 /// # Errors
-/// Returns [`crate::Error::UnsupportedConversion`] if no route is known between
-/// the two systems.
+/// Every modeled [`Crs`] pair has a route, so this fails only on its input or a
+/// leg's result: [`Coordinate::validate`]'s error ([`crate::Error::OutOfRange`]
+/// or [`crate::Error::InvalidValue`]) for an invalid `coord`, and otherwise the
+/// error of the failing conversion leg, unchanged.
 pub fn convert(coord: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
     coord.validate()?;
     if coord.crs == to {

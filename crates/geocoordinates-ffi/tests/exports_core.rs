@@ -148,8 +148,8 @@ fn baidu_mercator_round_trips_through_bd09_and_coordinate() {
 fn baidu_mercator_rejects_a_non_bd09_coordinate() {
     match baidu_mercator_from_coordinate(coordinate_wgs84(BD.0, BD.1)) {
         Err(GeoError::CrsMismatch { expected, found }) => {
-            assert_eq!(expected, "BD-09");
-            assert_eq!(found, "WGS84");
+            assert_eq!(expected, Crs::Bd09);
+            assert_eq!(found, Crs::Wgs84);
         }
         other => panic!("expected CrsMismatch, got {other:?}"),
     }
@@ -443,6 +443,6 @@ fn from_geo_uri_reads_altitude_and_uncertainty() {
     assert_eq!(source.confidence.value, 1.0);
     assert!(matches!(
         from_geo_uri("40.7128, -74.006".to_string()),
-        Err(GeoError::Other { .. })
+        Err(GeoError::Parse { .. })
     ));
 }

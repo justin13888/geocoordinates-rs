@@ -25,7 +25,7 @@ fn plus_code_encodes_and_decodes_its_cell() {
     close(area.max_error_m, 8.421_508_929_247_13, 1e-9);
     assert!(matches!(
         plus_code_decode("not a code".to_string()),
-        Err(GeoError::Other { .. })
+        Err(GeoError::InvalidGridRef { .. })
     ));
 }
 
@@ -43,7 +43,7 @@ fn geohash_encodes_and_decodes_its_cell() {
     close(cell.max_error_m, 3_037.127_762_163_045_6, 1e-6);
     assert!(matches!(
         geohash_decode("ail".to_string()),
-        Err(GeoError::Other { .. })
+        Err(GeoError::InvalidGridRef { .. })
     ));
 }
 
@@ -115,11 +115,11 @@ fn mgrs_encodes_decodes_and_reports_precision() {
     close(square.coord.lon, -74.999_994_142_434_64, 1e-9);
     assert!(matches!(
         mgrs_to_coordinate("not-an-mgrs".to_string()),
-        Err(GeoError::Other { .. })
+        Err(GeoError::InvalidGridRef { .. })
     ));
     assert!(matches!(
         mgrs_precision_m("not-an-mgrs".to_string()),
-        Err(GeoError::Other { .. })
+        Err(GeoError::InvalidGridRef { .. })
     ));
 }
 
@@ -138,7 +138,7 @@ fn from_geojson_reads_lon_lat_order() {
     );
     assert!(matches!(
         from_geojson("not json".to_string()),
-        Err(GeoError::Other { .. })
+        Err(GeoError::Parse { .. })
     ));
 }
 
@@ -203,7 +203,7 @@ fn from_nmea_sentence_reads_a_gga_fix() {
     assert_eq!(source.notes, vec!["geoid separation 46.9 m"]);
     assert!(matches!(
         from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E".to_string()),
-        Err(GeoError::Other { .. })
+        Err(GeoError::Parse { .. })
     ));
 }
 
@@ -223,7 +223,7 @@ fn h3_encodes_the_canonical_index_and_decodes_its_center() {
     ));
     assert!(matches!(
         h3_decode(H3Cell { value: 0 }),
-        Err(GeoError::Other { .. })
+        Err(GeoError::InvalidCellId { value: 0, .. })
     ));
 }
 

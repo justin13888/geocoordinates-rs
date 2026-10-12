@@ -404,7 +404,7 @@ fn datum_transform_apply_and_inverse_round_trip() {
     close(back.lon, -100.0, 1e-8);
     match datum_transform_apply(dt, coordinate_wgs84(40.0, -100.0)) {
         Err(GeoError::CrsMismatch { expected, found }) => {
-            assert_eq!((expected.as_str(), found.as_str()), ("NAD27", "WGS84"));
+            assert_eq!((expected, found), (Crs::Nad27, Crs::Wgs84));
         }
         other => panic!("expected CrsMismatch, got {other:?}"),
     }
