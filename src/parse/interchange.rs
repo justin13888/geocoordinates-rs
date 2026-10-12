@@ -123,6 +123,27 @@ fn into_fixes(format: &str, positions: Vec<Position>) -> Result<Vec<Fix>> {
 /// # Errors
 /// Returns [`crate::Error::Parse`] on malformed GeoJSON, or naming the
 /// zero-based index of the first position that is out of range.
+///
+/// ```
+/// use geocoordinates::{Error, Height};
+/// use geocoordinates::parse::AxisOrder;
+/// use geocoordinates::parse::interchange::from_geojson;
+///
+/// let fixes = from_geojson(r#"{"type":"Point","coordinates":[-74.006,40.7128,10.0]}"#)?;
+/// let fix = &fixes[0];
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
+/// assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(10.0)));
+/// let axis_order = fix.source.as_ref().and_then(|s| s.axis_order);
+/// assert_eq!(axis_order, Some(AxisOrder::LonLat));
+///
+/// // Latitude 200 is out of range: the error names the position's index.
+/// let line = r#"{"type":"LineString","coordinates":[[0,0],[0,200]]}"#;
+/// let Err(Error::Parse(message)) = from_geojson(line) else {
+///     panic!("expected a parse error");
+/// };
+/// assert!(message.contains("index 1"));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(feature = "geojson")]
 pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
     use geojson::{GeoJson, Geometry, GeometryValue, Position as GeoJsonPosition};
@@ -195,6 +216,21 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
 /// # Errors
 /// Returns [`crate::Error::Parse`] on malformed WKT, or naming the zero-based
 /// index of the first position that is out of range.
+///
+/// ```
+/// use geocoordinates::Error;
+/// use geocoordinates::parse::AxisOrder;
+/// use geocoordinates::parse::interchange::from_wkt;
+///
+/// let line = "LINESTRING (-122.4194 37.7749, 2.3522 48.8566)";
+/// let fixes = from_wkt(line, AxisOrder::LonLat)?;
+/// assert_eq!(fixes.len(), 2);
+/// assert_eq!((fixes[1].coord.lat(), fixes[1].coord.lon()), (48.8566, 2.3522));
+///
+/// // Read lat-first, the same text puts -122.4194 on the latitude axis.
+/// assert!(matches!(from_wkt(line, AxisOrder::LatLon), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(feature = "wkt")]
 pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
     use core::str::FromStr;
@@ -280,6 +316,23 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// Returns [`crate::Error::Parse`] on malformed GPX, or naming the zero-based
 /// index of the first point that is out of range or has a negative or
 /// non-finite `<hdop>`.
+///
+/// ```
+/// use geocoordinates::{Error, Height};
+/// use geocoordinates::parse::interchange::from_gpx;
+///
+/// let gpx = r#"<?xml version="1.0"?>
+/// <gpx version="1.1" creator="example" xmlns="http://www.topografix.com/GPX/1/1">
+///   <wpt lat="40.7128" lon="-74.006"><ele>10</ele><hdop>2</hdop></wpt>
+/// </gpx>"#;
+/// let fix = &from_gpx(gpx)?[0];
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
+/// assert_eq!(fix.coord.height(), Some(Height::Orthometric(10.0)));
+/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(10.0)); // HDOP 2 × 5 m
+///
+/// assert!(matches!(from_gpx("<gpx>"), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(feature = "gpx")]
 pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
     fn push(tag: &str, wp: &gpx::Waypoint, out: &mut Vec<Position>) {
@@ -330,6 +383,22 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// # Errors
 /// Returns [`crate::Error::Parse`] on malformed KML, or naming the zero-based
 /// index of the first position that is out of range.
+///
+/// ```
+/// use geocoordinates::{Error, Height};
+/// use geocoordinates::parse::interchange::from_kml;
+///
+/// let kml = r#"<Placemark><name>NYC</name>
+///   <Point><coordinates>-74.006,40.7128,10</coordinates></Point>
+/// </Placemark>"#;
+/// let fix = &from_kml(kml)?[0];
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
+/// assert_eq!(fix.coord.height(), Some(Height::Orthometric(10.0)));
+///
+/// let off_the_map = "<Point><coordinates>-74.006,95</coordinates></Point>";
+/// assert!(matches!(from_kml(off_the_map), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(feature = "kml")]
 pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
     use core::str::FromStr;

@@ -49,6 +49,22 @@ use super::NOMINAL_UERE_M;
 /// - the `GGA` altitude is present but its unit field is not `M` (meters);
 /// - a numeric field (altitude, geoid separation, HDOP) is malformed or
 ///   non-finite, or HDOP is negative.
+///
+/// ```
+/// use geocoordinates::Error;
+/// use geocoordinates::parse::sensors::from_nmea_sentence;
+///
+/// let gga = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47";
+/// let fix = from_nmea_sentence(gga)?;
+/// assert!((fix.coord.lat() - 48.1173).abs() < 1e-9);
+/// assert!((fix.coord.lon() - 11.516_666_666).abs() < 1e-9);
+/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(4.5)); // HDOP 0.9 × 5 m
+///
+/// // Status `V`: the receiver has no fix, so there is no position.
+/// let void = "$GPRMC,123519,V,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W";
+/// assert!(matches!(from_nmea_sentence(void), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(feature = "nmea")]
 pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
     let body = sentence.trim().strip_prefix('$').unwrap_or(sentence.trim());

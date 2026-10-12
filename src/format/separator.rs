@@ -9,6 +9,22 @@
 /// [`ParseOptions::decimal_separator`](crate::parse::ParseOptions::decimal_separator).
 /// The same type serves both directions, so formatting and parsing cannot
 /// disagree about it.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::format::{DecimalSeparator, FormatOptions, format};
+/// use geocoordinates::parse::parse_coordinate_with;
+///
+/// let options = FormatOptions {
+///     decimal_separator: DecimalSeparator::Comma,
+///     ..FormatOptions::default()
+/// };
+/// let text = format(&Coordinate::wgs84(48.8566, 2.3522)?, &options)?;
+/// assert_eq!(text, "48,856600 2,352200");
+/// let fix = parse_coordinate_with(&text, &options.parse_options())?;
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DecimalSeparator {

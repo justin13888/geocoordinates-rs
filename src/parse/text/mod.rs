@@ -37,6 +37,24 @@ use resolve::resolve;
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
+///
+/// ```
+/// use geocoordinates::Error;
+/// use geocoordinates::parse::AxisOrder;
+/// use geocoordinates::parse::text::parse;
+///
+/// let fix = parse("40°42′46″N 74°00′22″W")?;
+/// assert!((fix.coord.lat() - 40.712_78).abs() < 1e-5);
+/// assert!((fix.coord.lon() + 74.006_11).abs() < 1e-5);
+///
+/// // Unlabelled numbers are read lat-first; the fix says so.
+/// let fix = parse("40.7128, -74.006")?;
+/// assert_eq!(fix.source.and_then(|s| s.axis_order), Some(AxisOrder::LatLon));
+///
+/// // Concatenated DDMM.mmm needs a hemisphere letter.
+/// assert!(matches!(parse("4042.768, -7400.36"), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn parse(input: &str) -> Result<Fix> {
     parse_with(input, &ParseOptions::default())
 }
@@ -51,6 +69,24 @@ pub fn parse(input: &str) -> Result<Fix> {
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
+///
+/// ```
+/// use geocoordinates::Error;
+/// use geocoordinates::format::DecimalSeparator;
+/// use geocoordinates::parse::ParseOptions;
+/// use geocoordinates::parse::text::parse_with;
+///
+/// let comma = ParseOptions {
+///     decimal_separator: DecimalSeparator::Comma,
+///     ..ParseOptions::default()
+/// };
+/// let fix = parse_with("48,8566; 2,3522", &comma)?;
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
+///
+/// // Neither reading of 100, 200 is in range.
+/// assert!(matches!(parse_with("100, 200", &comma), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn parse_with(input: &str, options: &ParseOptions) -> Result<Fix> {
     let decimal_comma = options.decimal_separator == DecimalSeparator::Comma;
     let normalized = normalize(input, decimal_comma);
