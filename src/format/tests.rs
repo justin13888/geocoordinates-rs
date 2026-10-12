@@ -246,6 +246,30 @@ fn format_fix_derives_precision_from_accuracy() {
     );
 }
 
+/// C10: the default options leave precision unset, so `format_fix` derives
+/// it from the fix's accuracy instead of printing a fixed six decimals.
+#[test]
+fn format_fix_with_default_options_follows_accuracy() {
+    let fix = Fix {
+        coord: wgs(40.7128, -74.006),
+        accuracy: Some(Accuracy {
+            horizontal_m: Some(1000.0),
+            vertical_m: None,
+        }),
+        timestamp: None,
+        source: None,
+    };
+    assert_eq!(
+        format_fix(&fix, &FormatOptions::default()).unwrap(),
+        "40.71, -74.01"
+    );
+    // A bare coordinate still gets the representation's default precision.
+    assert_eq!(
+        fmt(&fix.coord, &FormatOptions::default()),
+        "40.712800, -74.006000"
+    );
+}
+
 #[test]
 fn format_fix_derives_dms_ddm_precision_in_their_own_units() {
     let coord = wgs(40.7128, -74.006);

@@ -69,14 +69,11 @@ fn trip(lat: f64, lon: f64, options: &FormatOptions) -> (String, String) {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(2048))]
 
-    // KNOWN WRONG (C11, flipped by #117): a value that rounds to zero keeps
-    // its sign, so DMS prints `-0°00′00.00″` and re-renders the parsed -0.0
-    // as `0°00′00.00″`, and the cardinal style picks the hemisphere before
-    // rounding (`0.00 S` re-renders as `0.00 N`). The pinned cases are in
-    // `rounding_to_zero_flips_the_rendering_today`. #117 activates this
-    // property for every representation and separator.
+    /// C11: a value that rounds to zero renders unsigned (and N / E), so the
+    /// round trip holds at the equator, the prime meridian, and every value
+    /// that rounds onto them. The pinned cases are in
+    /// `rounding_to_zero_renders_unsigned`.
     #[test]
-    #[ignore = "C11, fixed by the format slice (#117)"]
     fn format_parse_format_is_stable(
         lat in latitude(),
         lon in longitude(),
@@ -87,10 +84,10 @@ proptest! {
     }
 }
 
-/// The C11 counterexamples the property finds today, pinned so the ignored
-/// property is not the only record of them.
+/// The C11 counterexamples the property found before the sign was chosen
+/// after rounding, pinned so the property is not the only record of them.
 #[test]
-fn rounding_to_zero_flips_the_rendering_today() {
+fn rounding_to_zero_renders_unsigned() {
     let style = |representation, hemisphere| {
         opts(
             representation,
@@ -100,34 +97,37 @@ fn rounding_to_zero_flips_the_rendering_today() {
             None,
         )
     };
-    // KNOWN WRONG (C11, flipped by #117): DD keeps the sign of a value that
-    // rounds to zero. It happens to re-render identically, because the parse
-    // yields -0.0, which DD also prints with its sign.
+    // DD drops the sign of a value that rounds to zero.
     let (first, second) = trip(
         -1e-9,
         10.0,
         &style(Representation::DecimalDegrees, HemisphereStyle::Signed),
     );
-    assert_eq!(first, "-0.00, 10.00");
-    assert_eq!(second, "-0.00, 10.00");
-    // KNOWN WRONG (C11, flipped by #117): DMS keeps that sign too, but
-    // renders the re-parsed -0.0 without it, so the round trip drifts.
+    assert_eq!(first, "0.00, 10.00");
+    assert_eq!(second, "0.00, 10.00");
+    // So does DMS, so the re-parsed 0.0 renders identically.
     let (first, second) = trip(
         -1e-9,
         10.0,
         &style(Representation::Dms, HemisphereStyle::Signed),
     );
-    assert_eq!(first, "-0°00′00.00″ 10°00′00.00″");
+    assert_eq!(first, "0°00′00.00″ 10°00′00.00″");
     assert_eq!(second, "0°00′00.00″ 10°00′00.00″");
-    // KNOWN WRONG (C11, flipped by #117): the cardinal style picks the
-    // hemisphere before rounding.
+    // The cardinal style picks the hemisphere after rounding.
     let (first, second) = trip(
         -1e-9,
         10.0,
         &style(Representation::DecimalDegrees, HemisphereStyle::Cardinal),
     );
-    assert_eq!(first, "0.00 S, 10.00 E");
+    assert_eq!(first, "0.00 N, 10.00 E");
     assert_eq!(second, "0.00 N, 10.00 E");
+    // A negative zero is unsigned too.
+    let (first, _) = trip(
+        -0.0,
+        -0.0,
+        &style(Representation::DecimalDegrees, HemisphereStyle::Signed),
+    );
+    assert_eq!(first, "0.00, 0.00");
 }
 
 proptest! {
