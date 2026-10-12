@@ -141,11 +141,13 @@ jobs:
         working-directory: crates/geocoordinates-ffi/web
         run: npm test
 
-  # Build the JVM (Kotlin) bindings and prove they are callable from Java: generate
-  # the Kotlin, then run a Gradle JUnit test written in Java that loads the cdylib
-  # via JNA and exercises a China conversion. This is the Java surface (Java
-  # consumes the Kotlin artifact); the host cdylib is loaded via UniFFI's
-  # libraryOverride hook so the test needs no per-platform resource staging.
+  # Build the JVM (Kotlin) bindings and test them from both languages: generate
+  # the Kotlin, then run the Gradle JUnit suites that load the cdylib via JNA -
+  # SmokeTest.java proves the API is callable idiomatically from Java (Java
+  # consumes the Kotlin artifact), and BindingsTest.kt exercises conversions,
+  # approximate bounds, and each typed GeoException subclass. The host cdylib is
+  # loaded via UniFFI's libraryOverride hook so the tests need no per-platform
+  # resource staging.
   jvm-smoke:
     name: JVM (Kotlin/Java) smoke test
     runs-on: ubuntu-latest
@@ -171,7 +173,7 @@ jobs:
           mise run bindings-kotlin
           mkdir -p crates/geocoordinates-ffi/jvm/src/main/kotlin
           cp -R bindings/kotlin/. crates/geocoordinates-ffi/jvm/src/main/kotlin/
-      - name: Gradle test (Java consumption smoke)
+      - name: Gradle test (Kotlin behaviour + Java consumption)
         working-directory: crates/geocoordinates-ffi/jvm
         env:
           GEOCOORDINATES_NATIVE_LIB: ${{ github.workspace }}/${{ env.FFI_LIB }}
