@@ -223,7 +223,7 @@ impl Coordinate {
     /// // A GeoJSON position `[2.3522, 48.8566]` is longitude first.
     /// let paris = Coordinate::from_lon_lat(2.3522, 48.8566, Crs::Wgs84)?;
     /// assert_eq!((paris.lat(), paris.lon()), (48.8566, 2.3522));
-    /// // A lat-lon pair passed here puts 120 in the latitude slot and is rejected.
+    /// // A lat-lon pair passed here puts 121.5 in the latitude slot and is rejected.
     /// assert!(Coordinate::from_lon_lat(31.2, 121.5, Crs::Wgs84).is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```

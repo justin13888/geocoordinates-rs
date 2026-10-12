@@ -14,8 +14,11 @@ use core::ops::Deref;
 /// `Approx<T>` derefs to `T`, so `approx.lat()` and similar accessors work
 /// directly.
 ///
-/// `Approx<T>` has no public constructor: only the crate's approximate
-/// conversions produce one, so a bound is never made up by the caller.
+/// `Approx<T>` has no public constructor: in code, only the crate's
+/// approximate conversions produce one, so a bound is never made up by the
+/// caller. The one exception is the `serde` feature, whose derived
+/// `Deserialize` accepts whatever `max_error_m` the input carries; a
+/// deserialized `Approx<T>` is only as trustworthy as its source.
 ///
 /// ```
 /// use geocoordinates::{Approx, Gcj02, Wgs84};
