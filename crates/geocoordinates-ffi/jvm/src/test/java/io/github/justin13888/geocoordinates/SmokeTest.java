@@ -3,14 +3,19 @@ package io.github.justin13888.geocoordinates;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 // Top-level Kotlin functions compile to static methods on the file class.
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateWgs84;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.outOfChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
 
 import org.junit.jupiter.api.Test;
 import uniffi.geocoordinates_ffi.ApproxWgs84;
+import uniffi.geocoordinates_ffi.Crs;
 import uniffi.geocoordinates_ffi.Gcj02;
 import uniffi.geocoordinates_ffi.GeoException;
 import uniffi.geocoordinates_ffi.Wgs84;
@@ -36,5 +41,22 @@ class SmokeTest {
 
         assertTrue(outOfChina(0.0, 0.0));
         assertFalse(outOfChina(39.915, 116.404));
+    }
+
+    // Each core error crosses as its own typed `GeoException` subclass, so Java
+    // catches the variant and reads its fields instead of parsing a message.
+    @Test
+    void typedErrorsFromJava() {
+        GeoException.CrsMismatch mismatch =
+                assertThrows(
+                        GeoException.CrsMismatch.class,
+                        () -> baiduMercatorFromCoordinate(coordinateWgs84(39.915, 116.404)));
+        assertEquals(Crs.BD09, mismatch.getExpected());
+        assertEquals(Crs.WGS84, mismatch.getFound());
+
+        GeoException.InvalidGridRef badGrid =
+                assertThrows(
+                        GeoException.InvalidGridRef.class, () -> mgrsToCoordinate("not-an-mgrs"));
+        assertEquals("not-an-mgrs", badGrid.getDetail());
     }
 }

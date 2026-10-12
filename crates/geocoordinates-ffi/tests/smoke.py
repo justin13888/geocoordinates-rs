@@ -64,9 +64,10 @@ assert gc.out_of_china(WGS[0], WGS[1]) is False  # Beijing
 try:
     gc.baidu_mercator_from_coordinate(gc.coordinate_wgs84(WGS[0], WGS[1]))
     raise AssertionError("expected CrsMismatch for a WGS-84 coordinate")
-except gc.GeoError.CrsMismatch:
-    pass
-ok = gc.baidu_mercator_from_coordinate(gc.coordinate_bd09(BD[0], BD[1]))
+except gc.GeoError.CrsMismatch as e:
+    # The reference systems cross as the typed Crs enum, not as strings.
+    assert e.expected == gc.Crs.BD09 and e.found == gc.Crs.WGS84, (e.expected, e.found)
+ok =gc.baidu_mercator_from_coordinate(gc.coordinate_bd09(BD[0], BD[1]))
 assert approx(ok.x, merc.x, 1e-6) and approx(ok.y, merc.y, 1e-6)
 
 # --- Distance (Length flattened to meters) ---
@@ -100,8 +101,8 @@ gc.coordinate_validate(gc.coordinate_wgs84(40.0, -74.0))  # in range -> no raise
 try:
     gc.coordinate_validate(gc.coordinate_wgs84(91.0, 0.0))
     raise AssertionError("expected OutOfRange for latitude 91")
-except gc.GeoError.OutOfRange:
-    pass
+except gc.GeoError.OutOfRange as e:
+    assert e.lat == 91.0 and e.lon == 0.0, (e.lat, e.lon)
 assert gc.coordinate_is_null_island(gc.coordinate_wgs84(0.0, 0.0)) is True
 assert gc.coordinate_is_null_island(a) is False
 
@@ -176,8 +177,8 @@ assert approx(area.max_error_m, 8.421_509, 1e-5), area.max_error_m  # cell half-
 try:
     gc.plus_code_decode("not a code")
     raise AssertionError("expected error for an invalid Plus Code")
-except gc.GeoError.Other:
-    pass
+except gc.GeoError.InvalidGridRef as e:
+    assert e.detail == "invalid Plus Code: not a code", e.detail
 # parse_coordinate detects a Plus Code; format renders one.
 pc_fix = gc.parse_coordinate("8FVC2222+22")
 assert approx(pc_fix.coord.lat, 47.0000625, 1e-6)
@@ -285,8 +286,8 @@ assert approx(dec.coord.lat, 40.0, 1e-3)
 try:
     gc.mgrs_to_coordinate("not-an-mgrs")
     raise AssertionError("expected error for a bad MGRS string")
-except gc.GeoError.Other:  # InvalidGridRef maps to the Other catch-all
-    pass
+except gc.GeoError.InvalidGridRef as e:
+    assert e.detail == "not-an-mgrs", e.detail
 
 # --- Interchange formats (GeoJSON / WKT / GPX / KML) ---
 gj = gc.from_geojson('{"type":"Point","coordinates":[2.0,9.0,100.0]}')
@@ -308,7 +309,7 @@ assert len(kmlfixes) == 1 and approx(kmlfixes[0].coord.lon, 16.3, 1e-9)
 try:
     gc.from_geojson("not json")
     raise AssertionError("expected a parse error")
-except gc.GeoError.Other:  # Error::Parse maps to the Other catch-all
+except gc.GeoError.Parse:
     pass
 
 # --- NMEA 0183 sentences ---
@@ -320,8 +321,8 @@ assert approx(nmea.accuracy.horizontal_m, 0.9 * 5.0, 1e-9)  # HDOP x nominal UER
 try:
     gc.from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")  # bad checksum
     raise AssertionError("expected a checksum error")
-except gc.GeoError.Other:
-    pass
+except gc.GeoError.Parse as e:
+    assert e.detail.startswith("NMEA checksum mismatch"), e.detail
 
 # --- H3 and S2 discrete global grids ---
 h3 = gc.h3_encode(gc.coordinate_wgs84(40.7128, -74.006), 9)
@@ -344,5 +345,15 @@ try:
     raise AssertionError("expected CrsMismatch for BD-09 S2 input")
 except gc.GeoError.CrsMismatch:
     pass
+try:
+    gc.h3_encode(gc.coordinate_wgs84(40.7128, -74.006), 16)
+    raise AssertionError("expected InvalidValue for H3 resolution 16")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "H3 resolution" and e.detail == "must be in 0..=15", (e.field, e.detail)
+try:
+    gc.h3_decode(gc.H3Cell(value=0))
+    raise AssertionError("expected InvalidCellId for H3 index 0")
+except gc.GeoError.InvalidCellId as e:
+    assert e.grid == "H3" and e.value == 0, (e.grid, e.value)
 
 print("python smoke OK")

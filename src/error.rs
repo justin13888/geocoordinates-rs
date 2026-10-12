@@ -9,16 +9,36 @@ pub type Result<T> = core::result::Result<T, Error>;
 ///
 /// Conversions that can fail return [`Result`]; conversions that are merely
 /// *approximate* do not fail — they return [`crate::Approx`] instead.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
-    /// A latitude/longitude (or projected coordinate) fell outside its valid
-    /// domain.
+    /// A latitude or longitude was not a valid geographic value: non-finite,
+    /// or outside `[-90, 90]` / `[-180, 180]` degrees.
+    ///
+    /// A *valid* point that merely lies outside an operation's area of use is
+    /// [`Error::OutsideDomain`] instead. (The UTM / UPS forward conversions still
+    /// report their latitude-band rejection here until they move to
+    /// `OutsideDomain`.)
     #[error("coordinate out of valid range: lat={lat}, lon={lon}")]
     OutOfRange {
         /// Offending latitude in degrees.
         lat: f64,
         /// Offending longitude in degrees.
+        lon: f64,
+    },
+
+    /// A valid latitude/longitude lies outside the area an operation or
+    /// projection is defined on — e.g. a UTM conversion outside the 80°S–84°N
+    /// band, a UPS conversion outside the polar caps, or Baidu Mercator beyond
+    /// ±74° latitude.
+    #[error("coordinate outside the domain of {operation}: lat={lat}, lon={lon}")]
+    OutsideDomain {
+        /// Name of the operation or projection whose domain was left, such as
+        /// `"UTM"`.
+        operation: &'static str,
+        /// Latitude in degrees.
+        lat: f64,
+        /// Longitude in degrees.
         lon: f64,
     },
 
@@ -45,16 +65,6 @@ pub enum Error {
     #[error("could not parse coordinate: {0}")]
     Parse(String),
 
-    /// The requested runtime conversion is not supported by the `convert`
-    /// dispatch.
-    #[error("unsupported conversion: {from} -> {to}")]
-    UnsupportedConversion {
-        /// Source reference system.
-        from: Crs,
-        /// Target reference system.
-        to: Crs,
-    },
-
     /// A coordinate was used where a different reference system was required —
     /// e.g. converting a [`Coordinate`](crate::Coordinate) tagged one [`Crs`]
     /// into a datum newtype of another. Prevents silently laundering a datum.
@@ -70,15 +80,39 @@ pub enum Error {
     /// or fell outside the grid's valid domain (e.g. a bad grid-zone letter).
     #[error("invalid grid reference: {0}")]
     InvalidGridRef(String),
+}
 
-    /// A geoid-height conversion was requested but the model's grid data is not
-    /// loaded, or the point lies outside the model's coverage.
-    #[error("geoid data unavailable for the requested model or location")]
-    GeoidDataUnavailable,
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    /// An optional capability was requested whose cargo feature is disabled.
-    #[error("feature `{0}` is not enabled")]
-    FeatureDisabled(&'static str),
-    // TODO(impl): add further variants (e.g. projection domain errors) if the
-    // deferred `proj` feature is promoted — see STABILIZATION.md.
+    #[test]
+    fn outside_domain_names_the_operation_and_point() {
+        let e = Error::OutsideDomain {
+            operation: "UTM",
+            lat: 85.5,
+            lon: 10.0,
+        };
+        assert_eq!(
+            e.to_string(),
+            "coordinate outside the domain of UTM: lat=85.5, lon=10"
+        );
+    }
+
+    #[test]
+    fn errors_compare_by_value_and_clone_equal() {
+        let e = Error::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: Crs::Gcj02,
+        };
+        assert_eq!(e.clone(), e);
+        assert_ne!(
+            e,
+            Error::CrsMismatch {
+                expected: Crs::Wgs84,
+                found: Crs::Bd09,
+            }
+        );
+        assert_ne!(Error::Parse("a".into()), Error::InvalidGridRef("a".into()));
+    }
 }

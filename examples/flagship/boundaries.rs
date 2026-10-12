@@ -46,10 +46,14 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         assert!(s2.lat.is_finite() && s2.lon.is_finite());
     }
 
-    assert!(matches!(
+    // `Error` is `PartialEq`, so a typed error can be asserted exactly.
+    assert_eq!(
         Coordinate::wgs84(91.0, 0.0).validate(),
-        Err(Error::OutOfRange { .. })
-    ));
+        Err(Error::OutOfRange {
+            lat: 91.0,
+            lon: 0.0
+        })
+    );
     assert!(matches!(
         Dd(f64::NAN).try_to_dms(Axis::Latitude),
         Err(Error::InvalidValue { .. })
@@ -74,10 +78,13 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         )
         .is_err()
     );
-    assert!(matches!(
+    assert_eq!(
         BaiduMercator::try_from_coordinate(Coordinate::wgs84(39.915, 116.404)),
-        Err(Error::CrsMismatch { .. })
-    ));
+        Err(Error::CrsMismatch {
+            expected: Crs::Bd09,
+            found: Crs::Wgs84,
+        })
+    );
     assert!(matches!(
         Wgs84::try_from(Coordinate::gcj02(39.915, 116.404)),
         Err(Error::CrsMismatch { .. })
@@ -116,7 +123,13 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert!(Mgrs::try_from("18TWK000000277577").is_err());
     assert!(H3Cell::encode(NEW_YORK, 16).is_err());
     assert!(H3Cell::encode(Coordinate::gcj02(40.0, -75.0), 9).is_err());
-    assert!(H3Cell(0).decode().is_err());
+    assert_eq!(
+        H3Cell(0).decode(),
+        Err(Error::InvalidCellId {
+            grid: "H3",
+            value: 0,
+        })
+    );
     assert!(S2CellId::encode(NEW_YORK, 31).is_err());
     assert!(S2CellId::encode(Coordinate::bd09(40.0, -75.0), 20).is_err());
     assert!(S2CellId(0).decode().is_err());
