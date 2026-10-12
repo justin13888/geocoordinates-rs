@@ -12,6 +12,16 @@
 //! always placed on Clarke 1866 and a WGS-84 one on WGS 84. GCJ-02 and BD-09
 //! are obfuscated renderings rather than datums and have no ECEF position;
 //! convert them to WGS-84 first.
+//!
+//! ```
+//! use geocoordinates::{Coordinate, Crs, geodesy::ecef::Ecef};
+//!
+//! // The same latitude and longitude sit at different places on two datums.
+//! let wgs = Ecef::try_from_coordinate(Coordinate::new(35.0, 139.0, Crs::Wgs84)?)?;
+//! let tokyo = Ecef::try_from_coordinate(Coordinate::new(35.0, 139.0, Crs::Tokyo)?)?;
+//! assert!((wgs.x - tokyo.x).abs() > 100.0);
+//! # Ok::<(), geocoordinates::Error>(())
+//! ```
 
 use super::ellipsoid::Ellipsoid;
 use crate::coord::{Coordinate, Crs, Height};
@@ -61,6 +71,13 @@ pub struct Ecef {
 
 impl Ecef {
     /// Construct from X/Y/Z in meters.
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ecef;
+    ///
+    /// let p = Ecef::new(1.0, 2.0, 3.0);
+    /// assert_eq!((p.x, p.y, p.z), (1.0, 2.0, 3.0));
+    /// ```
     #[must_use]
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
@@ -80,6 +97,21 @@ impl Ecef {
     /// - [`Error::InvalidValue`] (field `"ECEF"`) when a component is not
     ///   finite, and (field `"height"`) when the position is so far from the
     ///   Earth that its height overflows.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, Error, Height, geodesy::Ecef};
+    ///
+    /// // 1000 m above the WGS-84 north pole.
+    /// let pole = Ecef::new(0.0, 0.0, 6_356_752.314_245 + 1000.0).try_to_coordinate(Crs::Wgs84)?;
+    /// assert_eq!(pole.lat(), 90.0);
+    /// assert!(matches!(pole.height(), Some(Height::Ellipsoidal(h)) if (h - 1000.0).abs() < 1e-6));
+    /// // GCJ-02 is no datum, so an ECEF position cannot be expressed in it.
+    /// assert!(matches!(
+    ///     Ecef::new(6_378_137.0, 0.0, 0.0).try_to_coordinate(Crs::Gcj02),
+    ///     Err(Error::CrsMismatch { .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_coordinate(self, crs: Crs) -> Result<Coordinate> {
         let ellipsoid = ellipsoid_of(crs)?;
         if !self.x.is_finite() || !self.y.is_finite() || !self.z.is_finite() {
@@ -102,6 +134,21 @@ impl Ecef {
     /// - [`Error::InvalidValue`] (field `"height"`) when `coord` carries an
     ///   orthometric height: no geoid model is available to turn it into an
     ///   ellipsoidal one.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Error, Height, geodesy::Ecef};
+    ///
+    /// let raised = Coordinate::wgs84(0.0, 90.0)?.with_height(Height::Ellipsoidal(100.0))?;
+    /// let p = Ecef::try_from_coordinate(raised)?;
+    /// assert!(p.x.abs() < 1e-6 && (p.y - 6_378_237.0).abs() < 1e-6 && p.z == 0.0);
+    /// // An orthometric height needs a geoid model this crate does not ship.
+    /// let msl = Coordinate::wgs84(0.0, 90.0)?.with_height(Height::Orthometric(100.0))?;
+    /// assert!(matches!(
+    ///     Ecef::try_from_coordinate(msl),
+    ///     Err(Error::InvalidValue { field: "height", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
         let ellipsoid = ellipsoid_of(coord.crs())?;
         let h = height_meters(coord)?;
