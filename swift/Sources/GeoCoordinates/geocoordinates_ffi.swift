@@ -2303,6 +2303,95 @@ public func FfiConverterTypeNed_lower(_ value: Ned) -> RustBuffer {
 
 
 /**
+ * Options controlling [`parse_coordinate_with`] and [`parse_text_with`] —
+ * mirror of [`gc::parse::ParseOptions`]. Take them from
+ * [`format_options_parse_options`] to read back a rendering.
+ */
+public struct ParseOptions: Equatable, Hashable {
+    /**
+     * Axis order to assume for free text when neither a hemisphere letter
+     * nor the `|value| > 90` range rule decides it.
+     */
+    public var defaultAxisOrder: AxisOrder
+    /**
+     * Decimal separator of free text. With `Comma`, a comma between two
+     * digits is a decimal point, and the remaining commas, `;` and
+     * whitespace separate the two components.
+     */
+    public var decimalSeparator: DecimalSeparator
+    /**
+     * A grid whose strings to try before anything but a `geo:` URI; needed
+     * for `Geohash` and `Maidenhead`, which are never detected otherwise.
+     */
+    public var expectGrid: GridKind?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Axis order to assume for free text when neither a hemisphere letter
+         * nor the `|value| > 90` range rule decides it.
+         */defaultAxisOrder: AxisOrder, 
+        /**
+         * Decimal separator of free text. With `Comma`, a comma between two
+         * digits is a decimal point, and the remaining commas, `;` and
+         * whitespace separate the two components.
+         */decimalSeparator: DecimalSeparator, 
+        /**
+         * A grid whose strings to try before anything but a `geo:` URI; needed
+         * for `Geohash` and `Maidenhead`, which are never detected otherwise.
+         */expectGrid: GridKind?) {
+        self.defaultAxisOrder = defaultAxisOrder
+        self.decimalSeparator = decimalSeparator
+        self.expectGrid = expectGrid
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ParseOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeParseOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ParseOptions {
+        return
+            try ParseOptions(
+                defaultAxisOrder: FfiConverterTypeAxisOrder.read(from: &buf), 
+                decimalSeparator: FfiConverterTypeDecimalSeparator.read(from: &buf), 
+                expectGrid: FfiConverterOptionTypeGridKind.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ParseOptions, into buf: inout [UInt8]) {
+        FfiConverterTypeAxisOrder.write(value.defaultAxisOrder, into: &buf)
+        FfiConverterTypeDecimalSeparator.write(value.decimalSeparator, into: &buf)
+        FfiConverterOptionTypeGridKind.write(value.expectGrid, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeParseOptions_lift(_ buf: RustBuffer) throws -> ParseOptions {
+    return try FfiConverterTypeParseOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeParseOptions_lower(_ value: ParseOptions) -> RustBuffer {
+    return FfiConverterTypeParseOptions.lower(value)
+}
+
+
+/**
  * The original input a coordinate was parsed from — mirror of [`gc::RawSource`].
  */
 public struct RawSource: Equatable, Hashable {
@@ -2457,76 +2546,6 @@ public func FfiConverterTypeS2CellId_lift(_ buf: RustBuffer) throws -> S2CellId 
 #endif
 public func FfiConverterTypeS2CellId_lower(_ value: S2CellId) -> RustBuffer {
     return FfiConverterTypeS2CellId.lower(value)
-}
-
-
-/**
- * Options controlling tolerant text parsing — mirror of
- * [`gc::TextParseOptions`](gc::parse::text::TextParseOptions).
- */
-public struct TextParseOptions: Equatable, Hashable {
-    /**
-     * Axis order to assume when the range heuristics are inconclusive.
-     */
-    public var defaultAxisOrder: AxisOrder
-    /**
-     * Whether to interpret `,` as a decimal separator (European locales).
-     */
-    public var decimalComma: Bool
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * Axis order to assume when the range heuristics are inconclusive.
-         */defaultAxisOrder: AxisOrder, 
-        /**
-         * Whether to interpret `,` as a decimal separator (European locales).
-         */decimalComma: Bool) {
-        self.defaultAxisOrder = defaultAxisOrder
-        self.decimalComma = decimalComma
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension TextParseOptions: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTextParseOptions: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextParseOptions {
-        return
-            try TextParseOptions(
-                defaultAxisOrder: FfiConverterTypeAxisOrder.read(from: &buf), 
-                decimalComma: FfiConverterBool.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: TextParseOptions, into buf: inout [UInt8]) {
-        FfiConverterTypeAxisOrder.write(value.defaultAxisOrder, into: &buf)
-        FfiConverterBool.write(value.decimalComma, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTextParseOptions_lift(_ buf: RustBuffer) throws -> TextParseOptions {
-    return try FfiConverterTypeTextParseOptions.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTextParseOptions_lower(_ value: TextParseOptions) -> RustBuffer {
-    return FfiConverterTypeTextParseOptions.lower(value)
 }
 
 
@@ -3425,6 +3444,107 @@ public func FfiConverterTypeGeoError_lift(_ buf: RustBuffer) throws -> GeoError 
 public func FfiConverterTypeGeoError_lower(_ value: GeoError) -> RustBuffer {
     return FfiConverterTypeGeoError.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * A grid whose strings [`parse_coordinate_with`] can decode — mirror of
+ * [`gc::parse::GridKind`].
+ *
+ * Plus Code and MGRS strings are always detected; Geohash and Maidenhead
+ * strings (`"42"` and `"bed"` are valid geohashes) only when
+ * [`ParseOptions::expect_grid`] names them.
+ */
+
+public enum GridKind: Equatable, Hashable {
+    
+    /**
+     * Open Location Code / Plus Code (`8FVC2222+22`).
+     */
+    case plusCode
+    /**
+     * Geohash (`ezs42`).
+     */
+    case geohash
+    /**
+     * Maidenhead locator (`FN20`).
+     */
+    case maidenhead
+    /**
+     * MGRS reference (`18TWK0000027757`).
+     */
+    case mgrs
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GridKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGridKind: FfiConverterRustBuffer {
+    typealias SwiftType = GridKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GridKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .plusCode
+        
+        case 2: return .geohash
+        
+        case 3: return .maidenhead
+        
+        case 4: return .mgrs
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GridKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .plusCode:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .geohash:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .maidenhead:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .mgrs:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGridKind_lift(_ buf: RustBuffer) throws -> GridKind {
+    return try FfiConverterTypeGridKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGridKind_lower(_ value: GridKind) -> RustBuffer {
+    return FfiConverterTypeGridKind.lower(value)
+}
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -4498,6 +4618,30 @@ fileprivate struct FfiConverterOptionTypeDatumAmbiguity: FfiConverterRustBuffer 
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeDatumAmbiguity.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeGridKind: FfiConverterRustBuffer {
+    typealias SwiftType = GridKind?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeGridKind.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeGridKind.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -6118,9 +6262,9 @@ public func fromWkt(input: String)throws  -> [Fix]  {
  *
  * A **heuristic**, not locale data: a small allowlist of decimal-comma
  * languages, overridden by the regions known to use a point (`de-CH`,
- * `es-MX`, …). An unknown or malformed tag yields `Point`. Set
- * [`TextParseOptions::decimal_comma`] when this is `Comma` to re-parse the
- * output with [`parse_coordinate_with`].
+ * `es-MX`, …). An unknown or malformed tag yields `Point`. The same value
+ * as [`ParseOptions::decimal_separator`] re-parses the output with
+ * [`parse_coordinate_with`].
  */
 public func decimalSeparatorForLocale(tag: String) -> DecimalSeparator  {
     return try!  FfiConverterTypeDecimalSeparator_lift(try! rustCall() {
@@ -6174,6 +6318,18 @@ public func formatOptionsDefault() -> FormatOptions  {
 })
 }
 /**
+ * The [`ParseOptions`] that read back every string `options` renders through
+ * [`parse_coordinate_with`]: lat-first, its decimal separator, and, for a
+ * grid representation, that grid as `expect_grid`.
+ */
+public func formatOptionsParseOptions(options: FormatOptions) -> ParseOptions  {
+    return try!  FfiConverterTypeParseOptions_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_format_options_parse_options(
+        FfiConverterTypeFormatOptions_lower(options),$0
+    )
+})
+}
+/**
  * Parse a `geo:` URI per RFC 5870 (lat-first; optional altitude; `crs`/`u`
  * parameters).
  *
@@ -6188,9 +6344,11 @@ public func fromGeoUri(input: String)throws  -> Fix  {
 })
 }
 /**
- * Best-effort parse of a single coordinate from arbitrary input (a `geo:` URI,
- * a Plus Code, else free-text DD/DMS/DDM heuristics with default options).
- * The [`Fix`] records the assumed axis order and parse confidence.
+ * Best-effort parse of a single coordinate from arbitrary input, with the
+ * default options: a `geo:` URI, a Plus Code, an MGRS reference, else
+ * free-text DD/DMS/DDM heuristics. Geohash and Maidenhead strings are not
+ * detected; ask for them with [`parse_coordinate_with`]. The [`Fix`] records
+ * the assumed axis order and parse confidence.
  *
  * # Errors
  * Returns a [`GeoError`] when no interpretation is found.
@@ -6203,33 +6361,42 @@ public func parseCoordinate(input: String)throws  -> Fix  {
 })
 }
 /**
- * [`parse_coordinate`] with explicit options for the free-text fallback
- * (`geo:` URIs and Plus Codes ignore them). Re-parses decimal-comma output
- * when `decimal_comma` is set exactly when the [`FormatOptions`]'
- * `decimal_separator` is `Comma`.
+ * [`parse_coordinate`] with explicit options: after a `geo:` URI, the grid
+ * `expect_grid` names is tried first, then Plus Code and MGRS, then free
+ * text. Pass [`format_options_parse_options`] to read back a rendering.
  *
  * # Errors
  * Returns a [`GeoError`] when no interpretation is found.
  */
-public func parseCoordinateWith(input: String, options: TextParseOptions)throws  -> Fix  {
+public func parseCoordinateWith(input: String, options: ParseOptions)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_parse_coordinate_with(
         FfiConverterString.lower(input),
-        FfiConverterTypeTextParseOptions_lower(options),$0
+        FfiConverterTypeParseOptions_lower(options),$0
     )
 })
 }
 /**
- * Parse a free-text coordinate with explicit tolerant-parsing options.
+ * The default parse options: lat-first, point decimals, no expected grid.
+ */
+public func parseOptionsDefault() -> ParseOptions  {
+    return try!  FfiConverterTypeParseOptions_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_parse_options_default($0
+    )
+})
+}
+/**
+ * Parse a free-text coordinate (no `geo:` URI or grid detection) with
+ * explicit options; `expect_grid` does not apply here.
  *
  * # Errors
  * Returns a [`GeoError`] when the input cannot be interpreted.
  */
-public func parseTextWith(input: String, options: TextParseOptions)throws  -> Fix  {
+public func parseTextWith(input: String, options: ParseOptions)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_parse_text_with(
         FfiConverterString.lower(input),
-        FfiConverterTypeTextParseOptions_lower(options),$0
+        FfiConverterTypeParseOptions_lower(options),$0
     )
 })
 }
@@ -6597,7 +6764,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 47392) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 55533) {
+    if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 30884) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 57575) {
@@ -6609,16 +6776,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_format_options_default() != 44227) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_format_options_parse_options() != 23577) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_from_geo_uri() != 1309) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 33133) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 41462) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 18292) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 49235) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 13914) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_options_default() != 13976) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 13879) {
         return InitializationResult.apiChecksumMismatch
     }
 
