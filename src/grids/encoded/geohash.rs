@@ -47,11 +47,12 @@ impl Geohash {
     /// (exact: the coordinate lies inside the returned cell).
     ///
     /// ```
-    /// use geocoordinates::Coordinate;
     /// use geocoordinates::grids::Geohash;
+    /// use geocoordinates::{Coordinate, Error};
     ///
-    /// let code = Geohash::encode(Coordinate::wgs84(57.64911, 10.40744)?, 11)?;
-    /// assert_eq!(code.as_str(), "u4pruydqqvj");
+    /// let point = Coordinate::wgs84(57.64911, 10.40744)?;
+    /// assert_eq!(Geohash::encode(point, 11)?.as_str(), "u4pruydqqvj");
+    /// assert!(matches!(Geohash::encode(point, 13), Err(Error::InvalidValue { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
@@ -101,6 +102,13 @@ impl Geohash {
     }
 
     /// The canonical (lowercase) geohash string.
+    ///
+    /// ```
+    /// use geocoordinates::grids::Geohash;
+    ///
+    /// assert_eq!(Geohash::try_from(" EZS42 ")?.as_str(), "ezs42");
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0

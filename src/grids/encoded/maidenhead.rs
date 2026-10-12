@@ -40,11 +40,12 @@ impl Maidenhead {
     /// subsquare, so the result always validates.
     ///
     /// ```
-    /// use geocoordinates::Coordinate;
     /// use geocoordinates::grids::Maidenhead;
+    /// use geocoordinates::{Coordinate, Error};
     ///
-    /// let locator = Maidenhead::encode(Coordinate::wgs84(40.5, -75.0)?, 2)?;
-    /// assert_eq!(locator.as_str(), "FN20");
+    /// let point = Coordinate::wgs84(40.5, -75.0)?;
+    /// assert_eq!(Maidenhead::encode(point, 2)?.as_str(), "FN20");
+    /// assert!(matches!(Maidenhead::encode(point, 4), Err(Error::InvalidValue { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
@@ -93,7 +94,15 @@ impl Maidenhead {
         Ok(Maidenhead(s))
     }
 
-    /// The canonical Maidenhead locator string.
+    /// The canonical Maidenhead locator string: uppercase field, digit square,
+    /// lowercase subsquare.
+    ///
+    /// ```
+    /// use geocoordinates::grids::Maidenhead;
+    ///
+    /// assert_eq!(Maidenhead::try_from("jn58TD")?.as_str(), "JN58td");
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
