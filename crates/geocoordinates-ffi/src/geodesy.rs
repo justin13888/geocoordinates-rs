@@ -441,7 +441,8 @@ pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 
 /// Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`, on
 /// the ellipsoid of their shared CRS (0° or 180° when either is a pole).
-/// Errors as for `rhumb_distance_m`.
+/// Errors as for `rhumb_distance_m`, and `InvalidValue` for coincident points,
+/// which have no bearing.
 #[uniffi::export]
 pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);

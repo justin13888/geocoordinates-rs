@@ -5986,7 +5986,8 @@ public func nedToEnu(ned: Ned) -> Enu  {
 /**
  * Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`, on
  * the ellipsoid of their shared CRS (0° or 180° when either is a pole).
- * Errors as for `rhumb_distance_m`.
+ * Errors as for `rhumb_distance_m`, and `InvalidValue` for coincident points,
+ * which have no bearing.
  */
 public func rhumbBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6814,7 +6815,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 5658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_bearing() != 54777) {
+    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_bearing() != 43422) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_rhumb_destination() != 52987) {

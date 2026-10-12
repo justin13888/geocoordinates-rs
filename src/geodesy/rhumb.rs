@@ -84,15 +84,28 @@ pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 ///
 /// To a pole the bearing is 0° (north pole) or 180° (south pole); from a pole
 /// it is 180° (north pole) or 0° (south pole), whatever the longitudes,
-/// because only a meridian reaches a pole. Coincident points return 0°.
+/// because only a meridian reaches a pole.
 ///
 /// # Errors
 ///
-/// As for [`rhumb_distance`].
+/// As for [`rhumb_distance`], and [`Error::InvalidValue`] (`field: "points"`)
+/// for coincident points (including one pole named at two longitudes), which
+/// have no bearing, as for [`initial_bearing`](super::geodesic::initial_bearing).
 pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
     let series = series_for_pair(a, b)?;
+    if a.lat() == b.lat() && (a.lat().abs() == 90.0 || shortest_d_lon(a, b) == 0.0) {
+        return Err(Error::InvalidValue {
+            field: "points",
+            detail: "coincident points have no bearing".into(),
+        });
+    }
     if touches_a_pole(a, b) {
-        return Ok(if b.lat() < a.lat() { 180.0 } else { 0.0 });
+        // Not coincident, so north to the north pole or from the south pole.
+        return Ok(if b.lat() == 90.0 || a.lat() == -90.0 {
+            0.0
+        } else {
+            180.0
+        });
     }
     let d_psi = series.isometric_latitude(b.lat().to_radians())
         - series.isometric_latitude(a.lat().to_radians());

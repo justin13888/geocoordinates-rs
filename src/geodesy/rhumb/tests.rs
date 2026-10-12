@@ -119,9 +119,49 @@ fn inverse_to_or_from_a_pole_is_the_meridian() {
     assert_inverse(c(80.0, 0.0), c(90.0, 90.0), 0.0, 1_116_825.857_375_85);
     // RhumbSolve I 90 0 0 90: leaving a pole, likewise.
     assert_inverse(c(90.0, 0.0), c(0.0, 90.0), 180.0, 10_001_965.729_312_723);
-    // Southward to the south pole, and the same pole twice (coincident).
+    // Southward to the south pole.
     assert_inverse(c(0.0, 0.0), c(-90.0, 45.0), 180.0, 10_001_965.729_312_723);
-    assert_inverse(c(90.0, 0.0), c(90.0, 45.0), 0.0, 0.0);
+}
+
+#[test]
+fn coincident_points_have_no_bearing() {
+    // As for `initial_bearing`: the same place, including a pole named at two
+    // longitudes and a point named on both sides of the antimeridian, has a
+    // zero distance but no bearing.
+    for (a, b) in [
+        (c(12.0, 34.0), c(12.0, 34.0)),
+        (c(90.0, 0.0), c(90.0, 45.0)),
+        (c(-90.0, 10.0), c(-90.0, -80.0)),
+        (c(10.0, -180.0), c(10.0, 180.0)),
+    ] {
+        assert_eq!(rhumb_distance(&a, &b).unwrap().meters(), 0.0, "{a:?} {b:?}");
+        assert!(
+            matches!(
+                rhumb_bearing(&a, &b),
+                Err(Error::InvalidValue {
+                    field: "points",
+                    ..
+                })
+            ),
+            "{a:?} {b:?}"
+        );
+    }
+    // A distinct point however close has a bearing, on a parallel or a meridian.
+    assert_close(
+        rhumb_bearing(&c(0.0, 0.0), &c(0.0, 1e-9)).unwrap(),
+        90.0,
+        DEGREES,
+    );
+    assert_close(
+        rhumb_bearing(&c(0.0, 0.0), &c(1e-9, 0.0)).unwrap(),
+        0.0,
+        DEGREES,
+    );
+    assert_close(
+        rhumb_bearing(&c(89.0, 0.0), &c(90.0, 0.0)).unwrap(),
+        0.0,
+        DEGREES,
+    );
 }
 
 #[test]

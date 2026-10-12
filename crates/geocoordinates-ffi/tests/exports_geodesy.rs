@@ -350,6 +350,11 @@ fn rhumb_line_distance_bearing_and_destination_are_pinned() {
         rhumb_destination(wgs84(80.0, 0.0), 45.0, 2_000_000.0),
         Err(GeoError::InvalidValue { .. })
     ));
+    // Coincident points have no bearing.
+    assert!(matches!(
+        rhumb_bearing(new_york(), new_york()),
+        Err(GeoError::InvalidValue { .. })
+    ));
 }
 
 #[test]
