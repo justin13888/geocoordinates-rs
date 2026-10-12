@@ -46,6 +46,17 @@ pub(super) const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 ///
 /// [`Error::OutOfRange`] for an out-of-range position, and
 /// [`Error::CrsMismatch`] when the two CRSs differ.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, Error, geodesy::haversine_distance};
+///
+/// // One degree of a great circle on the mean sphere: R·π/180.
+/// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(1.0, 0.0)?);
+/// assert!((haversine_distance(&a, &b)?.meters() - 111_195.08).abs() < 0.01);
+/// let tokyo = Coordinate::new(1.0, 0.0, Crs::Tokyo)?;
+/// assert!(matches!(haversine_distance(&a, &tokyo), Err(Error::CrsMismatch { .. })));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
     validate_pair(a, b)?;
     let lat1 = a.lat().to_radians();
@@ -68,6 +79,20 @@ pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 /// when the three CRSs differ, and [`Error::InvalidValue`] (`field: "path"`)
 /// when `start` and `end` are the same place or antipodal, which fixes no
 /// single great circle.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, geodesy::cross_track_distance_spherical};
+///
+/// // A path east along the equator; a point 1° north lies to its left.
+/// let (start, end) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 10.0)?);
+/// let xt = cross_track_distance_spherical(&Coordinate::wgs84(1.0, 5.0)?, &start, &end)?;
+/// assert!((xt.meters() + 111_195.08).abs() < 0.01);
+/// assert!(matches!(
+///     cross_track_distance_spherical(&start, &start, &start),
+///     Err(Error::InvalidValue { field: "path", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn cross_track_distance_spherical(
     point: &impl LatLon,
     start: &impl LatLon,
@@ -88,6 +113,25 @@ pub fn cross_track_distance_spherical(
 /// # Errors
 ///
 /// As for [`cross_track_distance_spherical`].
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, geodesy::along_track_distance_spherical};
+///
+/// let (start, end) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 10.0)?);
+/// // A point beside the path, 5° along it.
+/// let at = along_track_distance_spherical(&Coordinate::wgs84(1.0, 5.0)?, &start, &end)?;
+/// assert!((at.meters() - 5.0 * 111_195.08).abs() < 0.1);
+/// // Behind the start, the along-track distance is negative.
+/// let behind = along_track_distance_spherical(&Coordinate::wgs84(0.0, -2.0)?, &start, &end)?;
+/// assert!(behind.meters() < 0.0);
+/// // Antipodal ends fix no single great circle.
+/// let antipode = Coordinate::wgs84(0.0, 180.0)?;
+/// assert!(matches!(
+///     along_track_distance_spherical(&end, &start, &antipode),
+///     Err(Error::InvalidValue { field: "path", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn along_track_distance_spherical(
     point: &impl LatLon,
     start: &impl LatLon,
@@ -105,19 +149,60 @@ pub fn along_track_distance_spherical(
 
 /// The outcome of [`intersection_spherical`]: where two great-circle paths
 /// cross ahead of both starts, or why there is no single such point.
+///
+/// ```
+/// use geocoordinates::{Coordinate, geodesy::{Intersection, intersection_spherical}};
+///
+/// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(-10.0, 10.0)?);
+/// match intersection_spherical(&a, 90.0, &b, 0.0)? {
+///     Intersection::Crossing(p) => assert!((p.lon() - 10.0).abs() < 1e-9),
+///     other => panic!("expected a crossing, got {other:?}"),
+/// }
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Intersection {
     /// The paths cross at this point, less than half a great circle ahead of
     /// each start (or at a start itself). It carries the inputs' CRS and no
     /// height.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, geodesy::{Intersection, intersection_spherical}};
+    ///
+    /// // North from (0, 0) and west from (0, 30) meet at the start of the first.
+    /// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 30.0)?);
+    /// let Intersection::Crossing(p) = intersection_spherical(&a, 0.0, &b, 270.0)? else {
+    ///     panic!("expected a crossing");
+    /// };
+    /// assert!(p.lat().abs() < 1e-9 && p.lon().abs() < 1e-9);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     Crossing(Coordinate),
     /// Both paths run along the same great circle (in either direction), so
     /// every point of it is shared and no single crossing exists.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, geodesy::{Intersection, intersection_spherical}};
+    ///
+    /// // Both paths run along the equator, in opposite directions.
+    /// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 30.0)?);
+    /// assert_eq!(intersection_spherical(&a, 90.0, &b, 270.0)?, Intersection::SameGreatCircle);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     SameGreatCircle,
     /// The two great circles cross at a pair of antipodal points, but neither
     /// lies ahead of both starts: one path must travel backwards (or exactly
     /// half a great circle) to reach either.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, geodesy::{Intersection, intersection_spherical}};
+    ///
+    /// // Two meridians meet only at the poles; one path heads north, the other south.
+    /// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 30.0)?);
+    /// assert_eq!(intersection_spherical(&a, 0.0, &b, 180.0)?, Intersection::NoForwardCrossing);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     NoForwardCrossing,
 }
 
@@ -137,6 +222,22 @@ pub enum Intersection {
 /// when the CRSs differ or are GCJ-02 / BD-09 (obfuscated renderings; convert
 /// them to WGS-84 first), and [`Error::InvalidValue`] (`field: "bearing"`) for
 /// a non-finite bearing.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, geodesy::{Intersection, intersection_spherical}};
+///
+/// // North from (0, 0) and north-west from (0, 10): they meet north of the equator.
+/// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 10.0)?);
+/// let Intersection::Crossing(p) = intersection_spherical(&a, 0.0, &b, 315.0)? else {
+///     panic!("expected a crossing");
+/// };
+/// assert!(p.lat() > 9.0 && p.lon().abs() < 1e-9);
+/// assert!(matches!(
+///     intersection_spherical(&a, f64::NAN, &b, 315.0),
+///     Err(Error::InvalidValue { field: "bearing", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn intersection_spherical(
     a: &Coordinate,
     bearing_a_deg: f64,
