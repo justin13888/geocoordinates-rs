@@ -155,12 +155,13 @@ pub fn intersection_spherical(
     let (p2, d2) = (n_vector(b), heading(b, bearing_b_deg));
     // Each path's great circle is the plane normal to p × d; the circles meet
     // along the line both normals are perpendicular to.
+    // Its length is the sine of the angle between the circles. It is left
+    // unnormalized: the angle and position below are `atan2`s, which only its
+    // direction affects.
     let i = cross(cross(p1, d1), cross(p2, d2));
-    let sin_angle = dot(i, i).sqrt();
-    if is_parallel(sin_angle) {
+    if is_parallel(dot(i, i).sqrt()) {
         return Ok(Intersection::SameGreatCircle);
     }
-    let i = i.map(|v| v / sin_angle);
     for x in [i, i.map(|v| -v)] {
         if is_forward(along_angle(p1, d1, x)) && is_forward(along_angle(p2, d2, x)) {
             let lat = x[2].atan2(x[0].hypot(x[1])).to_degrees();
@@ -171,7 +172,7 @@ pub fn intersection_spherical(
     Ok(Intersection::NoForwardCrossing)
 }
 
-/// A unit 3-vector in Earth-centred axes (x to (0, 0), z to the north pole).
+/// A 3-vector in Earth-centred axes (x to (0, 0), z to the north pole).
 type Vec3 = [f64; 3];
 
 fn dot(u: Vec3, v: Vec3) -> f64 {
