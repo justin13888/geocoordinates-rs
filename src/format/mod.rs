@@ -7,6 +7,13 @@
 //! **round-trip stability** — `parse → model → format → parse` must not drift
 //! beyond the rendered precision.
 //!
+//! The guarantee holds for DD at every decimal count, for DMS up to 9 second
+//! decimals, and for DDM up to 12 minute decimals. Beyond those, the last
+//! rendered digit lies below the resolution an `f64` keeps through the
+//! degree / minute / second split and the re-parse, so a round trip can move
+//! it by one (`…16.7753336411″W` re-renders as `…16.7753336410″W` at 10
+//! second decimals). Every rendering still re-parses, to within that digit.
+//!
 //! Every DD / DMS / DDM output, in every [`SymbolStyle`] and
 //! [`HemisphereStyle`], re-parses through
 //! [`parse_coordinate_with`](crate::parse::parse_coordinate_with) given
@@ -59,7 +66,8 @@ pub enum Representation {
     /// Degrees-minutes-seconds (`40°42′46.08″N 74°00′21.60″W`).
     Dms {
         /// Decimal places of arcseconds, at most 15; `None` → 2, or derived
-        /// from accuracy by [`format_fix`].
+        /// from accuracy by [`format_fix`]. Round-trip stable up to 9; see
+        /// the [module docs](self).
         second_decimals: Option<u8>,
         /// Degree / minute / second glyphs.
         symbols: SymbolStyle,
@@ -69,7 +77,8 @@ pub enum Representation {
     /// Degrees-decimal-minutes (`40°42.768′N 74°00.360′W`).
     Ddm {
         /// Decimal places of arcminutes, at most 15; `None` → 3, or derived
-        /// from accuracy by [`format_fix`].
+        /// from accuracy by [`format_fix`]. Round-trip stable up to 12; see
+        /// the [module docs](self).
         minute_decimals: Option<u8>,
         /// Degree / minute glyphs.
         symbols: SymbolStyle,
