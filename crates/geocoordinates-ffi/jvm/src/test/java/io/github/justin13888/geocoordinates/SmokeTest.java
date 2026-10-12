@@ -20,6 +20,9 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsPrecision;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.outOfChina;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinateWith;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseOptionsDefault;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84FromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
@@ -27,14 +30,19 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84Validate;
 
 import org.junit.jupiter.api.Test;
 import uniffi.geocoordinates_ffi.ApproxWgs84;
+import uniffi.geocoordinates_ffi.AxisOrder;
 import uniffi.geocoordinates_ffi.Bd09;
 import uniffi.geocoordinates_ffi.Coordinate;
 import uniffi.geocoordinates_ffi.Crs;
 import uniffi.geocoordinates_ffi.DatumTransform;
+import uniffi.geocoordinates_ffi.DecimalSeparator;
 import uniffi.geocoordinates_ffi.Ecef;
+import uniffi.geocoordinates_ffi.Fix;
 import uniffi.geocoordinates_ffi.Gcj02;
 import uniffi.geocoordinates_ffi.GeoException;
+import uniffi.geocoordinates_ffi.GridKind;
 import uniffi.geocoordinates_ffi.MgrsPrecision;
+import uniffi.geocoordinates_ffi.ParseOptions;
 import uniffi.geocoordinates_ffi.Wgs84;
 
 /** Proves the Kotlin/JNA bindings are callable idiomatically from Java. */
@@ -132,5 +140,21 @@ class SmokeTest {
         double accuracy = tokyo.getAccuracyM();
         assertEquals(Math.sqrt(825.0), accuracy, 1e-12);
         assertNull(datumTransformCatalogToWgs84(Crs.PULKOVO42).getAccuracyM());
+    }
+
+    // MGRS is always detected; a geohash decodes only when `ParseOptions` expects
+    // one (a nullable `GridKind`), and ambiguous free text is a typed `Parse` error.
+    @Test
+    void gridDetectionFromJava() throws GeoException {
+        Fix mgrs = parseCoordinate("18TWK0000027757");
+        assertNull(mgrs.getSource().getAxisOrder());
+        assertThrows(GeoException.Parse.class, () -> parseCoordinate("ezs42"));
+        assertThrows(GeoException.Parse.class, () -> parseCoordinate("1234.5, 10"));
+
+        ParseOptions defaults = parseOptionsDefault();
+        assertNull(defaults.getExpectGrid());
+        ParseOptions geohash =
+                new ParseOptions(AxisOrder.LAT_LON, DecimalSeparator.POINT, GridKind.GEOHASH);
+        assertEquals(42.6, parseCoordinateWith("ezs42", geohash).getCoord().getLat(), 0.03);
     }
 }

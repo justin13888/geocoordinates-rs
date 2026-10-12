@@ -246,13 +246,51 @@ assert geo.accuracy.horizontal_m == 40.0
 text = gc.parse_coordinate("40.7128, -74.006")
 assert approx(text.coord.lat, 40.7128, 1e-9)
 assert text.source.axis_order is not None  # free text records the assumed order
-# Explicit options: European decimal comma, whitespace-separated.
-comma_opts = gc.TextParseOptions(
-    default_axis_order=gc.AxisOrder.LAT_LON, decimal_comma=True
+# Explicit options: European decimal comma, whitespace- or comma-separated.
+default_parse = gc.parse_options_default()
+assert default_parse.decimal_separator == gc.DecimalSeparator.POINT
+assert default_parse.expect_grid is None
+comma_opts = gc.ParseOptions(
+    default_axis_order=gc.AxisOrder.LAT_LON,
+    decimal_separator=gc.DecimalSeparator.COMMA,
+    expect_grid=None,
 )
-comma = gc.parse_text_with("40,7128 -74,006", comma_opts)
-assert approx(comma.coord.lat, 40.7128, 1e-9)
-assert approx(comma.coord.lon, -74.006, 1e-9)
+for comma_text in ["40,7128 -74,006", "40,7128, -74,006"]:
+    comma = gc.parse_text_with(comma_text, comma_opts)
+    assert approx(comma.coord.lat, 40.7128, 1e-9)
+    assert approx(comma.coord.lon, -74.006, 1e-9)
+# A decimal-comma rendering re-parses with the format options' own parse options.
+comma_back = gc.parse_coordinate_with(
+    "40,71 -74,01", gc.format_options_parse_options(comma_dd)
+)
+assert approx(comma_back.coord.lat, 40.71, 1e-9)
+# Text with no single reading is rejected rather than guessed at.
+for ambiguous in ["1234.5, 10", "40.5 30, 10", "4e1 3e1"]:
+    try:
+        gc.parse_coordinate(ambiguous)
+        raise AssertionError(f"expected {ambiguous!r} to be rejected")
+    except gc.GeoError.Parse:
+        pass
+# MGRS is always detected; a geohash only when the options expect one.
+mgrs_fix = gc.parse_coordinate("18TWK0000027757")
+assert mgrs_fix.source.axis_order is None
+assert mgrs_fix.accuracy.horizontal_m < 1.0
+try:
+    gc.parse_coordinate("ezs42")
+    raise AssertionError("a geohash must not be detected unasked")
+except gc.GeoError.Parse:
+    pass
+for representation, (lat, lon), expected in grid_cases:
+    grid_opts = gc.FormatOptions(
+        representation=representation, decimal_separator=gc.DecimalSeparator.POINT
+    )
+    grid_parse = gc.format_options_parse_options(grid_opts)
+    assert grid_parse.expect_grid is not None
+    cell = gc.parse_coordinate_with(expected, grid_parse)
+    # The rendered point lies within the decoded cell's reported bound.
+    assert gc.geodesic_distance_m(cell.coord, wgs84_coord(lat, lon)) <= (
+        cell.accuracy.horizontal_m
+    ), expected
 
 # --- Plus Code (Open Location Code) ---
 assert gc.plus_code_encode(wgs84_coord(47.0000625, 8.0000625), 10) == "8FVC2222+22"
