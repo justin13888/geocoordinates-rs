@@ -336,6 +336,24 @@ mod tests {
                 got.max_error_m()
             );
         }
+        // The widening is the gap to the inside preimage plus that inverse's
+        // own bound, not anything looser: the refined preimage is the origin,
+        // and the fast candidate lies within the fast bound of it.
+        let gap = residual_m(
+            gcj.lat(),
+            origin.lat() - gcj.lat(),
+            origin.lon() - gcj.lon(),
+        );
+        let refined = gcj.to_wgs84_refined().max_error_m();
+        assert!(
+            (refined - (gap + REFINED_BOUND_M)).abs() < 0.01,
+            "refined {refined} m vs gap {gap} m"
+        );
+        let fast = gcj.to_wgs84_fast().max_error_m();
+        assert!(
+            (fast - (gap + FAST_BOUND_M)).abs() <= FAST_BOUND_M,
+            "fast {fast} m vs gap {gap} m"
+        );
     }
 
     /// Sweep each box edge from just inside: wherever the offset carries a
