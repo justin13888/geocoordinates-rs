@@ -3188,28 +3188,21 @@ public func FfiConverterTypeDatumAmbiguity_lower(_ value: DatumAmbiguity) -> Rus
 
 
 /**
- * Errors surfaced across the FFI boundary — a flattened mirror of [`gc::Error`].
+ * Errors surfaced across the FFI boundary — a one-to-one mirror of [`gc::Error`].
  *
- * Datum-bearing variants carry their reference systems as their canonical
- * short names (e.g. `"BD-09"`); everything else collapses into [`GeoError::Other`].
+ * Every core variant has its own typed variant here, with the same fields and
+ * the same display message, so binding users match on the variant rather than
+ * on message text. Reference systems cross as the [`Crs`] enum.
+ * [`GeoError::Other`] is only the fallback for a core variant this mirror does
+ * not know yet (`gc::Error` is `#[non_exhaustive]`).
  */
 public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
     /**
-     * A coordinate carried the wrong reference system for the requested operation.
-     */
-    case CrsMismatch(
-        /**
-         * The reference system that was required.
-         */expected: String, 
-        /**
-         * The reference system the coordinate actually carried.
-         */found: String
-    )
-    /**
-     * A latitude/longitude fell outside its valid domain.
+     * A latitude or longitude was not a valid geographic value: non-finite, or
+     * outside `[-90, 90]` / `[-180, 180]` degrees.
      */
     case OutOfRange(
         /**
@@ -3220,7 +3213,74 @@ public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
          */lon: Double
     )
     /**
-     * Any other library error, with its message preserved.
+     * A valid latitude/longitude lies outside the area an operation or
+     * projection is defined on (e.g. UTM outside 80°S–84°N).
+     */
+    case OutsideDomain(
+        /**
+         * Name of the operation or projection whose domain was left.
+         */operation: String, 
+        /**
+         * Latitude in degrees.
+         */lat: Double, 
+        /**
+         * Longitude in degrees.
+         */lon: Double
+    )
+    /**
+     * A caller-provided option or numeric value was outside the operation's
+     * supported domain.
+     */
+    case InvalidValue(
+        /**
+         * Name of the invalid field or option.
+         */field: String, 
+        /**
+         * Human-readable description of the required domain.
+         */detail: String
+    )
+    /**
+     * A discrete global-grid identifier was not valid for its grid system.
+     */
+    case InvalidCellId(
+        /**
+         * Grid system name, such as `H3` or `S2`.
+         */grid: String, 
+        /**
+         * Offending numeric identifier.
+         */value: UInt64
+    )
+    /**
+     * Free-text / structured input could not be parsed into a coordinate.
+     */
+    case Parse(
+        /**
+         * What was wrong with the input.
+         */detail: String
+    )
+    /**
+     * A coordinate carried the wrong reference system for the requested operation.
+     */
+    case CrsMismatch(
+        /**
+         * The reference system that was required.
+         */expected: Crs, 
+        /**
+         * The reference system the coordinate actually carried.
+         */found: Crs
+    )
+    /**
+     * A grid reference (MGRS / Plus Code / geohash / Maidenhead) was malformed
+     * or fell outside the grid's valid domain.
+     */
+    case InvalidGridRef(
+        /**
+         * The offending grid reference text.
+         */detail: String
+    )
+    /**
+     * A core error variant this mirror does not yet have, with its message
+     * preserved.
      */
     case Other(
         /**
@@ -3256,15 +3316,34 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .CrsMismatch(
-            expected: try FfiConverterString.read(from: &buf), 
-            found: try FfiConverterString.read(from: &buf)
-            )
-        case 2: return .OutOfRange(
+        case 1: return .OutOfRange(
             lat: try FfiConverterDouble.read(from: &buf), 
             lon: try FfiConverterDouble.read(from: &buf)
             )
-        case 3: return .Other(
+        case 2: return .OutsideDomain(
+            operation: try FfiConverterString.read(from: &buf), 
+            lat: try FfiConverterDouble.read(from: &buf), 
+            lon: try FfiConverterDouble.read(from: &buf)
+            )
+        case 3: return .InvalidValue(
+            field: try FfiConverterString.read(from: &buf), 
+            detail: try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .InvalidCellId(
+            grid: try FfiConverterString.read(from: &buf), 
+            value: try FfiConverterUInt64.read(from: &buf)
+            )
+        case 5: return .Parse(
+            detail: try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .CrsMismatch(
+            expected: try FfiConverterTypeCrs.read(from: &buf), 
+            found: try FfiConverterTypeCrs.read(from: &buf)
+            )
+        case 7: return .InvalidGridRef(
+            detail: try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .Other(
             detail: try FfiConverterString.read(from: &buf)
             )
 
@@ -3279,20 +3358,49 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
 
         
         
-        case let .CrsMismatch(expected,found):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(expected, into: &buf)
-            FfiConverterString.write(found, into: &buf)
-            
-        
         case let .OutOfRange(lat,lon):
-            writeInt(&buf, Int32(2))
+            writeInt(&buf, Int32(1))
             FfiConverterDouble.write(lat, into: &buf)
             FfiConverterDouble.write(lon, into: &buf)
             
         
-        case let .Other(detail):
+        case let .OutsideDomain(operation,lat,lon):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(operation, into: &buf)
+            FfiConverterDouble.write(lat, into: &buf)
+            FfiConverterDouble.write(lon, into: &buf)
+            
+        
+        case let .InvalidValue(field,detail):
             writeInt(&buf, Int32(3))
+            FfiConverterString.write(field, into: &buf)
+            FfiConverterString.write(detail, into: &buf)
+            
+        
+        case let .InvalidCellId(grid,value):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(grid, into: &buf)
+            FfiConverterUInt64.write(value, into: &buf)
+            
+        
+        case let .Parse(detail):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(detail, into: &buf)
+            
+        
+        case let .CrsMismatch(expected,found):
+            writeInt(&buf, Int32(6))
+            FfiConverterTypeCrs.write(expected, into: &buf)
+            FfiConverterTypeCrs.write(found, into: &buf)
+            
+        
+        case let .InvalidGridRef(detail):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(detail, into: &buf)
+            
+        
+        case let .Other(detail):
+            writeInt(&buf, Int32(8))
             FfiConverterString.write(detail, into: &buf)
             
         }
