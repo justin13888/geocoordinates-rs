@@ -96,7 +96,7 @@ pub mod prelude {
         Height, LatLon, Length, LengthUnit, RawSource, Result, Wgs84,
     };
 
-    pub use crate::angle::{Axis, Dd, Ddm, Dms, Hemisphere};
+    pub use crate::angle::{Axis, Ddm, Dms, Hemisphere};
     pub use crate::fix::{AxisOrder, DatumAmbiguity};
     pub use crate::geodesy::haversine_distance;
 

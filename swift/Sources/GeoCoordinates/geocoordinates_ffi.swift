@@ -1405,66 +1405,10 @@ public func FfiConverterTypeDatumTransform_lower(_ value: DatumTransform) -> Rus
 
 
 /**
- * Decimal degrees — mirror of the `gc::angle::Dd` newtype.
- */
-public struct Dd: Equatable, Hashable {
-    /**
-     * The signed angle in decimal degrees.
-     */
-    public var value: Double
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * The signed angle in decimal degrees.
-         */value: Double) {
-        self.value = value
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension Dd: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeDd: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Dd {
-        return
-            try Dd(
-                value: FfiConverterDouble.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: Dd, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.value, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDd_lift(_ buf: RustBuffer) throws -> Dd {
-    return try FfiConverterTypeDd.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDd_lower(_ value: Dd) -> RustBuffer {
-    return FfiConverterTypeDd.lower(value)
-}
-
-
-/**
  * Degrees / decimal minutes — mirror of [`gc::angle::Ddm`].
+ *
+ * Unvalidated until used: every function taking one applies
+ * [`gc::angle::Ddm::new`]'s range checks first (see [`ddm_validate`]).
  */
 public struct Ddm: Equatable, Hashable {
     /**
@@ -1544,6 +1488,9 @@ public func FfiConverterTypeDdm_lower(_ value: Ddm) -> RustBuffer {
 
 /**
  * Degrees / minutes / seconds — mirror of [`gc::angle::Dms`].
+ *
+ * Unvalidated until used: every function taking one applies
+ * [`gc::angle::Dms::new`]'s range checks first (see [`dms_validate`]).
  */
 public struct Dms: Equatable, Hashable {
     /**
@@ -4383,39 +4330,42 @@ public func clampLatitude(latDeg: Double) -> Double  {
 })
 }
 /**
- * Decimal degrees → degrees/decimal-minutes for the given axis.
+ * Decompose signed decimal degrees on the given axis into
+ * degrees/decimal-minutes.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+ * or one beyond ±90° (latitude) / ±180° (longitude).
  */
-public func ddToDdm(dd: Dd, axis: Axis)throws  -> Ddm  {
+public func ddmFromDegrees(value: Double, axis: Axis)throws  -> Ddm  {
     return try  FfiConverterTypeDdm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_dd_to_ddm(
-        FfiConverterTypeDd_lower(dd),
+    uniffi_geocoordinates_ffi_fn_func_ddm_from_degrees(
+        FfiConverterDouble.lower(value),
         FfiConverterTypeAxis_lower(axis),$0
     )
 })
 }
 /**
- * Decimal degrees → degrees/minutes/seconds for the given axis.
+ * Degrees/decimal-minutes → signed decimal degrees (signed by hemisphere),
+ * exact up to `f64` rounding.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming the out-of-range component (see
+ * [`ddm_validate`]).
  */
-public func ddToDms(dd: Dd, axis: Axis)throws  -> Dms  {
-    return try  FfiConverterTypeDms_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_dd_to_dms(
-        FfiConverterTypeDd_lower(dd),
-        FfiConverterTypeAxis_lower(axis),$0
-    )
-})
-}
-/**
- * Degrees/decimal-minutes → decimal degrees (signed by hemisphere).
- */
-public func ddmToDd(ddm: Ddm)throws  -> Dd  {
-    return try  FfiConverterTypeDd_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ddm_to_dd(
+public func ddmToDegrees(ddm: Ddm)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ddm_to_degrees(
         FfiConverterTypeDdm_lower(ddm),$0
     )
 })
 }
 /**
  * Degrees/decimal-minutes → degrees/minutes/seconds (preserves hemisphere).
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming the out-of-range component (see
+ * [`ddm_validate`]).
  */
 public func ddmToDms(ddm: Ddm)throws  -> Dms  {
     return try  FfiConverterTypeDms_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4425,17 +4375,40 @@ public func ddmToDms(ddm: Ddm)throws  -> Dms  {
 })
 }
 /**
- * Degrees/minutes/seconds → decimal degrees (signed by hemisphere).
+ * Check a DDM record against [`gc::angle::Ddm::new`]'s ranges: minutes in
+ * `[0, 60)`, and at most 90° (North/South) or 180° (East/West).
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `degrees` or `minutes`.
  */
-public func dmsToDd(dms: Dms)throws  -> Dd  {
-    return try  FfiConverterTypeDd_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_dms_to_dd(
-        FfiConverterTypeDms_lower(dms),$0
+public func ddmValidate(ddm: Ddm)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ddm_validate(
+        FfiConverterTypeDdm_lower(ddm),$0
+    )
+}
+}
+/**
+ * Decompose signed decimal degrees on the given axis into
+ * degrees/minutes/seconds.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+ * or one beyond ±90° (latitude) / ±180° (longitude).
+ */
+public func dmsFromDegrees(value: Double, axis: Axis)throws  -> Dms  {
+    return try  FfiConverterTypeDms_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_dms_from_degrees(
+        FfiConverterDouble.lower(value),
+        FfiConverterTypeAxis_lower(axis),$0
     )
 })
 }
 /**
  * Degrees/minutes/seconds → degrees/decimal-minutes (preserves hemisphere).
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming the out-of-range component (see
+ * [`dms_validate`]).
  */
 public func dmsToDdm(dms: Dms)throws  -> Ddm  {
     return try  FfiConverterTypeDdm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4443,6 +4416,34 @@ public func dmsToDdm(dms: Dms)throws  -> Ddm  {
         FfiConverterTypeDms_lower(dms),$0
     )
 })
+}
+/**
+ * Degrees/minutes/seconds → signed decimal degrees (signed by hemisphere),
+ * exact up to `f64` rounding.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming the out-of-range component (see
+ * [`dms_validate`]).
+ */
+public func dmsToDegrees(dms: Dms)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_dms_to_degrees(
+        FfiConverterTypeDms_lower(dms),$0
+    )
+})
+}
+/**
+ * Check a DMS record against [`gc::angle::Dms::new`]'s ranges: minutes and
+ * seconds in `[0, 60)`, and at most 90° (North/South) or 180° (East/West).
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `degrees`, `minutes`, or `seconds`.
+ */
+public func dmsValidate(dms: Dms)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_dms_validate(
+        FfiConverterTypeDms_lower(dms),$0
+    )
+}
 }
 /**
  * The numeric sign a hemisphere applies (`-1.0` for South/West, else `+1.0`).
@@ -4455,7 +4456,8 @@ public func hemisphereSign(hemisphere: Hemisphere) -> Double  {
 })
 }
 /**
- * Normalize an angle (degrees) into `[0, 360)`.
+ * Normalize an angle (degrees) into the half-open range `[0, 360)`; the result
+ * is never `360.0` or `-0.0`.
  */
 public func normalizeDegrees(deg: Double) -> Double  {
     return try!  FfiConverterDouble.lift(try! rustCall() {
@@ -5645,28 +5647,34 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_clamp_latitude() != 20955) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dd_to_ddm() != 15643) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ddm_from_degrees() != 43907) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dd_to_dms() != 44006) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_degrees() != 56579) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_dd() != 57508) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_dms() != 30702) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_dms() != 51987) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ddm_validate() != 61361) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_dd() != 43462) {
+    if (uniffi_geocoordinates_ffi_checksum_func_dms_from_degrees() != 19710) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_ddm() != 36281) {
+    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_ddm() != 16255) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_degrees() != 34236) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_dms_validate() != 50803) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_hemisphere_sign() != 61036) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_normalize_degrees() != 32675) {
+    if (uniffi_geocoordinates_ffi_checksum_func_normalize_degrees() != 32403) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_wrap_longitude() != 16962) {

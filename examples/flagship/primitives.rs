@@ -3,7 +3,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use geocoordinates::angle::{
-    Axis, Dd, Ddm, Dms, Hemisphere as AngleHemisphere, clamp_latitude, normalize_degrees,
+    Axis, Ddm, Dms, Hemisphere as AngleHemisphere, clamp_latitude, normalize_degrees,
     wrap_longitude,
 };
 use geocoordinates::dgg::{H3Cell, S2CellId};
@@ -30,7 +30,6 @@ where
 fn all_public_value_types_are_serde() {
     assert_serde::<AngleHemisphere>();
     assert_serde::<Axis>();
-    assert_serde::<Dd>();
     assert_serde::<Dms>();
     assert_serde::<Ddm>();
     assert_serde::<Approx<Coordinate>>();
@@ -88,16 +87,30 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
         Coordinate::wgs84(40.7128, -74.006)?
     );
 
-    let dd = Dd(-73.9857);
-    let dms = dd.try_to_dms(Axis::Longitude)?;
-    assert_eq!(dms.hemisphere, AngleHemisphere::West);
-    assert_close(dms.try_to_dd()?.0, dd.0, 1e-12);
-    let ddm = dms.try_to_ddm()?;
-    assert_eq!(dd.try_to_ddm(Axis::Longitude)?, ddm);
-    assert_close(ddm.try_to_dd()?.0, dd.0, 1e-12);
-    assert_eq!(ddm.try_to_dms()?.hemisphere, AngleHemisphere::West);
+    // Decimal degrees are a plain f64; the axis is stated at every conversion.
+    let dd = -73.9857;
+    let dms = Dms::from_degrees(dd, Axis::Longitude)?;
+    assert_eq!(dms.hemisphere(), AngleHemisphere::West);
+    assert_eq!((dms.degrees(), dms.minutes()), (73, 59));
+    assert_close(dms.seconds(), 8.52, 1e-9);
+    assert_close(dms.to_degrees(), dd, 1e-12);
+    // Dms and Ddm are valid by construction, so converting between them is
+    // infallible.
+    let ddm = dms.to_ddm();
     assert_eq!(
-        Dd(40.0).try_to_dms(Axis::Latitude)?.hemisphere,
+        Ddm::from_degrees(dd, Axis::Longitude)?.degrees(),
+        ddm.degrees()
+    );
+    assert_close(ddm.minutes(), 59.142, 1e-9);
+    assert_close(ddm.to_degrees(), dd, 1e-12);
+    assert_eq!(ddm.to_dms().hemisphere(), AngleHemisphere::West);
+    assert_eq!(
+        Dms::new(40, 42, 46.0, AngleHemisphere::North)?.minutes(),
+        42
+    );
+    assert_eq!(Ddm::new(40, 42.5, AngleHemisphere::North)?.minutes(), 42.5);
+    assert_eq!(
+        Dms::from_degrees(40.0, Axis::Latitude)?.hemisphere(),
         AngleHemisphere::North
     );
     assert_eq!(AngleHemisphere::North.sign(), 1.0);
@@ -108,6 +121,8 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
     assert_eq!(wrap_longitude(181.0), -179.0);
     assert_eq!(clamp_latitude(95.0), 90.0);
     assert_eq!(normalize_degrees(-10.0), 350.0);
+    // [0, 360) is half-open: a tiny negative never rounds up to 360.
+    assert_eq!(normalize_degrees(-1e-20), 0.0);
 
     for unit in [
         LengthUnit::Meter,

@@ -224,25 +224,36 @@ fn haversine_distance_is_pinned() {
 // --- Angle encodings ---
 
 #[test]
-fn dd_decomposes_into_dms_and_ddm() {
-    let dms = dd_to_dms(
-        Dd {
-            value: 40.712_775_3,
-        },
-        Axis::Latitude,
-    )
-    .unwrap();
+fn degrees_decompose_into_dms_and_ddm() {
+    let dms = dms_from_degrees(40.712_775_3, Axis::Latitude).unwrap();
     assert_eq!((dms.degrees, dms.minutes), (40, 42));
     close(dms.seconds, 45.991_08, 1e-9);
     assert_eq!(dms.hemisphere, Hemisphere::North);
-    let ddm = dd_to_ddm(Dd { value: -74.006 }, Axis::Longitude).unwrap();
+    let ddm = ddm_from_degrees(-74.006, Axis::Longitude).unwrap();
     assert_eq!(ddm.degrees, 74);
     close(ddm.minutes, 0.36, 1e-9);
     assert_eq!(ddm.hemisphere, Hemisphere::West);
+    // -0.0 reads as the positive hemisphere.
+    let zero = dms_from_degrees(-0.0, Axis::Latitude).unwrap();
+    assert_eq!(zero.hemisphere, Hemisphere::North);
 }
 
 #[test]
-fn dms_and_ddm_convert_between_each_other_and_back_to_dd() {
+fn from_degrees_rejects_values_outside_the_axis() {
+    for result in [
+        dms_from_degrees(f64::NAN, Axis::Latitude).map(|_| ()),
+        dms_from_degrees(90.5, Axis::Latitude).map(|_| ()),
+        ddm_from_degrees(-180.5, Axis::Longitude).map(|_| ()),
+    ] {
+        assert!(
+            matches!(&result, Err(GeoError::InvalidValue { field, .. }) if field == "decimal degrees"),
+            "{result:?}"
+        );
+    }
+}
+
+#[test]
+fn dms_and_ddm_convert_between_each_other_and_back_to_degrees() {
     let dms = Dms {
         degrees: 40,
         minutes: 42,
@@ -252,7 +263,7 @@ fn dms_and_ddm_convert_between_each_other_and_back_to_dd() {
     let ddm = dms_to_ddm(dms).unwrap();
     assert_eq!((ddm.degrees, ddm.hemisphere), (40, Hemisphere::North));
     close(ddm.minutes, 42.766_518, 1e-9);
-    close(dms_to_dd(dms).unwrap().value, 40.712_775_3, 1e-12);
+    close(dms_to_degrees(dms).unwrap(), 40.712_775_3, 1e-12);
 
     let west = Ddm {
         degrees: 74,
@@ -263,7 +274,74 @@ fn dms_and_ddm_convert_between_each_other_and_back_to_dd() {
     assert_eq!((back.degrees, back.minutes), (74, 0));
     close(back.seconds, 21.6, 1e-9);
     assert_eq!(back.hemisphere, Hemisphere::West);
-    close(ddm_to_dd(west).unwrap().value, -74.006, 1e-12);
+    close(ddm_to_degrees(west).unwrap(), -74.006, 1e-12);
+}
+
+#[test]
+fn hand_built_angle_records_are_validated_on_use() {
+    let good_dms = Dms {
+        degrees: 40,
+        minutes: 59,
+        seconds: 59.5,
+        hemisphere: Hemisphere::South,
+    };
+    assert_eq!(dms_validate(good_dms), Ok(()));
+    let good_ddm = Ddm {
+        degrees: 180,
+        minutes: 0.0,
+        hemisphere: Hemisphere::West,
+    };
+    assert_eq!(ddm_validate(good_ddm), Ok(()));
+
+    let invalid = |result: Result<(), GeoError>, expected: &str| {
+        assert!(
+            matches!(&result, Err(GeoError::InvalidValue { field, .. }) if field == expected),
+            "expected InvalidValue {{ field: {expected} }}, got {result:?}"
+        );
+    };
+    let minutes_60 = Dms {
+        minutes: 60,
+        ..good_dms
+    };
+    invalid(dms_validate(minutes_60), "minutes");
+    invalid(dms_to_degrees(minutes_60).map(|_| ()), "minutes");
+    invalid(dms_to_ddm(minutes_60).map(|_| ()), "minutes");
+    invalid(
+        dms_validate(Dms {
+            seconds: 60.0,
+            ..good_dms
+        }),
+        "seconds",
+    );
+    invalid(
+        dms_validate(Dms {
+            degrees: 91,
+            ..good_dms
+        }),
+        "degrees",
+    );
+    let past_antimeridian = Ddm {
+        minutes: 0.5,
+        ..good_ddm
+    };
+    invalid(ddm_validate(past_antimeridian), "degrees");
+    invalid(ddm_to_degrees(past_antimeridian).map(|_| ()), "degrees");
+    invalid(ddm_to_dms(past_antimeridian).map(|_| ()), "degrees");
+    invalid(
+        ddm_validate(Ddm {
+            minutes: f64::NAN,
+            ..good_ddm
+        }),
+        "degrees",
+    );
+    invalid(
+        ddm_validate(Ddm {
+            degrees: 10,
+            minutes: f64::NAN,
+            hemisphere: Hemisphere::North,
+        }),
+        "minutes",
+    );
 }
 
 #[test]
@@ -282,6 +360,9 @@ fn normalization_helpers_handle_antimeridian_and_poles() {
     assert_eq!(clamp_latitude(-95.0), -90.0);
     assert_eq!(normalize_degrees(-1.0), 359.0);
     assert_eq!(normalize_degrees(720.0), 0.0);
+    // Half-open: a tiny negative never rounds up to 360, and -0.0 becomes +0.0.
+    assert_eq!(normalize_degrees(-1e-20), 0.0);
+    assert!(normalize_degrees(-0.0).is_sign_positive());
 }
 
 #[test]

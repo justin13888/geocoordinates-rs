@@ -87,14 +87,9 @@ fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f6
             )));
         }
     };
-    Ddm {
-        degrees,
-        minutes,
-        hemisphere,
-    }
-    .try_to_dd()
-    .map(|value| value.0)
-    .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))
+    Ddm::new(degrees, minutes, hemisphere)
+        .map(Ddm::to_degrees)
+        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))
 }
 
 /// Latitude (2 degree digits) + longitude (3 degree digits) → coordinate.

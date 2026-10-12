@@ -1,5 +1,5 @@
-//! Angle encodings (decimal degrees, DMS, DDM), their conversions, and the
-//! angle normalization helpers.
+//! Angle encodings (DMS, DDM), their conversions to and from signed decimal
+//! degrees, and the angle normalization helpers.
 
 use geocoordinates as gc;
 
@@ -29,14 +29,10 @@ pub enum Axis {
     Longitude,
 }
 
-/// Decimal degrees — mirror of the `gc::angle::Dd` newtype.
-#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
-pub struct Dd {
-    /// The signed angle in decimal degrees.
-    pub value: f64,
-}
-
 /// Degrees / minutes / seconds — mirror of [`gc::angle::Dms`].
+///
+/// Unvalidated until used: every function taking one applies
+/// [`gc::angle::Dms::new`]'s range checks first (see [`dms_validate`]).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Dms {
     /// Whole degrees (non-negative; sign carried by `hemisphere`).
@@ -50,6 +46,9 @@ pub struct Dms {
 }
 
 /// Degrees / decimal minutes — mirror of [`gc::angle::Ddm`].
+///
+/// Unvalidated until used: every function taking one applies
+/// [`gc::angle::Ddm::new`]'s range checks first (see [`ddm_validate`]).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ddm {
     /// Whole degrees (non-negative; sign carried by `hemisphere`).
@@ -100,114 +99,128 @@ impl From<Axis> for gc::angle::Axis {
     }
 }
 
-impl From<gc::angle::Dd> for Dd {
-    fn from(d: gc::angle::Dd) -> Self {
-        Dd { value: d.0 }
-    }
-}
-
-impl From<Dd> for gc::angle::Dd {
-    fn from(d: Dd) -> Self {
-        gc::angle::Dd(d.value)
-    }
-}
-
 impl From<gc::angle::Dms> for Dms {
     fn from(d: gc::angle::Dms) -> Self {
         Dms {
-            degrees: d.degrees,
-            minutes: d.minutes,
-            seconds: d.seconds,
-            hemisphere: d.hemisphere.into(),
+            degrees: d.degrees(),
+            minutes: d.minutes(),
+            seconds: d.seconds(),
+            hemisphere: d.hemisphere().into(),
         }
     }
 }
 
-impl From<Dms> for gc::angle::Dms {
-    fn from(d: Dms) -> Self {
-        gc::angle::Dms {
-            degrees: d.degrees,
-            minutes: d.minutes,
-            seconds: d.seconds,
-            hemisphere: d.hemisphere.into(),
-        }
+impl TryFrom<Dms> for gc::angle::Dms {
+    type Error = GeoError;
+
+    fn try_from(d: Dms) -> Result<Self, GeoError> {
+        gc::angle::Dms::new(d.degrees, d.minutes, d.seconds, d.hemisphere.into())
+            .map_err(GeoError::from)
     }
 }
 
 impl From<gc::angle::Ddm> for Ddm {
     fn from(d: gc::angle::Ddm) -> Self {
         Ddm {
-            degrees: d.degrees,
-            minutes: d.minutes,
-            hemisphere: d.hemisphere.into(),
+            degrees: d.degrees(),
+            minutes: d.minutes(),
+            hemisphere: d.hemisphere().into(),
         }
     }
 }
 
-impl From<Ddm> for gc::angle::Ddm {
-    fn from(d: Ddm) -> Self {
-        gc::angle::Ddm {
-            degrees: d.degrees,
-            minutes: d.minutes,
-            hemisphere: d.hemisphere.into(),
-        }
+impl TryFrom<Ddm> for gc::angle::Ddm {
+    type Error = GeoError;
+
+    fn try_from(d: Ddm) -> Result<Self, GeoError> {
+        gc::angle::Ddm::new(d.degrees, d.minutes, d.hemisphere.into()).map_err(GeoError::from)
     }
 }
 
 // --- Angle conversions ---
 
-/// Decimal degrees → degrees/minutes/seconds for the given axis.
+/// Decompose signed decimal degrees on the given axis into
+/// degrees/minutes/seconds.
+///
+/// # Errors
+/// `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+/// or one beyond ±90° (latitude) / ±180° (longitude).
 #[uniffi::export]
-pub fn dd_to_dms(dd: Dd, axis: Axis) -> Result<Dms, GeoError> {
-    gc::angle::Dd::from(dd)
-        .try_to_dms(axis.into())
-        .map(Into::into)
-        .map_err(Into::into)
+pub fn dms_from_degrees(value: f64, axis: Axis) -> Result<Dms, GeoError> {
+    Ok(gc::angle::Dms::from_degrees(value, axis.into())?.into())
 }
 
-/// Decimal degrees → degrees/decimal-minutes for the given axis.
+/// Decompose signed decimal degrees on the given axis into
+/// degrees/decimal-minutes.
+///
+/// # Errors
+/// `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+/// or one beyond ±90° (latitude) / ±180° (longitude).
 #[uniffi::export]
-pub fn dd_to_ddm(dd: Dd, axis: Axis) -> Result<Ddm, GeoError> {
-    gc::angle::Dd::from(dd)
-        .try_to_ddm(axis.into())
-        .map(Into::into)
-        .map_err(Into::into)
+pub fn ddm_from_degrees(value: f64, axis: Axis) -> Result<Ddm, GeoError> {
+    Ok(gc::angle::Ddm::from_degrees(value, axis.into())?.into())
+}
+
+/// Degrees/minutes/seconds → signed decimal degrees (signed by hemisphere),
+/// exact up to `f64` rounding.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the out-of-range component (see
+/// [`dms_validate`]).
+#[uniffi::export]
+pub fn dms_to_degrees(dms: Dms) -> Result<f64, GeoError> {
+    Ok(gc::angle::Dms::try_from(dms)?.to_degrees())
+}
+
+/// Degrees/decimal-minutes → signed decimal degrees (signed by hemisphere),
+/// exact up to `f64` rounding.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the out-of-range component (see
+/// [`ddm_validate`]).
+#[uniffi::export]
+pub fn ddm_to_degrees(ddm: Ddm) -> Result<f64, GeoError> {
+    Ok(gc::angle::Ddm::try_from(ddm)?.to_degrees())
 }
 
 /// Degrees/minutes/seconds → degrees/decimal-minutes (preserves hemisphere).
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the out-of-range component (see
+/// [`dms_validate`]).
 #[uniffi::export]
 pub fn dms_to_ddm(dms: Dms) -> Result<Ddm, GeoError> {
-    gc::angle::Dms::from(dms)
-        .try_to_ddm()
-        .map(Into::into)
-        .map_err(Into::into)
+    Ok(gc::angle::Dms::try_from(dms)?.to_ddm().into())
 }
 
 /// Degrees/decimal-minutes → degrees/minutes/seconds (preserves hemisphere).
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the out-of-range component (see
+/// [`ddm_validate`]).
 #[uniffi::export]
 pub fn ddm_to_dms(ddm: Ddm) -> Result<Dms, GeoError> {
-    gc::angle::Ddm::from(ddm)
-        .try_to_dms()
-        .map(Into::into)
-        .map_err(Into::into)
+    Ok(gc::angle::Ddm::try_from(ddm)?.to_dms().into())
 }
 
-/// Degrees/minutes/seconds → decimal degrees (signed by hemisphere).
+/// Check a DMS record against [`gc::angle::Dms::new`]'s ranges: minutes and
+/// seconds in `[0, 60)`, and at most 90° (North/South) or 180° (East/West).
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming `degrees`, `minutes`, or `seconds`.
 #[uniffi::export]
-pub fn dms_to_dd(dms: Dms) -> Result<Dd, GeoError> {
-    gc::angle::Dms::from(dms)
-        .try_to_dd()
-        .map(Into::into)
-        .map_err(Into::into)
+pub fn dms_validate(dms: Dms) -> Result<(), GeoError> {
+    gc::angle::Dms::try_from(dms).map(|_| ())
 }
 
-/// Degrees/decimal-minutes → decimal degrees (signed by hemisphere).
+/// Check a DDM record against [`gc::angle::Ddm::new`]'s ranges: minutes in
+/// `[0, 60)`, and at most 90° (North/South) or 180° (East/West).
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming `degrees` or `minutes`.
 #[uniffi::export]
-pub fn ddm_to_dd(ddm: Ddm) -> Result<Dd, GeoError> {
-    gc::angle::Ddm::from(ddm)
-        .try_to_dd()
-        .map(Into::into)
-        .map_err(Into::into)
+pub fn ddm_validate(ddm: Ddm) -> Result<(), GeoError> {
+    gc::angle::Ddm::try_from(ddm).map(|_| ())
 }
 
 /// The numeric sign a hemisphere applies (`-1.0` for South/West, else `+1.0`).
@@ -230,7 +243,8 @@ pub fn clamp_latitude(lat_deg: f64) -> f64 {
     gc::angle::clamp_latitude(lat_deg)
 }
 
-/// Normalize an angle (degrees) into `[0, 360)`.
+/// Normalize an angle (degrees) into the half-open range `[0, 360)`; the result
+/// is never `360.0` or `-0.0`.
 #[uniffi::export]
 pub fn normalize_degrees(deg: f64) -> f64 {
     gc::angle::normalize_degrees(deg)
