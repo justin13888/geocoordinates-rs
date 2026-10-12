@@ -113,14 +113,9 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
     assert_eq!(utm.precision_m(), 1000);
     let approx = utm.to_coordinate();
     let corner = |e: f64, n: f64| {
-        Utm {
-            zone: 31,
-            hemisphere: Hemisphere::North,
-            easting: e,
-            northing: n,
-        }
-        .try_to_coordinate()
-        .unwrap()
+        Utm::new(31, UtmHemisphere::North, e, n)
+            .unwrap()
+            .to_coordinate()
     };
     let worst = worst_corner_distance(
         approx.value(),
@@ -139,13 +134,9 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
     assert_eq!(ups.precision_m(), 1000);
     let approx = ups.to_coordinate();
     let corner = |e: f64, n: f64| {
-        Ups {
-            hemisphere: Hemisphere::North,
-            easting: e,
-            northing: n,
-        }
-        .try_to_coordinate()
-        .unwrap()
+        Ups::new(UtmHemisphere::North, e, n)
+            .unwrap()
+            .to_coordinate()
     };
     let worst = worst_corner_distance(
         approx.value(),
@@ -321,4 +312,19 @@ fn multibyte_inputs_never_panic() {
             }
         }
     }
+}
+
+#[test]
+fn squares_across_the_antimeridian_decode_wrapped() {
+    // C6: zone 1's westmost column (easting 100–200 km) at the equator lies
+    // east of 180°. It decodes to a wrapped longitude instead of falling
+    // through to `InvalidGridRef`.
+    let west = Mgrs::try_from("1NAA5000050000").expect("valid");
+    let west = west.to_coordinate();
+    assert_close(west.value().lat(), 0.452, 1e-3);
+    assert!(west.value().lon() > 179.8, "{:?}", west.value());
+    // The mirror square in zone 60's eastmost column wraps west.
+    let east = Mgrs::try_from("60NZF5000050000").expect("valid");
+    let east = east.to_coordinate();
+    assert!(east.value().lon() < -179.8, "{:?}", east.value());
 }

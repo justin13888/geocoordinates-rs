@@ -85,8 +85,53 @@ fn utm_matches_published_values_and_round_trips() {
 fn utm_rejects_polar_latitudes() {
     assert!(matches!(
         utm_from_coordinate(wgs84(85.0, 0.0)),
-        Err(GeoError::OutOfRange { .. })
+        Err(GeoError::OutsideDomain { operation, lat: 85.0, lon: 0.0 }) if operation == "UTM"
     ));
+}
+
+#[test]
+fn utm_to_coordinate_validates_the_record_and_wraps_longitude() {
+    let record = |zone, easting, northing| Utm {
+        zone,
+        hemisphere: UtmHemisphere::North,
+        easting,
+        northing,
+    };
+    // Zone 1 west of the antimeridian wraps to +179.86° instead of failing.
+    let wrapped = utm_to_coordinate(record(1, 150_000.0, 0.0)).unwrap();
+    close(wrapped.lon, 179.856_227_657, 1e-8);
+    // Each out-of-domain field is named.
+    for (utm, field) in [
+        (record(0, 500_000.0, 0.0), "zone"),
+        (record(31, 99_999.0, 0.0), "easting"),
+        (record(1, 500_000.0, 9_999_000.0), "northing"),
+    ] {
+        assert!(
+            matches!(&utm_to_coordinate(utm), Err(GeoError::InvalidValue { field: f, .. }) if f == field),
+            "{field}"
+        );
+    }
+}
+
+#[test]
+fn utm_zone_helpers_validate_their_input() {
+    assert_eq!(utm_zone_for(wgs84(40.0, -75.0)).unwrap(), 18);
+    assert_eq!(utm_zone_for(wgs84(78.0, 20.0)).unwrap(), 33); // Svalbard
+    assert!(matches!(
+        utm_zone_for(wgs84(84.0, 9.0)),
+        Err(GeoError::OutsideDomain { operation, .. }) if operation == "UTM"
+    ));
+    assert!(matches!(
+        utm_zone_for(coordinate_new(40.0, -75.0, Crs::Gcj02).unwrap()),
+        Err(GeoError::CrsMismatch { .. })
+    ));
+    close(utm_central_meridian_deg(18).unwrap(), -75.0, 1e-12);
+    for zone in [0, 61] {
+        assert!(matches!(
+            utm_central_meridian_deg(zone),
+            Err(GeoError::InvalidValue { field, .. }) if field == "zone"
+        ));
+    }
 }
 
 #[test]
@@ -101,7 +146,16 @@ fn ups_covers_the_poles_and_round_trips() {
     assert_eq!(back.crs, Crs::Wgs84);
     assert!(matches!(
         ups_from_coordinate(wgs84(40.0, 0.0)),
-        Err(GeoError::OutOfRange { .. })
+        Err(GeoError::OutsideDomain { operation, .. }) if operation == "UPS"
+    ));
+    let off_grid = Ups {
+        hemisphere: UtmHemisphere::South,
+        easting: 2_000_000.0,
+        northing: 4_000_001.0,
+    };
+    assert!(matches!(
+        ups_to_coordinate(off_grid),
+        Err(GeoError::InvalidValue { field, .. }) if field == "northing"
     ));
 }
 

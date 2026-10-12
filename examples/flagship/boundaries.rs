@@ -6,8 +6,8 @@ use geocoordinates::format::{FormatOptions, format};
 use geocoordinates::geodesy::{
     DatumTransform, Ecef, Ellipsoid, Enu, destination, geodesic_distance, rhumb_destination,
 };
-use geocoordinates::grids::utm::Hemisphere as GridHemisphere;
-use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
+use geocoordinates::grids::utm::{central_meridian_deg, zone_for};
+use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere};
 use geocoordinates::parse::sensors::from_nmea_sentence;
 use geocoordinates::parse::text::parse as parse_text;
 use geocoordinates::parse::{from_geo_uri, parse_coordinate};
@@ -166,22 +166,53 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert!(parse_text("40 60 N 74 0 W").is_err());
     assert!(matches!(
         Utm::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)?),
-        Err(Error::OutOfRange { .. })
+        Err(Error::OutsideDomain {
+            operation: "UTM",
+            ..
+        })
     ));
     assert!(matches!(
         Ups::try_from_coordinate(Coordinate::wgs84(40.0, -75.0)?),
-        Err(Error::OutOfRange { .. })
+        Err(Error::OutsideDomain {
+            operation: "UPS",
+            ..
+        })
     ));
-    assert!(
-        Utm {
-            zone: 0,
-            hemisphere: GridHemisphere::North,
-            easting: 500_000.0,
-            northing: 0.0,
-        }
-        .try_to_coordinate()
-        .is_err()
-    );
+    // Utm / Ups are valid by construction: an out-of-domain part is rejected
+    // up front, so decoding is infallible.
+    assert!(matches!(
+        Utm::new(0, UtmHemisphere::North, 500_000.0, 0.0),
+        Err(Error::InvalidValue { field: "zone", .. })
+    ));
+    // A northing past the pole would fold onto the far meridian.
+    assert!(matches!(
+        Utm::new(1, UtmHemisphere::North, 500_000.0, 9_999_000.0),
+        Err(Error::InvalidValue {
+            field: "northing",
+            ..
+        })
+    ));
+    assert!(matches!(
+        Ups::new(UtmHemisphere::South, -1.0, 2_000_000.0),
+        Err(Error::InvalidValue {
+            field: "easting",
+            ..
+        })
+    ));
+    // Zone 1 west of the antimeridian decodes to a wrapped longitude.
+    let across = Utm::new(1, UtmHemisphere::North, 150_000.0, 0.0)?.to_coordinate();
+    assert!(across.lon() > 179.8);
+    assert!(matches!(
+        zone_for(&Coordinate::wgs84(84.0, 9.0)?),
+        Err(Error::OutsideDomain {
+            operation: "UTM",
+            ..
+        })
+    ));
+    assert!(matches!(
+        central_meridian_deg(0),
+        Err(Error::InvalidValue { field: "zone", .. })
+    ));
     assert!(matches!(
         from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"),
         Err(Error::Parse(_))

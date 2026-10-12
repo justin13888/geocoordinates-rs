@@ -291,9 +291,24 @@ roundtrip = gc.utm_to_coordinate(u)
 assert approx(roundtrip.lat, 40.0, 1e-9) and approx(roundtrip.lon, -75.0, 1e-9)
 try:
     gc.utm_from_coordinate(wgs84_coord(85.0, 0.0))  # polar -> error
-    raise AssertionError("expected OutOfRange for a polar latitude")
-except gc.GeoError.OutOfRange:
-    pass
+    raise AssertionError("expected OutsideDomain for a polar latitude")
+except gc.GeoError.OutsideDomain as e:
+    assert e.operation == "UTM"
+# Zone 1 west of the antimeridian decodes wrapped; a past-the-pole northing is rejected.
+west = gc.utm_to_coordinate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=150_000.0, northing=0.0))
+assert approx(west.lon, 179.856227657, 1e-8)
+try:
+    gc.utm_to_coordinate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=500_000.0, northing=9_999_000.0))
+    raise AssertionError("expected InvalidValue for a northing past the pole")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "northing"
+assert gc.utm_zone_for(wgs84_coord(60.0, 5.0)) == 32  # Norway exception
+assert gc.utm_central_meridian_deg(18) == -75.0
+try:
+    gc.utm_central_meridian_deg(0)
+    raise AssertionError("expected InvalidValue for zone 0")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "zone"
 ups = gc.ups_from_coordinate(wgs84_coord(85.0, 0.0))
 assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_000.0, 1e-3)
 assert gc.mgrs_from_coordinate(wgs84_coord(40.0, -75.0), 1) == "18TWK0000027757"

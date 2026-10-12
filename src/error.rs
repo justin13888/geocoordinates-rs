@@ -16,9 +16,7 @@ pub enum Error {
     /// or outside `[-90, 90]` / `[-180, 180]` degrees.
     ///
     /// A *valid* point that merely lies outside an operation's area of use is
-    /// [`Error::OutsideDomain`] instead. (The UTM / UPS forward conversions still
-    /// report their latitude-band rejection here until they move to
-    /// `OutsideDomain`.)
+    /// [`Error::OutsideDomain`] instead.
     #[error("coordinate out of valid range: lat={lat}, lon={lon}")]
     OutOfRange {
         /// Offending latitude in degrees.

@@ -15,7 +15,7 @@ use core::str::FromStr;
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::grids::utm::{Hemisphere, K0 as UTM_K0, UPS_K0, Ups, Utm};
+use crate::grids::utm::{K0 as UTM_K0, UPS_K0, Ups, Utm, UtmHemisphere};
 
 // --- 100 km square lettering tables (I and O are always excluded) ---
 /// UTM column letters, selected by `(zone − 1) mod 3`.
@@ -157,24 +157,24 @@ fn digit_pair(easting: f64, northing: f64, digits: u32) -> String {
 
 fn encode_utm(coord: Coordinate, digits: u32) -> String {
     let utm = Utm::try_from_coordinate(coord).expect("latitude is in the UTM band");
-    let set = ((utm.zone - 1) % 3) as usize;
-    let col = UTM_COLS[set].as_bytes()[(utm.easting / 100_000.0) as usize - 1] as char;
-    let row_off = if utm.zone % 2 == 0 { 5 } else { 0 };
-    let row = UTM_ROW.as_bytes()[((utm.northing / 100_000.0) as usize + row_off) % 20] as char;
+    let set = ((utm.zone() - 1) % 3) as usize;
+    let col = UTM_COLS[set].as_bytes()[(utm.easting() / 100_000.0) as usize - 1] as char;
+    let row_off = if utm.zone() % 2 == 0 { 5 } else { 0 };
+    let row = UTM_ROW.as_bytes()[((utm.northing() / 100_000.0) as usize + row_off) % 20] as char;
     format!(
         "{:02}{}{}{}{}",
-        utm.zone,
+        utm.zone(),
         band_letter(coord.lat()),
         col,
         row,
-        digit_pair(utm.easting, utm.northing, digits),
+        digit_pair(utm.easting(), utm.northing(), digits),
     )
 }
 
 fn encode_ups(coord: Coordinate, digits: u32) -> String {
     let ups = Ups::try_from_coordinate(coord).expect("latitude is in the polar band");
-    let north = ups.hemisphere == Hemisphere::North;
-    let east = ups.easting >= 2_000_000.0;
+    let north = ups.hemisphere() == UtmHemisphere::North;
+    let east = ups.easting() >= 2_000_000.0;
     let zl = match (north, east) {
         (true, false) => 'Y',
         (true, true) => 'Z',
@@ -182,15 +182,15 @@ fn encode_ups(coord: Coordinate, digits: u32) -> String {
         (false, true) => 'B',
     };
     let (col_tbl, col_off) = ups_column_table(zl);
-    let col = col_tbl.as_bytes()[(ups.easting / 100_000.0) as usize - col_off] as char;
+    let col = col_tbl.as_bytes()[(ups.easting() / 100_000.0) as usize - col_off] as char;
     let row_off = if north { 13 } else { 8 };
-    let row = UPS_ROW.as_bytes()[(ups.northing / 100_000.0) as usize - row_off] as char;
+    let row = UPS_ROW.as_bytes()[(ups.northing() / 100_000.0) as usize - row_off] as char;
     format!(
         "{}{}{}{}",
         zl,
         col,
         row,
-        digit_pair(ups.easting, ups.northing, digits)
+        digit_pair(ups.easting(), ups.northing(), digits)
     )
 }
 
@@ -279,9 +279,9 @@ fn decode_utm(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
     let lo = -80.0 + 8.0 * band_idx as f64;
     let hi = if band == 'X' { 84.0 } else { lo + 8.0 };
     let hemisphere = if north {
-        Hemisphere::North
+        UtmHemisphere::North
     } else {
-        Hemisphere::South
+        UtmHemisphere::South
     };
 
     // The row letter fixes the northing only mod 2 000 km; the latitude band
@@ -290,15 +290,10 @@ fn decode_utm(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
     // band/row mismatch, which is an invalid grid reference.
     for block in 0..11u32 {
         let northing = (row_val as f64 + 20.0 * f64::from(block)) * 100_000.0 + n_base;
-        let Ok(coord) = Utm {
-            zone,
-            hemisphere,
-            easting,
-            northing,
-        }
-        .try_to_coordinate() else {
+        let Ok(utm) = Utm::new(zone, hemisphere, easting, northing) else {
             continue;
         };
+        let coord = utm.to_coordinate();
         if lo - 0.5 <= coord.lat() && coord.lat() <= hi + 0.5 {
             return Ok((coord, 10u32.pow(5 - k)));
         }
@@ -325,16 +320,12 @@ fn decode_ups(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
     let scale = digit_scale(k);
     let easting = (col_idx + col_off) as f64 * 100_000.0 + e_dig * scale + scale / 2.0;
     let northing = (row_idx + row_off) as f64 * 100_000.0 + n_dig * scale + scale / 2.0;
-    let coord = Ups {
-        hemisphere: if north {
-            Hemisphere::North
-        } else {
-            Hemisphere::South
-        },
-        easting,
-        northing,
-    }
-    .try_to_coordinate()?;
+    let hemisphere = if north {
+        UtmHemisphere::North
+    } else {
+        UtmHemisphere::South
+    };
+    let coord = Ups::new(hemisphere, easting, northing)?.to_coordinate();
     Ok((coord, 10u32.pow(5 - k)))
 }
 
