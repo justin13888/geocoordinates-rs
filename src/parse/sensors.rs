@@ -92,9 +92,10 @@ fn all_digits(s: &str) -> bool {
 /// NMEA always writes the minutes with two integer digits, so `807.038` is
 /// malformed rather than 80° 7.038′; signs and exponents are rejected too.
 fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f64> {
+    let malformed = || Error::Parse(format!("malformed NMEA coordinate: {raw}"));
     let value = value.trim();
     if !value.is_char_boundary(deg_digits) {
-        return Err(Error::Parse(format!("malformed NMEA coordinate: {raw}")));
+        return Err(malformed());
     }
     let (deg_str, min_str) = value.split_at(deg_digits);
     let (min_whole, min_fraction) = min_str.split_once('.').unwrap_or((min_str, ""));
@@ -103,14 +104,12 @@ fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f6
         || !all_digits(min_whole)
         || !all_digits(min_fraction)
     {
-        return Err(Error::Parse(format!("malformed NMEA coordinate: {raw}")));
+        return Err(malformed());
     }
-    let degrees: u16 = deg_str
-        .parse()
-        .map_err(|_| Error::Parse(format!("bad NMEA degrees: {raw}")))?;
-    let minutes: f64 = min_str
-        .parse()
-        .map_err(|_| Error::Parse(format!("bad NMEA minutes: {raw}")))?;
+    // The grammar check above guarantees both parses succeed; any failure is
+    // still the same malformed-coordinate error rather than a panic.
+    let degrees: u16 = deg_str.parse().map_err(|_| malformed())?;
+    let minutes: f64 = min_str.parse().map_err(|_| malformed())?;
     let hemisphere = match (deg_digits, hemi.trim()) {
         (2, "N") => Hemisphere::North,
         (2, "S") => Hemisphere::South,
@@ -416,8 +415,11 @@ mod tests {
         let lon = parse_error("$GPGLL,4916.45,N,1231.12,W,225444,A");
         assert!(lon.contains("malformed NMEA coordinate"), "{lon}");
         // Three minute digits, a signed degree, a non-digit minute, an exponent,
-        // and a non-digit fraction are malformed too.
-        for value in ["49160.45", "+916.45", "491x.45", "4916e1", "4916.4x"] {
+        // a non-digit fraction, and an exponent inside the fraction (which an
+        // `f64` parse alone would accept) are malformed too.
+        for value in [
+            "49160.45", "+916.45", "491x.45", "4916e1", "4916.4x", "4916.4e1",
+        ] {
             let sentence = format!("$GPGLL,{value},N,12311.12,W,225444,A");
             let message = parse_error(&sentence);
             assert!(
