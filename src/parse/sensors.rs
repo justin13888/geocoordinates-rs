@@ -11,6 +11,8 @@
 //! grammar is small and parsing it here keeps the dependency surface (and the
 //! wasm build) clean.
 
+use std::time::{Duration, SystemTime};
+
 use crate::angle::{Ddm, Hemisphere};
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
@@ -25,9 +27,28 @@ use super::NOMINAL_UERE_M;
 /// `*HH` checksum (XOR of the bytes between `$` and `*`) is verified when
 /// present.
 ///
+/// Only a sentence that reports a fix yields one: a void status, a "data not
+/// valid" mode, or GGA fix quality 0 is an error, never a position.
+///
+/// `RMC` fills [`Fix::timestamp`] from its UTC time (`hhmmss[.s…]`) and date
+/// (`ddmmyy`) fields. The two-digit year is read in the GPS-era window
+/// 1980–2079 (`80`–`99` → 19xx, `00`–`79` → 20xx). A missing date or time
+/// leaves the timestamp `None`; an unreadable one does too, with a note on
+/// [`RawSource::notes`] saying so. `GGA` and `GLL` carry a time of day but no
+/// date, so their timestamp is always `None`.
+///
 /// # Errors
-/// Returns [`crate::Error::Parse`] on an unrecognized/invalid sentence or a
-/// checksum mismatch.
+/// Returns [`crate::Error::Parse`] when:
+/// - the sentence type is not `GGA`, `RMC`, or `GLL`, or the `*HH` checksum is
+///   malformed or does not match;
+/// - the sentence reports no fix: `RMC`/`GLL` status `V` (void), `RMC`/`GLL`
+///   mode indicator `N` (data not valid), or `GGA` fix quality `0`;
+/// - a coordinate field is not `ddmm[.m…]` (latitude) or `dddmm[.m…]`
+///   (longitude) — exactly two minute digits before the decimal point — or its
+///   hemisphere letter is missing or wrong for the axis;
+/// - the `GGA` altitude is present but its unit field is not `M` (meters);
+/// - a numeric field (altitude, geoid separation, HDOP) is malformed or
+///   non-finite, or HDOP is negative.
 #[cfg(feature = "nmea")]
 pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
     let body = sentence.trim().strip_prefix('$').unwrap_or(sentence.trim());
@@ -60,14 +81,30 @@ pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
     }
 }
 
+/// Whether every byte of `s` is an ASCII digit (vacuously true when empty).
+fn all_digits(s: &str) -> bool {
+    s.bytes().all(|b| b.is_ascii_digit())
+}
+
 /// Parse a DDM field (`ddmm.mmmm`, `deg_digits` degree digits) plus its
 /// hemisphere letter into signed decimal degrees.
+///
+/// NMEA always writes the minutes with two integer digits, so `807.038` is
+/// malformed rather than 80° 7.038′; signs and exponents are rejected too.
 fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f64> {
     let value = value.trim();
     if !value.is_char_boundary(deg_digits) {
         return Err(Error::Parse(format!("malformed NMEA coordinate: {raw}")));
     }
     let (deg_str, min_str) = value.split_at(deg_digits);
+    let (min_whole, min_fraction) = min_str.split_once('.').unwrap_or((min_str, ""));
+    if !all_digits(deg_str)
+        || min_whole.len() != 2
+        || !all_digits(min_whole)
+        || !all_digits(min_fraction)
+    {
+        return Err(Error::Parse(format!("malformed NMEA coordinate: {raw}")));
+    }
     let degrees: u16 = deg_str
         .parse()
         .map_err(|_| Error::Parse(format!("bad NMEA degrees: {raw}")))?;
@@ -118,11 +155,17 @@ fn optional_number(value: &str, name: &str, raw: &str) -> Result<Option<f64>> {
 }
 
 /// Assemble a [`Fix`] with the shared NMEA provenance (lat-first, confident).
-fn base_fix(coord: Coordinate, accuracy: Option<Accuracy>, notes: Vec<String>, raw: &str) -> Fix {
+fn base_fix(
+    coord: Coordinate,
+    accuracy: Option<Accuracy>,
+    timestamp: Option<SystemTime>,
+    notes: Vec<String>,
+    raw: &str,
+) -> Fix {
     Fix {
         coord,
         accuracy,
-        timestamp: None,
+        timestamp,
         source: Some(RawSource {
             raw: raw.to_string(),
             confidence: Confidence::new(1.0),
@@ -137,9 +180,19 @@ fn base_fix(coord: Coordinate, accuracy: Option<Accuracy>, notes: Vec<String>, r
 
 /// `GGA`: position fix with HDOP, altitude (MSL/orthometric), and geoid separation.
 fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
+    if field(f, 6).trim() == "0" {
+        return Err(Error::Parse(format!(
+            "NMEA GGA reports no fix (quality 0): {raw}"
+        )));
+    }
     let mut coord = coordinate(field(f, 2), field(f, 3), field(f, 4), field(f, 5), raw)?;
     let mut notes = Vec::new();
     if let Some(alt) = optional_number(field(f, 9), "altitude", raw)? {
+        if field(f, 10).trim() != "M" {
+            return Err(Error::Parse(format!(
+                "NMEA GGA altitude unit is not M (meters): {raw}"
+            )));
+        }
         coord = coord
             .with_height(Height::Orthometric(alt))
             .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))?;
@@ -158,27 +211,113 @@ fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
             })
         })
         .transpose()?;
-    Ok(base_fix(coord, accuracy, notes, raw))
+    Ok(base_fix(coord, accuracy, None, notes, raw))
 }
 
-/// `RMC`: recommended minimum — position plus an A/V validity flag.
+/// Reject a sentence whose status field is `V` (void) or whose NMEA 2.3 mode
+/// indicator is `N` (data not valid). Either field may be absent.
+fn require_valid(kind: &str, status: &str, mode: &str, raw: &str) -> Result<()> {
+    if status.trim() == "V" {
+        return Err(Error::Parse(format!(
+            "NMEA {kind} reports a void (non-valid) fix: {raw}"
+        )));
+    }
+    if mode.trim() == "N" {
+        return Err(Error::Parse(format!(
+            "NMEA {kind} reports mode N (data not valid): {raw}"
+        )));
+    }
+    Ok(())
+}
+
+/// `RMC`: recommended minimum — position, an A/V validity flag, and the UTC
+/// date and time.
 fn parse_rmc(f: &[&str], raw: &str) -> Result<Fix> {
+    require_valid("RMC", field(f, 2), field(f, 12), raw)?;
     let coord = coordinate(field(f, 3), field(f, 4), field(f, 5), field(f, 6), raw)?;
     let mut notes = Vec::new();
-    if field(f, 2).trim() == "V" {
-        notes.push("RMC reports a void (non-valid) fix".to_string());
-    }
-    Ok(base_fix(coord, None, notes, raw))
+    let (time, date) = (field(f, 1).trim(), field(f, 9).trim());
+    let timestamp = if time.is_empty() || date.is_empty() {
+        None
+    } else {
+        let parsed = utc_timestamp(time, date);
+        if parsed.is_none() {
+            notes.push(format!(
+                "RMC date '{date}' / time '{time}' unreadable; timestamp left empty"
+            ));
+        }
+        parsed
+    };
+    Ok(base_fix(coord, None, timestamp, notes, raw))
 }
 
 /// `GLL`: geographic position, latitude/longitude.
 fn parse_gll(f: &[&str], raw: &str) -> Result<Fix> {
+    require_valid("GLL", field(f, 6), field(f, 7), raw)?;
     let coord = coordinate(field(f, 1), field(f, 2), field(f, 3), field(f, 4), raw)?;
-    let mut notes = Vec::new();
-    if field(f, 6).trim() == "V" {
-        notes.push("GLL reports a void (non-valid) fix".to_string());
+    Ok(base_fix(coord, None, None, Vec::new(), raw))
+}
+
+/// The two-digit decimal number at byte `at` of an all-ASCII-digit string.
+fn two_digits(s: &str, at: usize) -> u32 {
+    s.as_bytes()[at..at + 2]
+        .iter()
+        .fold(0, |acc, b| acc * 10 + u32::from(b - b'0'))
+}
+
+/// Days in `month` (1–12) of `year`. Every year in the 1980–2079 window that
+/// is divisible by 4 is a leap year (2000 included), so no century rule is
+/// needed.
+fn days_in_month(year: u32, month: u32) -> u32 {
+    match month {
+        2 if year % 4 == 0 => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
     }
-    Ok(base_fix(coord, None, notes, raw))
+}
+
+/// Days from 1970-01-01 to `year-month-day` (proleptic Gregorian, `year ≥ 1970`).
+fn days_since_epoch(year: u32, month: u32, day: u32) -> u64 {
+    let leap_days = (1970..year).filter(|y| y % 4 == 0).count();
+    let year_days = u64::from(year - 1970) * 365 + leap_days as u64;
+    let month_days: u32 = (1..month).map(|m| days_in_month(year, m)).sum();
+    year_days + u64::from(month_days) + u64::from(day - 1)
+}
+
+/// An RMC UTC time (`hhmmss` with an optional `.fraction`) and date (`ddmmyy`)
+/// as a [`SystemTime`], or `None` when either is malformed or out of range.
+/// A leap second (`ss = 60`) is accepted and lands on the next second.
+fn utc_timestamp(time: &str, date: &str) -> Option<SystemTime> {
+    let (hms, fraction) = time.split_once('.').unwrap_or((time, ""));
+    if hms.len() != 6 || date.len() != 6 || !all_digits(hms) || !all_digits(date) {
+        return None;
+    }
+    if !all_digits(fraction) {
+        return None;
+    }
+    let (hour, minute, second) = (two_digits(hms, 0), two_digits(hms, 2), two_digits(hms, 4));
+    let (day, month, yy) = (
+        two_digits(date, 0),
+        two_digits(date, 2),
+        two_digits(date, 4),
+    );
+    let year = if yy >= 80 { 1900 + yy } else { 2000 + yy };
+    if hour > 23 || minute > 59 || second > 60 {
+        return None;
+    }
+    if !(1..=12).contains(&month) || day == 0 || day > days_in_month(year, month) {
+        return None;
+    }
+    // Nanoseconds from the first nine fraction digits, right-padded with zeros.
+    let nanos = fraction
+        .bytes()
+        .chain(std::iter::repeat(b'0'))
+        .take(9)
+        .fold(0, |acc, b| acc * 10 + u32::from(b - b'0'));
+    let seconds =
+        days_since_epoch(year, month, day) * 86_400 + u64::from(hour * 3600 + minute * 60 + second);
+    Some(SystemTime::UNIX_EPOCH + Duration::new(seconds, nanos))
 }
 
 #[cfg(test)]
@@ -276,8 +415,9 @@ mod tests {
         assert!(lat.contains("malformed NMEA coordinate"), "{lat}");
         let lon = parse_error("$GPGLL,4916.45,N,1231.12,W,225444,A");
         assert!(lon.contains("malformed NMEA coordinate"), "{lon}");
-        // Three minute digits, a signed degree, and an exponent are malformed too.
-        for value in ["49160.45", "+916.45", "4916e1", "4916.4x"] {
+        // Three minute digits, a signed degree, a non-digit minute, an exponent,
+        // and a non-digit fraction are malformed too.
+        for value in ["49160.45", "+916.45", "491x.45", "4916e1", "4916.4x"] {
             let sentence = format!("$GPGLL,{value},N,12311.12,W,225444,A");
             let message = parse_error(&sentence);
             assert!(
@@ -373,11 +513,23 @@ mod tests {
     }
 
     #[test]
+    fn days_in_each_month() {
+        let lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        for (month, days) in (1..=12).zip(lengths) {
+            assert_eq!(days_in_month(1994, month), days, "month {month}");
+        }
+        assert_eq!(days_in_month(2000, 2), 29);
+        assert_eq!(days_in_month(2024, 2), 29);
+        assert_eq!(days_since_epoch(1970, 1, 1), 0);
+        assert_eq!(days_since_epoch(1973, 1, 1), 365 * 3 + 1);
+    }
+
+    #[test]
     fn gll_west() {
         let fix = from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1D").unwrap();
         assert_close(fix.coord.lat(), 49.0 + 16.45 / 60.0, 1e-9);
         assert_close(fix.coord.lon(), -(123.0 + 11.12 / 60.0), 1e-9);
-        // Status "A" is valid, so no void note is attached.
+        // Status "A" is valid, so the fix carries no note.
         assert!(fix.source.unwrap().notes.is_empty());
     }
 
