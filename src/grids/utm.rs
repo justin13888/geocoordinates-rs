@@ -32,8 +32,8 @@ const FALSE_EASTING: f64 = 500_000.0;
 const FALSE_NORTHING_SOUTH: f64 = 10_000_000.0;
 
 // --- WGS-84 transverse Mercator (Karney–Krüger n-series) constants ---
-const A_AXIS: f64 = Ellipsoid::WGS84.semi_major_m;
-const F: f64 = 1.0 / Ellipsoid::WGS84.inverse_flattening;
+const A_AXIS: f64 = Ellipsoid::WGS84.semi_major_m();
+const F: f64 = Ellipsoid::WGS84.flattening();
 /// Third flattening `n = f / (2 − f)`.
 const N: f64 = F / (2.0 - F);
 const N2: f64 = N * N;

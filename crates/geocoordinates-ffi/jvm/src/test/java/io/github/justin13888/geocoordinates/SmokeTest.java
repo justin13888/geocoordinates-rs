@@ -3,12 +3,17 @@ package io.github.justin13888.geocoordinates;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 // Top-level Kotlin functions compile to static methods on the file class.
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateNew;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformCatalogToWgs84;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ecefFromCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidClarke1866;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidForCrs;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
@@ -25,6 +30,8 @@ import uniffi.geocoordinates_ffi.ApproxWgs84;
 import uniffi.geocoordinates_ffi.Bd09;
 import uniffi.geocoordinates_ffi.Coordinate;
 import uniffi.geocoordinates_ffi.Crs;
+import uniffi.geocoordinates_ffi.DatumTransform;
+import uniffi.geocoordinates_ffi.Ecef;
 import uniffi.geocoordinates_ffi.Gcj02;
 import uniffi.geocoordinates_ffi.GeoException;
 import uniffi.geocoordinates_ffi.MgrsPrecision;
@@ -105,5 +112,25 @@ class SmokeTest {
         String code = mgrsFromCoordinate(coordinateNew(40.0, -75.0, Crs.WGS84), MgrsPrecision.M100);
         assertEquals("18TWK000277", code);
         assertEquals(MgrsPrecision.M100, mgrsPrecision(code));
+    }
+
+    // ECEF and datum transforms take the ellipsoid from the coordinate's CRS,
+    // and a catalogued shift carries its published accuracy (a nullable Double).
+    @Test
+    void ellipsoidFollowsTheCrsFromJava() throws GeoException {
+        Ecef nad27 = ecefFromCoordinate(coordinateNew(0.0, 0.0, Crs.NAD27));
+        assertEquals(6_378_206.4, nad27.getX(), 1e-6);
+        assertEquals(ellipsoidClarke1866(), ellipsoidForCrs(Crs.NAD27));
+        assertNull(ellipsoidForCrs(Crs.GCJ02));
+        GeoException.CrsMismatch noEllipsoid =
+                assertThrows(
+                        GeoException.CrsMismatch.class,
+                        () -> ecefFromCoordinate(coordinateNew(39.9, 116.4, Crs.GCJ02)));
+        assertEquals(Crs.WGS84, noEllipsoid.getExpected());
+
+        DatumTransform tokyo = datumTransformCatalogToWgs84(Crs.TOKYO);
+        double accuracy = tokyo.getAccuracyM();
+        assertEquals(Math.sqrt(825.0), accuracy, 1e-12);
+        assertNull(datumTransformCatalogToWgs84(Crs.PULKOVO42).getAccuracyM());
     }
 }

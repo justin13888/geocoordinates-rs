@@ -761,10 +761,11 @@ public func FfiConverterTypeAer_lower(_ value: Aer) -> RustBuffer {
  * decoder documents it: the maximum geodesic corner distance (Plus Code,
  * geohash, Maidenhead, S2), the half diagonal in ground meters (MGRS), or
  * the cell radius (H3).
- * - **[`convert`]** bounds only the error of the iterative GCJ-02 / BD-09
- * inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
- * legs that `0.0` is not a claim of exactness: the catalogued mean shifts
- * are good to only several meters, which the bound leaves out.
+ * - **[`convert`]** sums its legs' estimates: the iterative GCJ-02 / BD-09
+ * inverses report their own bound, the forward China offsets `0.0`, and
+ * each classic-datum (Helmert) leg its parameters' published accuracy
+ * (`DatumTransform.accuracy_m`: about 9.27 m for NAD27 and 28.72 m for
+ * Tokyo, and infinity for Pulkovo-1942, which has no published estimate).
  */
 public struct ApproxCoordinate: Equatable, Hashable {
     /**
@@ -1300,13 +1301,17 @@ public func FfiConverterTypeCoordinate_lower(_ value: Coordinate) -> RustBuffer 
 
 
 /**
- * A complete datum transform (source/target ellipsoids + the Helmert shift) —
- * mirror of [`gc::DatumTransform`](gc::geodesy::DatumTransform).
+ * A complete datum transform — mirror of
+ * [`gc::DatumTransform`](gc::geodesy::DatumTransform): a source and a target
+ * reference system, the Helmert shift between them, and the shift's
+ * published accuracy. The ellipsoids are those of the two systems
+ * ([`ellipsoid_for_crs`](crate::ellipsoid_for_crs)), never separate fields.
  *
- * Unvalidated until used: nothing checks that `from` / `to` are the
- * ellipsoids of `from_crs` / `to_crs`, or that `helmert` connects those two
- * datums. Applying it rejects an input whose CRS is not `from_crs` and a
- * malformed ellipsoid, but otherwise uses a hand-built transform as given.
+ * Unvalidated until used: every export that takes one validates it as the
+ * core `DatumTransform::new` does (both systems geodetic datums rather than
+ * GCJ-02 / BD-09, Helmert parameters finite, accuracy finite and
+ * non-negative). Build one with [`datum_transform_new`] to fail at
+ * construction instead.
  */
 public struct DatumTransform: Equatable, Hashable {
     /**
@@ -1318,17 +1323,14 @@ public struct DatumTransform: Equatable, Hashable {
      */
     public var toCrs: Crs
     /**
-     * Ellipsoid of the source datum.
-     */
-    public var from: Ellipsoid
-    /**
-     * Ellipsoid of the target datum.
-     */
-    public var to: Ellipsoid
-    /**
      * Helmert parameters carrying the source frame to the target frame.
      */
     public var helmert: Helmert
+    /**
+     * Accuracy of the parameters in meters, or `None` when no estimate is
+     * published (see [`datum_transform_catalog_to_wgs84`]).
+     */
+    public var accuracyM: Double?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1340,19 +1342,16 @@ public struct DatumTransform: Equatable, Hashable {
          * Target reference system.
          */toCrs: Crs, 
         /**
-         * Ellipsoid of the source datum.
-         */from: Ellipsoid, 
-        /**
-         * Ellipsoid of the target datum.
-         */to: Ellipsoid, 
-        /**
          * Helmert parameters carrying the source frame to the target frame.
-         */helmert: Helmert) {
+         */helmert: Helmert, 
+        /**
+         * Accuracy of the parameters in meters, or `None` when no estimate is
+         * published (see [`datum_transform_catalog_to_wgs84`]).
+         */accuracyM: Double?) {
         self.fromCrs = fromCrs
         self.toCrs = toCrs
-        self.from = from
-        self.to = to
         self.helmert = helmert
+        self.accuracyM = accuracyM
     }
 
     
@@ -1373,18 +1372,16 @@ public struct FfiConverterTypeDatumTransform: FfiConverterRustBuffer {
             try DatumTransform(
                 fromCrs: FfiConverterTypeCrs.read(from: &buf), 
                 toCrs: FfiConverterTypeCrs.read(from: &buf), 
-                from: FfiConverterTypeEllipsoid.read(from: &buf), 
-                to: FfiConverterTypeEllipsoid.read(from: &buf), 
-                helmert: FfiConverterTypeHelmert.read(from: &buf)
+                helmert: FfiConverterTypeHelmert.read(from: &buf), 
+                accuracyM: FfiConverterOptionDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: DatumTransform, into buf: inout [UInt8]) {
         FfiConverterTypeCrs.write(value.fromCrs, into: &buf)
         FfiConverterTypeCrs.write(value.toCrs, into: &buf)
-        FfiConverterTypeEllipsoid.write(value.from, into: &buf)
-        FfiConverterTypeEllipsoid.write(value.to, into: &buf)
         FfiConverterTypeHelmert.write(value.helmert, into: &buf)
+        FfiConverterOptionDouble.write(value.accuracyM, into: &buf)
     }
 }
 
@@ -1660,10 +1657,10 @@ public func FfiConverterTypeEcef_lower(_ value: Ecef) -> RustBuffer {
 /**
  * A reference ellipsoid — mirror of [`gc::Ellipsoid`](gc::geodesy::Ellipsoid).
  *
- * Unvalidated until used: constructing one does not check its parameters.
- * The fallible ECEF conversions reject a malformed ellipsoid with
- * [`GeoError`], but the infallible getters (`ellipsoid_flattening`, …) compute
- * from the values as given and can return non-finite or meaningless results.
+ * Unvalidated until used: every export that takes one validates it as the
+ * core `Ellipsoid::new` does (semi-major axis finite and positive, inverse
+ * flattening greater than one or positive infinity). Build one with
+ * [`ellipsoid_new`] to fail at construction instead.
  */
 public struct Ellipsoid: Equatable, Hashable {
     /**
@@ -2106,8 +2103,9 @@ public func FfiConverterTypeH3Cell_lower(_ value: H3Cell) -> RustBuffer {
  * [`gc::Helmert`](gc::geodesy::Helmert). Translations in meters, rotations in
  * arc-seconds (position-vector convention), scale in parts-per-million.
  *
- * Unvalidated until used: the seven parameters are applied as given, with no
- * check that they are finite or of plausible magnitude.
+ * Unvalidated until used: [`helmert_apply_ecef`] and
+ * [`helmert_inverse_first_order`] apply the parameters as given, and a
+ * [`DatumTransform`] validates them (all finite) as it crosses in.
  */
 public struct Helmert: Equatable, Hashable {
     /**
@@ -4412,6 +4410,30 @@ fileprivate struct FfiConverterOptionTypeDatumTransform: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeEllipsoid: FfiConverterRustBuffer {
+    typealias SwiftType = Ellipsoid?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEllipsoid.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEllipsoid.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeRawSource: FfiConverterRustBuffer {
     typealias SwiftType = RawSource?
 
@@ -5156,6 +5178,106 @@ public func lengthToUnit(meters: Double, unit: LengthUnit) -> Double  {
 })
 }
 /**
+ * Transform a geodetic coordinate from the source to the target datum,
+ * tagging the result with `to_crs`. The computation is exact to round-off;
+ * the result is only as accurate as the parameters (`accuracy_m`).
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when `coord` is not in `from_crs`;
+ * `GeoError::InvalidValue` (field `height`) for an orthometric height; and
+ * the errors of [`datum_transform_new`] for a malformed transform record.
+ */
+public func datumTransformApply(transform: DatumTransform, coord: Coordinate)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_datum_transform_apply(
+        FfiConverterTypeDatumTransform_lower(transform),
+        FfiConverterTypeCoordinate_lower(coord),$0
+    )
+})
+}
+/**
+ * The catalogued transform carrying `datum` to WGS-84, or `None` when none is
+ * built in (WGS-84 itself and the China obfuscation systems).
+ *
+ * Each is a NIMA TR8350.2 (3rd ed., Amendment 1) mean translation-only shift
+ * whose `accuracy_m` is the root-sum-square of the published per-axis
+ * figures: √86 ≈ 9.27 m for NAD27 (CONUS), √825 ≈ 28.72 m for Tokyo, and
+ * `None` for Pulkovo-1942 (Russia), for which TR8350.2 publishes no estimate.
+ */
+public func datumTransformCatalogToWgs84(datum: Crs) -> DatumTransform?  {
+    return try!  FfiConverterOptionTypeDatumTransform.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_datum_transform_catalog_to_wgs84(
+        FfiConverterTypeCrs_lower(datum),$0
+    )
+})
+}
+/**
+ * The reverse datum transform: swaps the systems and takes the first-order
+ * inverse of the Helmert shift (exact for translation-only shifts), keeping
+ * the accuracy.
+ *
+ * # Errors
+ * The errors of [`datum_transform_new`] for a malformed transform record.
+ */
+public func datumTransformInverseFirstOrder(transform: DatumTransform)throws  -> DatumTransform  {
+    return try  FfiConverterTypeDatumTransform_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_datum_transform_inverse_first_order(
+        FfiConverterTypeDatumTransform_lower(transform),$0
+    )
+})
+}
+/**
+ * Build a validated datum transform — the FFI form of `DatumTransform::new`.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` (expecting WGS-84) when either system is GCJ-02 or
+ * BD-09; `GeoError::InvalidValue` (field `helmert`) for a non-finite
+ * parameter, and (field `accuracy_m`) for a negative or non-finite accuracy.
+ */
+public func datumTransformNew(fromCrs: Crs, toCrs: Crs, helmert: Helmert, accuracyM: Double?)throws  -> DatumTransform  {
+    return try  FfiConverterTypeDatumTransform_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_datum_transform_new(
+        FfiConverterTypeCrs_lower(fromCrs),
+        FfiConverterTypeCrs_lower(toCrs),
+        FfiConverterTypeHelmert_lower(helmert),
+        FfiConverterOptionDouble.lower(accuracyM),$0
+    )
+})
+}
+/**
+ * Apply a Helmert transform to a geocentric (ECEF) position.
+ */
+public func helmertApplyEcef(helmert: Helmert, ecef: Ecef) -> Ecef  {
+    return try!  FfiConverterTypeEcef_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_helmert_apply_ecef(
+        FfiConverterTypeHelmert_lower(helmert),
+        FfiConverterTypeEcef_lower(ecef),$0
+    )
+})
+}
+/**
+ * The identity Helmert transform (no translation, rotation, or scale).
+ */
+public func helmertIdentity() -> Helmert  {
+    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_helmert_identity($0
+    )
+})
+}
+/**
+ * The first-order inverse Helmert transform (negated parameters). Exact for
+ * translation-only transforms, as every catalogued one is; otherwise
+ * first-order, leaving about a centimeter of round-trip residual for a full
+ * seven-parameter set such as WGS-84 → OSGB36.
+ */
+public func helmertInverseFirstOrder(helmert: Helmert) -> Helmert  {
+    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_helmert_inverse_first_order(
+        FfiConverterTypeHelmert_lower(helmert),$0
+    )
+})
+}
+/**
  * Decode an H3 cell to its center, with the cell-radius error bound.
  */
 public func h3Decode(cell: H3Cell)throws  -> ApproxCoordinate  {
@@ -5209,8 +5331,8 @@ public func aerFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> 
 })
 }
 /**
- * Recover the absolute coordinate of an AER offset about `origin`. Not exact:
- * see [`enu_to_coordinate`].
+ * Recover the absolute coordinate of an AER offset about `origin` (exact; see
+ * [`enu_to_coordinate`]).
  */
 public func aerToCoordinate(aer: Aer, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5267,44 +5389,6 @@ public func crossTrackDistanceM(point: Coordinate, start: Coordinate, end: Coord
 })
 }
 /**
- * Transform a geodetic coordinate from the source to the target datum, tagging
- * the result with `to`.
- *
- * Not exact. The computation adds well under a millimeter at terrestrial
- * heights, and the result is only as accurate as the Helmert parameters: the
- * catalogued ones are regional mean, translation-only shifts good to several
- * meters.
- */
-public func datumTransformApply(transform: DatumTransform, coord: Coordinate)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_datum_transform_apply(
-        FfiConverterTypeDatumTransform_lower(transform),
-        FfiConverterTypeCoordinate_lower(coord),$0
-    )
-})
-}
-/**
- * The reverse datum transform (swaps ellipsoids, inverts the Helmert shift).
- */
-public func datumTransformInverse(transform: DatumTransform) -> DatumTransform  {
-    return try!  FfiConverterTypeDatumTransform_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_datum_transform_inverse(
-        FfiConverterTypeDatumTransform_lower(transform),$0
-    )
-})
-}
-/**
- * The catalogued transform carrying `datum` to WGS-84, or `None` when none is
- * built in (WGS-84 itself and the China obfuscation systems).
- */
-public func datumTransformToWgs84(datum: Crs) -> DatumTransform?  {
-    return try!  FfiConverterOptionTypeDatumTransform.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_datum_transform_to_wgs84(
-        FfiConverterTypeCrs_lower(datum),$0
-    )
-})
-}
-/**
  * The point reached from `start` along `bearing_deg` for `distance_m` meters
  * (exact, Karney).
  */
@@ -5318,27 +5402,36 @@ public func destination(start: Coordinate, bearingDeg: Double, distanceM: Double
 })
 }
 /**
- * Geodetic [`Coordinate`] → ECEF on the given ellipsoid.
+ * Geodetic [`Coordinate`] → ECEF on the ellipsoid of the coordinate's own
+ * reference system (exact).
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` (expecting WGS-84) for a GCJ-02 or BD-09
+ * coordinate, which has no ellipsoid; `GeoError::InvalidValue` (field
+ * `height`) for an orthometric height; `GeoError::OutOfRange` /
+ * `GeoError::InvalidValue` for an invalid record.
  */
-public func ecefFromCoordinate(coord: Coordinate, ellipsoid: Ellipsoid)throws  -> Ecef  {
+public func ecefFromCoordinate(coord: Coordinate)throws  -> Ecef  {
     return try  FfiConverterTypeEcef_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ecef_from_coordinate(
-        FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterTypeEllipsoid_lower(ellipsoid),$0
+        FfiConverterTypeCoordinate_lower(coord),$0
     )
 })
 }
 /**
- * ECEF → geodetic [`Coordinate`] on the given ellipsoid and reference system,
- * by Bowring's single-step inverse. Not exact: the latitude error is about a
- * micrometer within ±10 km of the surface, about 7 mm at 1,000 km, and up to
- * about 0.3 m at GNSS and geostationary altitudes.
+ * ECEF → geodetic [`Coordinate`] on the ellipsoid of `crs`, tagged with
+ * `crs`. Exact to floating-point round-off at any altitude (Vermeille's closed
+ * form, as refined in GeographicLib).
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` (expecting WGS-84) when `crs` is GCJ-02 or BD-09;
+ * `GeoError::InvalidValue` (field `ECEF`) for a non-finite component, and
+ * (field `height`) when the height overflows.
  */
-public func ecefToCoordinate(ecef: Ecef, ellipsoid: Ellipsoid, crs: Crs)throws  -> Coordinate  {
+public func ecefToCoordinate(ecef: Ecef, crs: Crs)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ecef_to_coordinate(
         FfiConverterTypeEcef_lower(ecef),
-        FfiConverterTypeEllipsoid_lower(ellipsoid),
         FfiConverterTypeCrs_lower(crs),$0
     )
 })
@@ -5372,9 +5465,12 @@ public func ellipsoidClarke1866() -> Ellipsoid  {
 }
 /**
  * First eccentricity squared `e²` of the ellipsoid.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for a malformed ellipsoid record.
  */
-public func ellipsoidEccentricitySq(ellipsoid: Ellipsoid) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
+public func ellipsoidEccentricitySq(ellipsoid: Ellipsoid)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ellipsoid_eccentricity_sq(
         FfiConverterTypeEllipsoid_lower(ellipsoid),$0
     )
@@ -5382,11 +5478,26 @@ public func ellipsoidEccentricitySq(ellipsoid: Ellipsoid) -> Double  {
 }
 /**
  * Flattening `f` of the ellipsoid.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for a malformed ellipsoid record.
  */
-public func ellipsoidFlattening(ellipsoid: Ellipsoid) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
+public func ellipsoidFlattening(ellipsoid: Ellipsoid)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ellipsoid_flattening(
         FfiConverterTypeEllipsoid_lower(ellipsoid),$0
+    )
+})
+}
+/**
+ * The ellipsoid a reference system's coordinates are defined on, or `None`
+ * for GCJ-02 and BD-09, which are obfuscated renderings of WGS-84 rather than
+ * geodetic datums.
+ */
+public func ellipsoidForCrs(crs: Crs) -> Ellipsoid?  {
+    return try!  FfiConverterOptionTypeEllipsoid.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_ellipsoid_for_crs(
+        FfiConverterTypeCrs_lower(crs),$0
     )
 })
 }
@@ -5409,10 +5520,30 @@ public func ellipsoidKrasovsky1940() -> Ellipsoid  {
 })
 }
 /**
- * Semi-minor axis `b` (meters) of the ellipsoid.
+ * Build a validated ellipsoid from its semi-major axis (meters) and inverse
+ * flattening (positive infinity for a sphere) — the FFI form of
+ * `Ellipsoid::new`.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` when the semi-major axis is not finite and
+ * positive, or the inverse flattening is NaN or not greater than one.
  */
-public func ellipsoidSemiMinorM(ellipsoid: Ellipsoid) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
+public func ellipsoidNew(semiMajorM: Double, inverseFlattening: Double)throws  -> Ellipsoid  {
+    return try  FfiConverterTypeEllipsoid_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ellipsoid_new(
+        FfiConverterDouble.lower(semiMajorM),
+        FfiConverterDouble.lower(inverseFlattening),$0
+    )
+})
+}
+/**
+ * Semi-minor axis `b` (meters) of the ellipsoid.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for a malformed ellipsoid record.
+ */
+public func ellipsoidSemiMinorM(ellipsoid: Ellipsoid)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ellipsoid_semi_minor_m(
         FfiConverterTypeEllipsoid_lower(ellipsoid),$0
     )
@@ -5449,9 +5580,8 @@ public func enuToAer(enu: Enu) -> Aer  {
 })
 }
 /**
- * Recover the absolute coordinate of an ENU offset about `origin`. Not exact:
- * latitude is recovered by the Bowring single-step inverse of
- * [`ecef_to_coordinate`] and carries its altitude-dependent bound.
+ * Recover the absolute coordinate of an ENU offset about `origin` (exact,
+ * through the closed-form inverse of [`ecef_to_coordinate`]).
  */
 public func enuToCoordinate(enu: Enu, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5511,39 +5641,6 @@ public func haversineDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
     uniffi_geocoordinates_ffi_fn_func_haversine_distance_m(
         FfiConverterTypeCoordinate_lower(a),
         FfiConverterTypeCoordinate_lower(b),$0
-    )
-})
-}
-/**
- * Apply a Helmert transform to a geocentric (ECEF) position.
- */
-public func helmertApplyEcef(helmert: Helmert, ecef: Ecef) -> Ecef  {
-    return try!  FfiConverterTypeEcef_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_helmert_apply_ecef(
-        FfiConverterTypeHelmert_lower(helmert),
-        FfiConverterTypeEcef_lower(ecef),$0
-    )
-})
-}
-/**
- * The identity Helmert transform (no translation, rotation, or scale).
- */
-public func helmertIdentity() -> Helmert  {
-    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_helmert_identity($0
-    )
-})
-}
-/**
- * The inverse Helmert transform (negated parameters). Exact for
- * translation-only transforms, as every catalogued one is; otherwise
- * first-order, leaving about a centimeter of round-trip residual for a full
- * seven-parameter set such as WGS-84 → OSGB36.
- */
-public func helmertInverse(helmert: Helmert) -> Helmert  {
-    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_helmert_inverse(
-        FfiConverterTypeHelmert_lower(helmert),$0
     )
 })
 }
@@ -5617,8 +5714,8 @@ public func nedToAer(ned: Ned) -> Aer  {
 })
 }
 /**
- * Recover the absolute coordinate of a NED offset about `origin`. Not exact:
- * see [`enu_to_coordinate`].
+ * Recover the absolute coordinate of a NED offset about `origin` (exact; see
+ * [`enu_to_coordinate`]).
  */
 public func nedToCoordinate(ned: Ned, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6281,6 +6378,27 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_length_to_unit() != 23152) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 58176) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_catalog_to_wgs84() != 3243) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_inverse_first_order() != 47466) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_new() != 29065) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 15241) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_identity() != 60832) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse_first_order() != 18866) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_h3_decode() != 13592) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -6296,7 +6414,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 3027) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 10340) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 16735) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_aer_to_enu() != 573) {
@@ -6311,22 +6429,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_m() != 15519) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 10028) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_inverse() != 45278) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_to_wgs84() != 4427) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_geocoordinates_ffi_checksum_func_destination() != 46783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 4004) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 4916) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 5025) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 52436) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_airy_1830() != 49200) {
@@ -6338,10 +6447,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_clarke_1866() != 61807) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_eccentricity_sq() != 32949) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_eccentricity_sq() != 20351) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_flattening() != 1081) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_flattening() != 62698) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_for_crs() != 56780) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_grs80() != 9218) {
@@ -6350,7 +6462,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_krasovsky_1940() != 4146) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_semi_minor_m() != 19811) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_new() != 53844) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_semi_minor_m() != 42590) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_wgs84() != 31681) {
@@ -6362,7 +6477,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_enu_to_aer() != 55640) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 43456) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 50296) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 44436) {
@@ -6375,15 +6490,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_haversine_distance_m() != 48658) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 46764) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_identity() != 56488) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse() != 13625) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_initial_bearing() != 22036) {
@@ -6404,7 +6510,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ned_to_aer() != 43200) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 14532) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 4551) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 5658) {

@@ -1,5 +1,6 @@
 //! Classic datum transforms (Helmert) and projected grids (UTM, UPS, MGRS).
 
+use geocoordinates::convert::convert;
 use geocoordinates::geodesy::{DatumTransform, Ecef, Helmert};
 use geocoordinates::grids::utm::{central_meridian_deg, zone_for};
 use geocoordinates::grids::{Mgrs, MgrsPrecision, Ups, Utm, UtmHemisphere};
@@ -10,17 +11,28 @@ use crate::support::{DemoResult, assert_close, assert_within_meters};
 pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     let ecef = Ecef::new(4_000_000.0, -2_000_000.0, 4_500_000.0);
     assert_eq!(Helmert::IDENTITY.apply_ecef(ecef), ecef);
-    assert_eq!(Helmert::IDENTITY.inverse(), Helmert::IDENTITY);
+    assert_eq!(Helmert::IDENTITY.inverse_first_order(), Helmert::IDENTITY);
 
-    for datum in [Crs::Nad27, Crs::Tokyo, Crs::Pulkovo42] {
-        let transform = DatumTransform::to_wgs84(datum).expect("classic datum is catalogued");
+    // Each catalogued shift carries NIMA TR8350.2's published accuracy (the
+    // root-sum-square of its per-axis figures); Pulkovo-1942 has none.
+    for (datum, accuracy_m) in [
+        (Crs::Nad27, Some(86f64.sqrt())),
+        (Crs::Tokyo, Some(825f64.sqrt())),
+        (Crs::Pulkovo42, None),
+    ] {
+        let transform =
+            DatumTransform::catalog_to_wgs84(datum).expect("classic datum is catalogued");
+        assert_eq!(transform.accuracy_m(), accuracy_m);
         let source = Coordinate::new(40.0, -100.0, datum)?.with_height(Height::Ellipsoidal(0.0))?;
-        let wgs = transform.transform(source)?;
-        let restored = transform.inverse().transform(wgs)?;
+        let wgs = transform.apply(source)?;
+        let restored = transform.inverse_first_order().apply(wgs)?;
         assert_eq!(restored.crs(), datum);
-        assert_within_meters(&restored, &source, 0.001);
+        assert_within_meters(&restored, &source, 1e-6);
+        // `convert` reports that accuracy as the Helmert leg's bound.
+        let converted = convert(source, Crs::Wgs84)?;
+        assert_eq!(converted.max_error_m(), accuracy_m.unwrap_or(f64::INFINITY));
     }
-    assert!(DatumTransform::to_wgs84(Crs::Wgs84).is_none());
+    assert!(DatumTransform::catalog_to_wgs84(Crs::Wgs84).is_none());
 
     assert_eq!(zone_for(&Coordinate::wgs84(40.0, -75.0)?)?, 18);
     assert_eq!(zone_for(&Coordinate::wgs84(60.0, 5.0)?)?, 32);

@@ -303,9 +303,25 @@ except gc.GeoError.InvalidGridRef:
 # --- Geodesy: ellipsoid, ECEF, ENU/AER ---
 wgs84 = gc.ellipsoid_wgs84()
 assert approx(gc.ellipsoid_semi_minor_m(wgs84), 6_356_752.314_245, 1e-3)
-ecef = gc.ecef_from_coordinate(wgs84_coord(0.0, 0.0), wgs84)
+assert gc.ellipsoid_new(6_378_137.0, 298.257_223_563) == wgs84
+try:
+    gc.ellipsoid_new(-1.0, 298.257_223_563)
+    raise AssertionError("expected InvalidValue for a negative semi-major axis")
+except gc.GeoError.InvalidValue:
+    pass
+# The ellipsoid comes from the coordinate's CRS: NAD27 sits on Clarke 1866.
+assert gc.ellipsoid_for_crs(gc.Crs.NAD27) == gc.ellipsoid_clarke_1866()
+assert gc.ellipsoid_for_crs(gc.Crs.GCJ02) is None
+ecef = gc.ecef_from_coordinate(wgs84_coord(0.0, 0.0))
 assert approx(ecef.x, 6_378_137.0, 1e-3) and approx(ecef.y, 0.0, 1e-3)
-assert approx(gc.ecef_to_coordinate(ecef, wgs84, gc.Crs.WGS84).lat, 0.0, 1e-9)
+assert approx(gc.ecef_to_coordinate(ecef, gc.Crs.WGS84).lat, 0.0, 1e-9)
+nad27_origin = gc.Coordinate(lat=0.0, lon=0.0, height=None, crs=gc.Crs.NAD27)
+assert approx(gc.ecef_from_coordinate(nad27_origin).x, 6_378_206.4, 1e-6)
+try:
+    gc.ecef_from_coordinate(gc.Coordinate(lat=39.9, lon=116.4, height=None, crs=gc.Crs.GCJ02))
+    raise AssertionError("expected CrsMismatch: GCJ-02 has no ellipsoid")
+except gc.GeoError.CrsMismatch:
+    pass
 origin = wgs84_coord(40.0, -75.0)
 enu = gc.enu_from_coordinate(wgs84_coord(40.1, -75.0), origin)
 # 0.1 deg of meridian arc at 40 N; the target sits below the tangent plane.
@@ -330,18 +346,29 @@ assert hit is not None and hit.crs == gc.Crs.WGS84
 assert approx(hit.lat, 0.0, 1e-12) and approx(hit.lon, 0.0, 1e-12), (hit.lat, hit.lon)
 
 # --- Classic datums (Helmert / DatumTransform) ---
-assert gc.datum_transform_to_wgs84(gc.Crs.WGS84) is None  # no shift needed
-assert gc.datum_transform_to_wgs84(gc.Crs.GCJ02) is None  # use China typed conversions
-dt = gc.datum_transform_to_wgs84(gc.Crs.NAD27)
+assert gc.datum_transform_catalog_to_wgs84(gc.Crs.WGS84) is None  # no shift needed
+assert gc.datum_transform_catalog_to_wgs84(gc.Crs.GCJ02) is None  # use China conversions
+dt = gc.datum_transform_catalog_to_wgs84(gc.Crs.NAD27)
 assert dt is not None and approx(dt.helmert.tx_m, -8.0, 1e-12)
+# TR8350.2 publishes +-5, +-5, +-6 m for the NAD27 mean shift; none for Pulkovo-1942.
+assert approx(dt.accuracy_m, 86 ** 0.5, 1e-12), dt.accuracy_m
+assert gc.datum_transform_catalog_to_wgs84(gc.Crs.PULKOVO42).accuracy_m is None
 # Translation-only Helmert round-trips to sub-millimeter geodetic precision.
 nad27 = gc.Coordinate(lat=40.0, lon=-100.0, height=None, crs=gc.Crs.NAD27)
 w = gc.datum_transform_apply(dt, nad27)
 assert w.crs == gc.Crs.WGS84 and approx(w.lat, 40.000_009_482_759, 1e-7)
-back = gc.datum_transform_apply(gc.datum_transform_inverse(dt), w)
+back = gc.datum_transform_apply(gc.datum_transform_inverse_first_order(dt), w)
 assert back.crs == gc.Crs.NAD27 and approx(back.lat, 40.0, 1e-8) and approx(back.lon, -100.0, 1e-8)
+# A hand-built transform cannot name a system without an ellipsoid.
+try:
+    gc.datum_transform_new(gc.Crs.GCJ02, gc.Crs.WGS84, gc.helmert_identity(), None)
+    raise AssertionError("expected CrsMismatch: GCJ-02 is not a datum")
+except gc.GeoError.CrsMismatch:
+    pass
+# convert reports the Helmert leg's published accuracy as its bound.
+assert approx(gc.convert(nad27, gc.Crs.WGS84).max_error_m, 86 ** 0.5, 1e-12)
 # apply_ecef + inverse identity at the ECEF level.
-ident = gc.helmert_inverse(gc.helmert_identity())
+ident = gc.helmert_inverse_first_order(gc.helmert_identity())
 e = gc.helmert_apply_ecef(ident, gc.Ecef(x=4_000_000.0, y=-2_000_000.0, z=4_500_000.0))
 assert approx(e.x, 4_000_000.0, 1e-6)
 

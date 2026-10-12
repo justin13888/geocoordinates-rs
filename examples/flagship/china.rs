@@ -78,8 +78,12 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
             assert_eq!(converted.crs(), to);
             assert!(converted.lat().is_finite() && converted.lon().is_finite());
             assert!(converted.height().is_some());
+            // Classic-datum (Helmert) legs carry their parameters' published
+            // accuracy, so any route through one is approximate too.
+            let classic = |crs| matches!(crs, Crs::Nad27 | Crs::Tokyo | Crs::Pulkovo42);
             let is_approximate = (from == Crs::Gcj02 && to != Crs::Gcj02 && to != Crs::Bd09)
-                || (from == Crs::Bd09 && to != Crs::Bd09);
+                || (from == Crs::Bd09 && to != Crs::Bd09)
+                || (from != to && (classic(from) || classic(to)));
             if is_approximate {
                 assert!(converted.max_error_m() > 0.0);
             } else {

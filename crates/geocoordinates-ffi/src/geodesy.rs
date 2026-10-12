@@ -1,5 +1,5 @@
 //! Geodesy: ellipsoids, ECEF and local tangent frames, distances and bearings,
-//! and classic-datum Helmert transforms.
+//! with the classic-datum Helmert transforms in `datum`.
 
 use geocoordinates as gc;
 
@@ -24,10 +24,10 @@ pub fn haversine_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoErro
 
 /// A reference ellipsoid — mirror of [`gc::Ellipsoid`](gc::geodesy::Ellipsoid).
 ///
-/// Unvalidated until used: constructing one does not check its parameters.
-/// The fallible ECEF conversions reject a malformed ellipsoid with
-/// [`GeoError`], but the infallible getters (`ellipsoid_flattening`, …) compute
-/// from the values as given and can return non-finite or meaningless results.
+/// Unvalidated until used: every export that takes one validates it as the
+/// core `Ellipsoid::new` does (semi-major axis finite and positive, inverse
+/// flattening greater than one or positive infinity). Build one with
+/// [`ellipsoid_new`] to fail at construction instead.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ellipsoid {
     /// Semi-major axis `a`, in meters.
@@ -84,17 +84,16 @@ pub struct Aer {
 impl From<gc::geodesy::Ellipsoid> for Ellipsoid {
     fn from(e: gc::geodesy::Ellipsoid) -> Self {
         Ellipsoid {
-            semi_major_m: e.semi_major_m,
-            inverse_flattening: e.inverse_flattening,
+            semi_major_m: e.semi_major_m(),
+            inverse_flattening: e.inverse_flattening(),
         }
     }
 }
-impl From<Ellipsoid> for gc::geodesy::Ellipsoid {
-    fn from(e: Ellipsoid) -> Self {
-        gc::geodesy::Ellipsoid {
-            semi_major_m: e.semi_major_m,
-            inverse_flattening: e.inverse_flattening,
-        }
+impl TryFrom<Ellipsoid> for gc::geodesy::Ellipsoid {
+    type Error = GeoError;
+
+    fn try_from(e: Ellipsoid) -> Result<Self, GeoError> {
+        gc::geodesy::Ellipsoid::new(e.semi_major_m, e.inverse_flattening).map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Ecef> for Ecef {
@@ -197,41 +196,78 @@ pub fn ellipsoid_clarke_1866() -> Ellipsoid {
     gc::geodesy::Ellipsoid::CLARKE_1866.into()
 }
 
-/// Flattening `f` of the ellipsoid.
+/// Build a validated ellipsoid from its semi-major axis (meters) and inverse
+/// flattening (positive infinity for a sphere) — the FFI form of
+/// `Ellipsoid::new`.
+///
+/// # Errors
+/// `GeoError::InvalidValue` when the semi-major axis is not finite and
+/// positive, or the inverse flattening is NaN or not greater than one.
 #[uniffi::export]
-pub fn ellipsoid_flattening(ellipsoid: Ellipsoid) -> f64 {
-    gc::geodesy::Ellipsoid::from(ellipsoid).flattening()
-}
-/// Semi-minor axis `b` (meters) of the ellipsoid.
-#[uniffi::export]
-pub fn ellipsoid_semi_minor_m(ellipsoid: Ellipsoid) -> f64 {
-    gc::geodesy::Ellipsoid::from(ellipsoid).semi_minor_m()
-}
-/// First eccentricity squared `e²` of the ellipsoid.
-#[uniffi::export]
-pub fn ellipsoid_eccentricity_sq(ellipsoid: Ellipsoid) -> f64 {
-    gc::geodesy::Ellipsoid::from(ellipsoid).eccentricity_sq()
-}
-
-/// Geodetic [`Coordinate`] → ECEF on the given ellipsoid.
-#[uniffi::export]
-pub fn ecef_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<Ecef, GeoError> {
-    gc::geodesy::Ecef::try_from_coordinate(coord.try_into()?, ellipsoid.into())
+pub fn ellipsoid_new(semi_major_m: f64, inverse_flattening: f64) -> Result<Ellipsoid, GeoError> {
+    gc::geodesy::Ellipsoid::new(semi_major_m, inverse_flattening)
         .map(Into::into)
         .map_err(Into::into)
 }
-/// ECEF → geodetic [`Coordinate`] on the given ellipsoid and reference system,
-/// by Bowring's single-step inverse. Not exact: the latitude error is about a
-/// micrometer within ±10 km of the surface, about 7 mm at 1,000 km, and up to
-/// about 0.3 m at GNSS and geostationary altitudes.
+/// The ellipsoid a reference system's coordinates are defined on, or `None`
+/// for GCJ-02 and BD-09, which are obfuscated renderings of WGS-84 rather than
+/// geodetic datums.
 #[uniffi::export]
-pub fn ecef_to_coordinate(
-    ecef: Ecef,
-    ellipsoid: Ellipsoid,
-    crs: Crs,
-) -> Result<Coordinate, GeoError> {
+pub fn ellipsoid_for_crs(crs: Crs) -> Option<Ellipsoid> {
+    gc::geodesy::Ellipsoid::for_crs(crs.into()).map(Into::into)
+}
+
+/// Flattening `f` of the ellipsoid.
+///
+/// # Errors
+/// `GeoError::InvalidValue` for a malformed ellipsoid record.
+#[uniffi::export]
+pub fn ellipsoid_flattening(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
+    Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?.flattening())
+}
+/// Semi-minor axis `b` (meters) of the ellipsoid.
+///
+/// # Errors
+/// `GeoError::InvalidValue` for a malformed ellipsoid record.
+#[uniffi::export]
+pub fn ellipsoid_semi_minor_m(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
+    Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?.semi_minor_m())
+}
+/// First eccentricity squared `e²` of the ellipsoid.
+///
+/// # Errors
+/// `GeoError::InvalidValue` for a malformed ellipsoid record.
+#[uniffi::export]
+pub fn ellipsoid_eccentricity_sq(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
+    Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?.eccentricity_sq())
+}
+
+/// Geodetic [`Coordinate`] → ECEF on the ellipsoid of the coordinate's own
+/// reference system (exact).
+///
+/// # Errors
+/// `GeoError::CrsMismatch` (expecting WGS-84) for a GCJ-02 or BD-09
+/// coordinate, which has no ellipsoid; `GeoError::InvalidValue` (field
+/// `height`) for an orthometric height; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` for an invalid record.
+#[uniffi::export]
+pub fn ecef_from_coordinate(coord: Coordinate) -> Result<Ecef, GeoError> {
+    gc::geodesy::Ecef::try_from_coordinate(coord.try_into()?)
+        .map(Into::into)
+        .map_err(Into::into)
+}
+/// ECEF → geodetic [`Coordinate`] on the ellipsoid of `crs`, tagged with
+/// `crs`. Exact to floating-point round-off at any altitude (Vermeille's closed
+/// form, as refined in GeographicLib).
+///
+/// # Errors
+/// `GeoError::CrsMismatch` (expecting WGS-84) when `crs` is GCJ-02 or BD-09;
+/// `GeoError::InvalidValue` (field `ECEF`) for a non-finite component, and
+/// (field `height`) when the height overflows.
+#[uniffi::export]
+pub fn ecef_to_coordinate(ecef: Ecef, crs: Crs) -> Result<Coordinate, GeoError> {
     gc::geodesy::Ecef::from(ecef)
-        .try_to_coordinate(ellipsoid.into(), crs.into())
+        .try_to_coordinate(crs.into())
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -243,9 +279,8 @@ pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Enu
         .map(Into::into)
         .map_err(Into::into)
 }
-/// Recover the absolute coordinate of an ENU offset about `origin`. Not exact:
-/// latitude is recovered by the Bowring single-step inverse of
-/// [`ecef_to_coordinate`] and carries its altitude-dependent bound.
+/// Recover the absolute coordinate of an ENU offset about `origin` (exact,
+/// through the closed-form inverse of [`ecef_to_coordinate`]).
 #[uniffi::export]
 pub fn enu_to_coordinate(enu: Enu, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Enu::from(enu)
@@ -271,8 +306,8 @@ pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Ned
         .map(Into::into)
         .map_err(Into::into)
 }
-/// Recover the absolute coordinate of a NED offset about `origin`. Not exact:
-/// see [`enu_to_coordinate`].
+/// Recover the absolute coordinate of a NED offset about `origin` (exact; see
+/// [`enu_to_coordinate`]).
 #[uniffi::export]
 pub fn ned_to_coordinate(ned: Ned, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Ned::from(ned)
@@ -298,8 +333,8 @@ pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Aer
         .map(Into::into)
         .map_err(Into::into)
 }
-/// Recover the absolute coordinate of an AER offset about `origin`. Not exact:
-/// see [`enu_to_coordinate`].
+/// Recover the absolute coordinate of an AER offset about `origin` (exact; see
+/// [`enu_to_coordinate`]).
 #[uniffi::export]
 pub fn aer_to_coordinate(aer: Aer, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Aer::from(aer)
@@ -462,158 +497,4 @@ pub fn intersection(
     gc::geodesy::intersection(&a.try_into()?, bearing_a_deg, &b.try_into()?, bearing_b_deg)
         .map(|point| point.map(Into::into))
         .map_err(Into::into)
-}
-
-// ===========================================================================
-// Classic datums — Helmert (Bursa-Wolf) transforms
-// ===========================================================================
-
-/// The seven Bursa-Wolf parameters of a Helmert transform — mirror of
-/// [`gc::Helmert`](gc::geodesy::Helmert). Translations in meters, rotations in
-/// arc-seconds (position-vector convention), scale in parts-per-million.
-///
-/// Unvalidated until used: the seven parameters are applied as given, with no
-/// check that they are finite or of plausible magnitude.
-#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
-pub struct Helmert {
-    /// X-axis translation, meters.
-    pub tx_m: f64,
-    /// Y-axis translation, meters.
-    pub ty_m: f64,
-    /// Z-axis translation, meters.
-    pub tz_m: f64,
-    /// X-axis rotation, arc-seconds (position-vector convention).
-    pub rx_arcsec: f64,
-    /// Y-axis rotation, arc-seconds (position-vector convention).
-    pub ry_arcsec: f64,
-    /// Z-axis rotation, arc-seconds (position-vector convention).
-    pub rz_arcsec: f64,
-    /// Scale difference, parts-per-million.
-    pub scale_ppm: f64,
-}
-
-/// A complete datum transform (source/target ellipsoids + the Helmert shift) —
-/// mirror of [`gc::DatumTransform`](gc::geodesy::DatumTransform).
-///
-/// Unvalidated until used: nothing checks that `from` / `to` are the
-/// ellipsoids of `from_crs` / `to_crs`, or that `helmert` connects those two
-/// datums. Applying it rejects an input whose CRS is not `from_crs` and a
-/// malformed ellipsoid, but otherwise uses a hand-built transform as given.
-#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
-pub struct DatumTransform {
-    /// Source reference system.
-    pub from_crs: Crs,
-    /// Target reference system.
-    pub to_crs: Crs,
-    /// Ellipsoid of the source datum.
-    pub from: Ellipsoid,
-    /// Ellipsoid of the target datum.
-    pub to: Ellipsoid,
-    /// Helmert parameters carrying the source frame to the target frame.
-    pub helmert: Helmert,
-}
-
-impl From<gc::geodesy::Helmert> for Helmert {
-    fn from(h: gc::geodesy::Helmert) -> Self {
-        Helmert {
-            tx_m: h.tx_m,
-            ty_m: h.ty_m,
-            tz_m: h.tz_m,
-            rx_arcsec: h.rx_arcsec,
-            ry_arcsec: h.ry_arcsec,
-            rz_arcsec: h.rz_arcsec,
-            scale_ppm: h.scale_ppm,
-        }
-    }
-}
-impl From<Helmert> for gc::geodesy::Helmert {
-    fn from(h: Helmert) -> Self {
-        gc::geodesy::Helmert {
-            tx_m: h.tx_m,
-            ty_m: h.ty_m,
-            tz_m: h.tz_m,
-            rx_arcsec: h.rx_arcsec,
-            ry_arcsec: h.ry_arcsec,
-            rz_arcsec: h.rz_arcsec,
-            scale_ppm: h.scale_ppm,
-        }
-    }
-}
-impl From<gc::geodesy::DatumTransform> for DatumTransform {
-    fn from(d: gc::geodesy::DatumTransform) -> Self {
-        DatumTransform {
-            from_crs: d.from_crs.into(),
-            to_crs: d.to_crs.into(),
-            from: d.from.into(),
-            to: d.to.into(),
-            helmert: d.helmert.into(),
-        }
-    }
-}
-impl From<DatumTransform> for gc::geodesy::DatumTransform {
-    fn from(d: DatumTransform) -> Self {
-        gc::geodesy::DatumTransform {
-            from_crs: d.from_crs.into(),
-            to_crs: d.to_crs.into(),
-            from: d.from.into(),
-            to: d.to.into(),
-            helmert: d.helmert.into(),
-        }
-    }
-}
-
-/// The identity Helmert transform (no translation, rotation, or scale).
-#[uniffi::export]
-pub fn helmert_identity() -> Helmert {
-    gc::geodesy::Helmert::IDENTITY.into()
-}
-
-/// Apply a Helmert transform to a geocentric (ECEF) position.
-#[uniffi::export]
-pub fn helmert_apply_ecef(helmert: Helmert, ecef: Ecef) -> Ecef {
-    gc::geodesy::Helmert::from(helmert)
-        .apply_ecef(ecef.into())
-        .into()
-}
-
-/// The inverse Helmert transform (negated parameters). Exact for
-/// translation-only transforms, as every catalogued one is; otherwise
-/// first-order, leaving about a centimeter of round-trip residual for a full
-/// seven-parameter set such as WGS-84 → OSGB36.
-#[uniffi::export]
-pub fn helmert_inverse(helmert: Helmert) -> Helmert {
-    gc::geodesy::Helmert::from(helmert).inverse().into()
-}
-
-/// The catalogued transform carrying `datum` to WGS-84, or `None` when none is
-/// built in (WGS-84 itself and the China obfuscation systems).
-#[uniffi::export]
-pub fn datum_transform_to_wgs84(datum: Crs) -> Option<DatumTransform> {
-    gc::geodesy::DatumTransform::to_wgs84(datum.into()).map(Into::into)
-}
-
-/// Transform a geodetic coordinate from the source to the target datum, tagging
-/// the result with `to`.
-///
-/// Not exact. The computation adds well under a millimeter at terrestrial
-/// heights, and the result is only as accurate as the Helmert parameters: the
-/// catalogued ones are regional mean, translation-only shifts good to several
-/// meters.
-#[uniffi::export]
-pub fn datum_transform_apply(
-    transform: DatumTransform,
-    coord: Coordinate,
-) -> Result<Coordinate, GeoError> {
-    gc::geodesy::DatumTransform::from(transform)
-        .transform(coord.try_into()?)
-        .map(Into::into)
-        .map_err(Into::into)
-}
-
-/// The reverse datum transform (swaps ellipsoids, inverts the Helmert shift).
-#[uniffi::export]
-pub fn datum_transform_inverse(transform: DatumTransform) -> DatumTransform {
-    gc::geodesy::DatumTransform::from(transform)
-        .inverse()
-        .into()
 }

@@ -17,7 +17,7 @@ use crate::approx::Approx;
 use crate::china::{Bd09, Gcj02, Wgs84};
 use crate::coord::{Coordinate, Crs, LatLon};
 use crate::error::Result;
-use crate::geodesy::datum::HubRoute;
+use crate::geodesy::datum::{DatumTransform, HubRoute};
 
 /// Convert `coord` from its own [`Crs`] to `to`.
 ///
@@ -28,19 +28,20 @@ use crate::geodesy::datum::HubRoute;
 /// tail is delegated to the deferred `proj` feature (see
 /// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
 ///
-/// The result is wrapped in [`Approx`] because the worst-case path (e.g.
-/// BD-09 → WGS-84) is approximate. [`Approx::max_error_m`] bounds only the
-/// error of the iterative GCJ-02 / BD-09 inverses. Every other leg reports
-/// `0.0`: the forward China offsets, and the Helmert datum shifts in either
-/// direction (the catalog is translation-only, so reversing a shift is exact).
-/// For the Helmert legs that `0.0` is not a claim of exactness:
+/// The result is wrapped in [`Approx`] because several legs are approximate.
+/// [`Approx::max_error_m`] is the sum of the legs' error estimates:
 ///
-/// - their ECEF → geodetic step adds well under a millimeter at terrestrial
-///   heights, which the bound leaves out;
-/// - the catalogued shifts are regional mean, translation-only parameters,
-///   good to only several meters against a local realization of the datum.
-///   That parameter accuracy is outside the bound entirely (see
-///   [`geodesy::datum`](crate::geodesy::datum)).
+/// - the iterative GCJ-02 / BD-09 inverses report their own bound;
+/// - the forward China offsets are exact and report `0.0`;
+/// - each Helmert datum shift (NAD27, Tokyo, Pulkovo-1942, in either
+///   direction) reports its parameters' published accuracy,
+///   [`DatumTransform::accuracy_m`](crate::geodesy::DatumTransform::accuracy_m):
+///   about 9.27 m for NAD27 and 28.72 m for Tokyo (the root-sum-square of
+///   NIMA TR8350.2's per-axis figures, a statistical estimate rather than a
+///   hard maximum), and `f64::INFINITY` for Pulkovo-1942, for which no
+///   estimate is published (serialized as `null` under the `serde` feature;
+///   see [`Approx`]). The computation itself is exact to round-off, and
+///   the catalog is translation-only, so reversing a shift adds nothing.
 ///
 /// The GCJ-02 legs never fail. A refined inverse that cannot converge (an
 /// input in the gap the GCJ-02 box edge leaves) reports its residual in the
@@ -99,7 +100,7 @@ fn to_wgs84(coord: Coordinate) -> Result<Approx<Coordinate>> {
             let w = Bd09::from_valid(coord.lat(), coord.lon()).try_to_wgs84_refined()?;
             Approx::new(carry(coord, *w.value()), w.max_error_m())
         }
-        HubRoute::Helmert(dt) => Approx::new(dt.transform(coord)?, 0.0),
+        HubRoute::Helmert(dt) => Approx::new(dt.apply(coord)?, helmert_bound_m(dt)),
     })
 }
 
@@ -110,8 +111,16 @@ fn from_wgs84(wgs: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
         HubRoute::Wgs84 => Approx::new(wgs, 0.0),
         HubRoute::Gcj02 => Approx::new(carry(wgs, w.to_gcj02()), 0.0),
         HubRoute::Bd09 => Approx::new(carry(wgs, w.try_to_bd09()?), 0.0),
-        HubRoute::Helmert(dt) => Approx::new(dt.inverse().transform(wgs)?, 0.0),
+        HubRoute::Helmert(dt) => {
+            Approx::new(dt.inverse_first_order().apply(wgs)?, helmert_bound_m(dt))
+        }
     })
+}
+
+/// A Helmert leg's error estimate: its parameters' published accuracy, or
+/// infinity when none is published.
+fn helmert_bound_m(dt: DatumTransform) -> f64 {
+    dt.accuracy_m().unwrap_or(f64::INFINITY)
 }
 
 /// Rebuild `orig` at the datum position `p`, tagged with `p`'s CRS and
@@ -126,7 +135,7 @@ mod tests {
     use super::*;
     use crate::Error;
     use crate::coord::Height;
-    use crate::geodesy::{DatumTransform, haversine_distance};
+    use crate::geodesy::haversine_distance;
     use crate::test_support::assert_close;
 
     // Reference triple from `test_support` (a single WGS-84 point and its exact
@@ -206,13 +215,18 @@ mod tests {
             .unwrap()
     }
 
+    /// √(5² + 5² + 6²): TR8350.2's NAD27 CONUS mean-shift accuracy.
+    const NAD27_ACCURACY_M: f64 = 9.273_618_495_495_704;
+    /// √(20² + 5² + 20²): TR8350.2's Tokyo mean-shift accuracy.
+    const TOKYO_ACCURACY_M: f64 = 28.722_813_232_690_143;
+
     #[test]
-    fn nad27_to_wgs84_reports_no_inversion_bound() {
-        // Same independent reference as the datum milestone. The `0.0` bound
-        // means "no iterative inversion", not that the Helmert leg is exact.
+    fn nad27_to_wgs84_reports_the_published_accuracy() {
+        // Same independent reference as the datum milestone. The bound is the
+        // parameters' published accuracy, not zero.
         let nad27 = nad27_point();
         let r = convert(nad27, Crs::Wgs84).unwrap();
-        assert_eq!(r.max_error_m(), 0.0);
+        assert_eq!(r.max_error_m(), NAD27_ACCURACY_M);
         assert_eq!(r.crs(), Crs::Wgs84);
         assert_close(r.lat(), 40.000_009_482_759, 1e-8);
         assert_close(r.lon(), -100.000_417_622_218_8, 1e-8);
@@ -222,28 +236,63 @@ mod tests {
     fn classic_datum_round_trips() {
         // The NAD27 catalog shift is translation-only, so the reverse leg's
         // negated parameters undo the forward leg and a round trip recovers the
-        // input to round-off (the parameters' own accuracy does not enter).
+        // input to round-off. Each leg still reports the parameters' accuracy.
         let nad27 = nad27_point();
         let w = convert(nad27, Crs::Wgs84).unwrap().into_inner();
         let back = convert(w, Crs::Nad27).unwrap();
-        assert_eq!(back.max_error_m(), 0.0);
+        assert_eq!(back.max_error_m(), NAD27_ACCURACY_M);
         assert_eq!(back.crs(), Crs::Nad27);
-        assert_close(back.lat(), 40.0, 1e-9);
-        assert_close(back.lon(), -100.0, 1e-9);
+        assert_close(back.lat(), 40.0, 1e-12);
+        assert_close(back.lon(), -100.0, 1e-12);
     }
 
     #[test]
-    fn cross_datum_to_china_reports_no_inversion_bound() {
-        // NAD27 → WGS-84 (Helmert, no iterative inversion) → GCJ-02 (typed
-        // forward, exact): neither leg inverts an offset iteratively, so the
-        // composed bound is zero.
+    fn datum_to_datum_sums_both_helmert_legs() {
+        let r = convert(nad27_point(), Crs::Tokyo).unwrap();
+        assert_eq!(r.crs(), Crs::Tokyo);
+        assert_eq!(r.max_error_m(), NAD27_ACCURACY_M + TOKYO_ACCURACY_M);
+    }
+
+    /// TR8350.2 publishes no error estimate for the Pulkovo-1942 (Russia)
+    /// shift, so any route through it has no finite bound.
+    #[test]
+    fn pulkovo_legs_have_no_finite_bound() {
+        let pulkovo = Coordinate::new(55.75, 37.62, Crs::Pulkovo42).unwrap();
+        assert_eq!(
+            convert(pulkovo, Crs::Wgs84).unwrap().max_error_m(),
+            f64::INFINITY
+        );
+        let wgs = Coordinate::wgs84(55.75, 37.62).unwrap();
+        assert_eq!(
+            convert(wgs, Crs::Pulkovo42).unwrap().max_error_m(),
+            f64::INFINITY
+        );
+    }
+
+    /// An unbounded Pulkovo-1942 result survives a JSON round trip: JSON has
+    /// no infinity, so the bound travels as `null` and reads back as infinity.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn pulkovo_result_round_trips_through_json() {
+        let wgs = Coordinate::wgs84(55.75, 37.62).unwrap();
+        let r = convert(wgs, Crs::Pulkovo42).unwrap();
+        let json = serde_json::to_string(&r).unwrap();
+        let back: Approx<Coordinate> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, r);
+        assert_eq!(back.max_error_m(), f64::INFINITY);
+    }
+
+    #[test]
+    fn cross_datum_to_china_carries_the_helmert_accuracy() {
+        // NAD27 → WGS-84 (Helmert) → GCJ-02 (typed forward, exact): the
+        // composed bound is the Helmert leg's published accuracy alone.
         let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap();
         let r = convert(nad27, Crs::Gcj02).unwrap();
-        assert_eq!(r.max_error_m(), 0.0);
+        assert_eq!(r.max_error_m(), NAD27_ACCURACY_M);
         assert_eq!(r.crs(), Crs::Gcj02);
         // Equals the explicit two-step route.
-        let dt = DatumTransform::to_wgs84(Crs::Nad27).unwrap();
-        let w = dt.transform(nad27).unwrap();
+        let dt = DatumTransform::catalog_to_wgs84(Crs::Nad27).unwrap();
+        let w = dt.apply(nad27).unwrap();
         let g = Wgs84::new(w.lat(), w.lon()).unwrap().to_gcj02();
         assert_close(r.lat(), g.lat(), 1e-12);
         assert_close(r.lon(), g.lon(), 1e-12);
@@ -251,18 +300,20 @@ mod tests {
 
     #[test]
     fn cross_china_to_datum_accumulates_the_bound() {
-        // BD-09 → WGS-84 (approx) → Tokyo (Helmert, no iterative inversion): the
-        // composed bound is exactly the BD-09 inverse bound (the Helmert leg
-        // adds nothing to it).
+        // BD-09 → WGS-84 (approx) → Tokyo (Helmert): the composed bound is the
+        // BD-09 inverse bound plus the Tokyo shift's published accuracy.
         let r = convert(Coordinate::bd09(BD.0, BD.1).unwrap(), Crs::Tokyo).unwrap();
         let w = Bd09::new(BD.0, BD.1)
             .unwrap()
             .try_to_wgs84_refined()
             .unwrap();
-        let dt = DatumTransform::to_wgs84(Crs::Tokyo).unwrap();
-        let tokyo = dt.inverse().transform(w.value().to_coordinate()).unwrap();
+        let dt = DatumTransform::catalog_to_wgs84(Crs::Tokyo).unwrap();
+        let tokyo = dt
+            .inverse_first_order()
+            .apply(w.value().to_coordinate())
+            .unwrap();
         assert_eq!(r.crs(), Crs::Tokyo);
-        assert_close(r.max_error_m(), w.max_error_m(), 1e-12);
+        assert_close(r.max_error_m(), w.max_error_m() + TOKYO_ACCURACY_M, 1e-12);
         assert_close(r.lat(), tokyo.lat(), 1e-9);
         assert_close(r.lon(), tokyo.lon(), 1e-9);
     }

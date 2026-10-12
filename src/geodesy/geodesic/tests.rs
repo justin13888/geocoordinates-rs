@@ -35,7 +35,7 @@ fn geodesic_distance_measures_other_datums_on_wgs84() {
     .meters();
     let on_wgs84: f64 = Geodesic::wgs84().inverse(a.0, a.1, b.0, b.1);
     let on_bessel: f64 =
-        Geodesic::new(bessel.semi_major_m, bessel.flattening()).inverse(a.0, a.1, b.0, b.1);
+        Geodesic::new(bessel.semi_major_m(), bessel.flattening()).inverse(a.0, a.1, b.0, b.1);
     assert_eq!(tokyo, on_wgs84);
     let rel = ((tokyo - on_bessel) / on_bessel).abs();
     assert!((1e-5..1.3e-4).contains(&rel), "relative error {rel}");
