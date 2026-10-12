@@ -35,6 +35,19 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     )?;
     assert!((80.0..90.0).contains(&reflected.lat()));
     assert_eq!(reflected.lon(), -180.0);
+    // Only a meridian crosses a pole: any other rhumb line spirals into it
+    // without arriving, so a distance that would reach the pole is rejected.
+    assert!(matches!(
+        rhumb_destination(
+            &Coordinate::wgs84(80.0, 0.0)?,
+            45.0,
+            Length::from_meters(2_000_000.0),
+        ),
+        Err(Error::InvalidValue {
+            field: "distance",
+            ..
+        })
+    ));
 
     for polar in [north_pole_east, south_pole_west] {
         let plus = PlusCode::encode(polar, 10)?.decode();

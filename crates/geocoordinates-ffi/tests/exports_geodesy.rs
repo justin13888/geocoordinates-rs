@@ -330,19 +330,26 @@ fn midpoint_and_intermediate_lie_on_the_geodesic() {
 
 #[test]
 fn rhumb_line_distance_bearing_and_destination_are_pinned() {
+    // GeographicLib RhumbSolve on WGS-84: I 40.7128 -74.006 51.5074 -0.1278
+    // and D 40.7128 -74.006 45 100000.
     close(
         rhumb_distance_m(new_york(), london()).unwrap(),
-        5_794_128.753_915_687,
-        1e-6,
+        5_809_801.212_288_193,
+        1e-5,
     );
     close(
         rhumb_bearing(new_york(), london()).unwrap(),
-        78.044_080_868_104_5,
+        78.081_345_760_192_42,
         1e-9,
     );
     let dest = rhumb_destination(new_york(), 45.0, 100_000.0).unwrap();
-    close(dest.lat, 41.348_715_527_648_77, 1e-9);
-    close(dest.lon, -73.162_999_276_612_94, 1e-9);
+    close(dest.lat, 41.349_520_443_859_53, 1e-9);
+    close(dest.lon, -73.165_151_728_798_76, 1e-9);
+    // A non-meridional line cannot reach a pole.
+    assert!(matches!(
+        rhumb_destination(wgs84(80.0, 0.0), 45.0, 2_000_000.0),
+        Err(GeoError::InvalidValue { .. })
+    ));
 }
 
 #[test]
