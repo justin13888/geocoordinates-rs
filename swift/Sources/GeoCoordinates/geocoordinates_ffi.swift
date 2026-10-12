@@ -5506,6 +5506,9 @@ public func helmertInverseFirstOrder(helmert: Helmert) -> Helmert  {
 }
 /**
  * Decode an H3 cell to its center, with the cell-radius error bound.
+ *
+ * The record carries an unvalidated `u64`, so it is validated here first:
+ * an index H3 does not define fails with `InvalidCellId`.
  */
 public func h3Decode(cell: H3Cell)throws  -> ApproxCoordinate  {
     return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5527,6 +5530,9 @@ public func h3Encode(coord: Coordinate, resolution: UInt8)throws  -> H3Cell  {
 }
 /**
  * Decode an S2 cell to its center, with the maximum corner-distance bound.
+ *
+ * The record carries an unvalidated `u64`, so it is validated here first:
+ * an id S2 does not define fails with `InvalidCellId`.
  */
 public func s2Decode(cell: S2CellId)throws  -> ApproxCoordinate  {
     return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6684,13 +6690,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse_first_order() != 18866) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_h3_decode() != 13592) {
+    if (uniffi_geocoordinates_ffi_checksum_func_h3_decode() != 21137) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_h3_encode() != 35871) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_s2_decode() != 53757) {
+    if (uniffi_geocoordinates_ffi_checksum_func_s2_decode() != 19680) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_s2_encode() != 10687) {
