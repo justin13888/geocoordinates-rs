@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::Error;
 use crate::test_support::assert_close;
 
 fn c(lat: f64, lon: f64) -> Coordinate {
@@ -196,19 +197,30 @@ fn rhumb_destination_due_north_onto_the_pole_keeps_its_meridian() {
 }
 
 #[test]
-fn rhumb_destination_oblique_past_the_pole_reflects() {
-    // KNOWN WRONG (C7, flipped by #115): a non-meridional rhumb line spirals
-    // into the pole and never crosses it, but the spherical routine reflects
-    // over it as if it were a meridian and returns an arbitrary position.
-    let p = rhumb_destination(&c(80.0, 0.0), 45.0, Length::from_meters(2_000_000.0)).unwrap();
-    assert_close(p.lat(), 87.281_689_447, 1e-8);
-    assert_close(p.lon(), -105.233_022_646, 1e-8);
-    // KNOWN WRONG (C7, flipped by #115): landing on the pole along 45° divides
-    // by Δψ → ∞, so the longitude is round-off noise; only its range is pinned.
-    let to_pole =
-        Length::from_meters(10.0_f64.to_radians() * MEAN_EARTH_RADIUS_M / FRAC_PI_4.cos());
-    let p = rhumb_destination(&c(80.0, 0.0), 45.0, to_pole).unwrap();
-    assert_close(p.lat(), 90.0, 1e-9);
-    // A `Coordinate` is in range by construction; its components re-validate.
-    assert!(Coordinate::wgs84(p.lat(), p.lon()).is_ok(), "{p:?}");
+fn rhumb_destination_oblique_reaching_a_pole_is_invalid() {
+    // C7: a non-meridional rhumb line spirals into the pole and never crosses
+    // it, so a distance that would carry it to or past the pole has no
+    // destination (GeographicLib's RhumbSolve returns a NaN longitude for both).
+    let invalid_distance = |r: Result<Coordinate>| {
+        assert!(
+            matches!(
+                r,
+                Err(Error::InvalidValue {
+                    field: "distance",
+                    ..
+                })
+            ),
+            "{r:?}"
+        );
+    };
+    invalid_distance(rhumb_destination(
+        &c(80.0, 0.0),
+        45.0,
+        Length::from_meters(2_000_000.0),
+    ));
+    // Exactly onto the pole: the WGS-84 meridian arc from 80°N to the pole is
+    // 1 116 825.857 375 850 m (RhumbSolve inverse 80 0 90 90), so along 45°
+    // the line is √2 times that.
+    let to_pole = Length::from_meters(1_116_825.857_375_85 * core::f64::consts::SQRT_2);
+    invalid_distance(rhumb_destination(&c(80.0, 0.0), 45.0, to_pole));
 }
