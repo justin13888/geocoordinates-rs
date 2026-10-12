@@ -14,6 +14,20 @@ use core::ops::Deref;
 /// `Approx<T>` derefs to `T`, so `approx.lat()` and similar accessors work
 /// directly.
 ///
+/// `Approx<T>` has no public constructor: only the crate's approximate
+/// conversions produce one, so a bound is never made up by the caller.
+///
+/// ```
+/// use geocoordinates::{Approx, Gcj02, Wgs84};
+///
+/// let wgs: Approx<Wgs84> = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined();
+/// // Accessors of the wrapped value work through `Deref`...
+/// assert!((wgs.lat() - 39.915).abs() < 1e-5);
+/// // ...while the bound stays attached until it is explicitly discarded.
+/// assert_eq!(wgs.max_error_m(), 0.5);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+///
 /// Note: the derived [`PartialEq`] compares [`max_error_m`](Approx::max_error_m)
 /// too, so two approximations of the same point with different bounds are not
 /// equal. Compare [`value`](Approx::value) explicitly for a bound-agnostic test.
@@ -58,24 +72,66 @@ impl<T> Approx<T> {
     }
 
     /// Borrow the underlying value.
+    ///
+    /// Compare values with this rather than `==` on the wrapper, which also
+    /// compares the bounds:
+    ///
+    /// ```
+    /// use geocoordinates::Gcj02;
+    ///
+    /// let gcj = Gcj02::new(39.916_404, 116.410_244)?;
+    /// let (fast, refined) = (gcj.to_wgs84_fast(), gcj.to_wgs84_refined());
+    /// assert_ne!(fast, refined);
+    /// assert!((fast.value().lat() - refined.value().lat()).abs() < 1e-4);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn value(&self) -> &T {
         &self.value
     }
 
     /// Consume the wrapper, discarding the error estimate.
+    ///
+    /// ```
+    /// use geocoordinates::{Gcj02, Wgs84};
+    ///
+    /// let wgs: Wgs84 = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined().into_inner();
+    /// assert!((wgs.lon() - 116.404).abs() < 1e-5);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn into_inner(self) -> T {
         self.value
     }
 
     /// The estimated upper bound on positional error, in meters.
+    ///
+    /// `f64::INFINITY` means no bound is known.
+    ///
+    /// ```
+    /// use geocoordinates::Gcj02;
+    ///
+    /// // The single-step inverse is coarser than the refined one.
+    /// let gcj = Gcj02::new(39.916_404, 116.410_244)?;
+    /// assert_eq!(gcj.to_wgs84_fast().max_error_m(), 6.0);
+    /// assert_eq!(gcj.to_wgs84_refined().max_error_m(), 0.5);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn max_error_m(&self) -> f64 {
         self.max_error_m
     }
 
     /// Map the inner value while preserving the error estimate.
+    ///
+    /// ```
+    /// use geocoordinates::{Approx, Coordinate, Gcj02};
+    ///
+    /// let wgs = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined();
+    /// let coord: Approx<Coordinate> = wgs.map(|w| w.to_coordinate());
+    /// assert_eq!(coord.max_error_m(), 0.5);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Approx<U> {
         Approx {
