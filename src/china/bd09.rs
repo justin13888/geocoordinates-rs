@@ -155,6 +155,35 @@ mod tests {
         }
     }
 
+    /// C2: the worldwide BD-09 offset must wrap longitude at the antimeridian
+    /// rather than return a longitude past 180°.
+    #[test]
+    fn forward_wraps_longitude_at_the_antimeridian() {
+        let bd = Gcj02::new(0.0, 180.0).try_to_bd09().unwrap();
+        assert!((-180.0..180.0).contains(&bd.lon), "lon {}", bd.lon);
+        assert!((bd.lon + 179.9935).abs() < 1e-3, "lon {}", bd.lon);
+    }
+
+    /// C2: a latitude the offset pushes past the pole is outside BD-09's
+    /// domain, not a coordinate.
+    #[test]
+    fn forward_rejects_a_latitude_pushed_past_the_pole() {
+        assert!(matches!(
+            Gcj02::new(90.0, 0.0).try_to_bd09(),
+            Err(crate::Error::OutsideDomain { .. })
+        ));
+    }
+
+    /// C2: a valid BD-09 point at the antimeridian has a GCJ-02 preimage, and
+    /// the refined inverse must find it.
+    #[test]
+    fn refined_inverse_handles_the_antimeridian() {
+        let gcj = Bd09::new(0.0, -180.0).try_to_gcj02_refined().unwrap();
+        assert!((-180.0..=180.0).contains(&gcj.lon), "lon {}", gcj.lon);
+        let image = gcj.value().try_to_bd09().unwrap();
+        assert_within_meters(&image, &Bd09::new(0.0, -180.0), gcj.max_error_m());
+    }
+
     /// WGS-84 → BD-09 (exact) → refined inverse recovers the origin, and the
     /// composed error bound accumulates both refined steps.
     #[test]

@@ -185,6 +185,24 @@ mod tests {
         assert_eq!(back.max_error_m(), 0.0);
     }
 
+    /// C3: at the box edge the fixed point does not converge, and the refined
+    /// inverse must not claim a bound it did not reach. Its result's forward
+    /// image must land within the reported `max_error_m` of the input.
+    #[test]
+    fn refined_bound_covers_the_residual_at_the_box_edge() {
+        let target = Gcj02::new(40.0, 72.006);
+        let got = target.try_to_wgs84_refined().unwrap();
+        let image = got.value().try_to_gcj02().unwrap();
+        let residual = crate::geodesy::haversine_distance(&image, &target)
+            .unwrap()
+            .meters();
+        assert!(
+            residual <= got.max_error_m(),
+            "residual {residual} m exceeds the claimed {} m",
+            got.max_error_m()
+        );
+    }
+
     #[test]
     fn invalid_coordinates_are_rejected() {
         assert!(Wgs84::new(f64::NAN, 116.4).try_to_gcj02().is_err());

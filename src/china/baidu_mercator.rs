@@ -375,6 +375,21 @@ mod tests {
         assert!(BaiduMercator::try_from(wgs).is_err());
     }
 
+    /// C17: Baidu clamps its projection to ±74°, so a latitude beyond it is
+    /// outside the domain rather than silently stretched.
+    #[test]
+    fn latitudes_beyond_74_degrees_are_outside_the_domain() {
+        for lat in [74.5, 80.0, -75.0] {
+            assert!(
+                matches!(
+                    BaiduMercator::try_from_bd09(Bd09::new(lat, 10.0)),
+                    Err(Error::OutsideDomain { .. })
+                ),
+                "lat {lat}"
+            );
+        }
+    }
+
     #[test]
     fn invalid_projection_inputs_are_rejected() {
         assert!(BaiduMercator::new(f64::NAN, 0.0).try_to_bd09().is_err());
