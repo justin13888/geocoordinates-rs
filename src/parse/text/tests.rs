@@ -2,8 +2,17 @@ use super::normalize::{is_isolated, rewrite_decimal_comma, rewrite_unit_letters,
 use super::*;
 use crate::test_support::assert_close;
 
+use crate::parse::AxisOrder;
+
 fn source(fix: &Fix) -> &RawSource {
     fix.source.as_ref().expect("text parse records a source")
+}
+
+fn comma_options() -> ParseOptions {
+    ParseOptions {
+        decimal_separator: DecimalSeparator::Comma,
+        ..ParseOptions::default()
+    }
 }
 
 #[test]
@@ -71,10 +80,7 @@ fn space_separated_ddm_with_suffix_hemispheres() {
 
 #[test]
 fn decimal_comma_option() {
-    let opts = TextParseOptions {
-        decimal_comma: true,
-        default_axis_order: AxisOrder::LatLon,
-    };
+    let opts = comma_options();
     let fix = parse_with("40,7128 -74,006", &opts).unwrap();
     assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_close(fix.coord.lon(), -74.006, 1e-9);
@@ -84,9 +90,9 @@ fn decimal_comma_option() {
 
 #[test]
 fn default_lonlat_swaps_assignment() {
-    let opts = TextParseOptions {
-        decimal_comma: false,
+    let opts = ParseOptions {
         default_axis_order: AxisOrder::LonLat,
+        ..ParseOptions::default()
     };
     let fix = parse_with("-74.006, 40.7128", &opts).unwrap();
     assert_close(fix.coord.lon(), -74.006, 1e-9);
@@ -219,10 +225,7 @@ fn letter_markers_parse_like_symbols() {
         assert_close(fix.coord.lon(), lon, 1e-9);
     }
     // Letter markers combine with the decimal-comma option.
-    let opts = TextParseOptions {
-        decimal_comma: true,
-        default_axis_order: AxisOrder::LatLon,
-    };
+    let opts = comma_options();
     let fix = parse_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
     assert_close(fix.coord.lat(), -lat, 1e-9);
     assert_close(fix.coord.lon(), lon, 1e-9);
@@ -233,6 +236,12 @@ fn split_two_rejects_half_empty_comma_split() {
     // "5," splits to ("5", "") on the comma; the empty half must not be
     // returned as a component pair.
     assert!(split_two("5,", false).is_none());
+    // `;` separates only decimal-comma text, whose decimals are already `.`.
+    assert_eq!(
+        split_two("48.8566; 2.3522", true),
+        Some(("48.8566".to_string(), "2.3522".to_string()))
+    );
+    assert!(split_two("48.8566;2.3522", false).is_none());
     assert_eq!(
         split_two("40, -74", false),
         Some(("40".to_string(), "-74".to_string()))
@@ -288,10 +297,7 @@ fn exponent_notation_is_rejected() {
 fn decimal_comma_text_splits_on_the_remaining_list_separators() {
     // C12: with a decimal comma, the commas left after the decimal rewrite
     // (and `;`) separate the two components.
-    let opts = TextParseOptions {
-        decimal_comma: true,
-        default_axis_order: AxisOrder::LatLon,
-    };
+    let opts = comma_options();
     for input in ["48,8566, 2,3522", "48,8566 , 2,3522", "48,8566; 2,3522"] {
         let fix = parse_with(input, &opts).unwrap_or_else(|e| panic!("{input:?}: {e}"));
         assert_close(fix.coord.lat(), 48.8566, 1e-9);

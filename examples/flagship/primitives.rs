@@ -15,7 +15,7 @@ use geocoordinates::geodesy::{Aer, DatumTransform, Ecef, Ellipsoid, Enu, Helmert
 use geocoordinates::grids::{
     Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
 };
-use geocoordinates::parse::text::TextParseOptions;
+use geocoordinates::parse::{GridKind, ParseOptions};
 use geocoordinates::{
     Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Fix, Gcj02, Height, Length,
     LengthUnit, RawSource, Wgs84,
@@ -58,7 +58,8 @@ fn all_public_value_types_are_serde() {
     assert_serde::<HemisphereStyle>();
     assert_serde::<FormatOptions>();
     assert_serde::<DecimalSeparator>();
-    assert_serde::<TextParseOptions>();
+    assert_serde::<ParseOptions>();
+    assert_serde::<GridKind>();
     assert_serde::<Ellipsoid>();
     assert_serde::<Ecef>();
     assert_serde::<Enu>();

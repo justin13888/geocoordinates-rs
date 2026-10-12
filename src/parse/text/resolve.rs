@@ -60,10 +60,12 @@ pub(super) fn resolve(a: Component, b: Component, default_order: AxisOrder) -> R
 
     // Exactly one axis pinned by a hemisphere letter; the other is its complement.
     match (a.axis, b.axis) {
-        (Some(Axis::Latitude), None) => return Ok(one_letter(a_val, b_val, AxisOrder::LatLon)),
-        (Some(Axis::Longitude), None) => return Ok(one_letter(b_val, a_val, AxisOrder::LonLat)),
-        (None, Some(Axis::Latitude)) => return Ok(one_letter(b_val, a_val, AxisOrder::LonLat)),
-        (None, Some(Axis::Longitude)) => return Ok(one_letter(a_val, b_val, AxisOrder::LatLon)),
+        (Some(Axis::Latitude), None) | (None, Some(Axis::Longitude)) => {
+            return Ok(one_letter(a_val, b_val));
+        }
+        (Some(Axis::Longitude), None) | (None, Some(Axis::Latitude)) => {
+            return Ok(one_letter(b_val, a_val));
+        }
         _ => {}
     }
 
@@ -93,7 +95,7 @@ fn explicit(lat: f64, lon: f64) -> Resolved {
     }
 }
 
-fn one_letter(lat: f64, lon: f64, _order: AxisOrder) -> Resolved {
+fn one_letter(lat: f64, lon: f64) -> Resolved {
     Resolved {
         lat,
         lon,

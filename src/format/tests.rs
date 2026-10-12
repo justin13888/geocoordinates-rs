@@ -148,7 +148,7 @@ fn ddm_clean_and_doc_example() {
 fn comma_separator() {
     let c = wgs(40.7128, -74.006);
     // Comma decimals, whitespace list separator (round-trips through
-    // `parse_coordinate_with` with `decimal_comma` set).
+    // `parse_coordinate_with` given `FormatOptions::parse_options`).
     let comma = FormatOptions {
         representation: dd(Some(6), HemisphereStyle::Signed),
         decimal_separator: DecimalSeparator::Comma,

@@ -576,17 +576,32 @@ fn parse_coordinate_records_the_assumed_axis_order() {
 
 #[test]
 fn parse_coordinate_with_and_parse_text_with_read_a_decimal_comma() {
-    let options = TextParseOptions {
-        default_axis_order: AxisOrder::LatLon,
-        decimal_comma: true,
+    let options = ParseOptions {
+        decimal_separator: DecimalSeparator::Comma,
+        ..parse_options_default()
     };
     for fix in [
         parse_coordinate_with("40,7128 -74,006".to_string(), options).unwrap(),
-        parse_text_with("40,7128 -74,006".to_string(), options).unwrap(),
+        parse_text_with("40,7128, -74,006".to_string(), options).unwrap(),
     ] {
         assert_eq!(fix.coord, wgs84(40.7128, -74.006));
         assert_eq!(fix.source.unwrap().axis_order, Some(AxisOrder::LatLon));
     }
+}
+
+#[test]
+fn parse_coordinate_detects_mgrs_and_decodes_an_expected_geohash() {
+    let mgrs = parse_coordinate("18TWK0000027757".to_string()).unwrap();
+    assert!(mgrs.accuracy.unwrap().horizontal_m.unwrap() < 1.0);
+    assert!(parse_coordinate("ezs42".to_string()).is_err());
+    let geohash = FormatOptions {
+        representation: Representation::Geohash { length: 5 },
+        decimal_separator: DecimalSeparator::Point,
+    };
+    let options = format_options_parse_options(geohash);
+    assert_eq!(options.expect_grid, Some(GridKind::Geohash));
+    let fix = parse_coordinate_with("ezs42".to_string(), options).unwrap();
+    assert!((fix.coord.lat - 42.6).abs() < 0.03, "{fix:?}");
 }
 
 #[test]

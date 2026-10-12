@@ -5,9 +5,10 @@
 ///
 /// With [`Comma`](Self::Comma) the two components of a coordinate are
 /// separated by whitespace instead of `, `, so the rendering stays unambiguous
-/// and re-parses with
-/// [`TextParseOptions::decimal_comma`](crate::parse::text::TextParseOptions::decimal_comma)
-/// set.
+/// and re-parses with this separator as
+/// [`ParseOptions::decimal_separator`](crate::parse::ParseOptions::decimal_separator).
+/// The same type serves both directions, so formatting and parsing cannot
+/// disagree about it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DecimalSeparator {

@@ -1,14 +1,13 @@
 //! Typography normalization, component splitting, and per-component lexing for
 //! the free-text parser.
 
-use super::TextParseOptions;
 use super::resolve::Component;
 use crate::angle::{Axis, Hemisphere};
 
 /// Canonicalize typography: Unicode primes → `'`/`"`, masculine ordinal → `°`,
 /// exotic spaces → ASCII space; apply the decimal-comma rewrite when requested,
 /// then the letter-marker rewrite (`10d30m00s` → `10°30'00"`).
-pub(super) fn normalize(input: &str, options: &TextParseOptions) -> String {
+pub(super) fn normalize(input: &str, decimal_comma: bool) -> String {
     let mapped: String = input
         .trim()
         .chars()
@@ -20,7 +19,7 @@ pub(super) fn normalize(input: &str, options: &TextParseOptions) -> String {
             other => other,
         })
         .collect();
-    let decimals = if options.decimal_comma {
+    let decimals = if decimal_comma {
         rewrite_decimal_comma(&mapped)
     } else {
         mapped
@@ -85,13 +84,17 @@ pub(super) fn rewrite_decimal_comma(s: &str) -> String {
 }
 
 /// Split a normalized string into two component substrings: by an explicit
-/// comma, else by hemisphere-letter boundary, else by whitespace into two.
+/// list separator, else by hemisphere-letter boundary, else by whitespace into
+/// two.
+///
+/// The list separator is `,`; with a decimal comma (already rewritten to `.`
+/// between digits by [`rewrite_decimal_comma`]) it is the first remaining `,`
+/// or `;`.
 pub(super) fn split_two(s: &str, decimal_comma: bool) -> Option<(String, String)> {
-    if !decimal_comma {
-        if let Some((a, b)) = s.split_once(',') {
-            if !a.trim().is_empty() && !b.trim().is_empty() {
-                return Some((a.trim().to_string(), b.trim().to_string()));
-            }
+    let list_separator = |c: char| c == ',' || (decimal_comma && c == ';');
+    if let Some((a, b)) = s.split_once(list_separator) {
+        if !a.trim().is_empty() && !b.trim().is_empty() {
+            return Some((a.trim().to_string(), b.trim().to_string()));
         }
     }
     if let Some(pair) = split_on_hemisphere(s) {
@@ -164,7 +167,7 @@ pub(super) fn parse_component(component: &str) -> Option<Component> {
         }
         negative = true;
     }
-    let magnitude = parse_magnitude(body)?;
+    let magnitude = parse_magnitude(body, hemi.is_some())?;
     Some(Component {
         magnitude,
         negative,
@@ -194,55 +197,59 @@ fn extract_hemisphere(s: &str) -> (&str, Option<Hemisphere>) {
 }
 
 /// Parse an unsigned magnitude in degrees: plain decimal, DDM (`deg min`), DMS
-/// (`deg min sec`), or concatenated NMEA (`DDMM.mmm` / `DDDMM.mmm`).
-fn parse_magnitude(body: &str) -> Option<f64> {
+/// (`deg min sec`), or — only beside a hemisphere letter — concatenated NMEA
+/// (`DDMM.mmm` / `DDDMM.mmm`).
+///
+/// Every field must be a plain unsigned decimal (no sign, exponent, `inf` or
+/// `NaN`), and only the last field may carry a fraction: `40.5 30` has no
+/// single reading, so it is rejected rather than summed to 41°.
+fn parse_magnitude(body: &str, has_hemisphere: bool) -> Option<f64> {
     let fields: Vec<&str> = body
         .split(|c: char| matches!(c, '°' | '\'' | '"') || c.is_whitespace())
         .filter(|t| !t.is_empty())
         .collect();
+    let (last, leading) = fields.split_last()?;
+    if !fields.iter().all(|f| is_plain_decimal(f)) || leading.iter().any(|f| f.contains('.')) {
+        return None;
+    }
     match fields.as_slice() {
         [single] => {
             let value: f64 = single.parse().ok()?;
-            if !value.is_finite() || value < 0.0 {
-                return None;
-            }
-            if integer_digits(single) >= 4 {
+            if integer_digits(single) < 4 {
+                Some(value)
+            } else if has_hemisphere {
                 nmea_decode(value) // concatenated DDMM.mmm
             } else {
-                Some(value)
+                None // no degree value has four integer digits
             }
         }
         [deg, min] => components_to_degrees(deg, min, None),
-        [deg, min, sec] => components_to_degrees(deg, min, Some(sec)),
+        [deg, min, _] => components_to_degrees(deg, min, Some(last)),
         _ => None,
     }
 }
 
-fn components_to_degrees(deg: &str, min: &str, sec: Option<&&str>) -> Option<f64> {
+/// Whether `s` is an unsigned decimal of ASCII digits with at most one `.`.
+fn is_plain_decimal(s: &str) -> bool {
+    s.chars().any(|c| c.is_ascii_digit())
+        && s.chars().all(|c| c.is_ascii_digit() || c == '.')
+        && s.matches('.').count() <= 1
+}
+
+/// Sum validated plain-decimal fields; minutes and seconds must be below 60.
+fn components_to_degrees(deg: &str, min: &str, sec: Option<&str>) -> Option<f64> {
     let degrees = deg.parse::<f64>().ok()?;
     let minutes = min.parse::<f64>().ok()?;
     let seconds = sec.map_or(Some(0.0), |s| s.parse::<f64>().ok())?;
-    if !degrees.is_finite()
-        || degrees < 0.0
-        || !minutes.is_finite()
-        || !(0.0..60.0).contains(&minutes)
-        || !seconds.is_finite()
-        || !(0.0..60.0).contains(&seconds)
-    {
+    if !(0.0..60.0).contains(&minutes) || !(0.0..60.0).contains(&seconds) {
         return None;
     }
     Some(degrees + minutes / 60.0 + seconds / 3600.0)
 }
 
-/// Count the digits before the decimal point (leading sign stripped).
+/// Count the digits before the decimal point of a plain decimal.
 fn integer_digits(s: &str) -> usize {
-    s.trim_start_matches(['+', '-'])
-        .split('.')
-        .next()
-        .unwrap_or_default()
-        .chars()
-        .filter(char::is_ascii_digit)
-        .count()
+    s.split('.').next().unwrap_or_default().len()
 }
 
 /// Decode a concatenated NMEA value: `DDMM.mmm` → decimal degrees.

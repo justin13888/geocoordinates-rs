@@ -7,7 +7,6 @@ use proptest::prelude::*;
 
 use super::*;
 use crate::parse::parse_coordinate_with;
-use crate::parse::text::TextParseOptions;
 
 /// A latitude biased toward the places formatting breaks: the poles, the
 /// equator, and values that round to zero or to a pole at the rendered
@@ -84,27 +83,12 @@ fn options() -> impl Strategy<Value = FormatOptions> {
         })
 }
 
-/// Parse a rendering back to a coordinate: through `parse_coordinate_with`
-/// with the separator the options imply, or, for the grids it does not detect
-/// yet (Geohash, Maidenhead, MGRS), through the grid's own parser and decoder.
+/// Parse a rendering back to a coordinate through `parse_coordinate_with`
+/// given the options' own `parse_options`, for every representation.
 fn reparse(text: &str, options: &FormatOptions) -> Coordinate {
-    let decoded = match options.representation {
-        Representation::Geohash { .. } => Geohash::try_from(text).map(|g| g.decode()),
-        Representation::Maidenhead { .. } => Maidenhead::try_from(text).map(|m| m.decode()),
-        Representation::Mgrs { .. } => Mgrs::try_from(text).map(|m| m.to_coordinate()),
-        _ => {
-            let parse_options = TextParseOptions {
-                decimal_comma: options.decimal_separator == DecimalSeparator::Comma,
-                ..TextParseOptions::default()
-            };
-            return parse_coordinate_with(text, &parse_options)
-                .unwrap_or_else(|e| panic!("{text:?} did not re-parse: {e}"))
-                .coord;
-        }
-    };
-    decoded
+    parse_coordinate_with(text, &options.parse_options())
         .unwrap_or_else(|e| panic!("{text:?} did not re-parse: {e}"))
-        .into_inner()
+        .coord
 }
 
 /// One trip: render, parse back, render again. Returns both renderings.

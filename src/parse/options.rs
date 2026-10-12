@@ -1,0 +1,67 @@
+//! Options for [`parse_coordinate_with`](super::parse_coordinate_with) and the
+//! free-text parser, and the grid kinds a caller can ask it to expect.
+
+use super::AxisOrder;
+use crate::format::DecimalSeparator;
+
+/// A grid reference system whose strings
+/// [`parse_coordinate_with`](super::parse_coordinate_with) can decode.
+///
+/// [`PlusCode`](Self::PlusCode) and [`Mgrs`](Self::Mgrs) strings are
+/// self-delimiting (a `+`, or a zone-band-square prefix no coordinate text
+/// has), so they are always detected. [`Geohash`](Self::Geohash) and
+/// [`Maidenhead`](Self::Maidenhead) strings are not: `"42"` is a valid
+/// geohash and `"bed"` a valid one too, so they decode only when
+/// [`ParseOptions::expect_grid`] names them. Exhaustive (no
+/// `#[non_exhaustive]`): adding a kind compile-forces the FFI mirror.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum GridKind {
+    /// Open Location Code / Plus Code (`8FVC2222+22`), see
+    /// [`PlusCode`](crate::grids::PlusCode).
+    PlusCode,
+    /// Geohash (`ezs42`), see [`Geohash`](crate::grids::Geohash).
+    Geohash,
+    /// Maidenhead locator (`FN20`), see
+    /// [`Maidenhead`](crate::grids::Maidenhead).
+    Maidenhead,
+    /// MGRS reference (`18TWK0000027757`), see [`Mgrs`](crate::grids::Mgrs).
+    Mgrs,
+}
+
+/// Options controlling [`parse_coordinate_with`](super::parse_coordinate_with)
+/// and [`text::parse_with`](super::text::parse_with).
+///
+/// The default reads lat-first, `.`-decimal text and expects no particular
+/// grid. To read back what [`format`](crate::format::format) rendered, take
+/// these from [`FormatOptions::parse_options`](crate::format::FormatOptions::parse_options)
+/// rather than building them by hand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ParseOptions {
+    /// Axis order to assume for free text when neither a hemisphere letter
+    /// nor the `|value| > 90` range rule decides it.
+    pub default_axis_order: AxisOrder,
+    /// Decimal separator of free text. With
+    /// [`Comma`](DecimalSeparator::Comma), a comma between two digits is a
+    /// decimal point, and the remaining commas, `;` and whitespace separate
+    /// the two components (`48,8566, 2,3522` and `48,8566 2,3522` both read
+    /// as 48.8566, 2.3522).
+    pub decimal_separator: DecimalSeparator,
+    /// A grid whose strings to try before anything but a `geo:` URI. Needed
+    /// for [`GridKind::Geohash`] and [`GridKind::Maidenhead`], which are never
+    /// detected otherwise; for the always-detected kinds it only moves them
+    /// first. Input that is not a valid reference of this kind still parses
+    /// by the other routes.
+    pub expect_grid: Option<GridKind>,
+}
+
+impl Default for ParseOptions {
+    fn default() -> Self {
+        Self {
+            default_axis_order: AxisOrder::LatLon,
+            decimal_separator: DecimalSeparator::Point,
+            expect_grid: None,
+        }
+    }
+}
