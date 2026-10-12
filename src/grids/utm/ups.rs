@@ -18,6 +18,15 @@ pub(crate) const UPS_K0: f64 = 0.994;
 /// Valid by construction — build one with [`Ups::new`] or
 /// [`Ups::try_from_coordinate`]. The domain is easting and northing each in
 /// `0..=4 000 000` m.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::grids::Ups;
+///
+/// let back = Ups::try_from_coordinate(Coordinate::wgs84(-85.0, 30.0)?)?.to_coordinate();
+/// assert!((back.lat() + 85.0).abs() < 1e-9 && (back.lon() - 30.0).abs() < 1e-9);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "UpsRecord"))]
@@ -50,6 +59,18 @@ impl Ups {
     /// Build a UPS coordinate from its parts, validating each against the UPS
     /// domain.
     ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::grids::{Ups, UtmHemisphere};
+    ///
+    /// // The false origin is the pole itself.
+    /// let pole = Ups::new(UtmHemisphere::North, 2_000_000.0, 2_000_000.0)?;
+    /// assert!((pole.to_coordinate().lat() - 90.0).abs() < 1e-9);
+    /// let err = Ups::new(UtmHemisphere::North, 2_000_000.0, f64::NAN);
+    /// assert!(matches!(err, Err(Error::InvalidValue { field: "northing", .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
     /// # Errors
     /// [`Error::InvalidValue`] naming the offending field, `"easting"` or
     /// `"northing"`, when it lies outside `0..=4 000 000` m (NaN and the
@@ -65,18 +86,47 @@ impl Ups {
     }
 
     /// North or south polar zone.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::grids::{Ups, UtmHemisphere};
+    ///
+    /// let ups = Ups::try_from_coordinate(Coordinate::wgs84(-85.0, 30.0)?)?;
+    /// assert_eq!(ups.hemisphere(), UtmHemisphere::South);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn hemisphere(&self) -> UtmHemisphere {
         self.hemisphere
     }
 
     /// Easting in meters (2 000 000 m false easting applied).
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::grids::Ups;
+    ///
+    /// // On the prime meridian the easting is the false easting.
+    /// let ups = Ups::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)?)?;
+    /// assert!((ups.easting() - 2_000_000.0).abs() < 1e-6);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn easting(&self) -> f64 {
         self.easting
     }
 
     /// Northing in meters (2 000 000 m false northing applied).
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::grids::Ups;
+    ///
+    /// // 85°N on the prime meridian lies about 556 km grid-south of the pole.
+    /// let ups = Ups::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)?)?;
+    /// assert!((ups.northing() - 1_444_542.609).abs() < 1e-3);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn northing(&self) -> f64 {
         self.northing
@@ -84,6 +134,18 @@ impl Ups {
 
     /// Geodetic WGS-84 → UPS. The canonical inherent form behind
     /// [`TryFrom<Coordinate>`](Ups).
+    ///
+    /// ```
+    /// use geocoordinates::grids::Ups;
+    /// use geocoordinates::{Coordinate, Error};
+    ///
+    /// let ups = Ups::try_from_coordinate(Coordinate::wgs84(87.0, 45.0)?)?;
+    /// assert!((ups.easting() - 2_235_568.725).abs() < 1e-3);
+    /// // 83.9°N is still UTM territory.
+    /// let utm_band = Ups::try_from_coordinate(Coordinate::wgs84(83.9, 0.0)?);
+    /// assert!(matches!(utm_band, Err(Error::OutsideDomain { operation: "UPS", .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     ///
     /// # Errors
     /// [`Error::CrsMismatch`] for a non-WGS-84 coordinate;
@@ -125,6 +187,17 @@ impl Ups {
     ///
     /// Infallible: the domain was validated at construction. The longitude is
     /// wrapped into `[-180, 180)`.
+    ///
+    /// ```
+    /// use geocoordinates::grids::{Ups, UtmHemisphere};
+    ///
+    /// // 556 km grid-north of the north pole is the 180° meridian.
+    /// let ups = Ups::new(UtmHemisphere::North, 2_000_000.0, 2_555_457.391)?;
+    /// let coord = ups.to_coordinate();
+    /// assert!((coord.lat() - 85.0).abs() < 1e-6);
+    /// assert_eq!(coord.lon(), -180.0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn to_coordinate(&self) -> Coordinate {
         let north = self.hemisphere == UtmHemisphere::North;

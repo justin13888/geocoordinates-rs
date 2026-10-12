@@ -82,6 +82,15 @@ const POLE_NORTHING: f64 = K0 * RECT_A * core::f64::consts::FRAC_PI_2;
 ///
 /// Distinct from [`angle::Hemisphere`](crate::angle::Hemisphere), which names
 /// one of four cardinal directions on a single angle.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::grids::{Utm, UtmHemisphere};
+///
+/// let sydney = Utm::try_from_coordinate(Coordinate::wgs84(-33.8688, 151.2093)?)?;
+/// assert_eq!(sydney.hemisphere(), UtmHemisphere::South);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum UtmHemisphere {
@@ -98,6 +107,16 @@ pub enum UtmHemisphere {
 /// `100 000..=900 000` m, and a northing that does not fold over the pole:
 /// from 0 up to the pole's grid northing (≈ 9 997 965 m) in the north, and from
 /// 10 000 000 m minus that (≈ 2 035 m) up to 10 000 000 m in the south.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::grids::Utm;
+///
+/// let nyc = Coordinate::wgs84(40.7128, -74.006)?;
+/// let back = Utm::try_from_coordinate(nyc)?.to_coordinate();
+/// assert!((back.lat() - 40.7128).abs() < 1e-9 && (back.lon() + 74.006).abs() < 1e-9);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "UtmRecord"))]
@@ -156,6 +175,17 @@ fn check_zone(zone: u8) -> Result<()> {
 /// The UTM longitude zone for a WGS-84 coordinate, applying the Norway and
 /// Svalbard exceptions.
 ///
+/// ```
+/// use geocoordinates::grids::utm::zone_for;
+/// use geocoordinates::{Coordinate, Error};
+///
+/// assert_eq!(zone_for(&Coordinate::wgs84(40.7128, -74.006)?)?, 18);
+/// assert_eq!(zone_for(&Coordinate::wgs84(60.0, 5.0)?)?, 32); // Norway exception
+/// let pole = Coordinate::wgs84(85.0, 0.0)?;
+/// assert!(matches!(zone_for(&pole), Err(Error::OutsideDomain { .. })));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+///
 /// # Errors
 /// [`Error::CrsMismatch`] for a non-WGS-84 coordinate;
 /// [`Error::OutsideDomain`] (operation `"UTM"`) for a latitude outside the
@@ -203,6 +233,15 @@ fn zone_in_band(lat: f64, lon: f64) -> u8 {
 
 /// The central meridian (degrees) of a UTM zone.
 ///
+/// ```
+/// use geocoordinates::Error;
+/// use geocoordinates::grids::utm::central_meridian_deg;
+///
+/// assert_eq!(central_meridian_deg(18)?, -75.0);
+/// assert!(matches!(central_meridian_deg(61), Err(Error::InvalidValue { .. })));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+///
 /// # Errors
 /// [`Error::InvalidValue`] (field `"zone"`) for a zone outside `1..=60`.
 pub fn central_meridian_deg(zone: u8) -> Result<f64> {
@@ -218,6 +257,17 @@ fn central_meridian(zone: u8) -> f64 {
 impl Utm {
     /// Build a UTM coordinate from its parts, validating each against the UTM
     /// domain.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::grids::{Utm, UtmHemisphere};
+    ///
+    /// let utm = Utm::new(18, UtmHemisphere::North, 583_959.37, 4_507_351.0)?;
+    /// assert!((utm.to_coordinate().lat() - 40.7128).abs() < 1e-6);
+    /// let err = Utm::new(18, UtmHemisphere::North, 950_000.0, 4_507_351.0);
+    /// assert!(matches!(err, Err(Error::InvalidValue { field: "easting", .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     ///
     /// # Errors
     /// [`Error::InvalidValue`] naming the offending field: `"zone"` outside
@@ -242,24 +292,59 @@ impl Utm {
     }
 
     /// Longitude zone number, `1..=60`.
+    ///
+    /// ```
+    /// use geocoordinates::grids::{Utm, UtmHemisphere};
+    ///
+    /// assert_eq!(Utm::new(33, UtmHemisphere::North, 500_000.0, 0.0)?.zone(), 33);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn zone(&self) -> u8 {
         self.zone
     }
 
     /// Hemisphere band.
+    ///
+    /// ```
+    /// use geocoordinates::grids::{Utm, UtmHemisphere};
+    ///
+    /// let utm = Utm::new(56, UtmHemisphere::South, 334_000.0, 6_252_000.0)?;
+    /// assert_eq!(utm.hemisphere(), UtmHemisphere::South);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn hemisphere(&self) -> UtmHemisphere {
         self.hemisphere
     }
 
     /// Easting in meters (500 000 m false easting applied).
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::grids::Utm;
+    ///
+    /// // A point on zone 18's central meridian (75°W) sits at the false easting.
+    /// let utm = Utm::try_from_coordinate(Coordinate::wgs84(40.0, -75.0)?)?;
+    /// assert!((utm.easting() - 500_000.0).abs() < 1e-6);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn easting(&self) -> f64 {
         self.easting
     }
 
     /// Northing in meters (10 000 000 m false northing applied in the south).
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::grids::Utm;
+    ///
+    /// // Just south of the equator, the false northing keeps it positive.
+    /// let utm = Utm::try_from_coordinate(Coordinate::wgs84(-0.001, -75.0)?)?;
+    /// assert!((9_999_800.0..10_000_000.0).contains(&utm.northing()));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn northing(&self) -> f64 {
         self.northing
@@ -268,6 +353,19 @@ impl Utm {
     /// Geodetic WGS-84 → UTM. Fails in the polar regions (use [`Ups`] there).
     ///
     /// The canonical inherent form behind [`TryFrom<Coordinate>`](Utm).
+    ///
+    /// ```
+    /// use geocoordinates::grids::{Utm, UtmHemisphere};
+    /// use geocoordinates::{Coordinate, Error};
+    ///
+    /// let utm = Utm::try_from_coordinate(Coordinate::wgs84(40.7128, -74.006)?)?;
+    /// assert_eq!((utm.zone(), utm.hemisphere()), (18, UtmHemisphere::North));
+    /// assert!((utm.easting() - 583_959.372).abs() < 1e-3);
+    /// assert!((utm.northing() - 4_507_350.998).abs() < 1e-3);
+    /// let pole = Utm::try_from_coordinate(Coordinate::wgs84(84.0, 0.0)?);
+    /// assert!(matches!(pole, Err(Error::OutsideDomain { operation: "UTM", .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     ///
     /// # Errors
     /// [`Error::CrsMismatch`] for a non-WGS-84 coordinate;
@@ -317,6 +415,15 @@ impl Utm {
     /// Infallible: the domain was validated at construction. The longitude is
     /// wrapped into `[-180, 180)`, so a zone 1 easting west of the
     /// antimeridian decodes to about +179.9° rather than −180.1°.
+    ///
+    /// ```
+    /// use geocoordinates::grids::{Utm, UtmHemisphere};
+    ///
+    /// // Zone 1's western edge reaches past the antimeridian; it wraps east.
+    /// let west = Utm::new(1, UtmHemisphere::North, 100_000.0, 0.0)?.to_coordinate();
+    /// assert!(west.lon() > 179.0 && west.lat().abs() < 1e-9);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn to_coordinate(&self) -> Coordinate {
         let lon0 = central_meridian(self.zone);
