@@ -136,6 +136,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base commit's coverage floor is read for the ratchet
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
@@ -146,10 +148,16 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           version: 2026.9.13
-      # No --fail-under-lines threshold yet; this reports coverage only.
+      # The base is the PR's base commit, or on a push the previous tip of the
+      # pushed branch, so the floor can only rise across either path.
+      - name: Check the coverage floor only rises
+        run: mise run coverage-ratchet "${{ github.event.pull_request.base.sha || github.event.before }}"
+      # Fails when line coverage falls under the floor in .coverage-baseline.
       - name: Generate coverage report
         run: mise run coverage-lcov
+      # Uploaded under the floor too, so the lcov shows which lines lost coverage.
       - name: Upload coverage artifact
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report

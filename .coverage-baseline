@@ -1,0 +1,14 @@
+# Line-coverage floor, read by `mise run coverage`, `coverage-lcov`, and
+# `coverage-ratchet`.
+#
+# The one non-comment line is the minimum total line coverage, in whole
+# percent, of the core crate as `cargo llvm-cov --all-features` measures it.
+# The coverage tasks fail below it (`--fail-under-lines`).
+#
+# This floor may only rise: `mise run coverage-ratchet` fails when it is lower
+# than the floor on the base ref, so a change that loses coverage restores the
+# tests rather than lowering the number. When coverage climbs past the next
+# whole percent, raise the floor to the new measured value, rounded down.
+#
+# Set to the floor of 98.67%, measured on master at the start of the ratchet.
+98

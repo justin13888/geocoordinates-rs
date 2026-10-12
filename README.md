@@ -170,7 +170,8 @@ mise run check   # fmt-check + clippy + tests
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
-| `mise run coverage`         | Coverage report                                                      |
+| `mise run coverage`         | Coverage report; fails under the line floor in `.coverage-baseline`  |
+| `mise run coverage-ratchet` | Fails if the floor in `.coverage-baseline` falls below `origin/master`'s |
 | `mise run mutants`          | Mutation tests on the lines changed vs `origin/master`               |
 
 Other common tasks:
@@ -195,7 +196,7 @@ installs the hooks; `hk install` re-runs that step on its own.
 Pre-commit auto-fixes formatting and linting on staged Rust files. The commit-msg hook
 validates each message against [Conventional Commits](https://www.conventionalcommits.org)
 (via `convco`). Pre-push lints the pushed commits and runs format checks, the file-length
-check, Clippy (core and FFI crates), tests, a coverage report, and mutation tests on the
+check, Clippy (core and FFI crates), tests, the coverage ratchet and line-coverage floor, and mutation tests on the
 changed lines.
 
 Run them on demand without committing:
@@ -212,7 +213,7 @@ Set `HK=0` to skip hooks for a single git invocation.
 
 GitHub Actions runs these workflows:
 
-- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, and a coverage report; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
+- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, and a coverage report that fails under the line-coverage floor, whose ratchet lets it only rise; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
 - **FFI** (pushes to `master` and pull requests): Clippy on the FFI crate, the bindings `cdylib` build, Python/Kotlin/Swift binding generation, a check that the committed Swift bindings are current, a WASM/TypeScript build with Node tests against the built wasm, the Python smoke test, JVM (Kotlin and Java) tests, and a Swift package build plus `swift test` on macOS.
 - **Full-tree mutation tests** (weekly, and on demand): mutates the whole tree and reports survivors without gating anything.
 - **Release dry runs**: each binding release workflow also runs as a non-publishing dry run on pull requests that touch its pipeline and weekly (see [PUBLISHING.md](PUBLISHING.md)).
@@ -234,10 +235,16 @@ stored in the repository.
 
 ### Code Coverage
 
-This project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for LLVM-based code coverage. No minimum threshold is enforced yet; one is added once the API stabilizes.
+This project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for LLVM-based code coverage. Total line coverage of the core crate must stay at or above the
+floor recorded in [`.coverage-baseline`](.coverage-baseline), in whole percent; `mise run coverage`
+and CI fail below it. The floor may only rise: `mise run coverage-ratchet` fails when it is lower
+than the floor on the base ref, so lost coverage is restored with tests rather than by lowering the
+number. When coverage passes the next whole percent, raise the floor to the measured value rounded
+down.
 
 ```bash
 mise run coverage
+mise run coverage-ratchet
 ```
 
 ## License
