@@ -63,12 +63,20 @@ pub struct Accuracy {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RawSource {
-    /// The verbatim input string.
+    /// The input this coordinate came from. For a single-coordinate input
+    /// (free text, a `geo:` URI, a grid reference, an NMEA sentence) it is
+    /// that input verbatim. For a structured document (GeoJSON, WKT, GPX, KML)
+    /// it is this position's own fragment, re-rendered in the document's
+    /// syntax — never the whole document.
     pub raw: String,
     /// How confidently `raw` was interpreted as this coordinate.
     pub confidence: Confidence,
-    /// The axis order the parser assumed, when the format leaves it ambiguous
-    /// (free text, GeoJSON/WKT). `None` for formats that fix it (NMEA, `geo:`).
+    /// The order the source listed latitude and longitude in: `LatLon` for
+    /// `geo:` URIs and NMEA, `LonLat` for GeoJSON and KML, the caller's choice
+    /// for WKT, and for unlabelled free text the order the parser assumed.
+    /// `None` when the axes are labelled rather than positional (a hemisphere
+    /// letter in free text, GPX `lat`/`lon` attributes) or the source has no
+    /// axis pair at all (a grid reference).
     pub axis_order: Option<AxisOrder>,
     /// A flagged datum ambiguity (e.g. China-EXIF possibly GCJ-02), when the
     /// source's reference system cannot be trusted as stated.
@@ -77,17 +85,19 @@ pub struct RawSource {
     pub notes: Vec<String>,
 }
 
-/// Axis ordering assumed when interpreting a textual/structured coordinate.
+/// The order latitude and longitude are listed in a textual/structured
+/// coordinate.
 ///
-/// GeoJSON and WKT are **lon-lat (X,Y)**; humans and many EPSG CRS are
-/// lat-first. Parsers record which order they assumed so the application can
-/// decide whether to prompt the user.
+/// GeoJSON and KML are **lon-lat (X,Y)**; WKT defines no order, so its parser
+/// takes one from the caller; humans, `geo:` URIs, NMEA, and many EPSG CRS are
+/// lat-first. Parsers record the listing order on [`RawSource::axis_order`] so
+/// the application can decide whether to prompt the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AxisOrder {
     /// Latitude first (human/EPSG convention).
     LatLon,
-    /// Longitude first (GeoJSON/WKT X,Y convention).
+    /// Longitude first (GeoJSON/KML X,Y convention, and most WKT).
     LonLat,
 }
 
