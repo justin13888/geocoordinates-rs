@@ -2,16 +2,27 @@
 //!
 //! Baidu map tiles are addressed in a projected meter coordinate built **on top
 //! of BD-09** (not WGS-84). The projection is a piecewise polynomial fit:
-//! latitude / value bands ([`LLBAND`] / [`MCBAND`]) select one of six
+//! latitude / value bands ([`LLBAND`] / [`MCBAND`]) select one of five
 //! coefficient rows in [`LL2MC`] (forward) or [`MC2LL`] (inverse).
 //!
 //! Each direction reproduces Baidu's own published formula deterministically,
 //! so it returns a bare type rather than [`Approx`](crate::Approx), and remains
-//! fallible because its numeric and projection domains are validated. The two
+//! fallible because its projection domain is validated: like Baidu's own
+//! `convertLL2MC`, it is defined only within ±74° of latitude. The two
 //! directions are **not** exact inverses of each other: the coefficient tables
 //! are independent empirical fits. A `try_from_bd09(p)?.try_to_bd09()?` round
 //! trip drifts by up to about 0.25 m below 60° latitude (all of China), and by
-//! up to about 7 m in the 60°–75° band.
+//! up to about 7 m in the 60°–74° band.
+//!
+//! ```
+//! use geocoordinates::{BaiduMercator, Bd09};
+//!
+//! let m = BaiduMercator::try_from_bd09(Bd09::new(39.9, 116.4)?)?;
+//! let back = m.try_to_bd09()?;
+//! assert!((back.lat() - 39.9).abs() < 1e-5);
+//! assert!(BaiduMercator::try_from_bd09(Bd09::new(80.0, 0.0)?).is_err());
+//! # Ok::<(), geocoordinates::Error>(())
+//! ```
 //!
 //! The geographic side is always [`Bd09`]; chain the [`china`](crate::china) datum
 //! methods (BD-09 → GCJ-02 → WGS-84) to reach real GPS, which are honest about
@@ -21,32 +32,24 @@ use super::Bd09;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 
-/// Northing band edges (meters) selecting a [`MC2LL`] row, descending.
-const MCBAND: [f64; 6] = [
-    12_890_594.86,
-    8_362_377.87,
-    5_591_021.0,
-    3_481_989.83,
-    1_678_043.12,
-    0.0,
-];
-/// Latitude band edges (degrees) selecting a [`LL2MC`] row, descending.
-const LLBAND: [f64; 6] = [75.0, 60.0, 45.0, 30.0, 15.0, 0.0];
+/// Largest latitude magnitude (degrees) Baidu's projection accepts: its own
+/// `convertLL2MC` clamps latitude to ±74°.
+const MAX_LAT_DEG: f64 = 74.0;
+/// Largest northing magnitude (meters): the forward image of [`MAX_LAT_DEG`].
+const MAX_NORTHING_M: f64 = 12_474_104.174_141_884;
+
+/// Lower northing edges (meters) of the first four [`MC2LL`] rows, descending;
+/// the last row covers everything below the last edge. Baidu publishes a
+/// further band from 12 890 594.86 m (75°), which lies beyond
+/// [`MAX_NORTHING_M`] and so is omitted with its row.
+const MCBAND: [f64; 4] = [8_362_377.87, 5_591_021.0, 3_481_989.83, 1_678_043.12];
+/// Lower latitude edges (degrees) of the first four [`LL2MC`] rows,
+/// descending; the last row covers everything below 15°. The published 75°
+/// band lies beyond [`MAX_LAT_DEG`] and is omitted with its row.
+const LLBAND: [f64; 4] = [60.0, 45.0, 30.0, 15.0];
 
 /// Inverse (meters → BD-09) coefficient rows, one per [`MCBAND`] band.
-const MC2LL: [[f64; 10]; 6] = [
-    [
-        1.410_526_172_116_255e-8,
-        0.000_008_983_055_096_488_72,
-        -1.993_983_381_633_1,
-        200.982_438_310_679_6,
-        -187.240_370_381_554_7,
-        91.608_751_666_984_3,
-        -23.387_656_496_033_39,
-        2.571_213_172_961_98,
-        -0.038_010_033_086_53,
-        17_337_981.2,
-    ],
+const MC2LL: [[f64; 10]; 5] = [
     [
         -7.435_856_389_565_537e-9,
         0.000_008_983_055_097_726_239,
@@ -110,19 +113,7 @@ const MC2LL: [[f64; 10]; 6] = [
 ];
 
 /// Forward (BD-09 → meters) coefficient rows, one per [`LLBAND`] band.
-const LL2MC: [[f64; 10]; 6] = [
-    [
-        -0.001_570_210_244_4,
-        111_320.702_061_693_9,
-        1_704_480_524_535_203.0,
-        -10_338_987_376_042_340.0,
-        26_112_667_856_603_880.0,
-        -35_149_669_176_653_700.0,
-        26_595_700_718_403_920.0,
-        -10_725_012_454_188_240.0,
-        1_800_819_912_950_474.0,
-        82.5,
-    ],
+const LL2MC: [[f64; 10]; 5] = [
     [
         0.000_827_782_451_617_252_6,
         111_320.702_046_357_8,
@@ -186,14 +177,11 @@ const LL2MC: [[f64; 10]; 6] = [
 ];
 
 /// Select the coefficient row whose band `value` (compared by magnitude, so the
-/// tables work in both hemispheres) falls into.
-fn lookup(
-    bands: &[f64; 6],
-    table: &'static [[f64; 10]; 6],
-    value: f64,
-) -> Option<&'static [f64; 10]> {
+/// tables work in both hemispheres) falls into: the first row whose lower edge
+/// it reaches, or the last row below every edge. Total, so it never fails.
+fn lookup(bands: &[f64; 4], table: &'static [[f64; 10]; 5], value: f64) -> &'static [f64; 10] {
     let v = value.abs();
-    (0..6).find(|&i| v >= bands[i]).map(|i| &table[i])
+    &table[bands.iter().take_while(|&&edge| v < edge).count()]
 }
 
 /// Evaluate the degree-6 polynomial `factors[0] + factors[1]·x + … + factors[6]·x⁶`.
@@ -210,70 +198,148 @@ fn poly(factors: &[f64], x: f64) -> f64 {
 /// `x` is the easting (longitude axis), `y` the northing (latitude axis). The
 /// underlying geographic datum is **BD-09** — see
 /// [`BaiduMercator::try_to_bd09`].
+///
+/// Both components are finite by construction ([`BaiduMercator::new`]);
+/// whether they lie inside the projection's domain is checked by
+/// [`BaiduMercator::try_to_bd09`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "BaiduMercatorRecord"))]
 pub struct BaiduMercator {
-    /// Easting (longitude axis), in meters.
-    pub x: f64,
-    /// Northing (latitude axis), in meters.
-    pub y: f64,
+    x: f64,
+    y: f64,
+}
+
+/// Unvalidated serde shape of [`BaiduMercator`]; deserialization goes through
+/// [`BaiduMercator::new`].
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct BaiduMercatorRecord {
+    x: f64,
+    y: f64,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<BaiduMercatorRecord> for BaiduMercator {
+    type Error = Error;
+
+    fn try_from(r: BaiduMercatorRecord) -> Result<Self> {
+        Self::new(r.x, r.y)
+    }
+}
+
+/// Reject a non-finite projected component, naming it.
+fn finite(field: &'static str, value: f64) -> Result<()> {
+    if value.is_finite() {
+        Ok(())
+    } else {
+        Err(Error::InvalidValue {
+            field,
+            detail: "must be finite".into(),
+        })
+    }
 }
 
 impl BaiduMercator {
     /// Construct from easting/northing in meters.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidValue`] naming `"x"` or `"y"` when that
+    /// component is not finite.
+    ///
+    /// ```
+    /// use geocoordinates::BaiduMercator;
+    ///
+    /// let m = BaiduMercator::new(12_949_156.8, 4_817_450.0)?;
+    /// assert_eq!(m.y(), 4_817_450.0);
+    /// assert!(BaiduMercator::new(f64::NAN, 0.0).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    pub fn new(x: f64, y: f64) -> Result<Self> {
+        finite("x", x)?;
+        finite("y", y)?;
+        Ok(Self { x, y })
+    }
+
+    /// Easting (longitude axis), in meters.
     #[must_use]
-    pub fn new(x: f64, y: f64) -> Self {
-        Self { x, y }
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+
+    /// Northing (latitude axis), in meters.
+    #[must_use]
+    pub fn y(&self) -> f64 {
+        self.y
     }
 
     /// Baidu Web Mercator → BD-09 lat/lon by Baidu's `MC2LL` polynomial fit.
     ///
     /// Not an exact inverse of [`BaiduMercator::try_from_bd09`]: the two are
     /// independent fits, and a round trip drifts by up to about 0.25 m below
-    /// 60° latitude and up to about 7 m in the 60°–75° band.
+    /// 60° latitude and up to about 7 m in the 60°–74° band.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidValue`] naming `"y"` when the northing is
+    /// beyond the forward image of ±74° (about ±12 474 104 m), or `"x"` when
+    /// the easting maps past ±180° of longitude.
     pub fn try_to_bd09(self) -> Result<Bd09> {
-        if !self.x.is_finite() || !self.y.is_finite() {
+        if self.y.abs() > MAX_NORTHING_M {
             return Err(Error::InvalidValue {
-                field: "baidu mercator",
-                detail: "x and y must be finite".into(),
+                field: "y",
+                detail: format!("northing must be within ±{MAX_NORTHING_M} m (latitude ±74°)"),
             });
         }
-        let Some(row) = lookup(&MCBAND, &MC2LL, self.y) else {
-            return Err(Error::InvalidValue {
-                field: "baidu mercator",
-                detail: "northing is outside the projection domain".into(),
-            });
-        };
+        let row = lookup(&MCBAND, &MC2LL, self.y);
         let lon = row[0] + row[1] * self.x.abs();
+        if lon > 180.0 {
+            return Err(Error::InvalidValue {
+                field: "x",
+                detail: "easting maps past ±180° of longitude".into(),
+            });
+        }
         let lat = poly(&row[2..9], self.y.abs() / row[9]);
-        let result = Bd09::new(lat.copysign(self.y), lon.copysign(self.x));
-        result.validate()?;
-        Ok(result)
+        Ok(Bd09::from_valid(lat.copysign(self.y), lon.copysign(self.x)))
     }
 
     /// BD-09 lat/lon → Baidu Web Mercator by Baidu's `LL2MC` polynomial fit.
     ///
     /// Not an exact inverse of [`BaiduMercator::try_to_bd09`]: the two are
     /// independent fits, and a round trip drifts by up to about 0.25 m below
-    /// 60° latitude and up to about 7 m in the 60°–75° band.
+    /// 60° latitude and up to about 7 m in the 60°–74° band.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::OutsideDomain`] (operation `"Baidu Mercator"`) when
+    /// the latitude is beyond ±74°, where Baidu's projection is not defined.
     pub fn try_from_bd09(p: Bd09) -> Result<Self> {
-        p.validate()?;
-        let Some(row) = lookup(&LLBAND, &LL2MC, p.lat) else {
-            return Err(Error::InvalidValue {
-                field: "BD-09 latitude",
-                detail: "outside the Baidu Mercator projection domain".into(),
+        if p.lat().abs() > MAX_LAT_DEG {
+            return Err(Error::OutsideDomain {
+                operation: "Baidu Mercator",
+                lat: p.lat(),
+                lon: p.lon(),
             });
-        };
-        let x = row[0] + row[1] * p.lon.abs();
-        let y = poly(&row[2..9], p.lat.abs() / row[9]);
-        Ok(Self::new(x.copysign(p.lon), y.copysign(p.lat)))
+        }
+        let row = lookup(&LLBAND, &LL2MC, p.lat());
+        let x = row[0] + row[1] * p.lon().abs();
+        let y = poly(&row[2..9], p.lat().abs() / row[9]);
+        Ok(Self {
+            x: x.copysign(p.lon()),
+            y: y.copysign(p.lat()),
+        })
     }
 
     /// Baidu Web Mercator → canonical [`Coordinate`], tagged [`Crs::Bd09`](crate::Crs),
     /// via [`BaiduMercator::try_to_bd09`]. Height is left unset — the
     /// projection is 2-D.
+    ///
+    /// # Errors
+    ///
+    /// As [`BaiduMercator::try_to_bd09`].
     pub fn try_to_coordinate(self) -> Result<Coordinate> {
-        self.try_to_bd09()?.try_to_coordinate()
+        Ok(self.try_to_bd09()?.to_coordinate())
     }
 
     /// Canonical [`Coordinate`] → Baidu Web Mercator.
@@ -281,9 +347,9 @@ impl BaiduMercator {
     /// # Errors
     /// Returns [`Error::CrsMismatch`] unless `coord.crs()` is [`Crs::Bd09`](crate::Crs) — a
     /// non-BD-09 coordinate must be converted to BD-09 first, never silently
-    /// reprojected.
+    /// reprojected — and otherwise as [`BaiduMercator::try_from_bd09`].
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
-        Self::try_from_bd09(Bd09::try_from(coord)?)
+        Self::try_from_bd09(Bd09::try_from_coordinate(coord)?)
     }
 }
 
@@ -325,22 +391,36 @@ mod tests {
     const REF_BD09_LAT: f64 = 39.856_357;
     const REF_BD09_LON: f64 = 116.322_989;
 
+    fn merc(x: f64, y: f64) -> BaiduMercator {
+        BaiduMercator::new(x, y).unwrap()
+    }
+
+    fn bd(lat: f64, lon: f64) -> Bd09 {
+        Bd09::new(lat, lon).unwrap()
+    }
+
     #[test]
     fn mercator_to_bd09_matches_reference() {
-        let bd = BaiduMercator::new(REF_XY.0, REF_XY.1)
-            .try_to_bd09()
-            .unwrap();
-        assert_close(bd.lat, REF_BD09_LAT, 1e-5);
-        assert_close(bd.lon, REF_BD09_LON, 1e-5);
+        let b = merc(REF_XY.0, REF_XY.1).try_to_bd09().unwrap();
+        assert_close(b.lat(), REF_BD09_LAT, 1e-5);
+        assert_close(b.lon(), REF_BD09_LON, 1e-5);
+        // The southern / western mirror is the same fit with the signs flipped.
+        let mirrored = merc(-REF_XY.0, -REF_XY.1).try_to_bd09().unwrap();
+        assert_eq!((mirrored.lat(), mirrored.lon()), (-b.lat(), -b.lon()));
     }
 
     #[test]
     fn mercator_round_trip_sub_meter() {
-        let m = BaiduMercator::new(REF_XY.0, REF_XY.1);
+        let m = merc(REF_XY.0, REF_XY.1);
         let back = BaiduMercator::try_from_bd09(m.try_to_bd09().unwrap()).unwrap();
         // Independent forward/inverse fits: stable to well under a meter.
-        assert_close(back.x, m.x, 0.5);
-        assert_close(back.y, m.y, 0.5);
+        assert_close(back.x(), m.x(), 0.5);
+        assert_close(back.y(), m.y(), 0.5);
+        assert_eq!(
+            BaiduMercator::try_from(m.try_to_bd09().unwrap()).unwrap(),
+            back
+        );
+        assert_eq!(Bd09::try_from(m).unwrap(), m.try_to_bd09().unwrap());
     }
 
     #[test]
@@ -351,48 +431,122 @@ mod tests {
             (from..to)
                 .flat_map(|i| (70..140).map(move |lon| (f64::from(i) * 0.1, f64::from(lon))))
                 .map(|(lat, lon)| {
-                    let m = BaiduMercator::try_from_bd09(Bd09::new(lat, lon)).unwrap();
+                    let m = BaiduMercator::try_from_bd09(bd(lat, lon)).unwrap();
                     let b = m.try_to_bd09().unwrap();
-                    let d_north = (b.lat - lat).to_radians();
-                    let d_east = (b.lon - lon).to_radians() * lat.to_radians().cos();
+                    let d_north = (b.lat() - lat).to_radians();
+                    let d_east = (b.lon() - lon).to_radians() * lat.to_radians().cos();
                     d_north.hypot(d_east) * 6_378_137.0
                 })
                 .fold(0.0_f64, f64::max)
         };
         let low = worst_m(1, 600);
         assert!(low < 0.3, "below 60°: {low} m");
-        let high = worst_m(600, 750);
-        assert!((1.0..8.0).contains(&high), "60°–75°: {high} m");
+        let high = worst_m(600, 741);
+        assert!((1.0..8.0).contains(&high), "60°–74°: {high} m");
     }
 
     #[test]
     fn coordinate_bridge_round_trips_and_checks_crs() {
-        let m = BaiduMercator::new(REF_XY.0, REF_XY.1);
+        let m = merc(REF_XY.0, REF_XY.1);
         let coord = m.try_to_coordinate().unwrap();
         assert_eq!(coord.crs(), Crs::Bd09);
+        assert_eq!(
+            BaiduMercator::try_from_coordinate(coord).unwrap(),
+            BaiduMercator::try_from(coord).unwrap()
+        );
         // A non-BD-09 coordinate must be rejected, not silently reprojected.
         let wgs = Coordinate::wgs84(REF_BD09_LAT, REF_BD09_LON).unwrap();
-        assert!(BaiduMercator::try_from(wgs).is_err());
+        assert!(matches!(
+            BaiduMercator::try_from(wgs),
+            Err(Error::CrsMismatch { .. })
+        ));
     }
 
     /// C17: Baidu clamps its projection to ±74°, so a latitude beyond it is
     /// outside the domain rather than silently stretched.
     #[test]
     fn latitudes_beyond_74_degrees_are_outside_the_domain() {
-        for lat in [74.5, 80.0, -75.0] {
+        for lat in [74.000_001, 74.5, 80.0, -75.0, 90.0] {
             assert!(
                 matches!(
-                    BaiduMercator::try_from_bd09(Bd09::new(lat, 10.0)),
-                    Err(Error::OutsideDomain { .. })
+                    BaiduMercator::try_from_bd09(bd(lat, 10.0)),
+                    Err(Error::OutsideDomain {
+                        operation: "Baidu Mercator",
+                        ..
+                    })
                 ),
                 "lat {lat}"
             );
         }
+        // 74° itself is inside, and lands exactly on the northing limit.
+        let edge = BaiduMercator::try_from_bd09(bd(-74.0, 10.0)).unwrap();
+        assert_close(edge.y(), -MAX_NORTHING_M, 1e-6);
+        assert!(edge.try_to_bd09().is_ok());
+    }
+
+    /// The inverse rejects a northing beyond the 74° limit and an easting that
+    /// maps past the antimeridian, naming the component.
+    #[test]
+    fn inverse_rejects_values_outside_the_projection() {
+        let invalid_field = |m: BaiduMercator| match m.try_to_bd09() {
+            Err(Error::InvalidValue { field, .. }) => field,
+            other => panic!("expected InvalidValue, got {other:?}"),
+        };
+        assert_eq!(invalid_field(merc(0.0, MAX_NORTHING_M + 1.0)), "y");
+        assert_eq!(invalid_field(merc(0.0, -MAX_NORTHING_M - 1.0)), "y");
+        assert_eq!(invalid_field(merc(20_100_000.0, 0.0)), "x");
+        assert_eq!(invalid_field(merc(-20_100_000.0, 0.0)), "x");
+        // The limits themselves are inside.
+        assert!(merc(0.0, MAX_NORTHING_M).try_to_bd09().is_ok());
+        let east = merc(20_037_000.0, 0.0).try_to_bd09().unwrap();
+        assert!(east.lon() > 179.99 && east.lon() <= 180.0, "{}", east.lon());
     }
 
     #[test]
-    fn invalid_projection_inputs_are_rejected() {
-        assert!(BaiduMercator::new(f64::NAN, 0.0).try_to_bd09().is_err());
-        assert!(BaiduMercator::try_from_bd09(Bd09::new(91.0, 0.0)).is_err());
+    fn construction_rejects_non_finite_components() {
+        let field = |r: Result<BaiduMercator>| match r {
+            Err(Error::InvalidValue { field, .. }) => field,
+            other => panic!("expected InvalidValue, got {other:?}"),
+        };
+        assert_eq!(field(BaiduMercator::new(f64::NAN, 0.0)), "x");
+        assert_eq!(field(BaiduMercator::new(0.0, f64::INFINITY)), "y");
+    }
+
+    /// Each band edge selects the row above it, and anything below the last
+    /// edge the last row.
+    #[test]
+    fn lookup_selects_the_band_by_its_lower_edge() {
+        assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, 60.0), &LL2MC[0]));
+        assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, 59.999), &LL2MC[1]));
+        assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, -15.0), &LL2MC[3]));
+        assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, 14.999), &LL2MC[4]));
+        assert!(std::ptr::eq(
+            lookup(&MCBAND, &MC2LL, 8_362_377.87),
+            &MC2LL[0]
+        ));
+        assert!(std::ptr::eq(lookup(&MCBAND, &MC2LL, 0.0), &MC2LL[4]));
+    }
+
+    /// The northing limit is the forward image of 74°, to the last digit.
+    #[test]
+    fn northing_limit_is_the_image_of_74_degrees() {
+        let m = BaiduMercator::try_from_bd09(bd(MAX_LAT_DEG, 0.0)).unwrap();
+        assert_close(m.y(), MAX_NORTHING_M, 1e-6);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_round_trips_through_the_record() {
+        let m = merc(REF_XY.0, REF_XY.1);
+        let json = serde_json::to_string(&m).unwrap();
+        assert_eq!(json, r#"{"x":12949156.8,"y":4817450.0}"#);
+        assert_eq!(serde_json::from_str::<BaiduMercator>(&json).unwrap(), m);
+        // JSON cannot carry a non-finite number, so validation is exercised
+        // directly on the record conversion.
+        let bad = BaiduMercatorRecord {
+            x: f64::NAN,
+            y: 0.0,
+        };
+        assert!(BaiduMercator::try_from(bad).is_err());
     }
 }

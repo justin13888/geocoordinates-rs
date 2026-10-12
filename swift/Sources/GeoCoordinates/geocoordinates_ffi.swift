@@ -4715,6 +4715,11 @@ public func wrapLongitude(lonDeg: Double) -> Double  {
  * BD-09 lat/lon → Baidu Web Mercator by Baidu's `LL2MC` polynomial fit. The
  * two directions are independent fits, not exact inverses: a round trip drifts
  * by up to about 0.25 m below 60° latitude and up to about 7 m above it.
+ *
+ * # Errors
+ * `GeoError::OutOfRange` for an invalid record; `GeoError::OutsideDomain`
+ * (operation `"Baidu Mercator"`) beyond ±74° of latitude, where Baidu's
+ * projection is not defined.
  */
 public func baiduMercatorFromBd09(p: Bd09)throws  -> BaiduMercator  {
     return try  FfiConverterTypeBaiduMercator_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4726,9 +4731,10 @@ public func baiduMercatorFromBd09(p: Bd09)throws  -> BaiduMercator  {
 /**
  * Canonical [`Coordinate`] → Baidu Web Mercator.
  *
- * Errors with [`GeoError::CrsMismatch`] unless the coordinate is BD-09 — a
- * non-BD-09 coordinate must be converted to BD-09 first, never silently
- * reprojected.
+ * # Errors
+ * [`GeoError::CrsMismatch`] unless the coordinate is BD-09 — a non-BD-09
+ * coordinate must be converted to BD-09 first, never silently reprojected —
+ * and otherwise as [`baidu_mercator_from_bd09`].
  */
 public func baiduMercatorFromCoordinate(coord: Coordinate)throws  -> BaiduMercator  {
     return try  FfiConverterTypeBaiduMercator_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4740,6 +4746,10 @@ public func baiduMercatorFromCoordinate(coord: Coordinate)throws  -> BaiduMercat
 /**
  * Baidu Web Mercator → BD-09 lat/lon by Baidu's `MC2LL` polynomial fit. Not an
  * exact inverse of [`baidu_mercator_from_bd09`] (see its round-trip drift).
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `x` or `y` for a non-finite component, a
+ * northing beyond the image of ±74°, or an easting past ±180° of longitude.
  */
 public func baiduMercatorToBd09(m: BaiduMercator)throws  -> Bd09  {
     return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4751,6 +4761,9 @@ public func baiduMercatorToBd09(m: BaiduMercator)throws  -> Bd09  {
 /**
  * Baidu Web Mercator → canonical [`Coordinate`], tagged BD-09, via
  * [`baidu_mercator_to_bd09`].
+ *
+ * # Errors
+ * As [`baidu_mercator_to_bd09`].
  */
 public func baiduMercatorToCoordinate(m: BaiduMercator)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4760,8 +4773,56 @@ public func baiduMercatorToCoordinate(m: BaiduMercator)throws  -> Coordinate  {
 })
 }
 /**
- * BD-09 → GCJ-02, fast single-step inverse. **Approximate**: the returned
- * record carries `max_error_m`.
+ * Validate a (possibly hand-built) Baidu Mercator record: both components
+ * finite — the FFI form of `BaiduMercator::new`. Whether the position is
+ * inside the projection is checked by [`baidu_mercator_to_bd09`].
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `x` or `y` when that component is not
+ * finite.
+ */
+public func baiduMercatorValidate(m: BaiduMercator)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_baidu_mercator_validate(
+        FfiConverterTypeBaiduMercator_lower(m),$0
+    )
+}
+}
+/**
+ * Canonical [`Coordinate`] → BD-09 record. Any height is dropped.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` unless the coordinate is tagged BD-09;
+ * `GeoError::OutOfRange` for an invalid record.
+ */
+public func bd09FromCoordinate(coord: Coordinate)throws  -> Bd09  {
+    return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_bd09_from_coordinate(
+        FfiConverterTypeCoordinate_lower(coord),$0
+    )
+})
+}
+/**
+ * BD-09 record → canonical [`Coordinate`] tagged BD-09, with no height.
+ *
+ * # Errors
+ * As [`bd09_validate`], for an invalid record.
+ */
+public func bd09ToCoordinate(p: Bd09)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_bd09_to_coordinate(
+        FfiConverterTypeBd09_lower(p),$0
+    )
+})
+}
+/**
+ * BD-09 → GCJ-02, fast single-step inverse (within 0.5 m, or 125 m within
+ * 0.02° of the antimeridian). **Approximate**: the returned record carries
+ * `max_error_m`.
+ *
+ * # Errors
+ * `GeoError::OutOfRange` for an invalid record; `GeoError::OutsideDomain`
+ * (operation `"BD-09 inverse"`) when the preimage would lie past the South
+ * Pole.
  */
 public func bd09ToGcj02Fast(p: Bd09)throws  -> ApproxGcj02  {
     return try  FfiConverterTypeApproxGcj02_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4771,8 +4832,12 @@ public func bd09ToGcj02Fast(p: Bd09)throws  -> ApproxGcj02  {
 })
 }
 /**
- * BD-09 → GCJ-02, refined fixed-point inverse (sub-meter). **Approximate**:
- * the returned record carries `max_error_m`.
+ * BD-09 → GCJ-02, refined fixed-point inverse. **Approximate**: the returned
+ * record carries `max_error_m` — 0.5 m when the iteration converged, and
+ * that plus the remaining residual when it could not.
+ *
+ * # Errors
+ * As [`bd09_to_gcj02_fast`].
  */
 public func bd09ToGcj02Refined(p: Bd09)throws  -> ApproxGcj02  {
     return try  FfiConverterTypeApproxGcj02_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4784,6 +4849,9 @@ public func bd09ToGcj02Refined(p: Bd09)throws  -> ApproxGcj02  {
 /**
  * BD-09 → WGS-84, refined composition through GCJ-02. **Approximate**: the
  * returned record carries the summed `max_error_m`.
+ *
+ * # Errors
+ * As [`bd09_to_gcj02_fast`].
  */
 public func bd09ToWgs84Refined(p: Bd09)throws  -> ApproxWgs84  {
     return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4793,7 +4861,37 @@ public func bd09ToWgs84Refined(p: Bd09)throws  -> ApproxWgs84  {
 })
 }
 /**
- * GCJ-02 → BD-09. **Exact** forward nudge.
+ * Validate a (possibly hand-built) BD-09 record, as [`wgs84_validate`].
+ *
+ * # Errors
+ * `GeoError::OutOfRange` when either component is invalid.
+ */
+public func bd09Validate(p: Bd09)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_bd09_validate(
+        FfiConverterTypeBd09_lower(p),$0
+    )
+}
+}
+/**
+ * Canonical [`Coordinate`] → GCJ-02 record. Any height is dropped.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` unless the coordinate is tagged GCJ-02;
+ * `GeoError::OutOfRange` for an invalid record.
+ */
+public func gcj02FromCoordinate(coord: Coordinate)throws  -> Gcj02  {
+    return try  FfiConverterTypeGcj02_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_gcj02_from_coordinate(
+        FfiConverterTypeCoordinate_lower(coord),$0
+    )
+})
+}
+/**
+ * GCJ-02 → BD-09. **Exact** forward nudge, applied worldwide; the longitude
+ * is wrapped into `[-180, 180)`.
+ *
+ * # Errors
+ * As [`wgs84_to_bd09`].
  */
 public func gcj02ToBd09(p: Gcj02)throws  -> Bd09  {
     return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4803,8 +4901,25 @@ public func gcj02ToBd09(p: Gcj02)throws  -> Bd09  {
 })
 }
 /**
- * GCJ-02 → WGS-84, fast single-step inverse (~1–2 m). **Approximate**: the
- * returned record carries `max_error_m`.
+ * GCJ-02 record → canonical [`Coordinate`] tagged GCJ-02, with no height.
+ *
+ * # Errors
+ * As [`gcj02_validate`], for an invalid record.
+ */
+public func gcj02ToCoordinate(p: Gcj02)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_gcj02_to_coordinate(
+        FfiConverterTypeGcj02_lower(p),$0
+    )
+})
+}
+/**
+ * GCJ-02 → WGS-84, fast single-step inverse (within 6 m away from the China
+ * box edge). **Approximate**: the returned record carries `max_error_m`.
+ *
+ * # Errors
+ * As [`gcj02_validate`], for an invalid record; the conversion itself
+ * cannot fail.
  */
 public func gcj02ToWgs84Fast(p: Gcj02)throws  -> ApproxWgs84  {
     return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4814,8 +4929,13 @@ public func gcj02ToWgs84Fast(p: Gcj02)throws  -> ApproxWgs84  {
 })
 }
 /**
- * GCJ-02 → WGS-84, refined fixed-point inverse (< 0.5 m). **Approximate**: the
- * returned record carries `max_error_m`.
+ * GCJ-02 → WGS-84, refined fixed-point inverse. **Approximate**: the
+ * returned record carries `max_error_m` — 0.5 m when the iteration
+ * converged, and that plus the remaining residual when it could not.
+ *
+ * # Errors
+ * As [`gcj02_validate`], for an invalid record; the conversion itself
+ * cannot fail.
  */
 public func gcj02ToWgs84Refined(p: Gcj02)throws  -> ApproxWgs84  {
     return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4825,8 +4945,21 @@ public func gcj02ToWgs84Refined(p: Gcj02)throws  -> ApproxWgs84  {
 })
 }
 /**
- * Whether `(lat, lon)` lies outside the China bounding box, where every China
- * datum conversion is the identity.
+ * Validate a (possibly hand-built) GCJ-02 record, as [`wgs84_validate`].
+ *
+ * # Errors
+ * `GeoError::OutOfRange` when either component is invalid.
+ */
+public func gcj02Validate(p: Gcj02)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_gcj02_validate(
+        FfiConverterTypeGcj02_lower(p),$0
+    )
+}
+}
+/**
+ * Whether `(lat, lon)` lies outside the China bounding box, where the
+ * WGS-84 ↔ GCJ-02 offset is the identity. The BD-09 nudge is not gated by
+ * it.
  */
 public func outOfChina(lat: Double, lon: Double) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -4837,7 +4970,27 @@ public func outOfChina(lat: Double, lon: Double) -> Bool  {
 })
 }
 /**
- * WGS-84 → BD-09. **Exact** composition through GCJ-02.
+ * Canonical [`Coordinate`] → WGS-84 record. Any height is dropped.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` unless the coordinate is tagged WGS-84, so a datum
+ * is never silently laundered; `GeoError::OutOfRange` for an invalid record.
+ */
+public func wgs84FromCoordinate(coord: Coordinate)throws  -> Wgs84  {
+    return try  FfiConverterTypeWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_wgs84_from_coordinate(
+        FfiConverterTypeCoordinate_lower(coord),$0
+    )
+})
+}
+/**
+ * WGS-84 → BD-09. **Exact** composition through GCJ-02; the longitude is
+ * wrapped into `[-180, 180)`.
+ *
+ * # Errors
+ * `GeoError::OutOfRange` for an invalid record; `GeoError::OutsideDomain`
+ * (operation `"BD-09"`) when the nudge would carry the latitude past the
+ * North Pole.
  */
 public func wgs84ToBd09(p: Wgs84)throws  -> Bd09  {
     return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4847,7 +5000,24 @@ public func wgs84ToBd09(p: Wgs84)throws  -> Bd09  {
 })
 }
 /**
+ * WGS-84 record → canonical [`Coordinate`] tagged WGS-84, with no height.
+ *
+ * # Errors
+ * As [`wgs84_validate`], for an invalid record.
+ */
+public func wgs84ToCoordinate(p: Wgs84)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_wgs84_to_coordinate(
+        FfiConverterTypeWgs84_lower(p),$0
+    )
+})
+}
+/**
  * WGS-84 → GCJ-02. **Exact** forward offset (identity outside China).
+ *
+ * # Errors
+ * As [`wgs84_validate`], for an invalid record; the conversion itself
+ * cannot fail.
  */
 public func wgs84ToGcj02(p: Wgs84)throws  -> Gcj02  {
     return try  FfiConverterTypeGcj02_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4857,15 +5027,17 @@ public func wgs84ToGcj02(p: Wgs84)throws  -> Gcj02  {
 })
 }
 /**
- * Whether a conversion route exists between two reference systems.
+ * Validate a (possibly hand-built) WGS-84 record: latitude in `[-90, 90]`,
+ * longitude in `[-180, 180]`, both finite — the FFI form of `Wgs84::new`.
+ *
+ * # Errors
+ * `GeoError::OutOfRange` when either component is invalid.
  */
-public func canConvert(from: Crs, to: Crs) -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_can_convert(
-        FfiConverterTypeCrs_lower(from),
-        FfiConverterTypeCrs_lower(to),$0
+public func wgs84Validate(p: Wgs84)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_wgs84_validate(
+        FfiConverterTypeWgs84_lower(p),$0
     )
-})
+}
 }
 /**
  * Construct a [`Confidence`], clamping `value` into `[0.0, 1.0]`.
@@ -4881,8 +5053,14 @@ public func confidenceNew(value: Double) -> Confidence  {
  * Convert `coord` from its own reference system to `to`, routing through the
  * WGS-84 hub (China typed conversions + classic-datum Helmert transforms).
  *
+ * Every pair of reference systems has a route.
+ *
  * # Errors
- * `GeoError` when no route is known between the two systems.
+ * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid record;
+ * `GeoError::OutsideDomain` (operation `"BD-09"` or `"BD-09 inverse"`) when
+ * a BD-09 leg would carry a latitude past a pole; `GeoError::InvalidValue`
+ * (field `height`) when the coordinate carries an orthometric height and a
+ * leg is a classic-datum Helmert shift.
  */
 public func convert(coord: Coordinate, to: Crs)throws  -> ApproxCoordinate  {
     return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6006,52 +6184,79 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_wrap_longitude() != 16962) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_bd09() != 62849) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_bd09() != 45098) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_coordinate() != 19688) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_coordinate() != 55977) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_bd09() != 59911) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_bd09() != 55618) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_coordinate() != 33099) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_coordinate() != 5012) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_fast() != 41468) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_validate() != 24452) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_refined() != 42492) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_from_coordinate() != 17491) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_refined() != 50339) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_coordinate() != 62648) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_bd09() != 49717) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_fast() != 5524) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 17050) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_refined() != 15279) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 11095) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_refined() != 57298) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_out_of_china() != 29902) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_validate() != 23322) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_bd09() != 8477) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_from_coordinate() != 27508) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_gcj02() != 60957) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_bd09() != 38964) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_can_convert() != 49766) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_coordinate() != 3193) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 34236) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 218) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_validate() != 22871) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_out_of_china() != 31834) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_from_coordinate() != 28512) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_bd09() != 26751) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_coordinate() != 43206) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_gcj02() != 61597) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_validate() != 7823) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_confidence_new() != 10507) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_convert() != 56128) {
+    if (uniffi_geocoordinates_ffi_checksum_func_convert() != 45801) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_coordinate_is_null_island() != 4657) {

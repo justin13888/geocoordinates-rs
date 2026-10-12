@@ -36,8 +36,8 @@ pub(crate) fn assert_mercator_close(
     expected: BaiduMercator,
     tolerance_m: f64,
 ) {
-    assert_close(actual.x, expected.x, tolerance_m);
-    assert_close(actual.y, expected.y, tolerance_m);
+    assert_close(actual.x(), expected.x(), tolerance_m);
+    assert_close(actual.y(), expected.y(), tolerance_m);
 }
 
 pub(crate) fn assert_enu_close(actual: Enu, expected: Enu) {

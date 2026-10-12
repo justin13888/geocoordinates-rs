@@ -477,18 +477,18 @@ pub(crate) fn approx_coordinate(approx: gc::Approx<gc::Coordinate>) -> ApproxCoo
 /// Convert `coord` from its own reference system to `to`, routing through the
 /// WGS-84 hub (China typed conversions + classic-datum Helmert transforms).
 ///
+/// Every pair of reference systems has a route.
+///
 /// # Errors
-/// `GeoError` when no route is known between the two systems.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid record;
+/// `GeoError::OutsideDomain` (operation `"BD-09"` or `"BD-09 inverse"`) when
+/// a BD-09 leg would carry a latitude past a pole; `GeoError::InvalidValue`
+/// (field `height`) when the coordinate carries an orthometric height and a
+/// leg is a classic-datum Helmert shift.
 #[uniffi::export]
 pub fn convert(coord: Coordinate, to: Crs) -> Result<ApproxCoordinate, GeoError> {
     Ok(approx_coordinate(gc::convert::convert(
         coord.try_into()?,
         to.into(),
     )?))
-}
-
-/// Whether a conversion route exists between two reference systems.
-#[uniffi::export]
-pub fn can_convert(from: Crs, to: Crs) -> bool {
-    gc::convert::can_convert(from.into(), to.into())
 }

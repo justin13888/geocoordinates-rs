@@ -20,11 +20,19 @@
 //!   carries the error bound, and their names carry a `_fast`/`_refined`
 //!   suffix where multiple precisions exist.
 //!
-//! ```ignore
-//! let gcj: Gcj02 = wgs.try_to_gcj02()?; // exact forward offset
-//! let bd:  Bd09  = wgs.try_to_bd09()?; // exact composition
-//! let w:   Approx<Wgs84> = gcj.try_to_wgs84_refined()?; // approximate inverse
+//! - **Exact and infallible** conversions between valid-by-construction types
+//!   are plain `to_x()` methods, with [`From`] as sugar.
+//!
+//! ```
+//! use geocoordinates::{Approx, Bd09, Gcj02, Wgs84};
+//!
+//! let wgs = Wgs84::new(39.915, 116.404)?; // validated once, here
+//! let gcj: Gcj02 = wgs.to_gcj02(); // exact forward offset, infallible
+//! let bd: Bd09 = wgs.try_to_bd09()?; // exact composition, fallible near a pole
+//! let w: Approx<Wgs84> = gcj.to_wgs84_refined(); // approximate inverse
 //! println!("{} ± {} m", w.lat(), w.max_error_m());
+//! # let _ = bd;
+//! # Ok::<(), geocoordinates::Error>(())
 //! ```
 //!
 //! See [AGENTS.md](https://github.com/justin13888/geocoordinates-rs/blob/master/AGENTS.md)
@@ -100,7 +108,7 @@ pub mod prelude {
     pub use crate::fix::{AxisOrder, DatumAmbiguity};
     pub use crate::geodesy::haversine_distance;
 
-    pub use crate::convert::{can_convert, convert};
+    pub use crate::convert::convert;
     pub use crate::format::{
         DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
         format_fix,

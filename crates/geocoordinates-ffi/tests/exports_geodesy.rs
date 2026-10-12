@@ -427,7 +427,7 @@ fn convert_routes_through_the_wgs84_hub() {
 }
 
 #[test]
-fn can_convert_covers_every_pair() {
+fn convert_covers_every_pair() {
     let all = [
         Crs::Wgs84,
         Crs::Gcj02,
@@ -437,8 +437,10 @@ fn can_convert_covers_every_pair() {
         Crs::Pulkovo42,
     ];
     for from in all {
+        let coord = coordinate_new(39.915, 116.404, from).unwrap();
         for to in all {
-            assert!(can_convert(from, to), "{from:?} -> {to:?}");
+            let out = convert(coord, to).unwrap_or_else(|e| panic!("{from:?} -> {to:?}: {e}"));
+            assert_eq!(out.coord.crs, to);
         }
     }
 }

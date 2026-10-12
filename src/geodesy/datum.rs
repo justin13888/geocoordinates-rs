@@ -155,48 +155,22 @@ impl DatumTransform {
     /// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
     #[must_use]
     pub fn to_wgs84(datum: Crs) -> Option<DatumTransform> {
-        // NIMA TR8350.2 mean translation-only (Molodensky) shifts. Exhaustive
-        // match — adding a `Crs` variant must force a decision here, never a
-        // silent WGS-84 fallthrough.
-        let (from, helmert) = match datum {
-            Crs::Nad27 => (
-                Ellipsoid::CLARKE_1866,
-                Helmert {
-                    tx_m: -8.0,
-                    ty_m: 160.0,
-                    tz_m: 176.0,
-                    ..Helmert::IDENTITY
-                },
-            ),
-            Crs::Tokyo => (
-                Ellipsoid::BESSEL_1841,
-                Helmert {
-                    tx_m: -148.0,
-                    ty_m: 507.0,
-                    tz_m: 685.0,
-                    ..Helmert::IDENTITY
-                },
-            ),
-            Crs::Pulkovo42 => (
-                Ellipsoid::KRASOVSKY_1940,
-                Helmert {
-                    tx_m: 28.0,
-                    ty_m: -130.0,
-                    tz_m: -95.0,
-                    ..Helmert::IDENTITY
-                },
-            ),
-            // WGS-84 needs no shift; the China systems use the `china` typed
-            // conversions, not a Helmert transform.
-            Crs::Wgs84 | Crs::Gcj02 | Crs::Bd09 => return None,
-        };
-        Some(DatumTransform {
+        match HubRoute::of(datum) {
+            HubRoute::Helmert(transform) => Some(transform),
+            HubRoute::Wgs84 | HubRoute::Gcj02 | HubRoute::Bd09 => None,
+        }
+    }
+
+    /// The catalogued transform carrying `datum`, on ellipsoid `from`, to
+    /// WGS-84 by `helmert`.
+    fn catalogued(datum: Crs, from: Ellipsoid, helmert: Helmert) -> DatumTransform {
+        DatumTransform {
             from_crs: datum,
             to_crs: Crs::Wgs84,
             from,
             to: Ellipsoid::WGS84,
             helmert,
-        })
+        }
     }
 
     /// Transform a geodetic coordinate from the source to the target datum,
@@ -245,6 +219,46 @@ impl DatumTransform {
             from: self.to,
             to: self.from,
             helmert: self.helmert.inverse(),
+        }
+    }
+}
+
+/// How a reference system reaches the WGS-84 hub of
+/// [`convert`](crate::convert::convert): one variant per route, so the match
+/// over [`Crs`] in [`HubRoute::of`] is the single, exhaustive catalog lookup.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum HubRoute {
+    /// Already WGS-84; no shift.
+    Wgs84,
+    /// GCJ-02, reached by the [`china`](crate::china) typed offset.
+    Gcj02,
+    /// BD-09, reached by the [`china`](crate::china) typed offset.
+    Bd09,
+    /// A classic datum, reached by its catalogued Helmert transform.
+    Helmert(DatumTransform),
+}
+
+impl HubRoute {
+    /// The route `datum` takes to WGS-84. Exhaustive: adding a [`Crs`]
+    /// variant must force a decision here, never a silent WGS-84
+    /// fallthrough.
+    pub(crate) fn of(datum: Crs) -> HubRoute {
+        // NIMA TR8350.2 mean translation-only (Molodensky) shifts.
+        let shift = |tx_m, ty_m, tz_m| Helmert {
+            tx_m,
+            ty_m,
+            tz_m,
+            ..Helmert::IDENTITY
+        };
+        let helmert =
+            |from, helmert| HubRoute::Helmert(DatumTransform::catalogued(datum, from, helmert));
+        match datum {
+            Crs::Wgs84 => HubRoute::Wgs84,
+            Crs::Gcj02 => HubRoute::Gcj02,
+            Crs::Bd09 => HubRoute::Bd09,
+            Crs::Nad27 => helmert(Ellipsoid::CLARKE_1866, shift(-8.0, 160.0, 176.0)),
+            Crs::Tokyo => helmert(Ellipsoid::BESSEL_1841, shift(-148.0, 507.0, 685.0)),
+            Crs::Pulkovo42 => helmert(Ellipsoid::KRASOVSKY_1940, shift(28.0, -130.0, -95.0)),
         }
     }
 }
