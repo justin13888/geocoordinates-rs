@@ -312,20 +312,29 @@ fn direct_meridional_wraps_any_number_of_turns() {
 }
 
 #[test]
-fn reflect_over_the_poles_folds_each_branch() {
+fn travel_north_counts_the_poles_it_passes() {
     use core::f64::consts::FRAC_PI_4;
-    assert_eq!(reflect_over_the_poles(FRAC_PI_4), (FRAC_PI_4, false));
-    assert_eq!(reflect_over_the_poles(FRAC_PI_2), (FRAC_PI_2, false));
-    let (mu, far) = reflect_over_the_poles(3.0 * FRAC_PI_4);
-    assert_close(mu, FRAC_PI_4, 1e-15);
-    assert!(far);
-    let (mu, far) = reflect_over_the_poles(-3.0 * FRAC_PI_4);
-    assert_close(mu, -FRAC_PI_4, 1e-15);
-    assert!(far);
-    // Past a full turn: 2π + π/4 is π/4 on the starting meridian.
-    let (mu, far) = reflect_over_the_poles(2.0 * PI + FRAC_PI_4);
-    assert_close(mu, FRAC_PI_4, 1e-15);
-    assert!(!far);
+    let case = |mu: f64, lat: f64, far: bool| {
+        let (got, got_far) = travel_north(mu);
+        assert_close(got, lat, 1e-15);
+        assert_eq!(got_far, far, "{mu}");
+    };
+    // Short of the north pole, and from the south pole itself: none passed.
+    case(FRAC_PI_4, FRAC_PI_4, false);
+    case(-FRAC_PI_4, -FRAC_PI_4, false);
+    case(-FRAC_PI_2, -FRAC_PI_2, false);
+    // Exactly onto the north pole: arrived, not passed.
+    case(FRAC_PI_2, FRAC_PI_2, false);
+    // Past it, heading south down the far meridian.
+    case(3.0 * FRAC_PI_4, FRAC_PI_4, true);
+    // Exactly onto the south pole after passing the north one: still far.
+    case(3.0 * FRAC_PI_2, -FRAC_PI_2, true);
+    // Past the south pole too, heading north on the starting meridian.
+    case(2.0 * PI + FRAC_PI_4, FRAC_PI_4, false);
+    // Exactly back onto the north pole after a full turn: two poles passed.
+    case(2.0 * PI + FRAC_PI_2, FRAC_PI_2, false);
+    // A third pole: far again.
+    case(3.0 * PI + FRAC_PI_4, -FRAC_PI_4, true);
 }
 
 #[test]

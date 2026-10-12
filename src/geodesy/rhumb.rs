@@ -128,13 +128,11 @@ pub fn rhumb_destination(
     let mu1 = rectifying_latitude(&series, phi1);
 
     if bearing == 0.0 || bearing == 180.0 {
-        let d_mu = meters / series.rect_a;
-        let mu2 = if bearing == 0.0 {
-            mu1 + d_mu
-        } else {
-            mu1 - d_mu
-        };
-        let (mu2, over_a_pole) = reflect_over_the_poles(mu2);
+        // Travel northward, in a frame mirrored for a southward line.
+        let north = bearing == 0.0;
+        let from = if north { mu1 } else { -mu1 };
+        let (mu2, over_a_pole) = travel_north(from + meters / series.rect_a);
+        let mu2 = if north { mu2 } else { -mu2 };
         let half_turn = if over_a_pole { 180.0 } else { 0.0 };
         return finish(
             latitude_deg_of(&series, mu2),
@@ -198,22 +196,22 @@ fn latitude_deg_of(series: &KrugerSeries, mu: f64) -> f64 {
     clamp_latitude(series.geodetic_from_conformal(chi).to_degrees())
 }
 
-/// Folds a rectifying latitude that has run past a pole back into
-/// `[-π/2, π/2]`, reporting whether the line ended on the far meridian (an odd
-/// number of pole crossings). A full turn of the meridian crosses both poles
-/// and lands back on the starting one.
-fn reflect_over_the_poles(mu: f64) -> (f64, bool) {
-    if mu.abs() <= FRAC_PI_2 {
-        return (mu, false);
-    }
-    // Into [-π, π): the latitude on the full meridian circle through the start.
-    let m = (mu + PI).rem_euclid(2.0 * PI) - PI;
-    if m > FRAC_PI_2 {
-        (PI - m, true)
-    } else if m < -FRAC_PI_2 {
-        (-PI - m, true)
+/// Where a northward meridian that has climbed to rectifying latitude `mu`
+/// (from a start in `[-π/2, π/2]`) ends up: its rectifying latitude in
+/// `[-π/2, π/2]`, and whether it is on the far meridian, which it is after an
+/// odd number of poles passed. Passing the north pole turns it south and the
+/// south pole north again, so a full turn comes home. A line that ends
+/// exactly on a pole has not passed it, and keeps the meridian it arrived on.
+fn travel_north(mu: f64) -> (f64, bool) {
+    // Poles strictly passed (none while short of the north pole), and the arc
+    // run since the last of them (or since the south pole, if none).
+    let past = mu - FRAC_PI_2;
+    let poles = (past / PI).ceil().max(0.0);
+    let since = past - (poles - 1.0) * PI;
+    if poles % 2.0 == 1.0 {
+        (FRAC_PI_2 - since, true)
     } else {
-        (m, false)
+        (since - FRAC_PI_2, false)
     }
 }
 
