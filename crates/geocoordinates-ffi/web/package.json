@@ -34,12 +34,14 @@
     "generate": "ubrn build web --release --no-cargo --no-wasm-pack",
     "build": "bash build.sh",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
     "clean": "rm -rf src/generated src/index.web.ts rust_modules"
   },
   "dependencies": {
     "@ubjs/core": "0.31.0-3"
   },
   "devDependencies": {
+    "tsx": "^4.23.15",
     "typescript": "^5.6.0",
     "uniffi-bindgen-react-native": "0.31.0-3"
   }

@@ -1,0 +1,203 @@
+// Behavioural tests for the TypeScript/WebAssembly bindings, run under Node.
+//
+// Loads the wasm-bindgen output built by `npm run build` and exercises the
+// generated API: exact and approximate conversions (with their stated error
+// bounds) and each typed `GeoError` variant a caller can match on. The cases
+// mirror `crates/geocoordinates-ffi/tests/smoke.py`, which pins the reference
+// values against `src/test_support.rs`.
+//
+// `src/index.web.ts` imports the `.wasm` file as a module, which only a
+// bundler resolves, so this test initialises the wasm from its bytes instead.
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { before, describe, it } from "node:test";
+
+import initAsync from "../src/generated/web/wasm-bindgen/index.js";
+import geocoordinatesFfi, {
+  Crs,
+  GeoError,
+  MgrsPrecision,
+  baiduMercatorFromBd09,
+  baiduMercatorFromCoordinate,
+  convert,
+  coordinateNew,
+  datumTransformCatalogToWgs84,
+  fromNmeaSentence,
+  gcj02ToBd09,
+  gcj02ToWgs84Refined,
+  geodesicDistanceM,
+  h3Decode,
+  h3Encode,
+  mgrsFromCoordinate,
+  mgrsToCoordinate,
+  outOfChina,
+  parseCoordinate,
+  utmCentralMeridianDeg,
+  utmFromCoordinate,
+  wgs84ToBd09,
+  wgs84ToGcj02,
+} from "../src/generated/web/geocoordinates_ffi";
+
+// Reference triple from src/test_support.rs (coordtransform-rs), lat first.
+const WGS = { lat: 39.915, lon: 116.404 };
+const GCJ = { lat: 39.91640428150164, lon: 116.41024449916938 };
+const BD = { lat: 39.922699552216216, lon: 116.41662724378733 };
+
+function near(actual: number, expected: number, tol: number, what: string): void {
+  assert.ok(
+    Math.abs(actual - expected) <= tol,
+    `${what}: ${actual} is not within ${tol} of ${expected}`,
+  );
+}
+
+// Runs `call`, asserts it throws, and returns the thrown value for the caller
+// to narrow with a variant's `instanceOf` guard.
+function thrown(call: () => unknown): unknown {
+  try {
+    call();
+  } catch (e) {
+    return e;
+  }
+  assert.fail("expected the call to throw");
+}
+
+before(async () => {
+  const wasm = await readFile(
+    new URL("../src/generated/web/wasm-bindgen/index_bg.wasm", import.meta.url),
+  );
+  await initAsync({ module_or_path: wasm });
+  geocoordinatesFfi.initialize();
+});
+
+describe("China datum conversions", () => {
+  it("converts WGS-84 forward exactly", () => {
+    const gcj = wgs84ToGcj02(WGS);
+    near(gcj.lat, GCJ.lat, 1e-9, "GCJ-02 lat");
+    near(gcj.lon, GCJ.lon, 1e-9, "GCJ-02 lon");
+    const bd = wgs84ToBd09(WGS);
+    near(bd.lat, BD.lat, 1e-9, "BD-09 lat");
+    near(bd.lon, BD.lon, 1e-9, "BD-09 lon");
+  });
+
+  it("reports the refined inverse as approximate with its bound", () => {
+    const back = gcj02ToWgs84Refined(GCJ);
+    near(back.lat, WGS.lat, 1e-5, "refined lat");
+    near(back.lon, WGS.lon, 1e-5, "refined lon");
+    assert.ok(back.maxErrorM > 0 && back.maxErrorM <= 0.5, `bound ${back.maxErrorM}`);
+  });
+
+  it("gates on the China bounding area", () => {
+    assert.equal(outOfChina(51.5074, -0.1278), true);
+    assert.equal(outOfChina(WGS.lat, WGS.lon), false);
+  });
+});
+
+describe("runtime conversion dispatch", () => {
+  it("marks exact legs with a zero bound and approximate legs with theirs", () => {
+    const fwd = convert(coordinateNew(WGS.lat, WGS.lon, Crs.Wgs84), Crs.Gcj02);
+    assert.equal(fwd.maxErrorM, 0);
+    assert.equal(fwd.coord.crs, Crs.Gcj02);
+    near(fwd.coord.lat, GCJ.lat, 1e-9, "forward lat");
+
+    const inv = convert(coordinateNew(GCJ.lat, GCJ.lon, Crs.Gcj02), Crs.Wgs84);
+    assert.equal(inv.maxErrorM, 0.5);
+    assert.equal(inv.coord.crs, Crs.Wgs84);
+    near(inv.coord.lat, WGS.lat, 1e-9, "inverse lat");
+  });
+
+  it("reports a Helmert leg's published accuracy", () => {
+    const nad27 = coordinateNew(40.0, -100.0, Crs.Nad27);
+    near(convert(nad27, Crs.Wgs84).maxErrorM, Math.sqrt(86), 1e-12, "NAD27 bound");
+    assert.equal(datumTransformCatalogToWgs84(Crs.Pulkovo42)?.accuracyM, undefined);
+  });
+});
+
+describe("grids and geodesics", () => {
+  it("round-trips MGRS with the half-diagonal bound", () => {
+    const code = mgrsFromCoordinate(coordinateNew(40.0, -75.0, Crs.Wgs84), MgrsPrecision.M1);
+    assert.equal(code, "18TWK0000027757");
+    const decoded = mgrsToCoordinate(code);
+    near(decoded.maxErrorM, Math.sqrt(0.5) / 0.9996, 1e-12, "MGRS bound");
+    near(decoded.coord.lat, 40.0, 1e-3, "MGRS lat");
+  });
+
+  it("projects to UTM", () => {
+    const utm = utmFromCoordinate(coordinateNew(40.0, -75.0, Crs.Wgs84));
+    assert.equal(utm.zone, 18);
+    near(utm.easting, 500_000.0, 1e-3, "easting");
+    near(utm.northing, 4_427_757.2188, 1e-3, "northing");
+  });
+
+  it("measures Karney geodesics on WGS-84", () => {
+    const d = geodesicDistanceM(
+      coordinateNew(40.7128, -74.006, Crs.Wgs84),
+      coordinateNew(51.5074, -0.1278, Crs.Wgs84),
+    );
+    near(d, 5_585_233.578_931, 1e-3, "NY-London");
+  });
+
+  it("carries an RMC fix's UTC timestamp as a Date", () => {
+    const rmc = fromNmeaSentence(
+      "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10",
+    );
+    assert.equal(rmc.timestamp?.toISOString(), "1994-03-23T12:35:19.000Z");
+  });
+});
+
+describe("typed GeoError variants", () => {
+  it("OutOfRange carries the rejected position", () => {
+    const e = thrown(() => coordinateNew(91.0, 0.0, Crs.Wgs84));
+    assert.ok(GeoError.OutOfRange.instanceOf(e), String(e));
+    assert.deepEqual({ ...e.inner }, { lat: 91.0, lon: 0.0 });
+  });
+
+  it("CrsMismatch carries the expected and found systems as Crs", () => {
+    const e = thrown(() => baiduMercatorFromCoordinate(coordinateNew(WGS.lat, WGS.lon, Crs.Wgs84)));
+    assert.ok(GeoError.CrsMismatch.instanceOf(e), String(e));
+    assert.equal(e.inner.expected, Crs.Bd09);
+    assert.equal(e.inner.found, Crs.Wgs84);
+  });
+
+  it("OutsideDomain names the operation", () => {
+    const pole = thrown(() => gcj02ToBd09({ lat: 90.0, lon: 0.0 }));
+    assert.ok(GeoError.OutsideDomain.instanceOf(pole), String(pole));
+    assert.equal(pole.inner.operation, "BD-09");
+    const polar = thrown(() => baiduMercatorFromBd09({ lat: 80.0, lon: 0.0 }));
+    assert.ok(GeoError.OutsideDomain.instanceOf(polar), String(polar));
+    assert.equal(polar.inner.operation, "Baidu Mercator");
+  });
+
+  it("InvalidValue names the field", () => {
+    const e = thrown(() => utmCentralMeridianDeg(0));
+    assert.ok(GeoError.InvalidValue.instanceOf(e), String(e));
+    assert.equal(e.inner.field, "zone");
+  });
+
+  it("InvalidCellId names the grid and value", () => {
+    const e = thrown(() => h3Decode({ value: 0n }));
+    assert.ok(GeoError.InvalidCellId.instanceOf(e), String(e));
+    assert.equal(e.inner.grid, "H3");
+    assert.equal(e.inner.value, 0n);
+    // A valid cell still decodes, with its radius as the bound.
+    const cell = h3Decode(h3Encode(coordinateNew(40.7128, -74.006, Crs.Wgs84), 9));
+    near(cell.maxErrorM, 205.872_541, 1e-5, "H3 bound");
+  });
+
+  it("InvalidGridRef carries the rejected reference", () => {
+    const e = thrown(() => mgrsToCoordinate("not-an-mgrs"));
+    assert.ok(GeoError.InvalidGridRef.instanceOf(e), String(e));
+    assert.equal(e.inner.detail, "not-an-mgrs");
+  });
+
+  it("Parse rejects ambiguous text and no-fix NMEA", () => {
+    for (const input of ["1234.5, 10", "ezs42"]) {
+      const e = thrown(() => parseCoordinate(input));
+      assert.ok(GeoError.Parse.instanceOf(e), `${input}: ${String(e)}`);
+    }
+    const voidFix = thrown(() =>
+      fromNmeaSentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
+    );
+    assert.ok(GeoError.Parse.instanceOf(voidFix), String(voidFix));
+    assert.match(voidFix.inner.detail, /void/);
+  });
+});

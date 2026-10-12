@@ -95,7 +95,8 @@ jobs:
 
   # Build the TypeScript/WebAssembly bindings end-to-end: generate via `ubrn`,
   # compile the wasm wrapper crate, run wasm-bindgen (wasm-pack), and type-check
-  # the result against @ubjs/core + the wasm typings (all driven by build.sh).
+  # the result against @ubjs/core + the wasm typings (all driven by build.sh),
+  # then run the Node behavioural tests against the built wasm.
   # RUSTFLAGS is relaxed here: the generated wrapper crate and the wasm builds of
   # third-party deps are not where we enforce -D warnings (the FFI crate's own
   # lint is covered by the clippy step above).
@@ -134,6 +135,11 @@ jobs:
           test -f src/generated/web/wasm-bindgen/index.js
           test -f src/generated/web/wasm-bindgen/index_bg.wasm
           echo "WASM/TypeScript bindings generated and type-checked."
+      # Load the built wasm in Node and exercise conversions, approximate bounds,
+      # and the typed GeoError variants (test/bindings.test.ts).
+      - name: Behavioural tests (Node)
+        working-directory: crates/geocoordinates-ffi/web
+        run: npm test
 
   # Build the JVM (Kotlin) bindings and prove they are callable from Java: generate
   # the Kotlin, then run a Gradle JUnit test written in Java that loads the cdylib
