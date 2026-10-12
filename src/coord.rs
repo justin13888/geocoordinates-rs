@@ -24,6 +24,18 @@ use crate::error::{Error, Result};
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
 /// so adding a datum here is a deliberate, compile-forcing change on both sides
 /// (a wildcard fallback would silently mislabel an unknown datum as WGS-84).
+///
+/// `Display` renders the short canonical name used in errors:
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs};
+///
+/// let tokyo = Coordinate::new(35.68, 139.77, Crs::Tokyo)?;
+/// assert_eq!(tokyo.crs(), Crs::Tokyo);
+/// assert_eq!(Crs::Gcj02.to_string(), "GCJ-02");
+/// assert_eq!(Crs::Pulkovo42.to_string(), "Pulkovo-1942");
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Crs {
@@ -54,6 +66,16 @@ pub enum Crs {
 ///
 /// Only these two surfaces are modeled; tidal datums (MSL, MLLW, …) are out of
 /// scope.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Height};
+///
+/// let summit = Coordinate::wgs84(27.9881, 86.925)?.with_height(Height::Orthometric(8848.86))?;
+/// assert_eq!(summit.height(), Some(Height::Orthometric(8848.86)));
+/// // The surface is part of the value: the same number above the ellipsoid differs.
+/// assert_ne!(Height::Orthometric(8848.86), Height::Ellipsoidal(8848.86));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Height {
@@ -80,6 +102,19 @@ impl Height {
 /// [`new`](Self::new) (latitude first), [`from_lon_lat`](Self::from_lon_lat)
 /// (longitude first), or a per-datum shorthand such as
 /// [`wgs84`](Self::wgs84), and read it back with the getters.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, Error};
+///
+/// let nyc = Coordinate::new(40.7128, -74.006, Crs::Wgs84)?;
+/// assert_eq!((nyc.lat(), nyc.lon(), nyc.crs()), (40.7128, -74.006, Crs::Wgs84));
+/// // An invalid position never becomes a `Coordinate`.
+/// assert!(matches!(
+///     Coordinate::new(91.0, 0.0, Crs::Wgs84),
+///     Err(Error::OutOfRange { .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 ///
 /// `Coordinate` deliberately implements neither `Display` nor `FromStr`: a bare
 /// decimal-degree string carries no datum or height, so a round trip through
@@ -146,6 +181,20 @@ impl Coordinate {
     /// # Errors
     /// Returns [`Error::OutOfRange`] when latitude is outside `[-90, 90]`,
     /// longitude is outside `[-180, 180]`, or either is not finite.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs, Error};
+    ///
+    /// // The antimeridian is accepted as given, not normalized to -180.
+    /// let c = Coordinate::new(-16.5, 180.0, Crs::Wgs84)?;
+    /// assert_eq!(c.lon(), 180.0);
+    /// assert_eq!(
+    ///     Coordinate::new(0.0, 181.0, Crs::Wgs84),
+    ///     Err(Error::OutOfRange { lat: 0.0, lon: 181.0 })
+    /// );
+    /// assert!(Coordinate::new(f64::NAN, 0.0, Crs::Wgs84).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn new(lat: f64, lon: f64, crs: Crs) -> Result<Self> {
         if !(-90.0..=90.0).contains(&lat) || !(-180.0..=180.0).contains(&lon) {
             return Err(Error::OutOfRange { lat, lon });
@@ -167,6 +216,17 @@ impl Coordinate {
     ///
     /// # Errors
     /// As [`new`](Self::new).
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs};
+    ///
+    /// // A GeoJSON position `[2.3522, 48.8566]` is longitude first.
+    /// let paris = Coordinate::from_lon_lat(2.3522, 48.8566, Crs::Wgs84)?;
+    /// assert_eq!((paris.lat(), paris.lon()), (48.8566, 2.3522));
+    /// // A lat-lon pair passed here puts 120 in the latitude slot and is rejected.
+    /// assert!(Coordinate::from_lon_lat(31.2, 121.5, Crs::Wgs84).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn from_lon_lat(lon: f64, lat: f64, crs: Crs) -> Result<Self> {
         Self::new(lat, lon, crs)
     }
@@ -175,6 +235,15 @@ impl Coordinate {
     ///
     /// # Errors
     /// As [`new`](Self::new).
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs};
+    ///
+    /// let c = Coordinate::wgs84(51.4779, -0.0015)?;
+    /// assert_eq!(c.crs(), Crs::Wgs84);
+    /// assert!(Coordinate::wgs84(-90.5, 0.0).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn wgs84(lat: f64, lon: f64) -> Result<Self> {
         Self::new(lat, lon, Crs::Wgs84)
     }
@@ -183,6 +252,15 @@ impl Coordinate {
     ///
     /// # Errors
     /// As [`new`](Self::new).
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs};
+    ///
+    /// let c = Coordinate::gcj02(39.9165, 116.4102)?;
+    /// assert_eq!(c.crs(), Crs::Gcj02);
+    /// assert!(Coordinate::gcj02(39.9, 216.4).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn gcj02(lat: f64, lon: f64) -> Result<Self> {
         Self::new(lat, lon, Crs::Gcj02)
     }
@@ -191,6 +269,15 @@ impl Coordinate {
     ///
     /// # Errors
     /// As [`new`](Self::new).
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs};
+    ///
+    /// let c = Coordinate::bd09(39.9228, 116.4166)?;
+    /// assert_eq!(c.crs(), Crs::Bd09);
+    /// assert!(Coordinate::bd09(f64::INFINITY, 116.4).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn bd09(lat: f64, lon: f64) -> Result<Self> {
         Self::new(lat, lon, Crs::Bd09)
     }
@@ -221,6 +308,19 @@ impl Coordinate {
     /// # Errors
     /// Returns [`Error::InvalidValue`] (field `height`) when the height is not
     /// finite.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Error, Height};
+    ///
+    /// let base = Coordinate::wgs84(46.5, 7.9)?;
+    /// let up = base.with_height(Height::Ellipsoidal(4158.0))?;
+    /// assert_eq!(up.height(), Some(Height::Ellipsoidal(4158.0)));
+    /// assert!(matches!(
+    ///     base.with_height(Height::Ellipsoidal(f64::NAN)),
+    ///     Err(Error::InvalidValue { field: "height", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn with_height(self, height: Height) -> Result<Self> {
         if !height.meters().is_finite() {
             return Err(Error::InvalidValue {
@@ -235,24 +335,54 @@ impl Coordinate {
     }
 
     /// Latitude in decimal degrees, in `[-90, 90]`.
+    ///
+    /// ```
+    /// let c = geocoordinates::Coordinate::wgs84(-33.8688, 151.2093)?;
+    /// assert_eq!(c.lat(), -33.8688);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn lat(&self) -> f64 {
         self.lat
     }
 
     /// Longitude in decimal degrees, in `[-180, 180]`.
+    ///
+    /// ```
+    /// let c = geocoordinates::Coordinate::wgs84(-33.8688, 151.2093)?;
+    /// assert_eq!(c.lon(), 151.2093);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn lon(&self) -> f64 {
         self.lon
     }
 
     /// The reference system the position is expressed in.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Crs};
+    ///
+    /// let c = Coordinate::new(59.94, 30.31, Crs::Pulkovo42)?;
+    /// assert_eq!(c.crs(), Crs::Pulkovo42);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn crs(&self) -> Crs {
         self.crs
     }
 
     /// The height (ellipsoidal or orthometric), if one is attached.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Height};
+    ///
+    /// let c = Coordinate::wgs84(0.5, 0.5)?;
+    /// assert_eq!(c.height(), None);
+    /// let c = c.with_height(Height::Ellipsoidal(-12.0))?;
+    /// assert_eq!(c.height(), Some(Height::Ellipsoidal(-12.0)));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn height(&self) -> Option<Height> {
         self.height
@@ -263,6 +393,15 @@ impl Coordinate {
     /// the Gulf of Guinea.
     ///
     /// True when both components are within `1e-6`° (~0.11 m) of zero.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    ///
+    /// assert!(Coordinate::wgs84(0.0, 0.0)?.is_null_island());
+    /// // ~111 m off the origin is a real position.
+    /// assert!(!Coordinate::wgs84(0.001, 0.0)?.is_null_island());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn is_null_island(&self) -> bool {
         self.lat.abs() <= NULL_ISLAND_EPS_DEG && self.lon.abs() <= NULL_ISLAND_EPS_DEG
@@ -287,14 +426,59 @@ pub(crate) mod sealed {
 /// (formatters, geodesics) can operate over any positioned type. The trait is
 /// **sealed**: only this crate's types implement it, so a function taking
 /// `&impl LatLon` only ever sees one of them.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, Gcj02, LatLon, Wgs84};
+///
+/// fn describe(p: &impl LatLon) -> String {
+///     format!("{} {:.4},{:.4}", p.crs(), p.lat(), p.lon())
+/// }
+///
+/// assert_eq!(describe(&Coordinate::wgs84(1.0, 2.0)?), "WGS84 1.0000,2.0000");
+/// let gcj: Gcj02 = Wgs84::new(39.915, 116.404)?.to_gcj02();
+/// assert_eq!(gcj.crs(), Crs::Gcj02);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+///
+/// Being sealed, it cannot be implemented outside this crate:
+///
+/// ```compile_fail
+/// struct Mine;
+/// impl geocoordinates::LatLon for Mine {
+///     fn lat(&self) -> f64 { 0.0 }
+///     fn lon(&self) -> f64 { 0.0 }
+///     fn crs(&self) -> geocoordinates::Crs { geocoordinates::Crs::Wgs84 }
+/// }
+/// ```
 pub trait LatLon: sealed::Sealed {
     /// Latitude in decimal degrees.
+    ///
+    /// ```
+    /// use geocoordinates::{LatLon, Wgs84};
+    ///
+    /// assert_eq!(LatLon::lat(&Wgs84::new(10.0, 20.0)?), 10.0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     fn lat(&self) -> f64;
     /// Longitude in decimal degrees.
+    ///
+    /// ```
+    /// use geocoordinates::{LatLon, Wgs84};
+    ///
+    /// assert_eq!(LatLon::lon(&Wgs84::new(10.0, 20.0)?), 20.0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     fn lon(&self) -> f64;
     /// Reference system of the position.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, LatLon, Wgs84};
+    ///
+    /// assert_eq!(LatLon::crs(&Wgs84::new(10.0, 20.0)?), Crs::Wgs84);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     fn crs(&self) -> Crs;
 }
