@@ -9,6 +9,18 @@ use core::ops::{Add, Mul, Sub};
 ///
 /// Distinguishes the **US survey foot** from the **international foot** — a
 /// recurring source of meter-scale errors over large distances.
+///
+/// Infallible: any `f64` is stored as given, and `+`, `-`, and `* f64` are
+/// sugar over arithmetic on [`meters`](Self::meters).
+///
+/// ```
+/// use geocoordinates::{Length, LengthUnit};
+///
+/// let leg = Length::from_unit(2.0, LengthUnit::Kilometer);
+/// let total = leg + Length::from_meters(500.0) - Length::ZERO;
+/// assert_eq!(total.meters(), 2500.0);
+/// assert_eq!((total * 2.0).to_unit(LengthUnit::Kilometer), 5.0);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Length {
@@ -17,27 +29,60 @@ pub struct Length {
 
 impl Length {
     /// The zero length.
+    ///
+    /// ```
+    /// use geocoordinates::Length;
+    ///
+    /// assert_eq!(Length::ZERO.meters(), 0.0);
+    /// assert_eq!(Length::from_meters(3.0) + Length::ZERO, Length::from_meters(3.0));
+    /// ```
     pub const ZERO: Length = Length { meters: 0.0 };
 
     /// Construct from meters.
+    ///
+    /// ```
+    /// use geocoordinates::Length;
+    ///
+    /// assert_eq!(Length::from_meters(42.0).meters(), 42.0);
+    /// ```
     #[must_use]
     pub fn from_meters(meters: f64) -> Self {
         Self { meters }
     }
 
     /// Value in meters.
+    ///
+    /// ```
+    /// use geocoordinates::{Length, LengthUnit};
+    ///
+    /// assert_eq!(Length::from_unit(1.0, LengthUnit::NauticalMile).meters(), 1852.0);
+    /// ```
     #[must_use]
     pub fn meters(&self) -> f64 {
         self.meters
     }
 
     /// Construct from a value in the given unit.
+    ///
+    /// ```
+    /// use geocoordinates::{Length, LengthUnit};
+    ///
+    /// assert_eq!(Length::from_unit(10.0, LengthUnit::Foot).meters(), 3.048);
+    /// ```
     #[must_use]
     pub fn from_unit(value: f64, unit: LengthUnit) -> Self {
         Self::from_meters(value * unit.meters_per_unit())
     }
 
     /// Value in the requested unit.
+    ///
+    /// ```
+    /// use geocoordinates::{Length, LengthUnit};
+    ///
+    /// let marathon = Length::from_meters(42_195.0);
+    /// assert_eq!(marathon.to_unit(LengthUnit::Kilometer), 42.195);
+    /// assert!((marathon.to_unit(LengthUnit::Foot) - 138_435.039).abs() < 1e-3);
+    /// ```
     #[must_use]
     pub fn to_unit(&self, unit: LengthUnit) -> f64 {
         self.meters / unit.meters_per_unit()
@@ -48,6 +93,15 @@ impl Length {
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
 /// so adding one here is a deliberate, compile-forcing change on both sides.
+///
+/// ```
+/// use geocoordinates::{Length, LengthUnit};
+///
+/// // A million feet: the survey foot is ~0.61 m longer in total.
+/// let intl = Length::from_unit(1e6, LengthUnit::Foot).meters();
+/// let survey = Length::from_unit(1e6, LengthUnit::UsSurveyFoot).meters();
+/// assert!((survey - intl - 0.6096).abs() < 1e-3);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LengthUnit {
