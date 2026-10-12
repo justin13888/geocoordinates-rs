@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsPrecision;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.outOfChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
@@ -18,6 +20,7 @@ import uniffi.geocoordinates_ffi.ApproxWgs84;
 import uniffi.geocoordinates_ffi.Crs;
 import uniffi.geocoordinates_ffi.Gcj02;
 import uniffi.geocoordinates_ffi.GeoException;
+import uniffi.geocoordinates_ffi.MgrsPrecision;
 import uniffi.geocoordinates_ffi.Wgs84;
 
 /** Proves the Kotlin/JNA bindings are callable idiomatically from Java. */
@@ -66,5 +69,14 @@ class SmokeTest {
                 assertThrows(
                         GeoException.InvalidGridRef.class, () -> mgrsToCoordinate("not-an-mgrs"));
         assertEquals("not-an-mgrs", badGrid.getDetail());
+    }
+
+    // MGRS precision crosses as the closed `MgrsPrecision` enum, so Java cannot
+    // pass an off-grid square size.
+    @Test
+    void mgrsPrecisionEnumFromJava() throws GeoException {
+        String code = mgrsFromCoordinate(coordinateNew(40.0, -75.0, Crs.WGS84), MgrsPrecision.M100);
+        assertEquals("18TWK000277", code);
+        assertEquals(MgrsPrecision.M100, mgrsPrecision(code));
     }
 }
