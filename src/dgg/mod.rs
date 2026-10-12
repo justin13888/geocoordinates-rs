@@ -10,11 +10,10 @@ use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 
 fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
-    coord.validate()?;
-    if coord.crs != Crs::Wgs84 {
+    if coord.crs() != Crs::Wgs84 {
         return Err(Error::CrsMismatch {
             expected: Crs::Wgs84,
-            found: coord.crs,
+            found: coord.crs(),
         });
     }
     Ok(())
@@ -38,7 +37,7 @@ impl H3Cell {
             field: "H3 resolution",
             detail: "must be in 0..=15".into(),
         })?;
-        let cell = LatLng::new(coord.lat, coord.lon)
+        let cell = LatLng::new(coord.lat(), coord.lon())
             .map_err(|error| Error::InvalidValue {
                 field: "coordinate",
                 detail: error.to_string(),
@@ -58,16 +57,14 @@ impl H3Cell {
             value: self.0,
         })?;
         let center = LatLng::from(cell);
-        let center = Coordinate::wgs84(center.lat(), center.lng());
+        let center = Coordinate::wgs84(center.lat(), center.lng())?;
         let radius = cell
             .boundary()
             .iter()
             .map(|vertex| {
-                crate::geodesy::geodesic_distance(
-                    &center,
-                    &Coordinate::wgs84(vertex.lat(), vertex.lng()),
-                )
-                .map(|distance| distance.meters())
+                let vertex = Coordinate::wgs84(vertex.lat(), vertex.lng())?;
+                crate::geodesy::geodesic_distance(&center, &vertex)
+                    .map(|distance| distance.meters())
             })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
@@ -96,7 +93,7 @@ impl S2CellId {
                 detail: "must be in 0..=30".into(),
             });
         }
-        let leaf = CellID::from(LatLng::from_degrees(coord.lat, coord.lon));
+        let leaf = CellID::from(LatLng::from_degrees(coord.lat(), coord.lon()));
         Ok(S2CellId(leaf.parent(u64::from(level)).0))
     }
 
@@ -116,17 +113,15 @@ impl S2CellId {
             });
         }
         let center = LatLng::from(cell);
-        let center = Coordinate::wgs84(center.lat.deg(), center.lng.deg());
+        let center = Coordinate::wgs84(center.lat.deg(), center.lng.deg())?;
         let radius = Cell::from(cell)
             .vertices()
             .iter()
             .map(|vertex| {
                 let vertex = LatLng::from(*vertex);
-                crate::geodesy::geodesic_distance(
-                    &center,
-                    &Coordinate::wgs84(vertex.lat.deg(), vertex.lng.deg()),
-                )
-                .map(|distance| distance.meters())
+                let vertex = Coordinate::wgs84(vertex.lat.deg(), vertex.lng.deg())?;
+                crate::geodesy::geodesic_distance(&center, &vertex)
+                    .map(|distance| distance.meters())
             })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
@@ -142,7 +137,7 @@ mod tests {
     use crate::test_support::assert_within_geodesic_meters;
 
     fn c(lat: f64, lon: f64) -> Coordinate {
-        Coordinate::wgs84(lat, lon)
+        Coordinate::wgs84(lat, lon).unwrap()
     }
 
     #[cfg(feature = "h3")]
@@ -305,7 +300,7 @@ mod tests {
             assert!(H3Cell::encode(c(0.0, 0.0), 16).is_err());
             assert!(H3Cell(0).decode().is_err());
             assert!(matches!(
-                H3Cell::encode(Coordinate::gcj02(39.9, 116.4), 9),
+                H3Cell::encode(Coordinate::gcj02(39.9, 116.4).unwrap(), 9),
                 Err(Error::CrsMismatch {
                     expected: crate::Crs::Wgs84,
                     found: crate::Crs::Gcj02,
@@ -317,7 +312,7 @@ mod tests {
             assert!(S2CellId::encode(c(0.0, 0.0), 31).is_err());
             assert!(S2CellId(0).decode().is_err());
             assert!(matches!(
-                S2CellId::encode(Coordinate::bd09(39.9, 116.4), 20),
+                S2CellId::encode(Coordinate::bd09(39.9, 116.4).unwrap(), 20),
                 Err(Error::CrsMismatch {
                     expected: crate::Crs::Wgs84,
                     found: crate::Crs::Bd09,

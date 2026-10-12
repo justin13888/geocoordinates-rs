@@ -11,7 +11,7 @@ use crate::{ApproxCoordinate, Coordinate, GeoError};
 /// Encode a coordinate to an Open Location Code at a valid length.
 #[uniffi::export]
 pub fn plus_code_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
-    gc::grids::PlusCode::encode(coord.into(), usize::from(length))
+    gc::grids::PlusCode::encode(coord.try_into()?, usize::from(length))
         .map(|code| code.as_str().to_string())
         .map_err(Into::into)
 }
@@ -30,7 +30,7 @@ pub fn plus_code_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
 /// Encode a coordinate to a geohash of the given character length.
 #[uniffi::export]
 pub fn geohash_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
-    gc::grids::Geohash::encode(coord.into(), usize::from(length))
+    gc::grids::Geohash::encode(coord.try_into()?, usize::from(length))
         .map(|code| code.as_str().to_string())
         .map_err(Into::into)
 }
@@ -50,7 +50,7 @@ pub fn geohash_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
 /// (1–3).
 #[uniffi::export]
 pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoError> {
-    gc::grids::Maidenhead::encode(coord.into(), usize::from(pairs))
+    gc::grids::Maidenhead::encode(coord.try_into()?, usize::from(pairs))
         .map(|code| code.as_str().to_string())
         .map_err(Into::into)
 }
@@ -163,7 +163,7 @@ impl From<Ups> for gc::grids::Ups {
 /// Geodetic → UTM. Errors in the polar regions (use UPS there).
 #[uniffi::export]
 pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
-    gc::grids::Utm::try_from_coordinate(coord.into())
+    gc::grids::Utm::try_from_coordinate(coord.try_into()?)
         .map(Into::into)
         .map_err(GeoError::from)
 }
@@ -181,7 +181,7 @@ pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
 /// Geodetic → UPS. Errors outside the polar regions (use UTM there).
 #[uniffi::export]
 pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
-    gc::grids::Ups::try_from_coordinate(coord.into())
+    gc::grids::Ups::try_from_coordinate(coord.try_into()?)
         .map(Into::into)
         .map_err(GeoError::from)
 }
@@ -201,7 +201,7 @@ pub fn ups_to_coordinate(ups: Ups) -> Result<Coordinate, GeoError> {
 /// (1 m … 100 km, as a power of ten).
 #[uniffi::export]
 pub fn mgrs_from_coordinate(coord: Coordinate, precision_m: u32) -> Result<String, GeoError> {
-    gc::grids::Mgrs::try_from_coordinate(coord.into(), precision_m)
+    gc::grids::Mgrs::try_from_coordinate(coord.try_into()?, precision_m)
         .map(|mgrs| mgrs.as_str().to_string())
         .map_err(Into::into)
 }

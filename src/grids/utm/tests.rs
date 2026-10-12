@@ -2,7 +2,7 @@ use super::*;
 use crate::test_support::assert_close;
 
 fn c(lat: f64, lon: f64) -> Coordinate {
-    Coordinate::wgs84(lat, lon)
+    Coordinate::wgs84(lat, lon).unwrap()
 }
 
 #[test]
@@ -75,8 +75,8 @@ fn utm_round_trips_sub_millimeter() {
             .unwrap()
             .try_to_coordinate()
             .unwrap();
-        assert_close(back.lat, lat, 1e-9);
-        assert_close(back.lon, lon, 1e-9);
+        assert_close(back.lat(), lat, 1e-9);
+        assert_close(back.lon(), lon, 1e-9);
     }
 }
 
@@ -94,8 +94,8 @@ fn utm_round_trip_drift_is_a_few_micrometers() {
                 .unwrap()
                 .try_to_coordinate()
                 .unwrap();
-            let dn = (back.lat - lat).to_radians() * WGS84_A;
-            let de = (back.lon - lon).to_radians() * WGS84_A * lat.to_radians().cos();
+            let dn = (back.lat() - lat).to_radians() * WGS84_A;
+            let de = (back.lon() - lon).to_radians() * WGS84_A * lat.to_radians().cos();
             worst_m = worst_m.max(dn.hypot(de));
         }
     }
@@ -157,8 +157,8 @@ fn ups_round_trips() {
             .unwrap()
             .try_to_coordinate()
             .unwrap();
-        assert_close(back.lat, lat, 1e-9);
-        assert_close(back.lon, lon, 1e-9);
+        assert_close(back.lat(), lat, 1e-9);
+        assert_close(back.lon(), lon, 1e-9);
     }
 }
 
@@ -177,7 +177,7 @@ fn ups_inverse_series_error_matches_the_documented_bound() {
                 .unwrap()
                 .try_to_coordinate()
                 .unwrap();
-            (back.lat - lat).abs().to_radians() * A_AXIS
+            (back.lat() - lat).abs().to_radians() * A_AXIS
         })
         .fold(0.0_f64, f64::max);
     assert!(worst_m < 6e-5, "UPS inverse error {worst_m} m");
@@ -200,24 +200,27 @@ fn ups_rejects_non_polar_latitudes() {
 }
 
 #[test]
-fn projections_reject_wrong_crs_and_invalid_records() {
+fn projections_reject_wrong_crs_and_out_of_range_input_is_unconstructible() {
     use crate::Crs::{Gcj02, Wgs84};
     assert!(matches!(
-        Utm::try_from_coordinate(Coordinate::gcj02(40.0, -75.0)),
+        Utm::try_from_coordinate(Coordinate::gcj02(40.0, -75.0).unwrap()),
         Err(Error::CrsMismatch {
             expected: Wgs84,
             found: Gcj02,
         })
     ));
     assert!(matches!(
-        Ups::try_from_coordinate(Coordinate::gcj02(85.0, 0.0)),
+        Ups::try_from_coordinate(Coordinate::gcj02(85.0, 0.0).unwrap()),
         Err(Error::CrsMismatch {
             expected: Wgs84,
             found: Gcj02,
         })
     ));
-    assert_out_of_range(Utm::try_from_coordinate(c(91.0, 0.0)), 91.0, 0.0);
-    assert_out_of_range(Ups::try_from_coordinate(c(91.0, 0.0)), 91.0, 0.0);
+    // An out-of-range input can no longer reach the projections: construction
+    // itself rejects it with that exact position.
+    let bad = || Coordinate::wgs84(91.0, 0.0);
+    assert_out_of_range(bad().and_then(Utm::try_from_coordinate), 91.0, 0.0);
+    assert_out_of_range(bad().and_then(Ups::try_from_coordinate), 91.0, 0.0);
 }
 
 /// An out-of-range input is `OutOfRange` carrying exactly that position.
@@ -271,9 +274,9 @@ fn utm_inverse_guards_each_field() {
     bad(utm(31, North, 500_000.0, f64::NEG_INFINITY));
     // The domain bounds themselves are accepted.
     let edge = utm(31, North, 100_000.0, 0.0).try_to_coordinate().unwrap();
-    assert_close(edge.lon, -0.592_327_203, 1e-8);
+    assert_close(edge.lon(), -0.592_327_203, 1e-8);
     let edge = utm(31, North, 900_000.0, 0.0).try_to_coordinate().unwrap();
-    assert_close(edge.lon, 6.592_327_203, 1e-8);
+    assert_close(edge.lon(), 6.592_327_203, 1e-8);
 }
 
 #[test]
@@ -291,8 +294,8 @@ fn ups_inverse_guards_each_field() {
     let corner = ups(North, 4_000_000.0, 4_000_000.0)
         .try_to_coordinate()
         .unwrap();
-    assert_close(corner.lat, 64.916_412_333, 1e-8);
-    assert_close(corner.lon, 135.0, 1e-9);
+    assert_close(corner.lat(), 64.916_412_333, 1e-8);
+    assert_close(corner.lon(), 135.0, 1e-9);
 }
 
 #[test]
@@ -315,7 +318,7 @@ fn utm_inverse_does_not_wrap_the_antimeridian() {
     );
     // Inside ±180 the same zone decodes normally.
     let p = utm(1, North, 170_000.0, 0.0).try_to_coordinate().unwrap();
-    assert_close(p.lon, -179.964_294_459, 1e-8);
+    assert_close(p.lon(), -179.964_294_459, 1e-8);
 }
 
 #[test]
@@ -327,8 +330,8 @@ fn utm_inverse_folds_northings_over_the_pole() {
     let p = utm(1, North, 500_000.0, 9_999_000.0)
         .try_to_coordinate()
         .unwrap();
-    assert_close(p.lat, 89.990_729_391, 1e-8);
-    assert_close(p.lon, 3.0, 1e-9);
+    assert_close(p.lat(), 89.990_729_391, 1e-8);
+    assert_close(p.lon(), 3.0, 1e-9);
     // In zone 31 the fold lands on 183°, which only validation catches.
     let r = utm(31, North, 500_000.0, 9_999_000.0).try_to_coordinate();
     assert!(

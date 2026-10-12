@@ -9,8 +9,8 @@ fn source(fix: &Fix) -> &RawSource {
 #[test]
 fn dd_comma_defaults_to_latlon() {
     let fix = parse("40.7128, -74.006").unwrap();
-    assert_close(fix.coord.lat, 40.7128, 1e-9);
-    assert_close(fix.coord.lon, -74.006, 1e-9);
+    assert_close(fix.coord.lat(), 40.7128, 1e-9);
+    assert_close(fix.coord.lon(), -74.006, 1e-9);
     let s = source(&fix);
     // Both magnitudes are in latitude range, so the order is assumed.
     assert_close(s.confidence.value(), 0.7, 1e-12);
@@ -21,8 +21,8 @@ fn dd_comma_defaults_to_latlon() {
 fn range_rule_forces_longitude() {
     // 151.2 exceeds the latitude range, so it must be longitude (Sydney).
     let fix = parse("151.2, -33.9").unwrap();
-    assert_close(fix.coord.lat, -33.9, 1e-9);
-    assert_close(fix.coord.lon, 151.2, 1e-9);
+    assert_close(fix.coord.lat(), -33.9, 1e-9);
+    assert_close(fix.coord.lon(), 151.2, 1e-9);
     let s = source(&fix);
     assert_close(s.confidence.value(), 0.9, 1e-12);
     assert_eq!(s.axis_order, Some(AxisOrder::LonLat));
@@ -31,8 +31,8 @@ fn range_rule_forces_longitude() {
 #[test]
 fn dms_with_both_hemispheres() {
     let fix = parse("40°42′46″N 74°00′22″W").unwrap();
-    assert_close(fix.coord.lat, 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
-    assert_close(fix.coord.lon, -(74.0 + 22.0 / 3600.0), 1e-9);
+    assert_close(fix.coord.lat(), 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
+    assert_close(fix.coord.lon(), -(74.0 + 22.0 / 3600.0), 1e-9);
     let s = source(&fix);
     assert_close(s.confidence.value(), 1.0, 1e-12);
     assert_eq!(s.axis_order, None);
@@ -41,8 +41,8 @@ fn dms_with_both_hemispheres() {
 #[test]
 fn hemispheres_can_be_swapped() {
     let fix = parse("74°00′22″W 40°42′46″N").unwrap();
-    assert_close(fix.coord.lat, 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
-    assert_close(fix.coord.lon, -(74.0 + 22.0 / 3600.0), 1e-9);
+    assert_close(fix.coord.lat(), 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
+    assert_close(fix.coord.lon(), -(74.0 + 22.0 / 3600.0), 1e-9);
     assert_close(source(&fix).confidence.value(), 1.0, 1e-12);
 }
 
@@ -50,23 +50,23 @@ fn hemispheres_can_be_swapped() {
 fn ascii_symbols_and_prefix_hemispheres() {
     // ASCII quotes plus leading hemisphere letters.
     let fix = parse("N40 42'46\" W74 00'22\"").unwrap();
-    assert_close(fix.coord.lat, 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
-    assert_close(fix.coord.lon, -(74.0 + 22.0 / 3600.0), 1e-9);
+    assert_close(fix.coord.lat(), 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
+    assert_close(fix.coord.lon(), -(74.0 + 22.0 / 3600.0), 1e-9);
 }
 
 #[test]
 fn nmea_concatenated() {
     let fix = parse("4042.766N 07400.456W").unwrap();
-    assert_close(fix.coord.lat, 40.0 + 42.766 / 60.0, 1e-9);
-    assert_close(fix.coord.lon, -(74.0 + 0.456 / 60.0), 1e-9);
+    assert_close(fix.coord.lat(), 40.0 + 42.766 / 60.0, 1e-9);
+    assert_close(fix.coord.lon(), -(74.0 + 0.456 / 60.0), 1e-9);
     assert_eq!(source(&fix).axis_order, None);
 }
 
 #[test]
 fn space_separated_ddm_with_suffix_hemispheres() {
     let fix = parse("40 42.766 N 74 0.456 W").unwrap();
-    assert_close(fix.coord.lat, 40.0 + 42.766 / 60.0, 1e-9);
-    assert_close(fix.coord.lon, -(74.0 + 0.456 / 60.0), 1e-9);
+    assert_close(fix.coord.lat(), 40.0 + 42.766 / 60.0, 1e-9);
+    assert_close(fix.coord.lon(), -(74.0 + 0.456 / 60.0), 1e-9);
 }
 
 #[test]
@@ -76,8 +76,8 @@ fn decimal_comma_option() {
         default_axis_order: AxisOrder::LatLon,
     };
     let fix = parse_with("40,7128 -74,006", &opts).unwrap();
-    assert_close(fix.coord.lat, 40.7128, 1e-9);
-    assert_close(fix.coord.lon, -74.006, 1e-9);
+    assert_close(fix.coord.lat(), 40.7128, 1e-9);
+    assert_close(fix.coord.lon(), -74.006, 1e-9);
     // The same string without the option is a different (failing) parse.
     assert!(parse("40,7128 -74,006").is_err());
 }
@@ -89,8 +89,8 @@ fn default_lonlat_swaps_assignment() {
         default_axis_order: AxisOrder::LonLat,
     };
     let fix = parse_with("-74.006, 40.7128", &opts).unwrap();
-    assert_close(fix.coord.lon, -74.006, 1e-9);
-    assert_close(fix.coord.lat, 40.7128, 1e-9);
+    assert_close(fix.coord.lon(), -74.006, 1e-9);
+    assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_eq!(source(&fix).axis_order, Some(AxisOrder::LonLat));
 }
 
@@ -121,39 +121,39 @@ fn doubled_sign_leaves_a_negative_magnitude_that_is_rejected() {
 #[test]
 fn south_and_east_hemispheres() {
     let fix = parse("33.9S 151.2E").unwrap();
-    assert_close(fix.coord.lat, -33.9, 1e-9);
-    assert_close(fix.coord.lon, 151.2, 1e-9);
+    assert_close(fix.coord.lat(), -33.9, 1e-9);
+    assert_close(fix.coord.lon(), 151.2, 1e-9);
 }
 
 #[test]
 fn one_hemisphere_letter_resolves_the_pair() {
     // (lat-letter, none): N pins the first component as latitude.
     let f = parse("40.7N 74.006").unwrap();
-    assert_close(f.coord.lat, 40.7, 1e-9);
-    assert_close(f.coord.lon, 74.006, 1e-9);
+    assert_close(f.coord.lat(), 40.7, 1e-9);
+    assert_close(f.coord.lon(), 74.006, 1e-9);
     let s = source(&f);
     assert_close(s.confidence.value(), 0.9, 1e-12);
     assert_eq!(s.axis_order, None);
 
     // (lon-letter, none): W pins the first as longitude → swap.
     let f = parse("74.006W 40.7").unwrap();
-    assert_close(f.coord.lat, 40.7, 1e-9);
-    assert_close(f.coord.lon, -74.006, 1e-9);
+    assert_close(f.coord.lat(), 40.7, 1e-9);
+    assert_close(f.coord.lon(), -74.006, 1e-9);
 
     // (none, lon-letter): W pins the second as longitude. The lat/lon
     // happen to coincide with the assumed-default path, so assert the
     // confidence and axis-order too (the letter resolves it, 0.9 / None).
     let f = parse("40.7 74.006W").unwrap();
-    assert_close(f.coord.lat, 40.7, 1e-9);
-    assert_close(f.coord.lon, -74.006, 1e-9);
+    assert_close(f.coord.lat(), 40.7, 1e-9);
+    assert_close(f.coord.lon(), -74.006, 1e-9);
     let s = source(&f);
     assert_close(s.confidence.value(), 0.9, 1e-12);
     assert_eq!(s.axis_order, None);
 
     // (none, lat-letter): N pins the second as latitude → swap.
     let f = parse("74.006 40.7N").unwrap();
-    assert_close(f.coord.lat, 40.7, 1e-9);
-    assert_close(f.coord.lon, 74.006, 1e-9);
+    assert_close(f.coord.lat(), 40.7, 1e-9);
+    assert_close(f.coord.lon(), 74.006, 1e-9);
 }
 
 #[test]
@@ -161,13 +161,13 @@ fn range_rule_boundary_excludes_exactly_90() {
     // Exactly 90 is a valid latitude, so the order stays *assumed* (0.7),
     // not forced by the range rule.
     let f = parse("90, 50").unwrap();
-    assert_close(f.coord.lat, 90.0, 1e-9);
-    assert_close(f.coord.lon, 50.0, 1e-9);
+    assert_close(f.coord.lat(), 90.0, 1e-9);
+    assert_close(f.coord.lon(), 50.0, 1e-9);
     assert_close(source(&f).confidence.value(), 0.7, 1e-12);
 
     let f = parse("50, 90").unwrap();
-    assert_close(f.coord.lat, 50.0, 1e-9);
-    assert_close(f.coord.lon, 90.0, 1e-9);
+    assert_close(f.coord.lat(), 50.0, 1e-9);
+    assert_close(f.coord.lon(), 90.0, 1e-9);
     assert_close(source(&f).confidence.value(), 0.7, 1e-12);
 }
 
@@ -215,8 +215,8 @@ fn letter_markers_parse_like_symbols() {
         "10d30.000m -20d15.000m",
     ] {
         let fix = parse(input).unwrap_or_else(|e| panic!("{input}: {e}"));
-        assert_close(fix.coord.lat, lat, 1e-9);
-        assert_close(fix.coord.lon, lon, 1e-9);
+        assert_close(fix.coord.lat(), lat, 1e-9);
+        assert_close(fix.coord.lon(), lon, 1e-9);
     }
     // Letter markers combine with the decimal-comma option.
     let opts = TextParseOptions {
@@ -224,8 +224,8 @@ fn letter_markers_parse_like_symbols() {
         default_axis_order: AxisOrder::LatLon,
     };
     let fix = parse_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
-    assert_close(fix.coord.lat, -lat, 1e-9);
-    assert_close(fix.coord.lon, lon, 1e-9);
+    assert_close(fix.coord.lat(), -lat, 1e-9);
+    assert_close(fix.coord.lon(), lon, 1e-9);
 }
 
 #[test]

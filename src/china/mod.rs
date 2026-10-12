@@ -110,15 +110,19 @@ macro_rules! impl_latlon {
             /// Returns [`Error::OutOfRange`] when latitude falls outside ±90°,
             /// longitude outside ±180°, or either is not finite.
             pub fn validate(&self) -> Result<()> {
-                Coordinate::new(self.lat, self.lon, $crs).validate()
+                self.try_to_coordinate().map(|_| ())
             }
 
             /// Convert to the canonical [`Coordinate`], tagged with this
             /// datum's [`Crs`].
             ///
-            /// Exact and total. Height is left unset.
-            #[must_use]
-            pub fn to_coordinate(self) -> Coordinate {
+            /// Exact. Height is left unset.
+            ///
+            /// # Errors
+            ///
+            /// Returns [`Error::OutOfRange`] when this position is not finite
+            /// and in range, since a [`Coordinate`] is valid by construction.
+            pub fn try_to_coordinate(self) -> Result<Coordinate> {
                 Coordinate::new(self.lat, self.lon, $crs)
             }
 
@@ -129,18 +133,18 @@ macro_rules! impl_latlon {
             ///
             /// # Errors
             ///
-            /// Returns [`Error::CrsMismatch`] unless `coord.crs` matches this
-            /// datum, so a datum is never silently laundered, plus whatever
-            /// [`Coordinate::validate`] reports for an out-of-range input.
+            /// Returns [`Error::CrsMismatch`] unless `coord.crs()` matches this
+            /// datum, so a datum is never silently laundered.
             pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
-                coord.validate()?;
-                if coord.crs == $crs {
-                    Ok(Self { lat: coord.lat, lon: coord.lon })
+                if coord.crs() == $crs {
+                    Ok(Self { lat: coord.lat(), lon: coord.lon() })
                 } else {
-                    Err(Error::CrsMismatch { expected: $crs, found: coord.crs })
+                    Err(Error::CrsMismatch { expected: $crs, found: coord.crs() })
                 }
             }
         }
+
+        impl crate::coord::sealed::Sealed for $t {}
 
         impl crate::coord::LatLon for $t {
             fn lat(&self) -> f64 { self.lat }
@@ -148,9 +152,11 @@ macro_rules! impl_latlon {
             fn crs(&self) -> Crs { $crs }
         }
 
-        /// Thin sugar over the named `to_coordinate` method.
-        impl From<$t> for Coordinate {
-            fn from(p: $t) -> Self { p.to_coordinate() }
+        /// Thin sugar over the named `try_to_coordinate` method.
+        impl TryFrom<$t> for Coordinate {
+            type Error = Error;
+
+            fn try_from(p: $t) -> Result<Self> { p.try_to_coordinate() }
         }
 
         /// Thin sugar over the named `try_from_coordinate` method.
@@ -166,12 +172,14 @@ macro_rules! impl_latlon {
 
 // --- Bridges to the canonical `Coordinate` ---
 //
-// Datum newtype → `Coordinate` is exact and total: `to_coordinate` injects the
-// correct [`Crs`] tag and leaves height unset. `Coordinate` → newtype is
-// fallible: `try_from_coordinate` requires the coordinate's [`Crs`] to match,
-// so a datum is never silently laundered.
+// Datum newtype → `Coordinate` is exact but fallible: `try_to_coordinate`
+// injects the correct [`Crs`] tag, leaves height unset, and rejects an
+// out-of-range newtype, because a `Coordinate` is valid by construction while
+// the newtypes' fields are still public. `Coordinate` → newtype is fallible:
+// `try_from_coordinate` requires the coordinate's [`Crs`] to match, so a datum
+// is never silently laundered.
 //
-// The named inherent methods are the access path that crosses FFI; the `From` /
+// The named inherent methods are the access path that crosses FFI; the
 // `TryFrom` impls above are one-line sugar over them (see AGENTS.md).
 impl_latlon!(Wgs84 => Crs::Wgs84, Gcj02 => Crs::Gcj02, Bd09 => Crs::Bd09);
 
@@ -179,54 +187,74 @@ impl_latlon!(Wgs84 => Crs::Wgs84, Gcj02 => Crs::Gcj02, Bd09 => Crs::Bd09);
 mod tests {
     use super::*;
 
-    /// The named method and its `From` sugar must agree, and must tag the
+    /// The named method and its `TryFrom` sugar must agree, and must tag the
     /// coordinate with this datum's CRS.
     #[test]
     fn to_coordinate_tags_the_datum_and_matches_its_sugar() {
         let cases = [
-            (Wgs84::new(39.915, 116.404).to_coordinate(), Crs::Wgs84),
-            (Gcj02::new(39.915, 116.404).to_coordinate(), Crs::Gcj02),
-            (Bd09::new(39.915, 116.404).to_coordinate(), Crs::Bd09),
+            (Wgs84::new(39.915, 116.404).try_to_coordinate(), Crs::Wgs84),
+            (Gcj02::new(39.915, 116.404).try_to_coordinate(), Crs::Gcj02),
+            (Bd09::new(39.915, 116.404).try_to_coordinate(), Crs::Bd09),
         ];
         for (coord, expected) in cases {
-            assert_eq!(coord.crs, expected);
-            assert_eq!(coord.lat, 39.915);
-            assert_eq!(coord.lon, 116.404);
-            assert!(coord.height.is_none(), "height must be left unset");
+            let coord = coord.unwrap();
+            assert_eq!(coord.crs(), expected);
+            assert_eq!(coord.lat(), 39.915);
+            assert_eq!(coord.lon(), 116.404);
+            assert!(coord.height().is_none(), "height must be left unset");
         }
 
         assert_eq!(
-            Coordinate::from(Wgs84::new(1.0, 2.0)),
-            Wgs84::new(1.0, 2.0).to_coordinate()
+            Coordinate::try_from(Wgs84::new(1.0, 2.0)),
+            Wgs84::new(1.0, 2.0).try_to_coordinate()
         );
         assert_eq!(
-            Coordinate::from(Gcj02::new(1.0, 2.0)),
-            Gcj02::new(1.0, 2.0).to_coordinate()
+            Coordinate::try_from(Gcj02::new(1.0, 2.0)),
+            Gcj02::new(1.0, 2.0).try_to_coordinate()
         );
         assert_eq!(
-            Coordinate::from(Bd09::new(1.0, 2.0)),
-            Bd09::new(1.0, 2.0).to_coordinate()
+            Coordinate::try_from(Bd09::new(1.0, 2.0)),
+            Bd09::new(1.0, 2.0).try_to_coordinate()
         );
+    }
+
+    /// An out-of-range newtype cannot become a `Coordinate`.
+    #[test]
+    fn out_of_range_newtype_does_not_convert() {
+        assert!(matches!(
+            Wgs84::new(91.0, 0.0).try_to_coordinate(),
+            Err(Error::OutOfRange { .. })
+        ));
+        assert!(Coordinate::try_from(Bd09::new(0.0, f64::NAN)).is_err());
     }
 
     /// Newtype → `Coordinate` → newtype must round-trip exactly.
     #[test]
     fn coordinate_round_trip_is_exact() {
         let w = Wgs84::new(39.915, 116.404);
-        assert_eq!(Wgs84::try_from_coordinate(w.to_coordinate()).unwrap(), w);
+        assert_eq!(
+            Wgs84::try_from_coordinate(w.try_to_coordinate().unwrap()).unwrap(),
+            w
+        );
 
         let g = Gcj02::new(39.915, 116.404);
-        assert_eq!(Gcj02::try_from_coordinate(g.to_coordinate()).unwrap(), g);
+        assert_eq!(
+            Gcj02::try_from_coordinate(g.try_to_coordinate().unwrap()).unwrap(),
+            g
+        );
 
         let b = Bd09::new(39.915, 116.404);
-        assert_eq!(Bd09::try_from_coordinate(b.to_coordinate()).unwrap(), b);
+        assert_eq!(
+            Bd09::try_from_coordinate(b.try_to_coordinate().unwrap()).unwrap(),
+            b
+        );
     }
 
     /// A datum must never be silently laundered: every wrong-CRS extraction
     /// reports `CrsMismatch` naming both the expected and the found datum.
     #[test]
     fn extracting_the_wrong_datum_is_a_crs_mismatch() {
-        let gcj = Coordinate::gcj02(39.915, 116.404);
+        let gcj = Coordinate::gcj02(39.915, 116.404).unwrap();
         assert!(matches!(
             Wgs84::try_from_coordinate(gcj),
             Err(Error::CrsMismatch {
@@ -235,7 +263,7 @@ mod tests {
             })
         ));
 
-        let bd = Coordinate::bd09(39.915, 116.404);
+        let bd = Coordinate::bd09(39.915, 116.404).unwrap();
         assert!(matches!(
             Gcj02::try_from_coordinate(bd),
             Err(Error::CrsMismatch {
@@ -244,7 +272,7 @@ mod tests {
             })
         ));
 
-        let wgs = Coordinate::wgs84(39.915, 116.404);
+        let wgs = Coordinate::wgs84(39.915, 116.404).unwrap();
         assert!(matches!(
             Bd09::try_from_coordinate(wgs),
             Err(Error::CrsMismatch {
@@ -254,7 +282,7 @@ mod tests {
         ));
 
         // A classic datum is rejected too, not just the sibling China datums.
-        let nad27 = Coordinate::new(39.915, 116.404, Crs::Nad27);
+        let nad27 = Coordinate::new(39.915, 116.404, Crs::Nad27).unwrap();
         assert!(matches!(
             Wgs84::try_from_coordinate(nad27),
             Err(Error::CrsMismatch {
@@ -264,13 +292,12 @@ mod tests {
         ));
     }
 
-    /// Extraction validates before it inspects the CRS, so an out-of-range
-    /// coordinate fails on range rather than being reported as a mismatch.
+    /// An out-of-range coordinate cannot reach extraction at all: it fails on
+    /// range at construction rather than being reported as a mismatch.
     #[test]
-    fn extraction_rejects_out_of_range_before_checking_crs() {
-        let bad = Coordinate::new(91.0, 0.0, Crs::Gcj02);
+    fn out_of_range_coordinate_fails_before_extraction() {
         assert!(matches!(
-            Wgs84::try_from_coordinate(bad),
+            Coordinate::new(91.0, 0.0, Crs::Gcj02).and_then(Wgs84::try_from_coordinate),
             Err(Error::OutOfRange { .. })
         ));
     }
@@ -278,13 +305,13 @@ mod tests {
     /// `TryFrom` is sugar and must agree with the named method exactly.
     #[test]
     fn try_from_sugar_matches_the_named_method() {
-        let coord = Coordinate::wgs84(39.915, 116.404);
+        let coord = Coordinate::wgs84(39.915, 116.404).unwrap();
         assert_eq!(
             Wgs84::try_from(coord).unwrap(),
             Wgs84::try_from_coordinate(coord).unwrap()
         );
 
-        let mismatched = Coordinate::bd09(39.915, 116.404);
+        let mismatched = Coordinate::bd09(39.915, 116.404).unwrap();
         assert_eq!(
             Wgs84::try_from(mismatched).unwrap_err().to_string(),
             Wgs84::try_from_coordinate(mismatched)

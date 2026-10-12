@@ -268,7 +268,7 @@ pub fn baidu_mercator_to_coordinate(m: BaiduMercator) -> Result<Coordinate, GeoE
 /// reprojected.
 #[uniffi::export]
 pub fn baidu_mercator_from_coordinate(coord: Coordinate) -> Result<BaiduMercator, GeoError> {
-    gc::BaiduMercator::try_from_coordinate(coord.into())
+    gc::BaiduMercator::try_from_coordinate(coord.try_into()?)
         .map(Into::into)
         .map_err(GeoError::from)
 }

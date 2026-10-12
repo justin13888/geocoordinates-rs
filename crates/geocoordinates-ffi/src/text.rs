@@ -178,7 +178,7 @@ impl From<TextParseOptions> for gc::parse::text::TextParseOptions {
 /// (the DD/DMS/DDM representations never fail).
 #[uniffi::export]
 pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<String, GeoError> {
-    let coord: gc::Coordinate = coord.into();
+    let coord: gc::Coordinate = coord.try_into()?;
     let options: gc::format::FormatOptions = options.into();
     gc::format::format(&coord, &options).map_err(GeoError::from)
 }
@@ -190,7 +190,7 @@ pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<St
 /// As [`format_coordinate`].
 #[uniffi::export]
 pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> {
-    let fix: gc::Fix = fix.into();
+    let fix: gc::Fix = fix.try_into()?;
     let options: gc::format::FormatOptions = options.into();
     gc::format::format_fix(&fix, &options).map_err(GeoError::from)
 }

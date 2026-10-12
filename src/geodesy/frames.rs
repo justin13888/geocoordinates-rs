@@ -58,14 +58,14 @@ impl Enu {
     pub fn try_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Self> {
         validate_frame_coordinate(target)?;
         validate_frame_coordinate(origin)?;
-        if target.crs != origin.crs {
+        if target.crs() != origin.crs() {
             return Err(Error::CrsMismatch {
-                expected: origin.crs,
-                found: target.crs,
+                expected: origin.crs(),
+                found: target.crs(),
             });
         }
-        let (sin_lat, cos_lat) = origin.lat.to_radians().sin_cos();
-        let (sin_lon, cos_lon) = origin.lon.to_radians().sin_cos();
+        let (sin_lat, cos_lat) = origin.lat().to_radians().sin_cos();
+        let (sin_lon, cos_lon) = origin.lon().to_radians().sin_cos();
         let t = Ecef::try_from_coordinate(target, Ellipsoid::WGS84)?;
         let o = Ecef::try_from_coordinate(origin, Ellipsoid::WGS84)?;
         let (dx, dy, dz) = (t.x - o.x, t.y - o.y, t.z - o.z);
@@ -88,15 +88,15 @@ impl Enu {
                 detail: "components must be finite".into(),
             });
         }
-        let (sin_lat, cos_lat) = origin.lat.to_radians().sin_cos();
-        let (sin_lon, cos_lon) = origin.lon.to_radians().sin_cos();
+        let (sin_lat, cos_lat) = origin.lat().to_radians().sin_cos();
+        let (sin_lon, cos_lon) = origin.lon().to_radians().sin_cos();
         // Rotate the ENU offset back to an ECEF difference (the transpose).
         let dx =
             -sin_lon * self.east - sin_lat * cos_lon * self.north + cos_lat * cos_lon * self.up;
         let dy = cos_lon * self.east - sin_lat * sin_lon * self.north + cos_lat * sin_lon * self.up;
         let dz = cos_lat * self.north + sin_lat * self.up;
         let o = Ecef::try_from_coordinate(origin, Ellipsoid::WGS84)?;
-        Ecef::new(o.x + dx, o.y + dy, o.z + dz).try_to_coordinate(Ellipsoid::WGS84, origin.crs)
+        Ecef::new(o.x + dx, o.y + dy, o.z + dz).try_to_coordinate(Ellipsoid::WGS84, origin.crs())
     }
 
     /// Convert to the NED convention (exact).
@@ -191,14 +191,13 @@ impl Aer {
 }
 
 fn validate_frame_coordinate(coord: Coordinate) -> Result<()> {
-    coord.validate()?;
-    if coord.crs != crate::Crs::Wgs84 {
+    if coord.crs() != crate::Crs::Wgs84 {
         return Err(Error::CrsMismatch {
             expected: crate::Crs::Wgs84,
-            found: coord.crs,
+            found: coord.crs(),
         });
     }
-    if matches!(coord.height, Some(crate::Height::Orthometric(_))) {
+    if matches!(coord.height(), Some(crate::Height::Orthometric(_))) {
         return Err(Error::InvalidValue {
             field: "height",
             detail: "local frames require ellipsoidal height".into(),
@@ -248,29 +247,34 @@ mod tests {
 
     #[test]
     fn enu_directions() {
-        let origin = Coordinate::wgs84(40.0, -75.0);
+        let origin = Coordinate::wgs84(40.0, -75.0).unwrap();
         // A point due north of the origin has +north, ~0 east.
-        let north = Enu::try_from_coordinate(Coordinate::wgs84(40.1, -75.0), origin).unwrap();
+        let north =
+            Enu::try_from_coordinate(Coordinate::wgs84(40.1, -75.0).unwrap(), origin).unwrap();
         assert!(north.north > 10_000.0);
         assert_close(north.east, 0.0, 1e-6);
         // A point due east is predominantly east; the small north component is
         // the parallel's poleward curvature (~5 m over ~8.5 km).
-        let east = Enu::try_from_coordinate(Coordinate::wgs84(40.0, -74.9), origin).unwrap();
+        let east =
+            Enu::try_from_coordinate(Coordinate::wgs84(40.0, -74.9).unwrap(), origin).unwrap();
         assert!(east.east > 8_000.0);
         assert!(east.north.abs() < 50.0);
     }
 
     #[test]
     fn enu_round_trip() {
-        let origin = Coordinate::wgs84(40.7128, -74.006);
-        let target = Coordinate::wgs84(40.73, -74.0).with_height(Height::Ellipsoidal(120.0));
+        let origin = Coordinate::wgs84(40.7128, -74.006).unwrap();
+        let target = Coordinate::wgs84(40.73, -74.0)
+            .unwrap()
+            .with_height(Height::Ellipsoidal(120.0))
+            .unwrap();
         let back = Enu::try_from_coordinate(target, origin)
             .unwrap()
             .try_to_coordinate(origin)
             .unwrap();
-        assert_close(back.lat, 40.73, 1e-9);
-        assert_close(back.lon, -74.0, 1e-9);
-        match back.height {
+        assert_close(back.lat(), 40.73, 1e-9);
+        assert_close(back.lon(), -74.0, 1e-9);
+        match back.height() {
             Some(Height::Ellipsoidal(h)) => assert_close(h, 120.0, 1e-4),
             other => panic!("expected ellipsoidal height, got {other:?}"),
         }
@@ -364,9 +368,9 @@ mod tests {
 
     #[test]
     fn coordinate_frames_reject_wrong_crs_and_height_semantics() {
-        let origin = Coordinate::wgs84(40.0, -75.0);
-        assert!(Enu::try_from_coordinate(Coordinate::gcj02(40.1, -75.0), origin).is_err());
-        let orthometric = origin.with_height(Height::Orthometric(10.0));
+        let origin = Coordinate::wgs84(40.0, -75.0).unwrap();
+        assert!(Enu::try_from_coordinate(Coordinate::gcj02(40.1, -75.0).unwrap(), origin).is_err());
+        let orthometric = origin.with_height(Height::Orthometric(10.0)).unwrap();
         assert!(Enu::try_from_coordinate(origin, orthometric).is_err());
     }
 }

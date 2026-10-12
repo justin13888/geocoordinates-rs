@@ -19,7 +19,7 @@ pub struct H3Cell {
 /// Encode a WGS-84 coordinate to its H3 cell index at `resolution` (0–15).
 #[uniffi::export]
 pub fn h3_encode(coord: Coordinate, resolution: u8) -> Result<H3Cell, GeoError> {
-    gc::dgg::H3Cell::encode(coord.into(), resolution)
+    gc::dgg::H3Cell::encode(coord.try_into()?, resolution)
         .map(|cell| H3Cell { value: cell.0 })
         .map_err(Into::into)
 }
@@ -43,7 +43,7 @@ pub struct S2CellId {
 /// Encode a WGS-84 coordinate to its S2 cell id at `level` (0–30).
 #[uniffi::export]
 pub fn s2_encode(coord: Coordinate, level: u8) -> Result<S2CellId, GeoError> {
-    gc::dgg::S2CellId::encode(coord.into(), level)
+    gc::dgg::S2CellId::encode(coord.try_into()?, level)
         .map(|cell| S2CellId { value: cell.0 })
         .map_err(Into::into)
 }

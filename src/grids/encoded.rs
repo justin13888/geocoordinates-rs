@@ -76,8 +76,8 @@ impl PlusCode {
                 detail: "must be 2, 4, 6, 8, or 10 through 15".into(),
             });
         }
-        let mut lat = clamp_latitude(coord.lat);
-        let lon = wrap_longitude(coord.lon);
+        let mut lat = clamp_latitude(coord.lat());
+        let lon = wrap_longitude(coord.lon());
         // Latitude 90 must drop just below so the code can be decoded.
         if lat >= LATITUDE_MAX {
             lat = LATITUDE_MAX - latitude_precision(length);
@@ -172,7 +172,11 @@ impl PlusCode {
         let lon_m = lon_resolution * METERS_PER_DEGREE * lat.to_radians().cos();
         let max_error_m = 0.5 * lat_m.hypot(lon_m);
 
-        Approx::new(Coordinate::wgs84(lat, lon), max_error_m)
+        // A valid code's cell lies inside the globe, so its center is in range.
+        Approx::new(
+            Coordinate::from_valid(lat, lon, None, crate::Crs::Wgs84),
+            max_error_m,
+        )
     }
 }
 
@@ -295,8 +299,8 @@ impl Geohash {
                 detail: "must be in 1..=22".into(),
             });
         }
-        let lat = clamp_latitude(coord.lat);
-        let lon = wrap_longitude(coord.lon);
+        let lat = clamp_latitude(coord.lat());
+        let lon = wrap_longitude(coord.lon());
         let (mut lat_lo, mut lat_hi) = (-90.0_f64, 90.0_f64);
         let (mut lon_lo, mut lon_hi) = (-180.0_f64, 180.0_f64);
         let mut hash = String::with_capacity(length);
@@ -404,8 +408,8 @@ impl Maidenhead {
                 detail: "must be in 1..=3".into(),
             });
         }
-        let mut lon = wrap_longitude(coord.lon) + 180.0; // [0, 360)
-        let mut lat = clamp_latitude(coord.lat) + 90.0; // [0, 180]
+        let mut lon = wrap_longitude(coord.lon()) + 180.0; // [0, 360)
+        let mut lat = clamp_latitude(coord.lat()) + 90.0; // [0, 180]
         let mut s = String::with_capacity(pairs * 2);
 
         // Field: 18 columns of 20° lon × 10° lat (letters A–R). Latitude is
@@ -469,11 +473,10 @@ impl Maidenhead {
 }
 
 fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
-    coord.validate()?;
-    if coord.crs != crate::Crs::Wgs84 {
+    if coord.crs() != crate::Crs::Wgs84 {
         return Err(Error::CrsMismatch {
             expected: crate::Crs::Wgs84,
-            found: coord.crs,
+            found: coord.crs(),
         });
     }
     Ok(())
@@ -548,7 +551,11 @@ fn cell_center(lat_lo: f64, lat_hi: f64, lon_lo: f64, lon_hi: f64) -> Approx<Coo
     let lon = midpoint(lon_lo, lon_hi);
     let lat_half_m = (lat_hi - lat_lo) / 2.0 * METERS_PER_DEGREE;
     let lon_half_m = (lon_hi - lon_lo) / 2.0 * METERS_PER_DEGREE * lat.to_radians().cos();
-    Approx::new(Coordinate::wgs84(lat, lon), lat_half_m.hypot(lon_half_m))
+    // Every caller passes a cell inside the globe, so its center is in range.
+    Approx::new(
+        Coordinate::from_valid(lat, lon, None, crate::Crs::Wgs84),
+        lat_half_m.hypot(lon_half_m),
+    )
 }
 
 #[cfg(test)]

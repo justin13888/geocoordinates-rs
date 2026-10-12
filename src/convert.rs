@@ -41,21 +41,20 @@ use crate::geodesy::datum::DatumTransform;
 ///   [`geodesy::datum`](crate::geodesy::datum)).
 ///
 /// # Errors
-/// Every modeled [`Crs`] pair has a route, so this fails only on its input or a
-/// leg's result: [`Coordinate::validate`]'s error ([`crate::Error::OutOfRange`]
-/// or [`crate::Error::InvalidValue`]) for an invalid `coord`, and otherwise the
-/// error of the failing conversion leg, unchanged.
+/// Every modeled [`Crs`] pair has a route, and `coord` is valid by
+/// construction, so this fails only on a leg's result: the error of the failing
+/// conversion leg, unchanged, or [`crate::Error::OutOfRange`] when a leg's
+/// output leaves the valid latitude/longitude range.
 pub fn convert(coord: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
-    coord.validate()?;
-    if coord.crs == to {
+    if coord.crs() == to {
         return Ok(Approx::new(coord, 0.0));
     }
     // GCJ-02 → BD-09 is an exact direct transform. Routing it through the WGS-84
     // hub would taint the result with the GCJ-02 inverse error, so take the
     // direct path and keep it exact.
-    if coord.crs == Crs::Gcj02 && to == Crs::Bd09 {
-        let b = Gcj02::new(coord.lat, coord.lon).try_to_bd09()?;
-        return Ok(Approx::new(carry(coord, b.lat, b.lon, Crs::Bd09), 0.0));
+    if coord.crs() == Crs::Gcj02 && to == Crs::Bd09 {
+        let b = Gcj02::new(coord.lat(), coord.lon()).try_to_bd09()?;
+        return Ok(Approx::new(carry(coord, b.lat, b.lon, Crs::Bd09)?, 0.0));
     }
     // Everything else routes through WGS-84, accumulating the per-leg bounds.
     let hub = to_wgs84(coord)?;
@@ -90,16 +89,18 @@ fn hub_reachable(crs: Crs) -> bool {
 
 /// Convert `coord` to a WGS-84 [`Coordinate`], carrying the per-leg error bound.
 fn to_wgs84(coord: Coordinate) -> Result<Approx<Coordinate>> {
-    Ok(match coord.crs {
+    Ok(match coord.crs() {
         Crs::Wgs84 => Approx::new(coord, 0.0),
-        Crs::Gcj02 => Gcj02::new(coord.lat, coord.lon)
-            .try_to_wgs84_refined()?
-            .map(|w| carry(coord, w.lat, w.lon, Crs::Wgs84)),
-        Crs::Bd09 => Bd09::new(coord.lat, coord.lon)
-            .try_to_wgs84_refined()?
-            .map(|w| carry(coord, w.lat, w.lon, Crs::Wgs84)),
+        Crs::Gcj02 => {
+            let w = Gcj02::new(coord.lat(), coord.lon()).try_to_wgs84_refined()?;
+            Approx::new(carry(coord, w.lat, w.lon, Crs::Wgs84)?, w.max_error_m())
+        }
+        Crs::Bd09 => {
+            let w = Bd09::new(coord.lat(), coord.lon()).try_to_wgs84_refined()?;
+            Approx::new(carry(coord, w.lat, w.lon, Crs::Wgs84)?, w.max_error_m())
+        }
         Crs::Nad27 | Crs::Tokyo | Crs::Pulkovo42 => {
-            let dt = DatumTransform::to_wgs84(coord.crs).expect("classic datum is catalogued");
+            let dt = DatumTransform::to_wgs84(coord.crs()).expect("classic datum is catalogued");
             Approx::new(dt.transform(coord)?, 0.0)
         }
     })
@@ -110,12 +111,12 @@ fn from_wgs84(wgs: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
     Ok(match to {
         Crs::Wgs84 => Approx::new(wgs, 0.0),
         Crs::Gcj02 => {
-            let g = Wgs84::new(wgs.lat, wgs.lon).try_to_gcj02()?;
-            Approx::new(carry(wgs, g.lat, g.lon, Crs::Gcj02), 0.0)
+            let g = Wgs84::new(wgs.lat(), wgs.lon()).try_to_gcj02()?;
+            Approx::new(carry(wgs, g.lat, g.lon, Crs::Gcj02)?, 0.0)
         }
         Crs::Bd09 => {
-            let b = Wgs84::new(wgs.lat, wgs.lon).try_to_bd09()?;
-            Approx::new(carry(wgs, b.lat, b.lon, Crs::Bd09), 0.0)
+            let b = Wgs84::new(wgs.lat(), wgs.lon()).try_to_bd09()?;
+            Approx::new(carry(wgs, b.lat, b.lon, Crs::Bd09)?, 0.0)
         }
         Crs::Nad27 | Crs::Tokyo | Crs::Pulkovo42 => {
             let dt = DatumTransform::to_wgs84(to).expect("classic datum is catalogued");
@@ -126,13 +127,18 @@ fn from_wgs84(wgs: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
 
 /// Rebuild a coordinate with new lat/lon and CRS, carrying the original height
 /// (the China lat/lon transforms are 2-D; height passes through unchanged).
-fn carry(orig: Coordinate, lat: f64, lon: f64, crs: Crs) -> Coordinate {
-    Coordinate {
-        lat,
-        lon,
-        height: orig.height,
+///
+/// The new position is range-checked: a China offset can push a point near the
+/// antimeridian or a pole past the valid range, and that is reported rather
+/// than producing an invalid `Coordinate`. The carried height was already valid.
+fn carry(orig: Coordinate, lat: f64, lon: f64, crs: Crs) -> Result<Coordinate> {
+    let moved = Coordinate::new(lat, lon, crs)?;
+    Ok(Coordinate::from_valid(
+        moved.lat(),
+        moved.lon(),
+        orig.height(),
         crs,
-    }
+    ))
 }
 
 #[cfg(test)]
@@ -149,77 +155,85 @@ mod tests {
 
     #[test]
     fn same_crs_is_exact_identity() {
-        let c = Coordinate::wgs84(WGS.0, WGS.1);
+        let c = Coordinate::wgs84(WGS.0, WGS.1).unwrap();
         let r = convert(c, Crs::Wgs84).unwrap();
         assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs, Crs::Wgs84);
-        assert_close(r.lat, WGS.0, 1e-12);
-        assert_close(r.lon, WGS.1, 1e-12);
+        assert_eq!(r.crs(), Crs::Wgs84);
+        assert_close(r.lat(), WGS.0, 1e-12);
+        assert_close(r.lon(), WGS.1, 1e-12);
     }
 
     #[test]
     fn wgs84_to_gcj02_is_exact() {
-        let r = convert(Coordinate::wgs84(WGS.0, WGS.1), Crs::Gcj02).unwrap();
+        let r = convert(Coordinate::wgs84(WGS.0, WGS.1).unwrap(), Crs::Gcj02).unwrap();
         assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs, Crs::Gcj02);
+        assert_eq!(r.crs(), Crs::Gcj02);
         // Exactly the typed forward conversion.
         let g = Wgs84::new(WGS.0, WGS.1).try_to_gcj02().unwrap();
-        assert_close(r.lat, g.lat, 1e-12);
-        assert_close(r.lon, g.lon, 1e-12);
-        assert_close(r.lat, GCJ.0, 1e-9);
+        assert_close(r.lat(), g.lat, 1e-12);
+        assert_close(r.lon(), g.lon, 1e-12);
+        assert_close(r.lat(), GCJ.0, 1e-9);
     }
 
     #[test]
     fn gcj02_to_wgs84_is_approximate() {
-        let r = convert(Coordinate::gcj02(GCJ.0, GCJ.1), Crs::Wgs84).unwrap();
+        let r = convert(Coordinate::gcj02(GCJ.0, GCJ.1).unwrap(), Crs::Wgs84).unwrap();
         // Bound is exactly the delegated refined-inverse bound (not re-derived).
         let direct = Gcj02::new(GCJ.0, GCJ.1).try_to_wgs84_refined().unwrap();
         assert!(r.max_error_m() > 0.0);
         assert_close(r.max_error_m(), direct.max_error_m(), 1e-12);
-        assert_close(r.lat, direct.lat, 1e-12);
+        assert_close(r.lat(), direct.lat, 1e-12);
         // Recovers the original WGS-84 within the stated bound.
         let bound = r.max_error_m();
         crate::test_support::assert_within_meters(
             &r.into_inner(),
-            &Coordinate::wgs84(WGS.0, WGS.1),
+            &Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
             bound,
         );
     }
 
     #[test]
     fn gcj02_to_bd09_stays_exact_via_direct_path() {
-        let r = convert(Coordinate::gcj02(GCJ.0, GCJ.1), Crs::Bd09).unwrap();
+        let r = convert(Coordinate::gcj02(GCJ.0, GCJ.1).unwrap(), Crs::Bd09).unwrap();
         // The direct GCJ→BD path keeps it exact — no WGS-84 inverse error leaks in.
         assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs, Crs::Bd09);
+        assert_eq!(r.crs(), Crs::Bd09);
         let b = Gcj02::new(GCJ.0, GCJ.1).try_to_bd09().unwrap();
-        assert_close(r.lat, b.lat, 1e-12);
-        assert_close(r.lon, b.lon, 1e-12);
-        assert_close(r.lat, BD.0, 1e-9);
+        assert_close(r.lat(), b.lat, 1e-12);
+        assert_close(r.lon(), b.lon, 1e-12);
+        assert_close(r.lat(), BD.0, 1e-9);
     }
 
     #[test]
     fn bd09_to_wgs84_is_approximate() {
-        let r = convert(Coordinate::bd09(BD.0, BD.1), Crs::Wgs84).unwrap();
+        let r = convert(Coordinate::bd09(BD.0, BD.1).unwrap(), Crs::Wgs84).unwrap();
         assert!(r.max_error_m() > 0.0);
         let bound = r.max_error_m();
         crate::test_support::assert_within_meters(
             &r.into_inner(),
-            &Coordinate::wgs84(WGS.0, WGS.1),
+            &Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
             bound,
         );
+    }
+
+    /// NAD27 test point at 40°N 100°W with a zero ellipsoidal height.
+    fn nad27_point() -> Coordinate {
+        Coordinate::new(40.0, -100.0, Crs::Nad27)
+            .unwrap()
+            .with_height(Height::Ellipsoidal(0.0))
+            .unwrap()
     }
 
     #[test]
     fn nad27_to_wgs84_reports_no_inversion_bound() {
         // Same independent reference as the datum milestone. The `0.0` bound
         // means "no iterative inversion", not that the Helmert leg is exact.
-        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).with_height(Height::Ellipsoidal(0.0));
+        let nad27 = nad27_point();
         let r = convert(nad27, Crs::Wgs84).unwrap();
         assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs, Crs::Wgs84);
-        assert_close(r.lat, 40.000_009_482_759, 1e-8);
-        assert_close(r.lon, -100.000_417_622_218_8, 1e-8);
+        assert_eq!(r.crs(), Crs::Wgs84);
+        assert_close(r.lat(), 40.000_009_482_759, 1e-8);
+        assert_close(r.lon(), -100.000_417_622_218_8, 1e-8);
     }
 
     #[test]
@@ -227,13 +241,13 @@ mod tests {
         // The NAD27 catalog shift is translation-only, so the reverse leg's
         // negated parameters undo the forward leg and a round trip recovers the
         // input to round-off (the parameters' own accuracy does not enter).
-        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).with_height(Height::Ellipsoidal(0.0));
+        let nad27 = nad27_point();
         let w = convert(nad27, Crs::Wgs84).unwrap().into_inner();
         let back = convert(w, Crs::Nad27).unwrap();
         assert_eq!(back.max_error_m(), 0.0);
-        assert_eq!(back.crs, Crs::Nad27);
-        assert_close(back.lat, 40.0, 1e-9);
-        assert_close(back.lon, -100.0, 1e-9);
+        assert_eq!(back.crs(), Crs::Nad27);
+        assert_close(back.lat(), 40.0, 1e-9);
+        assert_close(back.lon(), -100.0, 1e-9);
     }
 
     #[test]
@@ -241,16 +255,16 @@ mod tests {
         // NAD27 → WGS-84 (Helmert, no iterative inversion) → GCJ-02 (typed
         // forward, exact): neither leg inverts an offset iteratively, so the
         // composed bound is zero.
-        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27);
+        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap();
         let r = convert(nad27, Crs::Gcj02).unwrap();
         assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs, Crs::Gcj02);
+        assert_eq!(r.crs(), Crs::Gcj02);
         // Equals the explicit two-step route.
         let dt = DatumTransform::to_wgs84(Crs::Nad27).unwrap();
         let w = dt.transform(nad27).unwrap();
-        let g = Wgs84::new(w.lat, w.lon).try_to_gcj02().unwrap();
-        assert_close(r.lat, g.lat, 1e-12);
-        assert_close(r.lon, g.lon, 1e-12);
+        let g = Wgs84::new(w.lat(), w.lon()).try_to_gcj02().unwrap();
+        assert_close(r.lat(), g.lat, 1e-12);
+        assert_close(r.lon(), g.lon, 1e-12);
     }
 
     #[test]
@@ -258,25 +272,28 @@ mod tests {
         // BD-09 → WGS-84 (approx) → Tokyo (Helmert, no iterative inversion): the
         // composed bound is exactly the BD-09 inverse bound (the Helmert leg
         // adds nothing to it).
-        let r = convert(Coordinate::bd09(BD.0, BD.1), Crs::Tokyo).unwrap();
+        let r = convert(Coordinate::bd09(BD.0, BD.1).unwrap(), Crs::Tokyo).unwrap();
         let w = Bd09::new(BD.0, BD.1).try_to_wgs84_refined().unwrap();
         let dt = DatumTransform::to_wgs84(Crs::Tokyo).unwrap();
         let tokyo = dt
             .inverse()
-            .transform(Coordinate::wgs84(w.lat, w.lon))
+            .transform(Coordinate::wgs84(w.lat, w.lon).unwrap())
             .unwrap();
-        assert_eq!(r.crs, Crs::Tokyo);
+        assert_eq!(r.crs(), Crs::Tokyo);
         assert_close(r.max_error_m(), w.max_error_m(), 1e-12);
-        assert_close(r.lat, tokyo.lat, 1e-9);
-        assert_close(r.lon, tokyo.lon, 1e-9);
+        assert_close(r.lat(), tokyo.lat(), 1e-9);
+        assert_close(r.lon(), tokyo.lon(), 1e-9);
     }
 
     #[test]
     fn china_conversion_carries_height() {
         // China transforms are 2-D — an attached height passes through unchanged.
-        let g = Coordinate::gcj02(GCJ.0, GCJ.1).with_height(Height::Orthometric(123.0));
+        let g = Coordinate::gcj02(GCJ.0, GCJ.1)
+            .unwrap()
+            .with_height(Height::Orthometric(123.0))
+            .unwrap();
         let r = convert(g, Crs::Bd09).unwrap();
-        assert_eq!(r.height, Some(Height::Orthometric(123.0)));
+        assert_eq!(r.height(), Some(Height::Orthometric(123.0)));
     }
 
     #[test]

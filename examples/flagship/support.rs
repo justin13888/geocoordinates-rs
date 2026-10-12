@@ -3,17 +3,16 @@
 use std::error::Error as StdError;
 
 use geocoordinates::geodesy::{Aer, Enu, Ned, geodesic_distance};
-use geocoordinates::{BaiduMercator, Coordinate, Crs, LatLon};
+use geocoordinates::{BaiduMercator, Coordinate, LatLon};
 
 /// Result of one flagship section: its display name on success.
 pub(crate) type DemoResult = Result<&'static str, Box<dyn StdError>>;
 
-pub(crate) const NEW_YORK: Coordinate = Coordinate {
-    lat: 40.7128,
-    lon: -74.006,
-    height: None,
-    crs: Crs::Wgs84,
-};
+/// New York City (WGS-84). Constructors validate, so this is a function rather
+/// than a `const`: a `Coordinate` only exists once its range is proven.
+pub(crate) fn new_york() -> Coordinate {
+    Coordinate::wgs84(40.7128, -74.006).expect("valid literal")
+}
 
 pub(crate) fn assert_close(actual: f64, expected: f64, tolerance: f64) {
     assert!(

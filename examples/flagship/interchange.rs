@@ -10,9 +10,9 @@ use crate::support::{DemoResult, assert_close};
 pub(crate) fn interchange_and_nmea() -> DemoResult {
     let geojson = from_geojson(r#"{"type":"Point","coordinates":[2.0,9.0,100.0]}"#)?;
     assert_eq!(geojson.len(), 1);
-    assert_eq!(geojson[0].coord.height, Some(Height::Ellipsoidal(100.0)));
-    assert_close(geojson[0].coord.lat, 9.0, 1e-12);
-    assert_close(geojson[0].coord.lon, 2.0, 1e-12);
+    assert_eq!(geojson[0].coord.height(), Some(Height::Ellipsoidal(100.0)));
+    assert_close(geojson[0].coord.lat(), 9.0, 1e-12);
+    assert_close(geojson[0].coord.lon(), 2.0, 1e-12);
     assert_eq!(
         geojson[0].source.as_ref().and_then(|s| s.axis_order),
         Some(AxisOrder::LonLat)
@@ -20,8 +20,8 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
 
     let wkt = from_wkt("LINESTRING(0 0, 10 20)")?;
     assert_eq!(wkt.len(), 2);
-    assert_close(wkt[1].coord.lat, 20.0, 1e-12);
-    assert_close(wkt[1].coord.lon, 10.0, 1e-12);
+    assert_close(wkt[1].coord.lat(), 20.0, 1e-12);
+    assert_close(wkt[1].coord.lon(), 10.0, 1e-12);
 
     let gpx = from_gpx(
         r#"<?xml version="1.0"?>
@@ -30,7 +30,7 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
         </gpx>"#,
     )?;
     assert_eq!(gpx.len(), 1);
-    assert_eq!(gpx[0].coord.height, Some(Height::Ellipsoidal(183.0)));
+    assert_eq!(gpx[0].coord.height(), Some(Height::Ellipsoidal(183.0)));
     assert_eq!(
         gpx[0].source.as_ref().and_then(|s| s.axis_order),
         Some(AxisOrder::LatLon)
@@ -43,8 +43,8 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
         </Document></kml>"#,
     )?;
     assert_eq!(kml.len(), 1);
-    assert_close(kml[0].coord.lat, 48.2, 1e-9);
-    assert_close(kml[0].coord.lon, 16.3, 1e-9);
+    assert_close(kml[0].coord.lat(), 48.2, 1e-9);
+    assert_close(kml[0].coord.lon(), 16.3, 1e-9);
     assert_eq!(
         kml[0].source.as_ref().and_then(|s| s.axis_order),
         Some(AxisOrder::LonLat)
@@ -52,9 +52,9 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
 
     let nmea =
         from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")?;
-    assert_close(nmea.coord.lat, 48.0 + 7.038 / 60.0, 1e-9);
-    assert_close(nmea.coord.lon, 11.0 + 31.0 / 60.0, 1e-9);
-    assert_eq!(nmea.coord.height, Some(Height::Orthometric(545.4)));
+    assert_close(nmea.coord.lat(), 48.0 + 7.038 / 60.0, 1e-9);
+    assert_close(nmea.coord.lon(), 11.0 + 31.0 / 60.0, 1e-9);
+    assert_eq!(nmea.coord.height(), Some(Height::Orthometric(545.4)));
     assert_close(
         nmea.accuracy
             .and_then(|accuracy| accuracy.horizontal_m)

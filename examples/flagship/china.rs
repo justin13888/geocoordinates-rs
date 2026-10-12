@@ -22,14 +22,14 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
 
     let gcj = WGS.try_to_gcj02()?;
     assert_eq!(Wgs84::new(WGS.lat, WGS.lon), WGS);
-    assert_eq!(Coordinate::gcj02(gcj.lat, gcj.lon).crs, Crs::Gcj02);
+    assert_eq!(Coordinate::gcj02(gcj.lat, gcj.lon)?.crs(), Crs::Gcj02);
     assert_close(gcj.lat, EXPECTED_GCJ.lat, 1e-9);
     assert_close(gcj.lon, EXPECTED_GCJ.lon, 1e-9);
     let gcj_from = Gcj02::try_from(WGS)?;
     assert_eq!(gcj_from, gcj);
     let bd = WGS.try_to_bd09()?;
     assert_eq!(Bd09::new(bd.lat, bd.lon), bd);
-    assert_eq!(Coordinate::bd09(bd.lat, bd.lon).crs, Crs::Bd09);
+    assert_eq!(Coordinate::bd09(bd.lat, bd.lon)?.crs(), Crs::Bd09);
     assert_close(bd.lat, EXPECTED_BD.lat, 1e-9);
     assert_close(bd.lon, EXPECTED_BD.lon, 1e-9);
     let bd_from_gcj = Bd09::try_from(gcj)?;
@@ -53,7 +53,7 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
     assert_eq!(mercator_from, mercator);
     assert_within_meters(&mercator.try_to_bd09()?, &bd, 1.0);
     let tagged = mercator.try_to_coordinate()?;
-    assert_eq!(tagged.crs, Crs::Bd09);
+    assert_eq!(tagged.crs(), Crs::Bd09);
     assert_mercator_close(BaiduMercator::try_from_coordinate(tagged)?, mercator, 0.02);
     assert_mercator_close(BaiduMercator::try_from(tagged)?, mercator, 0.02);
 
@@ -70,13 +70,14 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
         Crs::Pulkovo42,
     ];
     for from in systems {
-        let source = Coordinate::new(39.915, 116.404, from).with_height(Height::Ellipsoidal(12.0));
+        let source =
+            Coordinate::new(39.915, 116.404, from)?.with_height(Height::Ellipsoidal(12.0))?;
         for to in systems {
             assert!(can_convert(from, to));
             let converted = convert(source, to)?;
-            assert_eq!(converted.crs, to);
-            assert!(converted.lat.is_finite() && converted.lon.is_finite());
-            assert!(converted.height.is_some());
+            assert_eq!(converted.crs(), to);
+            assert!(converted.lat().is_finite() && converted.lon().is_finite());
+            assert!(converted.height().is_some());
             let is_approximate = (from == Crs::Gcj02 && to != Crs::Gcj02 && to != Crs::Bd09)
                 || (from == Crs::Bd09 && to != Crs::Bd09);
             if is_approximate {

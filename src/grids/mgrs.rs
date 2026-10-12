@@ -78,11 +78,10 @@ impl Mgrs {
     /// Encode a WGS-84 coordinate to MGRS at a power-of-ten precision from
     /// 1 meter through 100 kilometers.
     pub fn try_from_coordinate(coord: Coordinate, precision_m: u32) -> Result<Self> {
-        coord.validate()?;
-        if coord.crs != crate::Crs::Wgs84 {
+        if coord.crs() != crate::Crs::Wgs84 {
             return Err(Error::CrsMismatch {
                 expected: crate::Crs::Wgs84,
-                found: coord.crs,
+                found: coord.crs(),
             });
         }
         if !matches!(precision_m, 1 | 10 | 100 | 1_000 | 10_000 | 100_000) {
@@ -92,7 +91,7 @@ impl Mgrs {
             });
         }
         let digits = 5 - precision_m.ilog10();
-        let text = if (-80.0..84.0).contains(&coord.lat) {
+        let text = if (-80.0..84.0).contains(&coord.lat()) {
             encode_utm(coord, digits)
         } else {
             encode_ups(coord, digits)
@@ -165,7 +164,7 @@ fn encode_utm(coord: Coordinate, digits: u32) -> String {
     format!(
         "{:02}{}{}{}{}",
         utm.zone,
-        band_letter(coord.lat),
+        band_letter(coord.lat()),
         col,
         row,
         digit_pair(utm.easting, utm.northing, digits),
@@ -300,7 +299,7 @@ fn decode_utm(s: &str, bad: impl Fn() -> Error + Copy) -> Result<(Coordinate, u3
         .try_to_coordinate() else {
             continue;
         };
-        if lo - 0.5 <= coord.lat && coord.lat <= hi + 0.5 {
+        if lo - 0.5 <= coord.lat() && coord.lat() <= hi + 0.5 {
             return Ok((coord, 10u32.pow(5 - k)));
         }
     }

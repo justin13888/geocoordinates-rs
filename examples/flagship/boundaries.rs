@@ -13,47 +13,62 @@ use geocoordinates::parse::text::parse as parse_text;
 use geocoordinates::parse::{from_geo_uri, parse_coordinate};
 use geocoordinates::{BaiduMercator, Coordinate, Crs, Error, Height, Length, Wgs84};
 
-use crate::support::{DemoResult, NEW_YORK};
+use crate::support::{DemoResult, new_york};
 
 pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
-    Coordinate::wgs84(90.0, 180.0).validate()?;
-    Coordinate::wgs84(-90.0, -180.0).validate()?;
+    // Valid by construction: the closed range edges are accepted...
+    let north_pole_east = Coordinate::wgs84(90.0, 180.0)?;
+    let south_pole_west = Coordinate::wgs84(-90.0, -180.0)?;
     assert_eq!(wrap_longitude(180.0), -180.0);
     assert_eq!(wrap_longitude(-181.0), 179.0);
 
     let antimeridian_distance = geodesic_distance(
-        &Coordinate::wgs84(0.0, 179.9),
-        &Coordinate::wgs84(0.0, -179.9),
+        &Coordinate::wgs84(0.0, 179.9)?,
+        &Coordinate::wgs84(0.0, -179.9)?,
     )?;
     assert!(antimeridian_distance.meters() < 25_000.0);
     let reflected = rhumb_destination(
-        &Coordinate::wgs84(80.0, 0.0),
+        &Coordinate::wgs84(80.0, 0.0)?,
         0.0,
         Length::from_meters(1_668_000.0),
     )?;
-    assert!((80.0..90.0).contains(&reflected.lat));
-    assert_eq!(reflected.lon, -180.0);
+    assert!((80.0..90.0).contains(&reflected.lat()));
+    assert_eq!(reflected.lon(), -180.0);
 
-    for polar in [
-        Coordinate::wgs84(90.0, 180.0),
-        Coordinate::wgs84(-90.0, -180.0),
-    ] {
+    for polar in [north_pole_east, south_pole_west] {
         let plus = PlusCode::encode(polar, 10)?.decode();
-        assert!(plus.lat.is_finite() && plus.lon.is_finite());
+        assert!(plus.lat().is_finite() && plus.lon().is_finite());
         let h3 = H3Cell::encode(polar, 9)?.decode()?;
-        assert!(h3.lat.is_finite() && h3.lon.is_finite());
+        assert!(h3.lat().is_finite() && h3.lon().is_finite());
         let s2 = S2CellId::encode(polar, 20)?.decode()?;
-        assert!(s2.lat.is_finite() && s2.lon.is_finite());
+        assert!(s2.lat().is_finite() && s2.lon().is_finite());
     }
 
-    // `Error` is `PartialEq`, so a typed error can be asserted exactly.
+    // ...and anything outside them never becomes a `Coordinate` at all, so no
+    // downstream routine has to re-validate. `Error` is `PartialEq`, so the
+    // typed rejection can be asserted exactly.
     assert_eq!(
-        Coordinate::wgs84(91.0, 0.0).validate(),
+        Coordinate::wgs84(91.0, 0.0),
         Err(Error::OutOfRange {
             lat: 91.0,
             lon: 0.0
         })
     );
+    assert!(matches!(
+        Coordinate::from_lon_lat(f64::NAN, 0.0, Crs::Wgs84),
+        Err(Error::OutOfRange { .. })
+    ));
+    assert!(matches!(
+        Coordinate::wgs84(0.0, 0.0)?.with_height(Height::Ellipsoidal(f64::INFINITY)),
+        Err(Error::InvalidValue { .. })
+    ));
+    // Deserialization goes through the same check: JSON cannot smuggle in an
+    // out-of-range coordinate.
+    let valid_json = serde_json::to_string(&Coordinate::wgs84(41.0, 0.0)?)?;
+    assert!(serde_json::from_str::<Coordinate>(&valid_json).is_ok());
+    let out_of_range_json = valid_json.replace("41.0", "91.0");
+    assert_ne!(out_of_range_json, valid_json);
+    assert!(serde_json::from_str::<Coordinate>(&out_of_range_json).is_err());
     assert!(matches!(
         Dd(f64::NAN).try_to_dms(Axis::Latitude),
         Err(Error::InvalidValue { .. })
@@ -70,7 +85,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     ));
     assert!(
         format(
-            &NEW_YORK,
+            &new_york(),
             &FormatOptions {
                 precision: Some(16),
                 ..FormatOptions::default()
@@ -79,50 +94,59 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         .is_err()
     );
     assert_eq!(
-        BaiduMercator::try_from_coordinate(Coordinate::wgs84(39.915, 116.404)),
+        BaiduMercator::try_from_coordinate(Coordinate::wgs84(39.915, 116.404)?),
         Err(Error::CrsMismatch {
             expected: Crs::Bd09,
             found: Crs::Wgs84,
         })
     );
     assert!(matches!(
-        Wgs84::try_from(Coordinate::gcj02(39.915, 116.404)),
+        Wgs84::try_from(Coordinate::gcj02(39.915, 116.404)?),
         Err(Error::CrsMismatch { .. })
     ));
     assert!(Wgs84::new(f64::NAN, 116.404).try_to_gcj02().is_err());
-    assert!(geodesic_distance(&Coordinate::wgs84(0.0, 0.0), &Coordinate::gcj02(0.0, 1.0)).is_err());
-    assert!(destination(&Coordinate::gcj02(0.0, 0.0), 90.0, Length::from_meters(1.0)).is_err());
+    assert!(
+        geodesic_distance(&Coordinate::wgs84(0.0, 0.0)?, &Coordinate::gcj02(0.0, 1.0)?).is_err()
+    );
+    assert!(
+        destination(
+            &Coordinate::gcj02(0.0, 0.0)?,
+            90.0,
+            Length::from_meters(1.0)
+        )
+        .is_err()
+    );
     assert!(
         Ecef::try_from_coordinate(
-            Coordinate::wgs84(0.0, 0.0).with_height(Height::Orthometric(10.0)),
+            Coordinate::wgs84(0.0, 0.0)?.with_height(Height::Orthometric(10.0))?,
             Ellipsoid::WGS84
         )
         .is_err()
     );
     assert!(
         Enu::try_from_coordinate(
-            Coordinate::gcj02(40.0, -75.0),
-            Coordinate::wgs84(40.0, -75.0)
+            Coordinate::gcj02(40.0, -75.0)?,
+            Coordinate::wgs84(40.0, -75.0)?
         )
         .is_err()
     );
     let nad27_transform = DatumTransform::to_wgs84(Crs::Nad27).expect("catalogued");
     assert!(
         nad27_transform
-            .transform(Coordinate::wgs84(40.0, -100.0))
+            .transform(Coordinate::wgs84(40.0, -100.0)?)
             .is_err()
     );
     assert!(matches!(
         PlusCode::try_from("not-a-plus-code"),
         Err(Error::InvalidGridRef(_))
     ));
-    assert!(PlusCode::encode(NEW_YORK, 3).is_err());
-    assert!(Geohash::encode(NEW_YORK, 23).is_err());
-    assert!(Maidenhead::encode(NEW_YORK, 0).is_err());
-    assert!(Mgrs::try_from_coordinate(NEW_YORK, 250).is_err());
+    assert!(PlusCode::encode(new_york(), 3).is_err());
+    assert!(Geohash::encode(new_york(), 23).is_err());
+    assert!(Maidenhead::encode(new_york(), 0).is_err());
+    assert!(Mgrs::try_from_coordinate(new_york(), 250).is_err());
     assert!(Mgrs::try_from("18TWK000000277577").is_err());
-    assert!(H3Cell::encode(NEW_YORK, 16).is_err());
-    assert!(H3Cell::encode(Coordinate::gcj02(40.0, -75.0), 9).is_err());
+    assert!(H3Cell::encode(new_york(), 16).is_err());
+    assert!(H3Cell::encode(Coordinate::gcj02(40.0, -75.0)?, 9).is_err());
     assert_eq!(
         H3Cell(0).decode(),
         Err(Error::InvalidCellId {
@@ -130,8 +154,8 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
             value: 0,
         })
     );
-    assert!(S2CellId::encode(NEW_YORK, 31).is_err());
-    assert!(S2CellId::encode(Coordinate::bd09(40.0, -75.0), 20).is_err());
+    assert!(S2CellId::encode(new_york(), 31).is_err());
+    assert!(S2CellId::encode(Coordinate::bd09(40.0, -75.0)?, 20).is_err());
     assert!(S2CellId(0).decode().is_err());
     assert!(matches!(
         parse_coordinate("not a coordinate"),
@@ -141,11 +165,11 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert!(from_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
     assert!(parse_text("40 60 N 74 0 W").is_err());
     assert!(matches!(
-        Utm::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)),
+        Utm::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)?),
         Err(Error::OutOfRange { .. })
     ));
     assert!(matches!(
-        Ups::try_from_coordinate(Coordinate::wgs84(40.0, -75.0)),
+        Ups::try_from_coordinate(Coordinate::wgs84(40.0, -75.0)?),
         Err(Error::OutOfRange { .. })
     ));
     assert!(

@@ -210,20 +210,27 @@ impl DatumTransform {
     /// backs both NAD83 and ETRS89) — so the target reference system is stored
     /// explicitly on `self.to_crs` rather than inferred from the ellipsoid.
     pub fn transform(&self, coord: Coordinate) -> Result<Coordinate> {
-        if coord.crs != self.from_crs {
+        if coord.crs() != self.from_crs {
             return Err(Error::CrsMismatch {
                 expected: self.from_crs,
-                found: coord.crs,
+                found: coord.crs(),
             });
         }
-        let had_height = coord.height.is_some();
+        let had_height = coord.height().is_some();
         let ecef = Ecef::try_from_coordinate(coord, self.from)?;
         let shifted = self.helmert.apply_ecef(ecef);
-        let mut result = shifted.try_to_coordinate(self.to, self.to_crs)?;
-        if !had_height {
-            result.height = None;
+        let result = shifted.try_to_coordinate(self.to, self.to_crs)?;
+        if had_height {
+            Ok(result)
+        } else {
+            // The input was 2-D, so the shifted ellipsoidal height is dropped.
+            Ok(Coordinate::from_valid(
+                result.lat(),
+                result.lon(),
+                None,
+                result.crs(),
+            ))
         }
-        Ok(result)
     }
 
     /// The reverse transform (swaps ellipsoids and inverts the Helmert shift).
@@ -376,12 +383,15 @@ mod tests {
         // geodetic(WGS84) for (40°N, 100°W, 0 m). NAD27 → WGS84 in CONUS shifts
         // the longitude west by ~1.5″ and the ellipsoidal height down ~35 m.
         let dt = DatumTransform::to_wgs84(Crs::Nad27).unwrap();
-        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).with_height(Height::Ellipsoidal(0.0));
+        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27)
+            .unwrap()
+            .with_height(Height::Ellipsoidal(0.0))
+            .unwrap();
         let w = dt.transform(nad27).unwrap();
-        assert_eq!(w.crs, Crs::Wgs84);
-        assert_close(w.lat, 40.000_009_482_759, 1e-8);
-        assert_close(w.lon, -100.000_417_622_218_8, 1e-8);
-        match w.height {
+        assert_eq!(w.crs(), Crs::Wgs84);
+        assert_close(w.lat(), 40.000_009_482_759, 1e-8);
+        assert_close(w.lon(), -100.000_417_622_218_8, 1e-8);
+        match w.height() {
             Some(Height::Ellipsoidal(h)) => assert_close(h, -35.215_786_937_624_216, 1e-3),
             other => panic!("expected ellipsoidal height, got {other:?}"),
         }
@@ -392,13 +402,16 @@ mod tests {
         // Translation-only Helmert is exactly invertible, so a there-and-back
         // datum shift recovers the original geodetic coordinate.
         let dt = DatumTransform::to_wgs84(Crs::Tokyo).unwrap();
-        let tokyo = Coordinate::new(35.0, 139.0, Crs::Tokyo).with_height(Height::Ellipsoidal(50.0));
+        let tokyo = Coordinate::new(35.0, 139.0, Crs::Tokyo)
+            .unwrap()
+            .with_height(Height::Ellipsoidal(50.0))
+            .unwrap();
         let w = dt.transform(tokyo).unwrap();
         let back = dt.inverse().transform(w).unwrap();
-        assert_eq!(back.crs, Crs::Tokyo);
-        assert_close(back.lat, 35.0, 1e-9);
-        assert_close(back.lon, 139.0, 1e-9);
-        match back.height {
+        assert_eq!(back.crs(), Crs::Tokyo);
+        assert_close(back.lat(), 35.0, 1e-9);
+        assert_close(back.lon(), 139.0, 1e-9);
+        match back.height() {
             Some(Height::Ellipsoidal(h)) => assert_close(h, 50.0, 1e-4),
             other => panic!("expected ellipsoidal height, got {other:?}"),
         }
@@ -418,11 +431,14 @@ mod tests {
     #[test]
     fn transform_rejects_a_mismatched_source_crs_and_preserves_missing_height() {
         let dt = DatumTransform::to_wgs84(Crs::Nad27).unwrap();
-        assert!(dt.transform(Coordinate::wgs84(40.0, -100.0)).is_err());
+        assert!(
+            dt.transform(Coordinate::wgs84(40.0, -100.0).unwrap())
+                .is_err()
+        );
         let result = dt
-            .transform(Coordinate::new(40.0, -100.0, Crs::Nad27))
+            .transform(Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap())
             .unwrap();
-        assert_eq!(result.crs, Crs::Wgs84);
-        assert_eq!(result.height, None);
+        assert_eq!(result.crs(), Crs::Wgs84);
+        assert_eq!(result.height(), None);
     }
 }

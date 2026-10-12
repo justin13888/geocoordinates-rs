@@ -2,7 +2,7 @@ use super::*;
 use crate::test_support::{assert_close, assert_within_geodesic_meters};
 
 fn c(lat: f64, lon: f64) -> Coordinate {
-    Coordinate::wgs84(lat, lon)
+    Coordinate::wgs84(lat, lon).unwrap()
 }
 
 // (lat, lon, MGRS at 1 m) reference strings from the `mgrs` Python library.

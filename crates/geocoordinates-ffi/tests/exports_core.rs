@@ -20,6 +20,19 @@ fn close(actual: f64, expected: f64, tol: f64) {
     );
 }
 
+fn wgs84(lat: f64, lon: f64) -> Coordinate {
+    coordinate_new(lat, lon, Crs::Wgs84).unwrap()
+}
+
+/// A WGS84 record built by hand with an out-of-range latitude, bypassing
+/// `coordinate_new`'s validation.
+const OUT_OF_RANGE: Coordinate = Coordinate {
+    lat: 91.0,
+    lon: 0.0,
+    height: None,
+    crs: Crs::Wgs84,
+};
+
 fn opts(
     representation: Representation,
     precision: Option<u8>,
@@ -51,9 +64,43 @@ fn coordinate_constructors_tag_their_crs() {
             }
         );
     };
-    expect(coordinate_wgs84(1.5, -2.5), Crs::Wgs84);
-    expect(coordinate_gcj02(1.5, -2.5), Crs::Gcj02);
-    expect(coordinate_bd09(1.5, -2.5), Crs::Bd09);
+    expect(wgs84(1.5, -2.5), Crs::Wgs84);
+    expect(coordinate_new(1.5, -2.5, Crs::Gcj02).unwrap(), Crs::Gcj02);
+    expect(coordinate_new(1.5, -2.5, Crs::Bd09).unwrap(), Crs::Bd09);
+}
+
+#[test]
+fn coordinate_new_rejects_out_of_range_and_non_finite_input() {
+    match coordinate_new(91.0, 0.0, Crs::Wgs84) {
+        Err(GeoError::OutOfRange { lat, lon }) => assert_eq!((lat, lon), (91.0, 0.0)),
+        other => panic!("expected OutOfRange, got {other:?}"),
+    }
+    match coordinate_new(0.0, f64::NAN, Crs::Wgs84) {
+        Err(GeoError::OutOfRange { lat, lon }) => {
+            assert_eq!(lat, 0.0);
+            assert!(lon.is_nan());
+        }
+        other => panic!("expected OutOfRange, got {other:?}"),
+    }
+}
+
+#[test]
+fn exports_reject_a_hand_built_out_of_range_record() {
+    let bad = OUT_OF_RANGE;
+    let is_out_of_range =
+        |e: GeoError| matches!(e, GeoError::OutOfRange { lat, lon } if (lat, lon) == (91.0, 0.0));
+    assert!(is_out_of_range(convert(bad, Crs::Gcj02).unwrap_err()));
+    assert!(is_out_of_range(
+        geodesic_distance_m(bad, wgs84(0.0, 0.0)).unwrap_err()
+    ));
+    let dd = opts(
+        Representation::DecimalDegrees,
+        Some(4),
+        SymbolStyle::Unicode,
+        HemisphereStyle::Signed,
+        None,
+    );
+    assert!(is_out_of_range(format_coordinate(bad, dd).unwrap_err()));
 }
 
 // --- China datums: exact forward ---
@@ -140,13 +187,14 @@ fn baidu_mercator_round_trips_through_bd09_and_coordinate() {
     assert_eq!(coord.crs, Crs::Bd09);
     assert_eq!((coord.lat, coord.lon), (back.lat, back.lon));
     assert_eq!(coord.height, None);
-    let from_coord = baidu_mercator_from_coordinate(coordinate_bd09(BD.0, BD.1)).unwrap();
+    let from_coord =
+        baidu_mercator_from_coordinate(coordinate_new(BD.0, BD.1, Crs::Bd09).unwrap()).unwrap();
     assert_eq!(from_coord, merc);
 }
 
 #[test]
 fn baidu_mercator_rejects_a_non_bd09_coordinate() {
-    match baidu_mercator_from_coordinate(coordinate_wgs84(BD.0, BD.1)) {
+    match baidu_mercator_from_coordinate(wgs84(BD.0, BD.1)) {
         Err(GeoError::CrsMismatch { expected, found }) => {
             assert_eq!(expected, Crs::Bd09);
             assert_eq!(found, Crs::Wgs84);
@@ -163,8 +211,8 @@ fn out_of_china_separates_beijing_from_london() {
 
 #[test]
 fn haversine_distance_is_pinned() {
-    let ny = coordinate_wgs84(40.7128, -74.006);
-    let london = coordinate_wgs84(51.5074, -0.1278);
+    let ny = wgs84(40.7128, -74.006);
+    let london = wgs84(51.5074, -0.1278);
     close(
         haversine_distance_m(ny, london).unwrap(),
         5_570_229.873_656_523,
@@ -253,24 +301,50 @@ fn length_unit_conversions_are_exact() {
 
 #[test]
 fn coordinate_validate_rejects_out_of_range_latitude() {
-    assert!(coordinate_validate(coordinate_wgs84(40.0, -74.0)).is_ok());
-    match coordinate_validate(coordinate_wgs84(91.0, 0.0)) {
+    assert!(coordinate_validate(wgs84(40.0, -74.0)).is_ok());
+    match coordinate_validate(OUT_OF_RANGE) {
         Err(GeoError::OutOfRange { lat, lon }) => assert_eq!((lat, lon), (91.0, 0.0)),
         other => panic!("expected OutOfRange, got {other:?}"),
     }
 }
 
 #[test]
+fn coordinate_validate_rejects_a_non_finite_height() {
+    let coord = Coordinate {
+        height: Some(Height::Ellipsoidal {
+            meters: f64::INFINITY,
+        }),
+        ..wgs84(40.0, -74.0)
+    };
+    match coordinate_validate(coord) {
+        Err(GeoError::InvalidValue { .. }) => {}
+        other => panic!("expected InvalidValue, got {other:?}"),
+    }
+}
+
+#[test]
 fn null_island_detection_uses_a_micro_degree_window() {
-    assert!(coordinate_is_null_island(coordinate_wgs84(0.0, 0.0)));
-    assert!(coordinate_is_null_island(coordinate_wgs84(1e-7, -1e-7)));
-    assert!(!coordinate_is_null_island(coordinate_wgs84(1e-5, 0.0)));
+    assert!(coordinate_is_null_island(wgs84(0.0, 0.0)).unwrap());
+    assert!(coordinate_is_null_island(wgs84(1e-7, -1e-7)).unwrap());
+    assert!(!coordinate_is_null_island(wgs84(1e-5, 0.0)).unwrap());
+}
+
+#[test]
+fn null_island_and_fix_from_coord_reject_an_out_of_range_record() {
+    match coordinate_is_null_island(OUT_OF_RANGE) {
+        Err(GeoError::OutOfRange { lat, lon }) => assert_eq!((lat, lon), (91.0, 0.0)),
+        other => panic!("expected OutOfRange, got {other:?}"),
+    }
+    match fix_from_coord(OUT_OF_RANGE) {
+        Err(GeoError::OutOfRange { lat, lon }) => assert_eq!((lat, lon), (91.0, 0.0)),
+        other => panic!("expected OutOfRange, got {other:?}"),
+    }
 }
 
 #[test]
 fn fix_from_coord_carries_no_metadata() {
-    let coord = coordinate_wgs84(WGS.0, WGS.1);
-    let fix = fix_from_coord(coord);
+    let coord = wgs84(WGS.0, WGS.1);
+    let fix = fix_from_coord(coord).unwrap();
     assert_eq!(
         fix,
         Fix {
@@ -294,7 +368,7 @@ fn confidence_new_clamps_into_the_unit_interval() {
 
 #[test]
 fn format_coordinate_renders_each_representation() {
-    let ny = coordinate_wgs84(40.7128, -74.006);
+    let ny = wgs84(40.7128, -74.006);
     let dd = opts(
         Representation::DecimalDegrees,
         Some(6),
@@ -311,7 +385,7 @@ fn format_coordinate_renders_each_representation() {
         None,
     );
     assert_eq!(
-        format_coordinate(coordinate_wgs84(10.5, 20.25), dms).unwrap(),
+        format_coordinate(wgs84(10.5, 20.25), dms).unwrap(),
         "10°30′00″N 20°15′00″E"
     );
     let ddm = opts(
@@ -333,7 +407,7 @@ fn format_coordinate_renders_each_representation() {
         None,
     );
     assert_eq!(
-        format_coordinate(coordinate_wgs84(47.000_062_5, 8.000_062_5), plus).unwrap(),
+        format_coordinate(wgs84(47.000_062_5, 8.000_062_5), plus).unwrap(),
         "8FVC2222+22"
     );
 }
@@ -348,7 +422,7 @@ fn format_coordinate_honours_a_decimal_comma_locale() {
         Some("de-DE"),
     );
     assert_eq!(
-        format_coordinate(coordinate_wgs84(40.7128, -74.006), de).unwrap(),
+        format_coordinate(wgs84(40.7128, -74.006), de).unwrap(),
         "40,71 -74,01"
     );
 }
@@ -356,7 +430,7 @@ fn format_coordinate_honours_a_decimal_comma_locale() {
 #[test]
 fn format_fix_derives_precision_from_accuracy() {
     let fix = Fix {
-        coord: coordinate_wgs84(40.7128, -74.006),
+        coord: wgs84(40.7128, -74.006),
         accuracy: Some(Accuracy {
             horizontal_m: Some(1000.0),
             vertical_m: None,
@@ -396,7 +470,7 @@ fn format_options_uses_decimal_comma_follows_the_locale() {
 #[test]
 fn parse_coordinate_records_the_assumed_axis_order() {
     let fix = parse_coordinate("40.7128, -74.006".to_string()).unwrap();
-    assert_eq!(fix.coord, coordinate_wgs84(40.7128, -74.006));
+    assert_eq!(fix.coord, wgs84(40.7128, -74.006));
     let source = fix.source.unwrap();
     assert_eq!(source.raw, "40.7128, -74.006");
     assert_eq!(source.axis_order, Some(AxisOrder::LatLon));
@@ -414,7 +488,7 @@ fn parse_coordinate_with_and_parse_text_with_read_a_decimal_comma() {
         parse_coordinate_with("40,7128 -74,006".to_string(), options).unwrap(),
         parse_text_with("40,7128 -74,006".to_string(), options).unwrap(),
     ] {
-        assert_eq!(fix.coord, coordinate_wgs84(40.7128, -74.006));
+        assert_eq!(fix.coord, wgs84(40.7128, -74.006));
         assert_eq!(fix.source.unwrap().axis_order, Some(AxisOrder::LatLon));
     }
 }

@@ -37,7 +37,7 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 }
 
 /// The point reached from `start` by traveling `distance` along a constant
-/// `bearing_deg` rhumb line. Carries `start.crs`.
+/// `bearing_deg` rhumb line. Carries `start.crs()`.
 pub fn rhumb_destination(
     start: &Coordinate,
     bearing_deg: f64,
@@ -47,7 +47,7 @@ pub fn rhumb_destination(
     validate_bearing_and_distance(bearing_deg, distance)?;
     let theta = bearing_deg.to_radians();
     let delta = distance.meters() / MEAN_EARTH_RADIUS_M;
-    let phi1 = start.lat.to_radians();
+    let phi1 = start.lat().to_radians();
     let d_phi = delta * theta.cos();
     let mut phi2 = phi1 + d_phi;
     // Crossing a pole flips to the far side.
@@ -58,11 +58,11 @@ pub fn rhumb_destination(
     }
     let q = east_west_scale(d_phi, stretched_lat_diff(phi1, phi2), phi1);
     let d_lon = (delta * theta.sin() / q).to_degrees();
-    Ok(Coordinate::new(
+    Coordinate::new(
         phi2.to_degrees(),
-        wrap_longitude(start.lon + d_lon + if crossed_pole { 180.0 } else { 0.0 }),
-        start.crs,
-    ))
+        wrap_longitude(start.lon() + d_lon + if crossed_pole { 180.0 } else { 0.0 }),
+        start.crs(),
+    )
 }
 
 /// The shorter signed longitude difference `b − a`, in radians (antimeridian-safe).

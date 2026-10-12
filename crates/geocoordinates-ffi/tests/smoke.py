@@ -28,6 +28,18 @@ def approx(a: float, b: float, tol: float) -> bool:
     return abs(a - b) <= tol
 
 
+def wgs84_coord(lat: float, lon: float) -> "gc.Coordinate":
+    return gc.coordinate_new(lat, lon, gc.Crs.WGS84)
+
+
+def gcj02_coord(lat: float, lon: float) -> "gc.Coordinate":
+    return gc.coordinate_new(lat, lon, gc.Crs.GCJ02)
+
+
+def bd09_coord(lat: float, lon: float) -> "gc.Coordinate":
+    return gc.coordinate_new(lat, lon, gc.Crs.BD09)
+
+
 # Reference triple from src/test_support.rs (coordtransform-rs), (lat, lon):
 WGS = (39.915, 116.404)
 GCJ = (39.91640428150164, 116.41024449916938)
@@ -62,18 +74,18 @@ assert gc.out_of_china(WGS[0], WGS[1]) is False  # Beijing
 
 # --- Fallible conversion: error path + success path ---
 try:
-    gc.baidu_mercator_from_coordinate(gc.coordinate_wgs84(WGS[0], WGS[1]))
+    gc.baidu_mercator_from_coordinate(wgs84_coord(WGS[0], WGS[1]))
     raise AssertionError("expected CrsMismatch for a WGS-84 coordinate")
 except gc.GeoError.CrsMismatch as e:
     # The reference systems cross as the typed Crs enum, not as strings.
     assert e.expected == gc.Crs.BD09 and e.found == gc.Crs.WGS84, (e.expected, e.found)
-ok =gc.baidu_mercator_from_coordinate(gc.coordinate_bd09(BD[0], BD[1]))
+ok =gc.baidu_mercator_from_coordinate(bd09_coord(BD[0], BD[1]))
 assert approx(ok.x, merc.x, 1e-6) and approx(ok.y, merc.y, 1e-6)
 
 # --- Distance (Length flattened to meters) ---
-a = gc.coordinate_wgs84(WGS[0], WGS[1])
+a = wgs84_coord(WGS[0], WGS[1])
 assert gc.haversine_distance_m(a, a) == 0.0
-one_deg_north = gc.coordinate_wgs84(WGS[0] + 1.0, WGS[1])
+one_deg_north = wgs84_coord(WGS[0] + 1.0, WGS[1])
 d = gc.haversine_distance_m(a, one_deg_north)
 assert math.isclose(d, 111194.9, abs_tol=50.0), d  # ~mean-earth-radius * pi/180
 
@@ -97,13 +109,19 @@ assert approx(gc.length_from_unit(1.0, gc.LengthUnit.KILOMETER), 1000.0, 1e-9)
 assert approx(gc.length_to_unit(1852.0, gc.LengthUnit.NAUTICAL_MILE), 1.0, 1e-9)
 
 # --- Coordinate validation + Null Island ---
-gc.coordinate_validate(gc.coordinate_wgs84(40.0, -74.0))  # in range -> no raise
+gc.coordinate_validate(wgs84_coord(40.0, -74.0))  # in range -> no raise
 try:
-    gc.coordinate_validate(gc.coordinate_wgs84(91.0, 0.0))
+    gc.coordinate_new(91.0, 0.0, gc.Crs.WGS84)
+    raise AssertionError("expected OutOfRange from coordinate_new for latitude 91")
+except gc.GeoError.OutOfRange as e:
+    assert e.lat == 91.0 and e.lon == 0.0, (e.lat, e.lon)
+# A hand-built record bypasses coordinate_new; validation still catches it.
+try:
+    gc.coordinate_validate(gc.Coordinate(lat=91.0, lon=0.0, height=None, crs=gc.Crs.WGS84))
     raise AssertionError("expected OutOfRange for latitude 91")
 except gc.GeoError.OutOfRange as e:
     assert e.lat == 91.0 and e.lon == 0.0, (e.lat, e.lon)
-assert gc.coordinate_is_null_island(gc.coordinate_wgs84(0.0, 0.0)) is True
+assert gc.coordinate_is_null_island(wgs84_coord(0.0, 0.0)) is True
 assert gc.coordinate_is_null_island(a) is False
 
 # --- Fix observation family (SystemTime maps to a native timestamp) ---
@@ -121,7 +139,7 @@ dd_opts = gc.FormatOptions(
     locale=None,
 )
 assert (
-    gc.format_coordinate(gc.coordinate_wgs84(40.7128, -74.006), dd_opts)
+    gc.format_coordinate(wgs84_coord(40.7128, -74.006), dd_opts)
     == "40.712800, -74.006000"
 )
 dms_opts = gc.FormatOptions(
@@ -132,7 +150,7 @@ dms_opts = gc.FormatOptions(
     locale=None,
 )
 assert (
-    gc.format_coordinate(gc.coordinate_wgs84(10.5, 20.25), dms_opts)
+    gc.format_coordinate(wgs84_coord(10.5, 20.25), dms_opts)
     == "10°30′00″N 20°15′00″E"
 )
 # format_fix derives precision from accuracy when precision is None (~1 km -> 2 dp)
@@ -144,7 +162,7 @@ auto_opts = gc.FormatOptions(
     locale=None,
 )
 km_fix = gc.Fix(
-    coord=gc.coordinate_wgs84(40.7128, -74.006),
+    coord=wgs84_coord(40.7128, -74.006),
     accuracy=gc.Accuracy(horizontal_m=1000.0, vertical_m=None),
     timestamp=None,
     source=None,
@@ -168,7 +186,7 @@ assert approx(comma.coord.lat, 40.7128, 1e-9)
 assert approx(comma.coord.lon, -74.006, 1e-9)
 
 # --- Plus Code (Open Location Code) ---
-assert gc.plus_code_encode(gc.coordinate_wgs84(47.0000625, 8.0000625), 10) == "8FVC2222+22"
+assert gc.plus_code_encode(wgs84_coord(47.0000625, 8.0000625), 10) == "8FVC2222+22"
 area = gc.plus_code_decode("8FVC2222+22")
 # Grid decodes share the ApproxCoordinate shape with MGRS/H3/S2 and `convert`.
 assert area.coord.crs == gc.Crs.WGS84
@@ -191,17 +209,17 @@ pc_opts = gc.FormatOptions(
     locale=None,
 )
 assert (
-    gc.format_coordinate(gc.coordinate_wgs84(47.0000625, 8.0000625), pc_opts)
+    gc.format_coordinate(wgs84_coord(47.0000625, 8.0000625), pc_opts)
     == "8FVC2222+22"
 )
 
 # --- Geohash and Maidenhead ---
-assert gc.geohash_encode(gc.coordinate_wgs84(42.6, -5.6), 5) == "ezs42"
+assert gc.geohash_encode(wgs84_coord(42.6, -5.6), 5) == "ezs42"
 gh = gc.geohash_decode("ezs42")
 assert gh.coord.crs == gc.Crs.WGS84
 assert approx(gh.coord.lat, 42.604_980_468_75, 1e-12) and approx(gh.coord.lon, -5.603_027_343_75, 1e-12)
 assert approx(gh.max_error_m, 3_037.127_762, 1e-5), gh.max_error_m
-assert gc.maidenhead_encode(gc.coordinate_wgs84(40.5, -75.0), 2) == "FN20"
+assert gc.maidenhead_encode(wgs84_coord(40.5, -75.0), 2) == "FN20"
 mh = gc.maidenhead_decode("FN20")
 assert mh.coord.crs == gc.Crs.WGS84
 assert approx(mh.coord.lat, 40.5, 1e-9) and approx(mh.coord.lon, -75.0, 1e-9)
@@ -210,11 +228,11 @@ assert approx(mh.max_error_m, 101_308.370_254, 1e-5), mh.max_error_m
 # --- Geodesy: ellipsoid, ECEF, ENU/AER ---
 wgs84 = gc.ellipsoid_wgs84()
 assert approx(gc.ellipsoid_semi_minor_m(wgs84), 6_356_752.314_245, 1e-3)
-ecef = gc.ecef_from_coordinate(gc.coordinate_wgs84(0.0, 0.0), wgs84)
+ecef = gc.ecef_from_coordinate(wgs84_coord(0.0, 0.0), wgs84)
 assert approx(ecef.x, 6_378_137.0, 1e-3) and approx(ecef.y, 0.0, 1e-3)
 assert approx(gc.ecef_to_coordinate(ecef, wgs84, gc.Crs.WGS84).lat, 0.0, 1e-9)
-origin = gc.coordinate_wgs84(40.0, -75.0)
-enu = gc.enu_from_coordinate(gc.coordinate_wgs84(40.1, -75.0), origin)
+origin = wgs84_coord(40.0, -75.0)
+enu = gc.enu_from_coordinate(wgs84_coord(40.1, -75.0), origin)
 # 0.1 deg of meridian arc at 40 N; the target sits below the tangent plane.
 assert approx(enu.north, 11_103.553_727, 1e-5), enu.north
 assert approx(enu.east, 0.0, 1e-6) and approx(enu.up, -9.689_709, 1e-5), (enu.east, enu.up)
@@ -223,16 +241,16 @@ assert approx(aer.azimuth_deg, 0.0, 1e-9) and approx(aer.range_m, 100.0, 1e-9)
 
 # --- Geodesics ---
 ny_london = gc.geodesic_distance_m(
-    gc.coordinate_wgs84(40.7128, -74.006), gc.coordinate_wgs84(51.5074, -0.1278)
+    wgs84_coord(40.7128, -74.006), wgs84_coord(51.5074, -0.1278)
 )
 assert approx(ny_london, 5_585_233.578_931, 1e-3), ny_london  # Karney on WGS-84
 assert approx(
-    gc.initial_bearing(gc.coordinate_wgs84(0.0, 0.0), gc.coordinate_wgs84(0.0, 1.0)), 90.0, 1e-6
+    gc.initial_bearing(wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 1.0)), 90.0, 1e-6
 )
-dest = gc.destination(gc.coordinate_wgs84(0.0, 0.0), 90.0, 111_319.49)
+dest = gc.destination(wgs84_coord(0.0, 0.0), 90.0, 111_319.49)
 assert approx(dest.lon, 1.0, 1e-4)
 # The equator (eastbound) and the prime meridian (northbound) meet at Null Island.
-hit = gc.intersection(gc.coordinate_wgs84(0.0, -10.0), 90.0, gc.coordinate_wgs84(-10.0, 0.0), 0.0)
+hit = gc.intersection(wgs84_coord(0.0, -10.0), 90.0, wgs84_coord(-10.0, 0.0), 0.0)
 assert hit is not None and hit.crs == gc.Crs.WGS84
 assert approx(hit.lat, 0.0, 1e-12) and approx(hit.lon, 0.0, 1e-12), (hit.lat, hit.lon)
 
@@ -255,30 +273,30 @@ assert approx(e.x, 4_000_000.0, 1e-6)
 # --- Runtime conversion dispatch ---
 assert gc.can_convert(gc.Crs.BD09, gc.Crs.TOKYO) is True
 # WGS-84 -> GCJ-02 is exact (bound 0); the inverse is approximate (bound > 0).
-fwd = gc.convert(gc.coordinate_wgs84(WGS[0], WGS[1]), gc.Crs.GCJ02)
+fwd = gc.convert(wgs84_coord(WGS[0], WGS[1]), gc.Crs.GCJ02)
 assert fwd.max_error_m == 0.0 and fwd.coord.crs == gc.Crs.GCJ02
 assert approx(fwd.coord.lat, GCJ[0], 1e-9)
-inv = gc.convert(gc.coordinate_gcj02(GCJ[0], GCJ[1]), gc.Crs.WGS84)
+inv = gc.convert(gcj02_coord(GCJ[0], GCJ[1]), gc.Crs.WGS84)
 assert inv.max_error_m == 0.5 and approx(inv.coord.lat, WGS[0], 1e-9)  # refined inverse bound
 assert inv.coord.crs == gc.Crs.WGS84 and approx(inv.coord.lon, WGS[1], 1e-9)
 # GCJ-02 -> BD-09 stays exact via the direct path.
-gb = gc.convert(gc.coordinate_gcj02(GCJ[0], GCJ[1]), gc.Crs.BD09)
+gb = gc.convert(gcj02_coord(GCJ[0], GCJ[1]), gc.Crs.BD09)
 assert gb.max_error_m == 0.0 and approx(gb.coord.lat, BD[0], 1e-9)
 
 # --- UTM / UPS / MGRS ---
-u = gc.utm_from_coordinate(gc.coordinate_wgs84(40.0, -75.0))
+u = gc.utm_from_coordinate(wgs84_coord(40.0, -75.0))
 assert u.zone == 18 and u.hemisphere == gc.UtmHemisphere.NORTH
 assert approx(u.easting, 500_000.0, 1e-3) and approx(u.northing, 4_427_757.2188, 1e-3)
 roundtrip = gc.utm_to_coordinate(u)
 assert approx(roundtrip.lat, 40.0, 1e-9) and approx(roundtrip.lon, -75.0, 1e-9)
 try:
-    gc.utm_from_coordinate(gc.coordinate_wgs84(85.0, 0.0))  # polar -> error
+    gc.utm_from_coordinate(wgs84_coord(85.0, 0.0))  # polar -> error
     raise AssertionError("expected OutOfRange for a polar latitude")
 except gc.GeoError.OutOfRange:
     pass
-ups = gc.ups_from_coordinate(gc.coordinate_wgs84(85.0, 0.0))
+ups = gc.ups_from_coordinate(wgs84_coord(85.0, 0.0))
 assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_000.0, 1e-3)
-assert gc.mgrs_from_coordinate(gc.coordinate_wgs84(40.0, -75.0), 1) == "18TWK0000027757"
+assert gc.mgrs_from_coordinate(wgs84_coord(40.0, -75.0), 1) == "18TWK0000027757"
 assert gc.mgrs_precision_m("18TWK000277") == 100
 dec = gc.mgrs_to_coordinate("18TWK0000027757")
 assert approx(dec.max_error_m, math.sqrt(0.5) / 0.9996, 1e-12)  # half-diagonal / UTM k0
@@ -325,28 +343,28 @@ except gc.GeoError.Parse as e:
     assert e.detail.startswith("NMEA checksum mismatch"), e.detail
 
 # --- H3 and S2 discrete global grids ---
-h3 = gc.h3_encode(gc.coordinate_wgs84(40.7128, -74.006), 9)
+h3 = gc.h3_encode(wgs84_coord(40.7128, -74.006), 9)
 assert h3.value == 617733151020810239  # canonical H3 index
 h3dec = gc.h3_decode(h3)
 assert approx(h3dec.max_error_m, 205.872_541, 1e-5), h3dec.max_error_m  # cell radius
-s2 = gc.s2_encode(gc.coordinate_wgs84(40.7128, -74.006), 20)
+s2 = gc.s2_encode(wgs84_coord(40.7128, -74.006), 20)
 assert s2.value == 9_926_595_630_970_437_632
 s2dec = gc.s2_decode(s2)
 assert approx(s2dec.max_error_m, 6.337_541, 1e-5), s2dec.max_error_m  # max corner distance
 assert approx(h3dec.coord.lat, 40.712_378_204, 1e-8) and approx(h3dec.coord.lon, -74.005_642_577, 1e-8)
 assert approx(s2dec.coord.lat, 40.712_762_829, 1e-8) and approx(s2dec.coord.lon, -74.006_004_053, 1e-8)
 try:
-    gc.h3_encode(gc.coordinate_gcj02(40.7128, -74.006), 9)
+    gc.h3_encode(gcj02_coord(40.7128, -74.006), 9)
     raise AssertionError("expected CrsMismatch for GCJ-02 H3 input")
 except gc.GeoError.CrsMismatch:
     pass
 try:
-    gc.s2_encode(gc.coordinate_bd09(40.7128, -74.006), 20)
+    gc.s2_encode(bd09_coord(40.7128, -74.006), 20)
     raise AssertionError("expected CrsMismatch for BD-09 S2 input")
 except gc.GeoError.CrsMismatch:
     pass
 try:
-    gc.h3_encode(gc.coordinate_wgs84(40.7128, -74.006), 16)
+    gc.h3_encode(wgs84_coord(40.7128, -74.006), 16)
     raise AssertionError("expected InvalidValue for H3 resolution 16")
 except gc.GeoError.InvalidValue as e:
     assert e.field == "H3 resolution" and e.detail == "must be in 0..=15", (e.field, e.detail)

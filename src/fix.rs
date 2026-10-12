@@ -5,14 +5,9 @@
 //! original raw input, and how confident the parse was. Keeping this out of
 //! [`Coordinate`] means pure geodetic math never drags fix metadata around.
 
-use crate::coord::Coordinate;
+use std::time::SystemTime;
 
-/// A timestamp associated with an observation.
-///
-/// Uses [`std::time::SystemTime`] to stay dependency-free for now.
-// TODO(impl): consider a richer `time::OffsetDateTime` behind a feature for
-// GPS week/UTC handling and leap seconds.
-pub type Timestamp = std::time::SystemTime;
+use crate::coord::Coordinate;
 
 /// A coordinate plus all known observation metadata.
 ///
@@ -27,8 +22,9 @@ pub struct Fix {
     pub coord: Coordinate,
     /// Positional accuracy, if reported.
     pub accuracy: Option<Accuracy>,
-    /// Observation time, if known.
-    pub timestamp: Option<Timestamp>,
+    /// Observation time, if known, as a [`SystemTime`] (UTC, no leap-second or
+    /// GPS-week handling).
+    pub timestamp: Option<SystemTime>,
     /// The raw input and how confidently it was interpreted.
     pub source: Option<RawSource>,
 }
@@ -114,9 +110,28 @@ pub enum DatumAmbiguity {
 ///
 /// The free-text parser must report this so the application can decide whether
 /// to prompt the user (e.g. when axis order or locale was ambiguous).
+///
+/// Always in range: [`new`](Self::new) clamps, and under the `serde` feature
+/// deserialization goes through the same clamp. The JSON shape is a bare
+/// number.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(from = "f64", into = "f64"))]
 pub struct Confidence(f64);
+
+/// Thin sugar over [`Confidence::new`], clamping into `0.0–1.0`.
+impl From<f64> for Confidence {
+    fn from(value: f64) -> Self {
+        Self::new(value)
+    }
+}
+
+/// Thin sugar over [`Confidence::value`].
+impl From<Confidence> for f64 {
+    fn from(confidence: Confidence) -> Self {
+        confidence.value()
+    }
+}
 
 impl Confidence {
     /// Construct a confidence, clamping into the valid `0.0–1.0` range.
@@ -145,5 +160,18 @@ mod tests {
         assert_eq!(Confidence::new(f64::NAN).value(), 0.0);
         assert_eq!(Confidence::new(f64::NEG_INFINITY).value(), 0.0);
         assert_eq!(Confidence::new(f64::INFINITY).value(), 1.0);
+        assert_eq!(Confidence::from(0.25).value(), 0.25);
+        assert_eq!(f64::from(Confidence::new(2.0)), 1.0);
+    }
+
+    /// Deserialization clamps like `new`, and the wire shape is a bare number.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn confidence_serde_clamps_and_keeps_its_shape() {
+        let high: Confidence = serde_json::from_str("1.5").unwrap();
+        assert_eq!(high.value(), 1.0);
+        let low: Confidence = serde_json::from_str("-0.5").unwrap();
+        assert_eq!(low.value(), 0.0);
+        assert_eq!(serde_json::to_string(&Confidence::new(0.5)).unwrap(), "0.5");
     }
 }

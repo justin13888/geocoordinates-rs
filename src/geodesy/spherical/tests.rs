@@ -4,7 +4,7 @@ use super::*;
 use crate::test_support::assert_close;
 
 fn c(lat: f64, lon: f64) -> Coordinate {
-    Coordinate::wgs84(lat, lon)
+    Coordinate::wgs84(lat, lon).unwrap()
 }
 
 #[test]
@@ -25,8 +25,8 @@ fn intersection_of_equator_and_meridian() {
     let x = intersection(&c(0.0, -10.0), 90.0, &c(-10.0, 0.0), 0.0)
         .unwrap()
         .expect("intersection exists");
-    assert_close(x.lat, 0.0, 1e-7);
-    assert_close(x.lon, 0.0, 1e-7);
+    assert_close(x.lat(), 0.0, 1e-7);
+    assert_close(x.lon(), 0.0, 1e-7);
 }
 
 #[test]
@@ -129,14 +129,14 @@ fn intersection_second_geometry_and_west_branch() {
     let x = intersection(&c(10.0, 0.0), 90.0, &c(0.0, 10.0), 0.0)
         .unwrap()
         .expect("intersection exists");
-    assert_close(x.lat, 9.851_076_116_583_906, 1e-6);
-    assert_close(x.lon, 10.0, 1e-6);
+    assert_close(x.lat(), 9.851_076_116_583_906, 1e-6);
+    assert_close(x.lon(), 10.0, 1e-6);
     // b west of a (Δλ < 0) takes the other azimuth-assignment branch.
     let w = intersection(&c(0.0, 10.0), 270.0, &c(-10.0, 0.0), 0.0)
         .unwrap()
         .expect("intersection exists");
-    assert_close(w.lat, 0.0, 1e-6);
-    assert_close(w.lon, 0.0, 1e-6);
+    assert_close(w.lat(), 0.0, 1e-6);
+    assert_close(w.lon(), 0.0, 1e-6);
 }
 
 #[test]
@@ -145,8 +145,8 @@ fn intersection_coincident_endpoints_short_circuit() {
     let x = intersection(&c(5.0, 5.0), 10.0, &c(5.0, 5.0), 80.0)
         .unwrap()
         .expect("coincident point");
-    assert_close(x.lat, 5.0, 1e-12);
-    assert_close(x.lon, 5.0, 1e-12);
+    assert_close(x.lat(), 5.0, 1e-12);
+    assert_close(x.lon(), 5.0, 1e-12);
 }
 
 #[test]
@@ -173,8 +173,8 @@ fn intersection_with_two_oblique_bearings() {
     )
     .unwrap()
     .expect("oblique intersection exists");
-    assert_close(p.lat, 15.0, 1e-4);
-    assert_close(p.lon, 25.0, 1e-4);
+    assert_close(p.lat(), 15.0, 1e-4);
+    assert_close(p.lon(), 25.0, 1e-4);
 }
 
 #[test]
@@ -186,8 +186,8 @@ fn intersection_with_shared_start_meridian() {
     let p = intersection(&c(0.0, 0.0), 60.0, &c(30.0, 0.0), 150.0)
         .unwrap()
         .expect("crossing exists");
-    assert_close(p.lat, 7.192_933_677_582_753_5, 1e-4);
-    assert_close(p.lon, 12.626_340_872_961_284, 1e-4);
+    assert_close(p.lat(), 7.192_933_677_582_753_5, 1e-4);
+    assert_close(p.lon(), 12.626_340_872_961_284, 1e-4);
 }
 
 #[test]
@@ -221,8 +221,8 @@ fn intersection_through_a_pole_returns_the_start() {
     let x = intersection(&c(90.0, 10.0), 180.0, &c(0.0, 0.0), 90.0)
         .unwrap()
         .expect("an intersection is returned");
-    assert_close(x.lat, 90.0, 1e-9);
-    assert_close(x.lon, 10.0, 1e-9);
+    assert_close(x.lat(), 90.0, 1e-9);
+    assert_close(x.lon(), 10.0, 1e-9);
 }
 
 #[test]
@@ -231,8 +231,8 @@ fn intersection_across_the_antimeridian() {
     let x = intersection(&c(0.0, 170.0), 90.0, &c(-10.0, -175.0), 0.0)
         .unwrap()
         .expect("intersection exists");
-    assert_close(x.lat, 0.0, 1e-9);
-    assert_close(x.lon, -175.0, 1e-9);
+    assert_close(x.lat(), 0.0, 1e-9);
+    assert_close(x.lon(), -175.0, 1e-9);
 }
 
 #[test]
