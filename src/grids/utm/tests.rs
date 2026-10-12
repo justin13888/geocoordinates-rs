@@ -299,44 +299,35 @@ fn ups_inverse_guards_each_field() {
 }
 
 #[test]
-fn utm_inverse_does_not_wrap_the_antimeridian() {
+fn utm_inverse_wraps_the_antimeridian() {
     use Hemisphere::North;
-    // KNOWN WRONG (C6, flipped by #114): zone 1 easting 150 km at the
-    // equator lies at ≈179.856°E across the antimeridian, but the inverse
-    // never wraps longitude, so it fails validation as lon ≈ −180.144.
-    let r = utm(1, North, 150_000.0, 0.0).try_to_coordinate();
-    assert!(
-        matches!(r, Err(Error::OutOfRange { lat, lon })
-            if lat == 0.0 && (lon + 180.143_772_343).abs() < 1e-8),
-        "{r:?}"
-    );
-    // KNOWN WRONG (C6, flipped by #114): the mirror case in zone 60.
-    let r = utm(60, North, 850_000.0, 0.0).try_to_coordinate();
-    assert!(
-        matches!(r, Err(Error::OutOfRange { lon, .. }) if (lon - 180.143_772_343).abs() < 1e-8),
-        "{r:?}"
-    );
+    // C6: zone 1 easting 150 km at the equator lies at ≈179.856°E across the
+    // antimeridian; the inverse must wrap it rather than reject it.
+    let p = utm(1, North, 150_000.0, 0.0).try_to_coordinate().unwrap();
+    assert_close(p.lat(), 0.0, 1e-12);
+    assert_close(p.lon(), 179.856_227_657, 1e-8);
+    // The mirror case in zone 60 wraps west.
+    let p = utm(60, North, 850_000.0, 0.0).try_to_coordinate().unwrap();
+    assert_close(p.lon(), -179.856_227_657, 1e-8);
     // Inside ±180 the same zone decodes normally.
     let p = utm(1, North, 170_000.0, 0.0).try_to_coordinate().unwrap();
     assert_close(p.lon(), -179.964_294_459, 1e-8);
 }
 
 #[test]
-fn utm_inverse_folds_northings_over_the_pole() {
+fn utm_inverse_rejects_northings_past_the_pole() {
     use Hemisphere::North;
-    // KNOWN WRONG (C6, flipped by #114): a north northing of 9 999 000 m is
-    // past the pole (≈9 997 964 m), yet it is accepted and folds over onto
-    // the far meridian: zone 1 (−177°) lands on +3°.
-    let p = utm(1, North, 500_000.0, 9_999_000.0)
-        .try_to_coordinate()
-        .unwrap();
-    assert_close(p.lat(), 89.990_729_391, 1e-8);
-    assert_close(p.lon(), 3.0, 1e-9);
-    // In zone 31 the fold lands on 183°, which only validation catches.
-    let r = utm(31, North, 500_000.0, 9_999_000.0).try_to_coordinate();
+    // C6: a north northing of 9 999 000 m is past the pole (≈9 997 964 m);
+    // it must be rejected, not folded over onto the far meridian.
+    let r = utm(1, North, 500_000.0, 9_999_000.0).try_to_coordinate();
     assert!(
-        matches!(r, Err(Error::OutOfRange { lat, lon })
-            if (lat - 89.990_729_391).abs() < 1e-8 && (lon - 183.0).abs() < 1e-9),
+        matches!(
+            r,
+            Err(Error::InvalidValue {
+                field: "northing",
+                ..
+            })
+        ),
         "{r:?}"
     );
 }
