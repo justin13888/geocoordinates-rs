@@ -78,6 +78,22 @@ pub use crate::fix::AxisOrder;
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found.
+///
+/// ```
+/// use geocoordinates::Error;
+/// use geocoordinates::parse::parse_coordinate;
+///
+/// let fix = parse_coordinate("40.7128, -74.006")?;
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
+///
+/// // A Plus Code decodes to its cell center, with the cell as the accuracy.
+/// let fix = parse_coordinate("87G7PX7V+4J")?;
+/// assert!((fix.coord.lat() - 40.7128).abs() < 1e-3);
+/// assert!(fix.accuracy.and_then(|a| a.horizontal_m).is_some());
+///
+/// assert!(matches!(parse_coordinate("somewhere"), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn parse_coordinate(input: &str) -> Result<Fix> {
     parse_coordinate_with(input, &ParseOptions::default())
 }
@@ -95,6 +111,25 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// Returns [`crate::Error::Parse`] when no interpretation is found. When
 /// `expect_grid` is set, the message also gives why the input is not a valid
 /// reference of that kind.
+///
+/// ```
+/// use geocoordinates::Error;
+/// use geocoordinates::parse::{GridKind, ParseOptions, parse_coordinate_with};
+///
+/// let options = ParseOptions {
+///     expect_grid: Some(GridKind::Maidenhead),
+///     ..ParseOptions::default()
+/// };
+/// let fix = parse_coordinate_with("FN20", &options)?;
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.5, -75.0));
+///
+/// // Neither a locator nor coordinate text: the error gives both reasons.
+/// let Err(Error::Parse(message)) = parse_coordinate_with("FN2", &options) else {
+///     panic!("expected a parse error");
+/// };
+/// assert!(message.starts_with("not a Maidenhead reference"));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix> {
     // Dispatch on the trimmed input, but hand every builder the verbatim
     // `input` so `RawSource::raw` never depends on which path matched. Each
@@ -169,6 +204,19 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Fix {
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input is not a well-formed `geo:`
 /// URI.
+///
+/// ```
+/// use geocoordinates::{Error, Height};
+/// use geocoordinates::parse::from_geo_uri;
+///
+/// let fix = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.2, 16.3));
+/// assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(183.0)));
+/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(40.0));
+///
+/// assert!(matches!(from_geo_uri("geo:48.2"), Err(Error::Parse(_))));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn from_geo_uri(input: &str) -> Result<Fix> {
     let trimmed = input.trim();
     let scheme = trimmed.get(..4);

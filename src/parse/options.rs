@@ -14,6 +14,20 @@ use crate::format::DecimalSeparator;
 /// geohash and `"bed"` a valid one too, so they decode only when
 /// [`ParseOptions::expect_grid`] names them. Exhaustive (no
 /// `#[non_exhaustive]`): adding a kind compile-forces the FFI mirror.
+///
+/// ```
+/// use geocoordinates::parse::{GridKind, ParseOptions, parse_coordinate, parse_coordinate_with};
+///
+/// // A bare geohash is not detected: it is not valid coordinate text either.
+/// assert!(parse_coordinate("ezs42").is_err());
+/// let options = ParseOptions {
+///     expect_grid: Some(GridKind::Geohash),
+///     ..ParseOptions::default()
+/// };
+/// let fix = parse_coordinate_with("ezs42", &options)?;
+/// assert!((fix.coord.lat() - 42.6).abs() < 0.03 && (fix.coord.lon() + 5.6).abs() < 0.03);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum GridKind {
@@ -36,6 +50,21 @@ pub enum GridKind {
 /// grid. To read back what [`format`](crate::format::format) rendered, take
 /// these from [`FormatOptions::parse_options`](crate::format::FormatOptions::parse_options)
 /// rather than building them by hand.
+///
+/// ```
+/// use geocoordinates::format::DecimalSeparator;
+/// use geocoordinates::parse::{AxisOrder, ParseOptions, parse_coordinate_with};
+///
+/// // `2,3522 48,8566` with decimal commas, longitude first.
+/// let options = ParseOptions {
+///     default_axis_order: AxisOrder::LonLat,
+///     decimal_separator: DecimalSeparator::Comma,
+///     expect_grid: None,
+/// };
+/// let fix = parse_coordinate_with("2,3522 48,8566", &options)?;
+/// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParseOptions {
