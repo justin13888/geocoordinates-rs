@@ -17,11 +17,37 @@ use core::ops::Deref;
 /// Note: the derived [`PartialEq`] compares [`max_error_m`](Approx::max_error_m)
 /// too, so two approximations of the same point with different bounds are not
 /// equal. Compare [`value`](Approx::value) explicitly for a bound-agnostic test.
+///
+/// Under the `serde` feature, `max_error_m` serializes as an optional number:
+/// a finite bound is written as itself, and an unbounded one
+/// (`f64::INFINITY`, e.g. a Pulkovo-1942 datum shift) as `null` / none, which
+/// deserializes back to `f64::INFINITY`. The bound therefore survives formats
+/// such as JSON that have no representation for infinity.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Approx<T> {
     value: T,
+    #[cfg_attr(feature = "serde", serde(with = "max_error_serde"))]
     max_error_m: f64,
+}
+
+/// (De)serializes an error bound with `f64::INFINITY` as none, because JSON
+/// writes infinity as `null` and cannot read `null` back as a number.
+#[cfg(feature = "serde")]
+mod max_error_serde {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub(super) fn serialize<S: Serializer>(bound: &f64, s: S) -> Result<S::Ok, S::Error> {
+        if *bound == f64::INFINITY {
+            s.serialize_none()
+        } else {
+            s.serialize_some(bound)
+        }
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<f64, D::Error> {
+        Ok(Option::<f64>::deserialize(d)?.unwrap_or(f64::INFINITY))
+    }
 }
 
 impl<T> Approx<T> {
@@ -64,5 +90,26 @@ impl<T> Deref for Approx<T> {
 
     fn deref(&self) -> &T {
         &self.value
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod tests {
+    use super::Approx;
+
+    #[test]
+    fn finite_bound_serializes_as_a_number() {
+        let a = Approx::new(1_u8, 2.5);
+        let json = serde_json::to_string(&a).unwrap();
+        assert_eq!(json, r#"{"value":1,"max_error_m":2.5}"#);
+        assert_eq!(serde_json::from_str::<Approx<u8>>(&json).unwrap(), a);
+    }
+
+    #[test]
+    fn unbounded_serializes_as_null_and_reads_back_as_infinity() {
+        let a = Approx::new(1_u8, f64::INFINITY);
+        let json = serde_json::to_string(&a).unwrap();
+        assert_eq!(json, r#"{"value":1,"max_error_m":null}"#);
+        assert_eq!(serde_json::from_str::<Approx<u8>>(&json).unwrap(), a);
     }
 }

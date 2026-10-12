@@ -39,7 +39,8 @@ use crate::geodesy::datum::{DatumTransform, HubRoute};
 ///   about 9.27 m for NAD27 and 28.72 m for Tokyo (the root-sum-square of
 ///   NIMA TR8350.2's per-axis figures, a statistical estimate rather than a
 ///   hard maximum), and `f64::INFINITY` for Pulkovo-1942, for which no
-///   estimate is published. The computation itself is exact to round-off, and
+///   estimate is published (serialized as `null` under the `serde` feature;
+///   see [`Approx`]). The computation itself is exact to round-off, and
 ///   the catalog is translation-only, so reversing a shift adds nothing.
 ///
 /// The GCJ-02 legs never fail. A refined inverse that cannot converge (an
@@ -266,6 +267,19 @@ mod tests {
             convert(wgs, Crs::Pulkovo42).unwrap().max_error_m(),
             f64::INFINITY
         );
+    }
+
+    /// An unbounded Pulkovo-1942 result survives a JSON round trip: JSON has
+    /// no infinity, so the bound travels as `null` and reads back as infinity.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn pulkovo_result_round_trips_through_json() {
+        let wgs = Coordinate::wgs84(55.75, 37.62).unwrap();
+        let r = convert(wgs, Crs::Pulkovo42).unwrap();
+        let json = serde_json::to_string(&r).unwrap();
+        let back: Approx<Coordinate> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, r);
+        assert_eq!(back.max_error_m(), f64::INFINITY);
     }
 
     #[test]
