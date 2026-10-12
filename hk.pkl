@@ -72,6 +72,10 @@ hooks {
             ["test"] {
                 check = "mise run test"
             }
+            ["coverage-ratchet"] {
+                check = "mise run coverage-ratchet"
+            }
+            // Fails under the line floor in `.coverage-baseline`.
             ["coverage"] {
                 check = "mise run coverage"
             }

@@ -33,6 +33,23 @@ postinstall = "hk install --mise"
 mutants_flags = "--package geocoordinates --all-features"
 # Line limit for every tracked file not listed in `.file-length-baseline`.
 max_file_lines = "654"
+# Shell function shared by the coverage tasks: reads a `.coverage-baseline`
+# file on stdin and prints its floor, or fails when the file holds anything but
+# comments, blank lines, and exactly one whole percent from 0 to 100. Its one
+# argument names the file in error messages.
+coverage_floor_fn = '''
+coverage_floor() {
+    awk -v src="$1" '
+        /^[[:space:]]*(#|$)/ { next }
+        /^[0-9]+$/ && $0 + 0 <= 100 && !n { floor = $0 + 0; n = 1; next }
+        { printf "coverage: malformed line in %s: %s\n", src, $0 > "/dev/stderr"; bad = 1 }
+        END {
+            if (!bad && !n) { printf "coverage: %s sets no floor\n", src > "/dev/stderr"; bad = 1 }
+            if (bad) exit 1
+            print floor
+        }'
+}
+'''
 
 [tasks.default]
 description = "List available tasks"
@@ -90,17 +107,63 @@ while read -r feature version; do
 done <<< "$exceptions"
 '''
 
+# Both coverage tasks fail when total line coverage falls under the floor in
+# `.coverage-baseline`; `coverage-ratchet` keeps that floor from falling.
 [tasks.coverage]
-description = "Report code coverage (no enforced threshold yet)"
-run = "cargo llvm-cov --all-features"
+description = "Report code coverage; fail under the line floor in .coverage-baseline"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+{{ vars.coverage_floor_fn }}
+floor="$(coverage_floor .coverage-baseline < .coverage-baseline)"
+cargo llvm-cov --all-features --fail-under-lines "$floor"
+'''
 
-# CI's two-step form: an lcov artifact plus a human-readable summary.
+# CI's two-step form: an lcov artifact plus a human-readable summary. The lcov
+# file is written before the floor is checked, so a failing run still leaves it.
 [tasks.coverage-lcov]
-description = "Report coverage as lcov.info plus a summary (CI)"
-run = [
-    "cargo llvm-cov --all-features --lcov --output-path lcov.info",
-    "cargo llvm-cov report --summary-only",
-]
+description = "Report coverage as lcov.info plus a summary; fail under the line floor (CI)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+{{ vars.coverage_floor_fn }}
+floor="$(coverage_floor .coverage-baseline < .coverage-baseline)"
+cargo llvm-cov --all-features --lcov --output-path lcov.info
+cargo llvm-cov report --summary-only --fail-under-lines "$floor"
+'''
+
+# The floor in `.coverage-baseline` may only rise: it fails when the floor is
+# lower than the one on [base], or when the file is gone. A base that predates
+# the file has nothing to compare against, and the check passes.
+[tasks.coverage-ratchet]
+description = "Fail when the coverage floor in .coverage-baseline falls below the base's"
+usage = 'arg "[base]" help="Ref whose coverage floor this one may not fall below" default="origin/master"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+{{ vars.coverage_floor_fn }}
+baseline=".coverage-baseline"
+base="${usage_base:-origin/master}"
+if [ ! -f "$baseline" ]; then
+    echo "coverage-ratchet: $baseline is missing" >&2
+    exit 1
+fi
+floor="$(coverage_floor "$baseline" < "$baseline")"
+if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+    echo "coverage-ratchet: no '$base' ref; skipping the comparison." >&2
+    exit 0
+fi
+if ! base_file="$(git show "$base:$baseline" 2>/dev/null)"; then
+    echo "coverage-ratchet: $base has no $baseline; skipping the comparison."
+    exit 0
+fi
+base_floor="$(coverage_floor "$base:$baseline" <<< "$base_file")"
+if [ "$floor" -lt "$base_floor" ]; then
+    echo "coverage-ratchet: floor lowered from $base_floor% to $floor% vs $base; the floor may only rise" >&2
+    exit 1
+fi
+echo "coverage-ratchet: floor $floor% is at or above $base's $base_floor%."
+'''
 
 [tasks.build]
 description = "Build the crate"

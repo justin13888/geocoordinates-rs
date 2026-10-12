@@ -124,7 +124,8 @@ frozen.
 - [ ] `cargo test --all-features --doc` executes a non-zero number of doctests.
 - [ ] `mise run bindings` regenerates cleanly for all four languages.
 - [ ] `cargo run --all-features --example flagship` passes and exercises the full surface.
-- [ ] Coverage threshold enabled in CI and met.
+- [x] Coverage threshold enabled in CI and met — a 98% line floor (measured 98.67%)
+  in `.coverage-baseline`, held shrink-only by `mise run coverage-ratchet` (#128).
 - [ ] `cargo semver-checks` output reconciled against `CHANGELOG.md` — every break recorded.
 
 0.x means each minor may break. **0.15.0 breaks freely and deliberately**, so the
