@@ -373,4 +373,33 @@ mod tests {
         let orthometric = origin.with_height(Height::Orthometric(10.0)).unwrap();
         assert!(Enu::try_from_coordinate(origin, orthometric).is_err());
     }
+
+    /// The frame check itself (not the pairwise CRS comparison or the ECEF
+    /// step) rejects a matching non-WGS-84 pair and an orthometric origin.
+    #[test]
+    fn frame_check_rejects_a_matching_non_wgs84_pair_and_orthometric_origin() {
+        let gcj = Coordinate::gcj02(40.0, -75.0).unwrap();
+        let mismatch = Err(Error::CrsMismatch {
+            expected: crate::Crs::Wgs84,
+            found: crate::Crs::Gcj02,
+        });
+        assert_eq!(Enu::try_from_coordinate(gcj, gcj), mismatch);
+        let zero = Enu {
+            east: 0.0,
+            north: 0.0,
+            up: 0.0,
+        };
+        assert_eq!(zero.try_to_coordinate(gcj), mismatch.map(|_: Enu| gcj));
+        let orthometric = Coordinate::wgs84(40.0, -75.0)
+            .unwrap()
+            .with_height(Height::Orthometric(10.0))
+            .unwrap();
+        assert_eq!(
+            zero.try_to_coordinate(orthometric),
+            Err(Error::InvalidValue {
+                field: "height",
+                detail: "local frames require ellipsoidal height".into(),
+            })
+        );
+    }
 }
