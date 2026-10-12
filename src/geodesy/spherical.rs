@@ -24,7 +24,7 @@ use crate::error::{Error, Result};
 use crate::units::Length;
 
 /// IUGG mean Earth radius R1 = (2a + b) / 3, in meters, used by every
-/// spherical routine: haversine, rhumb, cross/along-track, and intersection.
+/// spherical routine: haversine, cross/along-track, and intersection.
 pub(super) const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 
 /// Cheap spherical (haversine) distance — approximate, named for clarity.

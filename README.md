@@ -22,7 +22,7 @@ subsystem meets the five-point stabilization bar defined in
 | **Format** | `format`, `format_fix`, `FormatOptions` (with `parse_options` for the round trip), `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ✅ | ✅ |
 | **Parse** | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `from_geo_uri`, `text::parse`, `text::parse_with` | ✅ | ✅ |
 | **Interchange & sensors** *(feature-gated)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
-| **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate` (on each datum's own ellipsoid), `intersection_spherical` / `Intersection`, `cross_track_distance_spherical` / `along_track_distance_spherical`, rhumb utilities, `Helmert`, `DatumTransform` | ✅ | ✅ |
+| **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate` (on each datum's own ellipsoid), `intersection_spherical` / `Intersection`, `cross_track_distance_spherical` / `along_track_distance_spherical`, `rhumb_distance` / `rhumb_bearing` / `rhumb_destination` (on each datum's own ellipsoid), `Helmert`, `DatumTransform` | ✅ | ✅ |
 | **Projected grids** | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `zone_for`, `central_meridian_deg` | ✅ | ✅ |
 | **Encoded grids** | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
 | **Discrete global grids** *(feature-gated)* | `H3Cell`, `S2CellId` | ✅ | ✅ |

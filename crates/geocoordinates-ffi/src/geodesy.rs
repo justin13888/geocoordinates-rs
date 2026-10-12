@@ -428,7 +428,9 @@ pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Result<Coord
         .map_err(Into::into)
 }
 
-/// Rhumb-line (loxodrome) distance between two coordinates, in **meters**.
+/// Rhumb-line (loxodrome) distance between two coordinates, in **meters**,
+/// on the ellipsoid of their shared CRS (the meridian arc when either is a
+/// pole). Errors for mixed CRSs or GCJ-02 / BD-09 inputs.
 #[uniffi::export]
 pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
@@ -437,7 +439,10 @@ pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
         .map_err(Into::into)
 }
 
-/// Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`.
+/// Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`, on
+/// the ellipsoid of their shared CRS (0° or 180° when either is a pole).
+/// Errors as for `rhumb_distance_m`, and `InvalidValue` for coincident points,
+/// which have no bearing.
 #[uniffi::export]
 pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
@@ -445,7 +450,10 @@ pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 }
 
 /// The point reached from `start` along a constant `bearing_deg` rhumb line for
-/// `distance_m` meters.
+/// `distance_m` meters, on the ellipsoid of its CRS (kept, with no height). A
+/// meridional line (0° or 180°) passes over a pole onto the far meridian; any
+/// other bearing errors (`InvalidValue`) when it would reach a pole or starts
+/// at one. Errors for GCJ-02 / BD-09 inputs.
 #[uniffi::export]
 pub fn rhumb_destination(
     start: Coordinate,

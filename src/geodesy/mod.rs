@@ -5,12 +5,13 @@
 //! geodesics are delegated to
 //! [`geographiclib-rs`](https://docs.rs/geographiclib-rs) — the validated Rust
 //! port of Karney's GeographicLib (and the same engine the `geo` crate uses) —
-//! rather than re-deriving it. Everything else (haversine, rhumb/loxodrome,
-//! ECEF, ENU/NED/AER, datum/ellipsoid parameters tied to our
+//! rather than re-deriving it. Everything else (haversine, ellipsoidal
+//! rhumb/loxodrome, ECEF, ENU/NED/AER, datum/ellipsoid parameters tied to our
 //! [`Crs`](crate::Crs)) is implemented here directly.
 
 pub mod geodesic; // ellipsoidal (Karney) geodesics; re-exports the two below
-mod rhumb; // rhumb/loxodrome on the mean sphere
+mod rhumb; // rhumb/loxodrome on the datum ellipsoid
+pub(crate) mod series; // Krüger n-series shared by rhumb lines and UTM
 mod spherical; // haversine, cross/along-track, intersection on the mean sphere
 
 pub use geodesic::{Intersection, haversine_distance};

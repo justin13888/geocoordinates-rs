@@ -22,6 +22,7 @@ use crate::angle::{clamp_latitude, wrap_longitude};
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::geodesy::Ellipsoid;
+use crate::geodesy::series::KrugerSeries;
 
 mod ups;
 
@@ -39,34 +40,11 @@ const FALSE_NORTHING_SOUTH: f64 = 10_000_000.0;
 // --- WGS-84 transverse Mercator (Karney–Krüger n-series) constants ---
 const A_AXIS: f64 = Ellipsoid::WGS84.semi_major_m();
 const F: f64 = Ellipsoid::WGS84.flattening();
-/// Third flattening `n = f / (2 − f)`.
-const N: f64 = F / (2.0 - F);
-const N2: f64 = N * N;
-const N3: f64 = N2 * N;
-const N4: f64 = N3 * N;
-/// Rectifying radius `A = a/(1+n)·(1 + n²/4 + n⁴/64)`, in meters.
-const RECT_A: f64 = (A_AXIS / (1.0 + N)) * (1.0 + N2 / 4.0 + N4 / 64.0);
-/// Krüger forward (geodetic → grid) coefficients α₁..α₄.
-const ALPHA: [f64; 4] = [
-    0.5 * N - 2.0 / 3.0 * N2 + 5.0 / 16.0 * N3 + 41.0 / 180.0 * N4,
-    13.0 / 48.0 * N2 - 3.0 / 5.0 * N3 + 557.0 / 1440.0 * N4,
-    61.0 / 240.0 * N3 - 103.0 / 140.0 * N4,
-    49561.0 / 161_280.0 * N4,
-];
-/// Krüger inverse (grid → geodetic) coefficients β₁..β₄.
-const BETA: [f64; 4] = [
-    0.5 * N - 2.0 / 3.0 * N2 + 37.0 / 96.0 * N3 - 1.0 / 360.0 * N4,
-    1.0 / 48.0 * N2 + 1.0 / 15.0 * N3 - 437.0 / 1440.0 * N4,
-    17.0 / 480.0 * N3 - 37.0 / 840.0 * N4,
-    4397.0 / 161_280.0 * N4,
-];
-/// Krüger inverse conformal → geodetic latitude coefficients δ₁..δ₄.
-const DELTA: [f64; 4] = [
-    2.0 * N - 2.0 / 3.0 * N2 - 2.0 * N3 + 116.0 / 45.0 * N4,
-    7.0 / 3.0 * N2 - 8.0 / 5.0 * N3 - 227.0 / 45.0 * N4,
-    56.0 / 15.0 * N3 - 136.0 / 35.0 * N4,
-    4279.0 / 630.0 * N4,
-];
+/// The WGS-84 Krüger series (α, β, δ, rectifying radius), shared with the
+/// ellipsoidal rhumb lines.
+const SERIES: KrugerSeries = KrugerSeries::WGS84;
+/// Rectifying radius `A`, in meters.
+const RECT_A: f64 = SERIES.rect_a;
 
 /// Smallest valid UTM easting (meters).
 const MIN_EASTING: f64 = 100_000.0;
@@ -378,8 +356,7 @@ impl Utm {
         let phi = lat.to_radians();
         let d_lon = (lon - lon0).to_radians();
 
-        let e_t = 2.0 * N.sqrt() / (1.0 + N);
-        let t = (phi.sin().atanh() - e_t * (e_t * phi.sin()).atanh()).sinh();
+        let t = SERIES.conformal_tan(phi);
         let xi_p = t.atan2(d_lon.cos());
         let eta_p = (d_lon.sin() / (1.0 + t * t).sqrt()).atanh();
 
@@ -387,8 +364,8 @@ impl Utm {
         let mut eta = eta_p;
         for j in 1..=4usize {
             let jf = j as f64;
-            xi += ALPHA[j - 1] * (2.0 * jf * xi_p).sin() * (2.0 * jf * eta_p).cosh();
-            eta += ALPHA[j - 1] * (2.0 * jf * xi_p).cos() * (2.0 * jf * eta_p).sinh();
+            xi += SERIES.alpha[j - 1] * (2.0 * jf * xi_p).sin() * (2.0 * jf * eta_p).cosh();
+            eta += SERIES.alpha[j - 1] * (2.0 * jf * xi_p).cos() * (2.0 * jf * eta_p).sinh();
         }
 
         let easting = FALSE_EASTING + K0 * RECT_A * eta;
@@ -438,15 +415,15 @@ impl Utm {
         let mut eta_p = eta;
         for j in 1..=4usize {
             let jf = j as f64;
-            xi_p -= BETA[j - 1] * (2.0 * jf * xi).sin() * (2.0 * jf * eta).cosh();
-            eta_p -= BETA[j - 1] * (2.0 * jf * xi).cos() * (2.0 * jf * eta).sinh();
+            xi_p -= SERIES.beta[j - 1] * (2.0 * jf * xi).sin() * (2.0 * jf * eta).cosh();
+            eta_p -= SERIES.beta[j - 1] * (2.0 * jf * xi).cos() * (2.0 * jf * eta).sinh();
         }
 
         let chi = (xi_p.sin() / eta_p.cosh()).asin();
         let mut lat = chi;
         for j in 1..=4usize {
             let jf = j as f64;
-            lat += DELTA[j - 1] * (2.0 * jf * chi).sin();
+            lat += SERIES.delta[j - 1] * (2.0 * jf * chi).sin();
         }
         let lon = lon0 + eta_p.sinh().atan2(xi_p.cos()).to_degrees();
         Coordinate::from_valid(

@@ -13,7 +13,7 @@
 //! [`haversine_distance`], [`cross_track_distance_spherical`] /
 //! [`along_track_distance_spherical`], and [`intersection_spherical`] — are
 //! implemented directly in a sibling module and re-exported here, as are the
-//! rhumb-line routines ([`rhumb_distance`] / [`rhumb_bearing`] /
+//! ellipsoidal rhumb-line routines ([`rhumb_distance`] / [`rhumb_bearing`] /
 //! [`rhumb_destination`]), so every point-to-point operation stays reachable
 //! at this path. Every multi-point operation rejects mixed CRS values.
 //!
@@ -192,16 +192,6 @@ pub(super) fn validate_pair(a: &impl LatLon, b: &impl LatLon) -> Result<()> {
         return Err(Error::CrsMismatch {
             expected: a.crs(),
             found: b.crs(),
-        });
-    }
-    Ok(())
-}
-
-pub(super) fn validate_wgs84(position: &Coordinate) -> Result<()> {
-    if position.crs() != Crs::Wgs84 {
-        return Err(Error::CrsMismatch {
-            expected: Crs::Wgs84,
-            found: position.crs(),
         });
     }
     Ok(())
