@@ -2396,7 +2396,9 @@ public func FfiConverterTypeParseOptions_lower(_ value: ParseOptions) -> RustBuf
  */
 public struct RawSource: Equatable, Hashable {
     /**
-     * The verbatim input string.
+     * The input this coordinate came from: a single-coordinate input
+     * verbatim, or for a structured document (GeoJSON, WKT, GPX, KML) this
+     * position's own fragment in the document's syntax.
      */
     public var raw: String
     /**
@@ -2404,7 +2406,9 @@ public struct RawSource: Equatable, Hashable {
      */
     public var confidence: Confidence
     /**
-     * The axis order the parser assumed, when the format leaves it ambiguous.
+     * The order the source listed latitude and longitude in; absent when the
+     * axes are labelled (hemisphere letters, GPX attributes) or there is no
+     * axis pair (a grid reference).
      */
     public var axisOrder: AxisOrder?
     /**
@@ -2420,13 +2424,17 @@ public struct RawSource: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * The verbatim input string.
+         * The input this coordinate came from: a single-coordinate input
+         * verbatim, or for a structured document (GeoJSON, WKT, GPX, KML) this
+         * position's own fragment in the document's syntax.
          */raw: String, 
         /**
          * How confidently `raw` was interpreted as this coordinate.
          */confidence: Confidence, 
         /**
-         * The axis order the parser assumed, when the format leaves it ambiguous.
+         * The order the source listed latitude and longitude in; absent when the
+         * axes are labelled (hemisphere letters, GPX attributes) or there is no
+         * axis pair (a grid reference).
          */axisOrder: AxisOrder?, 
         /**
          * A flagged datum ambiguity, when the source's reference system is suspect.
@@ -6192,10 +6200,12 @@ public func utmZoneFor(coord: Coordinate)throws  -> UInt8  {
 }
 /**
  * Parse positions from a GeoJSON document (lon-lat order) — one [`Fix`] per
- * position (a line of *n* vertices yields *n* fixes).
+ * position (a line of *n* vertices yields *n* fixes), altitude ellipsoidal.
+ * A document with no positions yields an empty list.
  *
  * # Errors
- * `GeoError` on malformed GeoJSON.
+ * `GeoError` on malformed GeoJSON, or naming the index of the first
+ * out-of-range position.
  */
 public func fromGeojson(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6205,10 +6215,13 @@ public func fromGeojson(input: String)throws  -> [Fix]  {
 })
 }
 /**
- * Parse track / route / waypoint positions from a GPX document.
+ * Parse track / route / waypoint positions from a GPX document. `<ele>` is an
+ * orthometric (sea-level) height, `<time>` the fix timestamp, and `<hdop>` a
+ * horizontal accuracy of `HDOP × 5 m`.
  *
  * # Errors
- * `GeoError` on malformed GPX.
+ * `GeoError` on malformed GPX, or naming the index of the first point with an
+ * invalid `<hdop>`.
  */
 public func fromGpx(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6218,10 +6231,12 @@ public func fromGpx(input: String)throws  -> [Fix]  {
 })
 }
 /**
- * Parse placemark positions from a KML document (lon,lat,alt order).
+ * Parse placemark positions from a KML document (lon,lat,alt order), altitude
+ * orthometric (above sea level).
  *
  * # Errors
- * `GeoError` on malformed KML.
+ * `GeoError` on malformed KML, or naming the index of the first out-of-range
+ * position.
  */
 public func fromKml(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6245,15 +6260,21 @@ public func fromNmeaSentence(sentence: String)throws  -> Fix  {
 })
 }
 /**
- * Parse positions from a WKT string (X-Y order).
+ * Parse positions from a WKT string, reading X and Y in `axis_order`.
+ *
+ * WKT carries no CRS and so no axis order: CRS84 and most GIS software write
+ * longitude first, EPSG:4326 taken strictly is latitude first. Z is read as an
+ * ellipsoidal height, with a note on the fix that WKT leaves it unspecified.
  *
  * # Errors
- * `GeoError` on malformed WKT.
+ * `GeoError` on malformed WKT, or naming the index of the first out-of-range
+ * position.
  */
-public func fromWkt(input: String)throws  -> [Fix]  {
+public func fromWkt(input: String, axisOrder: AxisOrder)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_from_wkt(
-        FfiConverterString.lower(input),$0
+        FfiConverterString.lower(input),
+        FfiConverterTypeAxisOrder_lower(axisOrder),$0
     )
 })
 }
@@ -6749,19 +6770,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_utm_zone_for() != 21952) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 31199) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 31711) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 34162) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 6636) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 3078) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 18499) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 26367) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 47392) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 54808) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 30884) {

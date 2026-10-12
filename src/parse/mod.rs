@@ -8,9 +8,12 @@
 //!
 //! ## Axis order is first-class
 //!
-//! GeoJSON and WKT are **lon-lat (X,Y)**; humans and many EPSG CRS are
-//! lat-first. Every parser records the [`AxisOrder`] it assumed and reports a
-//! confidence so the application can decide whether to prompt the user.
+//! GeoJSON and KML are **lon-lat (X,Y)**, WKT leaves the order to the caller,
+//! and humans and many EPSG CRS are lat-first. Every parser records in
+//! [`RawSource::axis_order`] the order its source listed the axes in — `None`
+//! only when the axes are labelled (a hemisphere letter, GPX `lat`/`lon`
+//! attributes) or there is no axis pair at all (a grid reference) — and reports
+//! a confidence so the application can decide whether to prompt the user.
 //!
 //! ## Out of scope
 //!
@@ -29,6 +32,23 @@ pub mod sensors;
 
 #[cfg(test)]
 mod detection_tests;
+#[cfg(all(
+    test,
+    any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml")
+))]
+mod interchange_tests;
+
+/// Nominal GPS user-equivalent range error (meters): turns a dimensionless
+/// HDOP into a rough horizontal-accuracy estimate (`HDOP × UERE`), for NMEA
+/// `GGA` and GPX `<hdop>` alike.
+#[cfg(any(
+    feature = "nmea",
+    feature = "geojson",
+    feature = "wkt",
+    feature = "gpx",
+    feature = "kml"
+))]
+const NOMINAL_UERE_M: f64 = 5.0;
 
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Height};
@@ -117,7 +137,8 @@ fn decode_grid(kind: GridKind, trimmed: &str) -> Result<Approx<Coordinate>> {
 }
 
 /// Build a [`Fix`] from a decoded grid cell: the cell center, with the cell's
-/// error bound recorded as horizontal accuracy. Axis order is unambiguous.
+/// error bound recorded as horizontal accuracy. A grid reference lists no axis
+/// pair, so it records no axis order.
 fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Fix {
     let bound = area.max_error_m();
     Fix {
@@ -233,7 +254,7 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
         source: Some(RawSource {
             raw: input.to_string(),
             confidence: Confidence::new(1.0), // geo: is unambiguous
-            axis_order: None,                 // RFC 5870 fixes lat-first
+            axis_order: Some(AxisOrder::LatLon), // RFC 5870 lists lat first
             datum_ambiguity: None,
             notes,
         }),
@@ -271,7 +292,7 @@ mod tests {
         assert_close(fix.coord.lat(), 13.4125, 1e-9);
         assert_close(fix.coord.lon(), 103.8667, 1e-9);
         let s = fix.source.as_ref().unwrap();
-        assert_eq!(s.axis_order, None); // RFC 5870 fixes lat-first
+        assert_eq!(s.axis_order, Some(AxisOrder::LatLon)); // RFC 5870 lists lat first
         assert_close(s.confidence.value(), 1.0, 1e-12);
         assert!(fix.accuracy.is_none());
     }
@@ -321,9 +342,12 @@ mod tests {
 
     #[test]
     fn parse_coordinate_dispatches() {
-        // geo: path -> axis order fixed (None).
+        // geo: path -> the RFC's lat-first listing order.
         let geo = parse_coordinate("geo:13.4125,103.8667").unwrap();
-        assert_eq!(geo.source.as_ref().unwrap().axis_order, None);
+        assert_eq!(
+            geo.source.as_ref().unwrap().axis_order,
+            Some(AxisOrder::LatLon)
+        );
         // text path -> axis order recorded.
         let text = parse_coordinate("40.7128, -74.006").unwrap();
         assert!(text.source.as_ref().unwrap().axis_order.is_some());

@@ -241,7 +241,7 @@ for representation, (lat, lon), expected in grid_cases:
 # --- Parsing (geo: URI, free text, explicit options) ---
 geo = gc.parse_coordinate("geo:48.2,16.3,183;crs=wgs84;u=40")
 assert approx(geo.coord.lat, 48.2, 1e-9) and approx(geo.coord.lon, 16.3, 1e-9)
-assert geo.source.axis_order is None  # RFC 5870 fixes lat-first
+assert geo.source.axis_order == gc.AxisOrder.LAT_LON  # RFC 5870 lists lat first
 assert geo.accuracy.horizontal_m == 40.0
 text = gc.parse_coordinate("40.7128, -74.006")
 assert approx(text.coord.lat, 40.7128, 1e-9)
@@ -467,19 +467,36 @@ except gc.GeoError.InvalidGridRef as e:
 gj = gc.from_geojson('{"type":"Point","coordinates":[2.0,9.0,100.0]}')
 assert len(gj) == 1 and approx(gj[0].coord.lat, 9.0, 1e-9) and approx(gj[0].coord.lon, 2.0, 1e-9)
 assert gj[0].source.axis_order == gc.AxisOrder.LON_LAT
-wktfixes = gc.from_wkt("LINESTRING(0 0, 10 20)")
+assert gj[0].coord.height == gc.Height.ELLIPSOIDAL(100.0)
+# Each fix's raw source is its own position, not the whole document.
+assert gj[0].source.raw == '{"type":"Point","coordinates":[2.0,9.0,100.0]}', gj[0].source.raw
+# WKT defines no axis order, so the caller states it.
+wktfixes = gc.from_wkt("LINESTRING(0 0, 10 20)", gc.AxisOrder.LON_LAT)
 assert len(wktfixes) == 2 and approx(wktfixes[1].coord.lat, 20.0, 1e-9)
+assert wktfixes[1].source.raw == "POINT(10 20)"
+latlon = gc.from_wkt("POINT(20 10)", gc.AxisOrder.LAT_LON)
+assert approx(latlon[0].coord.lat, 20.0, 1e-9) and latlon[0].source.axis_order == gc.AxisOrder.LAT_LON
 gpxfixes = gc.from_gpx(
     '<?xml version="1.0"?><gpx version="1.1" creator="t"'
-    ' xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="48.2" lon="16.3"/></gpx>'
+    ' xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="48.2" lon="16.3"><ele>183</ele>'
+    "<time>2024-03-01T12:00:05Z</time><hdop>1.5</hdop></wpt></gpx>"
 )
 assert len(gpxfixes) == 1 and approx(gpxfixes[0].coord.lat, 48.2, 1e-9)
-assert gpxfixes[0].source.axis_order == gc.AxisOrder.LAT_LON
+assert gpxfixes[0].source.axis_order is None  # GPX labels its axes
+assert gpxfixes[0].coord.height == gc.Height.ORTHOMETRIC(183.0)
+assert gpxfixes[0].timestamp is not None
+assert approx(gpxfixes[0].accuracy.horizontal_m, 1.5 * 5.0, 1e-9)  # HDOP x nominal UERE
 kmlfixes = gc.from_kml(
     '<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
-    "<Placemark><Point><coordinates>16.3,48.2</coordinates></Point></Placemark></Document></kml>"
+    "<Placemark><Point><coordinates>16.3,48.2,183</coordinates></Point></Placemark></Document></kml>"
 )
 assert len(kmlfixes) == 1 and approx(kmlfixes[0].coord.lon, 16.3, 1e-9)
+assert kmlfixes[0].coord.height == gc.Height.ORTHOMETRIC(183.0)
+try:
+    gc.from_geojson('{"type":"LineString","coordinates":[[0,0],[181,0]]}')
+    raise AssertionError("expected an out-of-range position to be rejected")
+except gc.GeoError.Parse as e:
+    assert "invalid position at index 1" in e.detail, e.detail
 try:
     gc.from_geojson("not json")
     raise AssertionError("expected a parse error")
@@ -490,7 +507,7 @@ except gc.GeoError.Parse:
 nmea = gc.from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
 assert approx(nmea.coord.lat, 48.0 + 7.038 / 60.0, 1e-9)
 assert approx(nmea.coord.lon, 11.0 + 31.0 / 60.0, 1e-9)
-assert nmea.source.axis_order is None  # NMEA is lat-first
+assert nmea.source.axis_order == gc.AxisOrder.LAT_LON  # NMEA lists lat first
 assert approx(nmea.accuracy.horizontal_m, 0.9 * 5.0, 1e-9)  # HDOP x nominal UERE
 try:
     gc.from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")  # bad checksum

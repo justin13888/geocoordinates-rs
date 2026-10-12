@@ -126,11 +126,15 @@ pub struct Accuracy {
 /// The original input a coordinate was parsed from — mirror of [`gc::RawSource`].
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct RawSource {
-    /// The verbatim input string.
+    /// The input this coordinate came from: a single-coordinate input
+    /// verbatim, or for a structured document (GeoJSON, WKT, GPX, KML) this
+    /// position's own fragment in the document's syntax.
     pub raw: String,
     /// How confidently `raw` was interpreted as this coordinate.
     pub confidence: Confidence,
-    /// The axis order the parser assumed, when the format leaves it ambiguous.
+    /// The order the source listed latitude and longitude in; absent when the
+    /// axes are labelled (hemisphere letters, GPX attributes) or there is no
+    /// axis pair (a grid reference).
     pub axis_order: Option<AxisOrder>,
     /// A flagged datum ambiguity, when the source's reference system is suspect.
     pub datum_ambiguity: Option<DatumAmbiguity>,

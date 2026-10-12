@@ -259,10 +259,24 @@ fn from_geojson_reads_lon_lat_order() {
 }
 
 #[test]
-fn from_wkt_reads_every_vertex() {
-    let fixes = from_wkt("LINESTRING(0 0, 10 20)".to_string()).unwrap();
-    let points: Vec<(f64, f64)> = fixes.iter().map(|f| (f.coord.lat, f.coord.lon)).collect();
-    assert_eq!(points, vec![(0.0, 0.0), (20.0, 10.0)]);
+fn from_wkt_reads_every_vertex_in_the_stated_axis_order() {
+    let points = |order| -> Vec<(f64, f64)> {
+        from_wkt("LINESTRING(0 0, 10 20)".to_string(), order)
+            .unwrap()
+            .iter()
+            .map(|f| (f.coord.lat, f.coord.lon))
+            .collect()
+    };
+    assert_eq!(points(AxisOrder::LonLat), vec![(0.0, 0.0), (20.0, 10.0)]);
+    assert_eq!(points(AxisOrder::LatLon), vec![(0.0, 0.0), (10.0, 20.0)]);
+    let fixes = from_wkt("POINT Z(1 2 3)".to_string(), AxisOrder::LatLon).unwrap();
+    let source = fixes[0].source.as_ref().unwrap();
+    assert_eq!(source.axis_order, Some(AxisOrder::LatLon));
+    assert_eq!(source.raw, "POINT Z(1 2 3)");
+    assert_eq!(
+        fixes[0].coord.height,
+        Some(Height::Ellipsoidal { meters: 3.0 })
+    );
 }
 
 #[test]
@@ -270,7 +284,8 @@ fn from_gpx_reads_a_waypoint() {
     let fixes = from_gpx(
         concat!(
             r#"<?xml version="1.0"?><gpx version="1.1" creator="t" "#,
-            r#"xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="48.2" lon="16.3"/></gpx>"#,
+            r#"xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="48.2" lon="16.3">"#,
+            "<ele>183</ele><time>2024-03-01T12:00:05Z</time><hdop>1.5</hdop></wpt></gpx>",
         )
         .to_string(),
     )
@@ -278,9 +293,16 @@ fn from_gpx_reads_a_waypoint() {
     assert_eq!(fixes.len(), 1);
     assert_eq!((fixes[0].coord.lat, fixes[0].coord.lon), (48.2, 16.3));
     assert_eq!(
-        fixes[0].source.as_ref().unwrap().axis_order,
-        Some(AxisOrder::LatLon)
+        fixes[0].coord.height,
+        Some(Height::Orthometric { meters: 183.0 })
     );
+    assert_eq!(
+        fixes[0].timestamp,
+        Some(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_709_294_405))
+    );
+    close(fixes[0].accuracy.unwrap().horizontal_m.unwrap(), 7.5, 1e-12);
+    // GPX labels its axes with attributes, so no listing order is recorded.
+    assert_eq!(fixes[0].source.as_ref().unwrap().axis_order, None);
 }
 
 #[test]
@@ -288,7 +310,7 @@ fn from_kml_reads_a_placemark() {
     let fixes = from_kml(
         concat!(
             r#"<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>"#,
-            "<Placemark><Point><coordinates>16.3,48.2</coordinates></Point></Placemark>",
+            "<Placemark><Point><coordinates>16.3,48.2,183</coordinates></Point></Placemark>",
             "</Document></kml>",
         )
         .to_string(),
@@ -296,6 +318,14 @@ fn from_kml_reads_a_placemark() {
     .unwrap();
     assert_eq!(fixes.len(), 1);
     assert_eq!((fixes[0].coord.lat, fixes[0].coord.lon), (48.2, 16.3));
+    assert_eq!(
+        fixes[0].coord.height,
+        Some(Height::Orthometric { meters: 183.0 })
+    );
+    assert_eq!(
+        fixes[0].source.as_ref().unwrap().raw,
+        "<Point><coordinates>16.3,48.2,183</coordinates></Point>"
+    );
 }
 
 // --- NMEA 0183 ---
@@ -315,7 +345,7 @@ fn from_nmea_sentence_reads_a_gga_fix() {
     // Horizontal accuracy is HDOP times a nominal 5 m UERE.
     close(fix.accuracy.unwrap().horizontal_m.unwrap(), 4.5, 1e-12);
     let source = fix.source.unwrap();
-    assert_eq!(source.axis_order, None);
+    assert_eq!(source.axis_order, Some(AxisOrder::LatLon));
     assert_eq!(source.notes, vec!["geoid separation 46.9 m"]);
     assert!(matches!(
         from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E".to_string()),

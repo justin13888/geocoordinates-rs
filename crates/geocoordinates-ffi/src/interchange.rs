@@ -3,17 +3,19 @@
 
 use geocoordinates as gc;
 
-use crate::{Fix, GeoError};
+use crate::{AxisOrder, Fix, GeoError};
 
 // ===========================================================================
 // Structured interchange formats (GeoJSON / WKT / GPX / KML)
 // ===========================================================================
 
 /// Parse positions from a GeoJSON document (lon-lat order) — one [`Fix`] per
-/// position (a line of *n* vertices yields *n* fixes).
+/// position (a line of *n* vertices yields *n* fixes), altitude ellipsoidal.
+/// A document with no positions yields an empty list.
 ///
 /// # Errors
-/// `GeoError` on malformed GeoJSON.
+/// `GeoError` on malformed GeoJSON, or naming the index of the first
+/// out-of-range position.
 #[uniffi::export]
 pub fn from_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_geojson(&input)
@@ -21,21 +23,29 @@ pub fn from_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
         .map_err(GeoError::from)
 }
 
-/// Parse positions from a WKT string (X-Y order).
+/// Parse positions from a WKT string, reading X and Y in `axis_order`.
+///
+/// WKT carries no CRS and so no axis order: CRS84 and most GIS software write
+/// longitude first, EPSG:4326 taken strictly is latitude first. Z is read as an
+/// ellipsoidal height, with a note on the fix that WKT leaves it unspecified.
 ///
 /// # Errors
-/// `GeoError` on malformed WKT.
+/// `GeoError` on malformed WKT, or naming the index of the first out-of-range
+/// position.
 #[uniffi::export]
-pub fn from_wkt(input: String) -> Result<Vec<Fix>, GeoError> {
-    gc::parse::interchange::from_wkt(&input)
+pub fn from_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoError> {
+    gc::parse::interchange::from_wkt(&input, axis_order.into())
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
 }
 
-/// Parse track / route / waypoint positions from a GPX document.
+/// Parse track / route / waypoint positions from a GPX document. `<ele>` is an
+/// orthometric (sea-level) height, `<time>` the fix timestamp, and `<hdop>` a
+/// horizontal accuracy of `HDOP × 5 m`.
 ///
 /// # Errors
-/// `GeoError` on malformed GPX.
+/// `GeoError` on malformed GPX, or naming the index of the first point with an
+/// invalid `<hdop>`.
 #[uniffi::export]
 pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_gpx(&input)
@@ -43,10 +53,12 @@ pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
         .map_err(GeoError::from)
 }
 
-/// Parse placemark positions from a KML document (lon,lat,alt order).
+/// Parse placemark positions from a KML document (lon,lat,alt order), altitude
+/// orthometric (above sea level).
 ///
 /// # Errors
-/// `GeoError` on malformed KML.
+/// `GeoError` on malformed KML, or naming the index of the first out-of-range
+/// position.
 #[uniffi::export]
 pub fn from_kml(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_kml(&input)

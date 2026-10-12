@@ -14,11 +14,9 @@
 use crate::angle::{Ddm, Hemisphere};
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
-use crate::fix::{Accuracy, Confidence, Fix, RawSource};
+use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
 
-/// Nominal GPS user-equivalent range error (meters): turns the dimensionless
-/// HDOP into a rough horizontal-accuracy estimate (`HDOP × UERE`).
-const NOMINAL_UERE_M: f64 = 5.0;
+use super::NOMINAL_UERE_M;
 
 /// Parse a single NMEA 0183 sentence (GGA/RMC/GLL) into a [`Fix`].
 ///
@@ -128,7 +126,9 @@ fn base_fix(coord: Coordinate, accuracy: Option<Accuracy>, notes: Vec<String>, r
         source: Some(RawSource {
             raw: raw.to_string(),
             confidence: Confidence::new(1.0),
-            axis_order: None, // NMEA fixes the lat-first order
+            // NMEA identifies each axis by its field position, latitude first;
+            // the hemisphere letter only signs it.
+            axis_order: Some(AxisOrder::LatLon),
             datum_ambiguity: None,
             notes,
         }),
@@ -200,7 +200,7 @@ mod tests {
             1e-9,
         );
         let src = fix.source.as_ref().unwrap();
-        assert_eq!(src.axis_order, None); // NMEA is lat-first
+        assert_eq!(src.axis_order, Some(AxisOrder::LatLon)); // NMEA lists lat first
         assert!(src.notes.iter().any(|n| n.contains("geoid separation")));
     }
 
