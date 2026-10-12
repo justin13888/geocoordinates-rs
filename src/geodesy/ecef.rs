@@ -126,21 +126,30 @@ impl Ecef {
 ///
 /// A port of the oblate branch of `Geocentric::IntReverse` from Karney's
 /// GeographicLib (MIT licence), itself Vermeille's 2002 closed-form solution
-/// with Karney's guards against cancellation, underflow, and overflow.
+/// with Karney's guards against cancellation and underflow.
 fn geodetic_latitude_and_height(p: Ecef, ellipsoid: Ellipsoid) -> (f64, f64) {
+    let r = p.x.hypot(p.y);
+    let (lat, h) = vermeille(r, p.z, ellipsoid);
+    if h.is_finite() {
+        (lat, h)
+    } else {
+        // The closed form's eighth powers overflow somewhere past 1e40 m.
+        // That far out the Earth is a point: the distance to its center is
+        // the height to round-off, and the direction is the latitude.
+        (p.z.atan2(r), r.hypot(p.z))
+    }
+}
+
+/// Vermeille's closed form for the distance `r` from the polar axis and the
+/// height `z` above the equatorial plane. Non-finite once its intermediate
+/// powers overflow.
+fn vermeille(r: f64, z: f64, ellipsoid: Ellipsoid) -> (f64, f64) {
     let a = ellipsoid.semi_major_m();
     let e2 = ellipsoid.eccentricity_sq();
     let e2m = 1.0 - e2; // (1 − f)²
     let e4 = e2 * e2;
-    let r = p.x.hypot(p.y);
-    let dist = r.hypot(p.z);
-    // Beyond ~6e22 m the Earth is a point: the distance to its center is the
-    // height to round-off, and the squares below could overflow.
-    if dist > 2.0 * a / f64::EPSILON {
-        return (p.z.atan2(r), dist);
-    }
     let pp = (r / a) * (r / a);
-    let q = e2m * (p.z / a) * (p.z / a);
+    let q = e2m * (z / a) * (z / a);
     let rr = (pp + q - e4) / 6.0;
     if e4 * q == 0.0 && rr <= 0.0 {
         // On the equatorial plane inside the evolute (r ≤ a·e²): the general
@@ -151,7 +160,7 @@ fn geodetic_latitude_and_height(p: Ecef, ellipsoid: Ellipsoid) -> (f64, f64) {
         let hh = zz.hypot(xx);
         let lat = zz.atan2(xx);
         let h = -a * e2m * hh / e2;
-        return (if p.z < 0.0 { -lat } else { lat }, h);
+        return (if z < 0.0 { -lat } else { lat }, h);
     }
     // Multiplying the equations for s and t by r³ and r avoids dividing by
     // r = 0.
@@ -171,13 +180,18 @@ fn geodetic_latitude_and_height(p: Ecef, ellipsoid: Ellipsoid) -> (f64, f64) {
         rr + 2.0 * rr * (ang / 3.0).cos()
     };
     let v = (u * u + e4 * q).sqrt();
-    // u + v, rearranged when u < 0 to avoid cancellation.
-    let uv = if u < 0.0 { e4 * q / (v - u) } else { u + v };
+    // u + v, rearranged when u is negative to avoid cancellation. (u is never
+    // ±0 with q = 0 here, so v − u cannot vanish.)
+    let uv = if u.is_sign_negative() {
+        e4 * q / (v - u)
+    } else {
+        u + v
+    };
     let w = (e2 * (uv - q) / (2.0 * v)).max(0.0);
     let k = uv / ((uv + w * w).sqrt() + w);
     let k2 = k + e2;
-    let lat = (p.z / k).atan2(r / k2);
-    let h = (1.0 - e2m / k) * (k * r / k2).hypot(p.z);
+    let lat = (z / k).atan2(r / k2);
+    let h = (1.0 - e2m / k) * (k * r / k2).hypot(z);
     (lat, h)
 }
 

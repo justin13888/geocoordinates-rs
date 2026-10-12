@@ -172,12 +172,18 @@ fn the_equatorial_interior_takes_the_side_of_z() {
 /// position whose height overflows is an error rather than an infinite value.
 #[test]
 fn distant_positions_keep_their_direction() {
-    let far = Ecef::new(1e300, 0.0, 1e300)
-        .try_to_coordinate(Crs::Wgs84)
-        .unwrap();
-    assert_close(far.lat(), 45.0, 1e-12);
-    assert_close(far.lon(), 0.0, 0.0);
-    assert_close(ellipsoidal_height(far), 2f64.sqrt() * 1e300, 1e286);
+    // Below the overflow the closed form answers; above it, the far-field
+    // fallback does. Either way the direction and distance hold.
+    assert_ecef_round_trip(Ecef::new(1e10, 0.0, 1e10), Crs::Wgs84);
+    // From 1e20 m on, geodetic and geocentric latitude agree to 1e-9°.
+    for d in [1e20, 1e30, 1e40, 1e45, 1e50, 1e100, 1e200, 1e300] {
+        let far = Ecef::new(d, 0.0, d).try_to_coordinate(Crs::Wgs84).unwrap();
+        assert_close(far.lat(), 45.0, 1e-9);
+        assert_close(far.lon(), 0.0, 0.0);
+        // The height is the distance less about the Earth's radius at 45°.
+        let expected = 2f64.sqrt() * d - 6_367_490.0;
+        assert_close(ellipsoidal_height(far), expected, 1e-12 * d + 10.0);
+    }
     assert!(matches!(
         Ecef::new(f64::MAX, f64::MAX, 0.0).try_to_coordinate(Crs::Wgs84),
         Err(Error::InvalidValue {
