@@ -21,10 +21,9 @@ fn geodesic_distance_equator_reference() {
 }
 
 #[test]
-fn geodesic_distance_measures_other_datums_on_wgs84() {
-    // Two Tokyo-datum points are measured on WGS-84, not on their own
-    // Bessel 1841 ellipsoid, so the result differs from the Bessel geodesic
-    // by the documented relative error (up to about 1.3e-4).
+fn geodesic_distance_measures_each_datum_on_its_own_ellipsoid() {
+    // C14: two Tokyo-datum points are measured on their own Bessel 1841
+    // ellipsoid, not on WGS-84, which would be off by about 1e-4 of the distance.
     let bessel = crate::geodesy::Ellipsoid::BESSEL_1841;
     let (a, b) = ((35.0, 139.0), (36.0, 140.0));
     let tokyo = geodesic_distance(
@@ -36,9 +35,30 @@ fn geodesic_distance_measures_other_datums_on_wgs84() {
     let on_wgs84: f64 = Geodesic::wgs84().inverse(a.0, a.1, b.0, b.1);
     let on_bessel: f64 =
         Geodesic::new(bessel.semi_major_m(), bessel.flattening()).inverse(a.0, a.1, b.0, b.1);
-    assert_eq!(tokyo, on_wgs84);
-    let rel = ((tokyo - on_bessel) / on_bessel).abs();
+    assert_eq!(tokyo, on_bessel);
+    let rel = ((on_wgs84 - on_bessel) / on_bessel).abs();
     assert!((1e-5..1.3e-4).contains(&rel), "relative error {rel}");
+}
+
+#[test]
+fn geodesic_distance_rejects_obfuscated_china_datums() {
+    // C14: GCJ-02 / BD-09 positions are not on any ellipsoid.
+    for (a, b) in [
+        (
+            Coordinate::gcj02(39.9, 116.4),
+            Coordinate::gcj02(31.2, 121.5),
+        ),
+        (Coordinate::bd09(39.9, 116.4), Coordinate::bd09(31.2, 121.5)),
+    ] {
+        let (a, b) = (a.unwrap(), b.unwrap());
+        assert!(
+            matches!(
+                geodesic_distance(&a, &b),
+                Err(Error::CrsMismatch { expected: Crs::Wgs84, found }) if found == a.crs()
+            ),
+            "{a:?}"
+        );
+    }
 }
 
 #[test]

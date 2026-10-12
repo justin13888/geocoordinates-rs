@@ -214,14 +214,14 @@ fn haversine_references() {
 }
 
 #[test]
-fn intersection_through_a_pole_returns_the_start() {
-    // KNOWN WRONG (C1, flipped by #113): the meridian south from the north pole
-    // along 10°E meets the equator at (0, 10), but the `phi1.cos()` division
-    // degenerates at the pole and the start point (90, 10) comes back as `Ok`.
+fn intersection_from_a_pole_follows_the_given_meridian() {
+    // C1: the meridian south from the north pole along 10°E meets the equator
+    // at (0, 10). At a pole the bearing is taken against the meridian of the
+    // given longitude, so 180° from (90, 10) runs down 10°E.
     let x = intersection(&c(90.0, 10.0), 180.0, &c(0.0, 0.0), 90.0)
         .unwrap()
         .expect("an intersection is returned");
-    assert_close(x.lat(), 90.0, 1e-9);
+    assert_close(x.lat(), 0.0, 1e-9);
     assert_close(x.lon(), 10.0, 1e-9);
 }
 
