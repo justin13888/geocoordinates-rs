@@ -183,6 +183,8 @@ fn parse_gll(f: &[&str], raw: &str) -> Result<Fix> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, SystemTime};
+
     use super::*;
     use crate::test_support::assert_close;
 
@@ -204,15 +206,170 @@ mod tests {
         assert!(src.notes.iter().any(|n| n.contains("geoid separation")));
     }
 
+    /// Seconds since the Unix epoch as a `SystemTime`.
+    fn epoch(secs: u64, nanos: u32) -> SystemTime {
+        SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
+    }
+
+    /// The parse error's message, failing the test on success or another variant.
+    fn parse_error(sentence: &str) -> String {
+        match from_nmea_sentence(sentence) {
+            Err(Error::Parse(message)) => message,
+            other => panic!("{sentence:?}: expected a parse error, got {other:?}"),
+        }
+    }
+
     #[test]
-    fn rmc_southern_western_void() {
+    fn rmc_southern_western_with_timestamp() {
         let fix =
-            from_nmea_sentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
+            from_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
                 .unwrap();
         assert_close(fix.coord.lat(), -(33.0 + 40.0 / 60.0), 1e-9);
         assert_close(fix.coord.lon(), -(70.0 + 30.0 / 60.0), 1e-9);
         assert!(fix.accuracy.is_none());
-        assert!(fix.source.unwrap().notes.iter().any(|n| n.contains("void")));
+        // 1994-03-23T12:35:19Z: a two-digit year of 80 or more is 19xx.
+        assert_eq!(fix.timestamp, Some(epoch(764_426_119, 0)));
+        assert!(fix.source.unwrap().notes.is_empty());
+    }
+
+    #[test]
+    fn void_and_no_fix_sentences_are_rejected() {
+        // RMC status `V`: the receiver says the position is not valid.
+        let rmc = parse_error("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07");
+        assert!(rmc.contains("void"), "{rmc}");
+        // GLL status `V`.
+        let gll = parse_error("$GPGLL,4916.45,N,12311.12,W,225444,V");
+        assert!(gll.contains("void"), "{gll}");
+        // GGA fix quality 0: no fix, typically with empty position fields.
+        let gga = parse_error("$GPGGA,123519,4807.038,N,01131.000,E,0,08,0.9,545.4,M,46.9,M,,");
+        assert!(gga.contains("quality 0"), "{gga}");
+        let empty = parse_error("$GPGGA,123519,,,,,0,00,,,M,,M,,");
+        assert!(empty.contains("quality 0"), "{empty}");
+        // NMEA 2.3 mode indicator `N` (data not valid) on RMC and GLL.
+        let rmc_mode = parse_error("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,,N");
+        assert!(rmc_mode.contains("mode N"), "{rmc_mode}");
+        let gll_mode = parse_error("$GPGLL,4916.45,N,12311.12,W,225444,A,N");
+        assert!(gll_mode.contains("mode N"), "{gll_mode}");
+    }
+
+    #[test]
+    fn valid_status_and_mode_are_accepted() {
+        // An autonomous (`A`) or differential (`D`) mode and other GGA qualities parse.
+        assert!(
+            from_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,,A")
+                .is_ok()
+        );
+        assert!(from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,D").is_ok());
+        // Pre-2.0 GLL carries no status field at all.
+        assert!(from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W").is_ok());
+        for quality in ["1", "2", "6", ""] {
+            let sentence =
+                format!("$GPGGA,123519,4807.038,N,01131.000,E,{quality},08,0.9,545.4,M,46.9,M,,");
+            assert!(from_nmea_sentence(&sentence).is_ok(), "{sentence}");
+        }
+    }
+
+    #[test]
+    fn minutes_need_two_integer_digits() {
+        // `807.038` would split as 80° 7.038′; NMEA always writes `mm`.
+        let lat = parse_error("$GPGLL,807.038,N,12311.12,W,225444,A");
+        assert!(lat.contains("malformed NMEA coordinate"), "{lat}");
+        let lon = parse_error("$GPGLL,4916.45,N,1231.12,W,225444,A");
+        assert!(lon.contains("malformed NMEA coordinate"), "{lon}");
+        // Three minute digits, a signed degree, and an exponent are malformed too.
+        for value in ["49160.45", "+916.45", "4916e1", "4916.4x"] {
+            let sentence = format!("$GPGLL,{value},N,12311.12,W,225444,A");
+            let message = parse_error(&sentence);
+            assert!(
+                message.contains("malformed NMEA coordinate"),
+                "{sentence}: {message}"
+            );
+        }
+        // Whole minutes with no fraction, and a bare trailing point, still parse.
+        let whole = from_nmea_sentence("$GPGLL,4916,N,12311.,W,225444,A").unwrap();
+        assert_close(whole.coord.lat(), 49.0 + 16.0 / 60.0, 1e-9);
+        assert_close(whole.coord.lon(), -(123.0 + 11.0 / 60.0), 1e-9);
+    }
+
+    #[test]
+    fn gga_altitude_must_be_in_meters() {
+        let feet = parse_error("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,F,46.9,M,,");
+        assert!(feet.contains("altitude unit"), "{feet}");
+        let missing = parse_error("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,,46.9,M,,");
+        assert!(missing.contains("altitude unit"), "{missing}");
+        // No altitude means no unit to check.
+        let bare =
+            from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,,,,,,").unwrap();
+        assert_eq!(bare.coord.height(), None);
+    }
+
+    #[test]
+    fn rmc_timestamp_edges() {
+        let rmc = |time: &str, date: &str| {
+            from_nmea_sentence(&format!(
+                "$GPRMC,{time},A,3340.000,S,07030.000,W,000.0,000.0,{date},,"
+            ))
+            .unwrap()
+        };
+        // Fractional seconds; the 1980 and 2079 ends of the two-digit-year window.
+        assert_eq!(
+            rmc("000000.25", "010180").timestamp,
+            Some(epoch(315_532_800, 250_000_000))
+        );
+        assert_eq!(
+            rmc("235959", "311279").timestamp,
+            Some(epoch(3_471_292_799, 0))
+        );
+        assert_eq!(
+            rmc("000000.", "010180").timestamp,
+            Some(epoch(315_532_800, 0))
+        );
+        // Nanosecond digits past the ninth are truncated.
+        assert_eq!(
+            rmc("000000.1234567899", "010180").timestamp,
+            Some(epoch(315_532_800, 123_456_789))
+        );
+        // A leap day, and a leap second (UTC 23:59:60) are real times.
+        assert_eq!(
+            rmc("000000", "290224").timestamp,
+            Some(epoch(1_709_164_800, 0))
+        );
+        assert_eq!(
+            rmc("235960", "311279").timestamp,
+            Some(epoch(3_471_292_800, 0))
+        );
+        // Either half missing leaves the timestamp empty without a note.
+        for (time, date) in [("", "230394"), ("123519", "")] {
+            let fix = rmc(time, date);
+            assert_eq!(fix.timestamp, None);
+            assert!(fix.source.unwrap().notes.is_empty());
+        }
+        // An unreadable date/time keeps the position but notes why no time is set.
+        for (time, date) in [
+            ("123519", "290223"), // not a leap year
+            ("123519", "310494"), // April has 30 days
+            ("123519", "000194"),
+            ("123519", "011394"),
+            ("123519", "010094"),
+            ("123519", "32039"),
+            ("123519", "2303945"),
+            ("243519", "230394"),
+            ("126019", "230394"),
+            ("123561", "230394"),
+            ("12351", "230394"),
+            ("1235190", "230394"),
+            ("123519.x", "230394"),
+            ("12a519", "230394"),
+            ("123519", "2303a4"),
+        ] {
+            let fix = rmc(time, date);
+            assert_eq!(fix.timestamp, None, "{time} {date}");
+            let notes = fix.source.unwrap().notes;
+            assert!(
+                notes.iter().any(|n| n.contains("timestamp")),
+                "{time} {date}"
+            );
+        }
     }
 
     #[test]
