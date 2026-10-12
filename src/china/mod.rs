@@ -83,7 +83,14 @@ pub(crate) const BD_DLON: f64 = 0.006_5;
 /// vertex table.
 #[must_use]
 pub fn out_of_china(lat: f64, lon: f64) -> bool {
-    !(72.004..=137.8347).contains(&lon) || !(0.8293..=55.8271).contains(&lat)
+    !near_china_box(lat, lon, 0.0)
+}
+
+/// Whether `(lat, lon)` lies inside the [`out_of_china`] box grown by
+/// `margin_deg` on every side (`0.0` is the box itself).
+pub(crate) fn near_china_box(lat: f64, lon: f64, margin_deg: f64) -> bool {
+    (72.004 - margin_deg..=137.8347 + margin_deg).contains(&lon)
+        && (0.8293 - margin_deg..=55.8271 + margin_deg).contains(&lat)
 }
 
 /// A WGS-84 position (real GPS / OpenStreetMap), in decimal degrees.
@@ -338,7 +345,7 @@ fn has_converged(d_lat: f64, d_lon: f64) -> bool {
 
 /// A mismatch of `(d_lat, d_lon)` degrees at latitude `lat`, as a ground
 /// distance in meters that never understates the true one.
-fn residual_m(lat: f64, d_lat: f64, d_lon: f64) -> f64 {
+pub(crate) fn residual_m(lat: f64, d_lat: f64, d_lon: f64) -> f64 {
     d_lat.hypot(d_lon * lat.to_radians().cos()).to_radians() * MAX_RADIUS_OF_CURVATURE_M
 }
 

@@ -126,7 +126,7 @@ mod tests {
     use super::*;
     use crate::Error;
     use crate::coord::Height;
-    use crate::geodesy::DatumTransform;
+    use crate::geodesy::{DatumTransform, haversine_distance};
     use crate::test_support::assert_close;
 
     // Reference triple from `test_support` (a single WGS-84 point and its exact
@@ -360,5 +360,23 @@ mod tests {
         let direct = Gcj02::new(40.0, 72.006).unwrap().to_wgs84_refined();
         assert!(r.max_error_m() > 100.0, "{}", r.max_error_m());
         assert_eq!(r.max_error_m(), direct.max_error_m());
+    }
+
+    /// A GCJ-02 point just outside the box that an inside WGS-84 point also
+    /// maps to is returned unchanged, with a bound that covers the inside one.
+    #[test]
+    fn an_outside_gcj02_point_with_an_inside_preimage_is_not_exact() {
+        let origin = Wgs84::new(55.824_77, 130.0).unwrap();
+        let gcj = origin.to_gcj02();
+        let r = convert(Coordinate::gcj02(gcj.lat(), gcj.lon()).unwrap(), Crs::Wgs84).unwrap();
+        assert_eq!((r.lat(), r.lon()), (gcj.lat(), gcj.lon()));
+        let off = haversine_distance(&Wgs84::new(r.lat(), r.lon()).unwrap(), &origin)
+            .unwrap()
+            .meters();
+        assert!(
+            off > 600.0 && off <= r.max_error_m(),
+            "{off} m vs {}",
+            r.max_error_m()
+        );
     }
 }

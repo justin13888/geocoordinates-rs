@@ -269,6 +269,8 @@ pub fn gcj02_to_bd09(p: Gcj02) -> Result<Bd09, GeoError> {
 
 /// GCJ-02 → WGS-84, fast single-step inverse (within 6 m away from the China
 /// box edge). **Approximate**: the returned record carries `max_error_m`.
+/// An input just outside the box is returned unchanged; where an inside
+/// point may also map onto it, `max_error_m` covers that point too.
 ///
 /// # Errors
 /// As [`gcj02_validate`], for an invalid record; the conversion itself
@@ -280,7 +282,9 @@ pub fn gcj02_to_wgs84_fast(p: Gcj02) -> Result<ApproxWgs84, GeoError> {
 
 /// GCJ-02 → WGS-84, refined fixed-point inverse. **Approximate**: the
 /// returned record carries `max_error_m` — 0.5 m when the iteration
-/// converged, and that plus the remaining residual when it could not.
+/// converged, and that plus the remaining residual when it could not. An
+/// input outside the box is returned unchanged with `max_error_m` 0, unless
+/// an inside point also maps onto it; then `max_error_m` covers that point.
 ///
 /// # Errors
 /// As [`gcj02_validate`], for an invalid record; the conversion itself

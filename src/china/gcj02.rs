@@ -12,11 +12,34 @@
 //!
 //! Both are infallible: inside the China box the offset moves a point by under
 //! a kilometer, so no result can leave the valid latitude/longitude range.
+//!
+//! The forward map is not one-to-one at the box edge. A WGS-84 point just
+//! inside the box is offset by up to about 0.011°, which can carry it just
+//! outside, where an outside WGS-84 point maps to itself. A GCJ-02 point in
+//! that band therefore has two preimages. Both inverses return the outside one
+//! (the input unchanged) and widen `max_error_m` to cover the inside one, so
+//! the bound holds whichever point the caller started from.
 
-use super::{EE, GCJ_A, Gcj02, Wgs84, out_of_china, refine};
+use super::{EE, GCJ_A, Gcj02, Refined, Wgs84, near_china_box, out_of_china, refine, residual_m};
 use crate::approx::Approx;
 
 use core::f64::consts::PI;
+
+/// How far (degrees) past the China box the forward offset can carry an
+/// inside point. The largest offset component over the box is about 0.0108°
+/// (a 2000-step sweep of its edges and interior); this doubles it.
+const EDGE_BAND_DEG: f64 = 0.02;
+
+/// Slack (degrees) on the box when deciding whether a fast candidate stands
+/// for an inside preimage: the fast candidate lies within [`FAST_BOUND_M`] of
+/// the true preimage, and 1e-4° is at least 6 m of longitude up to the box's
+/// northern edge.
+const FAST_CANDIDATE_SLACK_DEG: f64 = 1e-4;
+
+/// Slack (degrees, about a centimeter) on the box when deciding whether a
+/// refined candidate is an inside preimage, so a preimage on the edge itself
+/// is not lost to rounding. Erring outward only widens a bound.
+const REFINED_SLACK_DEG: f64 = 1e-7;
 
 /// Fast-inverse error bound (meters): subtracting the offset at the GCJ point
 /// rather than the unknown WGS point leaves a residual below this across the
@@ -66,8 +89,29 @@ fn wgs_to_gcj(lat: f64, lon: f64) -> (f64, f64) {
     if out_of_china(lat, lon) {
         return (lat, lon);
     }
+    offset(lat, lon)
+}
+
+/// The GCJ-02 offset with no box gate: the smooth map whose fixed point an
+/// inside preimage is.
+fn offset(lat: f64, lon: f64) -> (f64, f64) {
     let (d_lat, d_lon) = delta(lat, lon);
     (lat + d_lat, lon + d_lon)
+}
+
+/// For a GCJ-02 point outside the box, the WGS-84 point inside the box that
+/// the forward offset also carries onto it, if there is one.
+fn inside_preimage(lat: f64, lon: f64) -> Option<Refined> {
+    if !near_china_box(lat, lon, EDGE_BAND_DEG) {
+        return None;
+    }
+    let r = refine((lat, lon), (lat, lon), offset);
+    near_china_box(r.lat, r.lon, REFINED_SLACK_DEG).then_some(r)
+}
+
+/// Meters from `(lat, lon)` to `(other_lat, other_lon)`, never understated.
+fn gap_m(lat: f64, lon: f64, other_lat: f64, other_lon: f64) -> f64 {
+    residual_m(lat, other_lat - lat, other_lon - lon)
 }
 
 impl Wgs84 {
@@ -102,11 +146,17 @@ impl Gcj02 {
     /// 6 m away from the China box edge).
     ///
     /// Subtracts the offset evaluated **at the GCJ point** (the wrong point —
-    /// the true offset is defined at the unknown WGS point), which is exact
-    /// outside China and leaves a residual of up to about 5 m inside it. The
-    /// stated bound comes from a sweep of the whole box; within about a
-    /// kilometer of the box edge, where the offset is discontinuous, only
+    /// the true offset is defined at the unknown WGS point), which leaves a
+    /// residual of up to about 5 m inside the box. The stated bound comes from
+    /// a sweep of the whole box; within about a kilometer of the box edge,
+    /// where the offset is discontinuous, only
     /// [`to_wgs84_refined`](Self::to_wgs84_refined) reports an honest bound.
+    ///
+    /// Outside the box the input is returned unchanged. Far from the box that
+    /// is exact (`max_error_m` 0). Within about 0.011° past its edge an inside
+    /// WGS-84 point may also land on the input; when the single-step
+    /// candidate for it falls inside the box, `max_error_m` is the distance to
+    /// that candidate plus 6 m, so it covers both preimages.
     ///
     /// ```
     /// use geocoordinates::Gcj02;
@@ -117,8 +167,22 @@ impl Gcj02 {
     /// ```
     #[must_use]
     pub fn to_wgs84_fast(self) -> Approx<Wgs84> {
-        if out_of_china(self.lat(), self.lon()) {
-            return Approx::new(Wgs84::from_valid(self.lat(), self.lon()), 0.0);
+        let (lat, lon) = (self.lat(), self.lon());
+        if out_of_china(lat, lon) {
+            let identity = Wgs84::from_valid(lat, lon);
+            if !near_china_box(lat, lon, EDGE_BAND_DEG) {
+                return Approx::new(identity, 0.0);
+            }
+            let (c_lat, c_lon) = {
+                let (d_lat, d_lon) = delta(lat, lon);
+                (lat - d_lat, lon - d_lon)
+            };
+            let bound = if near_china_box(c_lat, c_lon, FAST_CANDIDATE_SLACK_DEG) {
+                gap_m(lat, lon, c_lat, c_lon) + FAST_BOUND_M
+            } else {
+                0.0
+            };
+            return Approx::new(identity, bound);
         }
         let (d_lat, d_lon) = delta(self.lat(), self.lon());
         Approx::new(
@@ -129,13 +193,19 @@ impl Gcj02 {
 
     /// GCJ-02 → WGS-84, refined fixed-point inverse (**approximate**).
     ///
-    /// Iterates `wgs += target − wgs.to_gcj02()` until the forward image of the
-    /// estimate matches `self`, converging on the WGS point whose offset lands
-    /// exactly on `self`. A converged run reports `max_error_m` of 0.5 m. An
-    /// input with no exact preimage (a point in the gap the discontinuous box
-    /// edge leaves) never converges; it reports 0.5 m plus the distance
-    /// between its result's forward image and `self`, so the bound is never
-    /// one it did not reach.
+    /// Inside the box, iterates `wgs += target − wgs.to_gcj02()` until the
+    /// forward image of the estimate matches `self`. A converged run reports
+    /// `max_error_m` of 0.5 m. An input with no exact preimage (a point in the
+    /// gap the discontinuous box edge leaves) never converges; it reports
+    /// 0.5 m plus the distance between its result's forward image and `self`,
+    /// so the bound is never one it did not reach.
+    ///
+    /// Outside the box the input is its own preimage and is returned
+    /// unchanged. Far from the box that is exact (`max_error_m` 0). Within
+    /// about 0.011° past its edge, an inside WGS-84 point may also land on the
+    /// input; when one does, `max_error_m` is the distance to it plus its own
+    /// refined bound, so it covers whichever of the two points the caller
+    /// started from.
     ///
     /// ```
     /// use geocoordinates::Gcj02;
@@ -147,8 +217,11 @@ impl Gcj02 {
     /// ```
     #[must_use]
     pub fn to_wgs84_refined(self) -> Approx<Wgs84> {
-        if out_of_china(self.lat(), self.lon()) {
-            return Approx::new(Wgs84::from_valid(self.lat(), self.lon()), 0.0);
+        let (lat, lon) = (self.lat(), self.lon());
+        if out_of_china(lat, lon) {
+            let bound = inside_preimage(lat, lon)
+                .map_or(0.0, |r| gap_m(lat, lon, r.lat, r.lon) + r.max_error_m);
+            return Approx::new(Wgs84::from_valid(lat, lon), bound);
         }
         let target = (self.lat(), self.lon());
         let r = refine(target, target, wgs_to_gcj);
@@ -242,6 +315,70 @@ mod tests {
             excess <= residual * 1.01,
             "excess {excess} m overstates the residual {residual} m"
         );
+    }
+
+    /// D1: an inside WGS-84 point the offset carries just outside the box
+    /// shares its GCJ-02 image with the outside point that maps to itself.
+    /// Both inverses return the outside point and must widen the bound to
+    /// cover the inside one.
+    #[test]
+    fn outside_input_with_an_inside_preimage_covers_both() {
+        let origin = Wgs84::new(55.824_77, 130.0).unwrap();
+        let gcj = origin.to_gcj02();
+        assert!(out_of_china(gcj.lat(), gcj.lon()), "{gcj:?}");
+        for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
+            assert_eq!((got.lat(), got.lon()), (gcj.lat(), gcj.lon()));
+            let off = haversine_distance(got.value(), &origin).unwrap().meters();
+            assert!(off > 600.0, "{off} m");
+            assert!(
+                off <= got.max_error_m(),
+                "{off} m from the origin exceeds the claimed {} m",
+                got.max_error_m()
+            );
+        }
+    }
+
+    /// Sweep each box edge from just inside: wherever the offset carries a
+    /// point outside, both inverses cover it; a point past every image of the
+    /// box (0.015° out, beyond the 0.0108° largest offset) stays exact.
+    #[test]
+    fn inverse_bounds_hold_along_the_box_edge() {
+        let (s, n, w, e) = (0.8293, 55.8271, 72.004, 137.8347);
+        let mut carried = 0;
+        for i in 0..=400_u32 {
+            let t = f64::from(i) / 400.0;
+            let (lat, lon) = (s + t * (n - s), w + t * (e - w));
+            let inside = [
+                (n - 1e-4, lon),
+                (s + 1e-4, lon),
+                (lat, w + 1e-4),
+                (lat, e - 1e-4),
+            ];
+            for (la, lo) in inside {
+                let wgs = Wgs84::new(la, lo).unwrap();
+                let gcj = wgs.to_gcj02();
+                if !out_of_china(gcj.lat(), gcj.lon()) {
+                    continue;
+                }
+                carried += 1;
+                for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
+                    assert_within_meters(got.value(), &wgs, got.max_error_m());
+                }
+            }
+            let far = [
+                (n + 0.015, lon),
+                (s - 0.015, lon),
+                (lat, w - 0.015),
+                (lat, e + 0.015),
+            ];
+            for (la, lo) in far {
+                let gcj = Gcj02::new(la, lo).unwrap();
+                for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
+                    assert_eq!(got.max_error_m(), 0.0, "({la}, {lo})");
+                }
+            }
+        }
+        assert!(carried > 100, "only {carried} edge points left the box");
     }
 
     /// Honest-bound sweep: every 0.5° inside the box, the fast and refined

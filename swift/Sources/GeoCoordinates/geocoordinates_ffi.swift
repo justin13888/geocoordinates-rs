@@ -4916,6 +4916,8 @@ public func gcj02ToCoordinate(p: Gcj02)throws  -> Coordinate  {
 /**
  * GCJ-02 → WGS-84, fast single-step inverse (within 6 m away from the China
  * box edge). **Approximate**: the returned record carries `max_error_m`.
+ * An input just outside the box is returned unchanged; where an inside
+ * point may also map onto it, `max_error_m` covers that point too.
  *
  * # Errors
  * As [`gcj02_validate`], for an invalid record; the conversion itself
@@ -4931,7 +4933,9 @@ public func gcj02ToWgs84Fast(p: Gcj02)throws  -> ApproxWgs84  {
 /**
  * GCJ-02 → WGS-84, refined fixed-point inverse. **Approximate**: the
  * returned record carries `max_error_m` — 0.5 m when the iteration
- * converged, and that plus the remaining residual when it could not.
+ * converged, and that plus the remaining residual when it could not. An
+ * input outside the box is returned unchanged with `max_error_m` 0, unless
+ * an inside point also maps onto it; then `max_error_m` covers that point.
  *
  * # Errors
  * As [`gcj02_validate`], for an invalid record; the conversion itself
@@ -6226,10 +6230,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_coordinate() != 3193) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 34236) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 49181) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 218) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 38083) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_validate() != 22871) {
