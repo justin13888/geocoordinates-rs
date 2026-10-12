@@ -416,3 +416,31 @@ fn cross_and_along_track_across_the_antimeridian() {
         .meters();
     assert_close(behind, -5.0 * one_deg, 1e-3);
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn intersection_serde_round_trips_every_variant() {
+    let crossing =
+        Intersection::Crossing(Coordinate::new(10.0, -170.0, crate::Crs::Tokyo).unwrap());
+    let json = serde_json::to_string(&crossing).unwrap();
+    assert!(json.starts_with(r#"{"Crossing":"#), "{json}");
+    assert_eq!(
+        serde_json::from_str::<Intersection>(&json).unwrap(),
+        crossing
+    );
+    for (variant, expected) in [
+        (Intersection::SameGreatCircle, r#""SameGreatCircle""#),
+        (Intersection::NoForwardCrossing, r#""NoForwardCrossing""#),
+    ] {
+        let json = serde_json::to_string(&variant).unwrap();
+        assert_eq!(json, expected);
+        assert_eq!(
+            serde_json::from_str::<Intersection>(&json).unwrap(),
+            variant
+        );
+    }
+    // The carried coordinate is validated on the way in.
+    let bad = json.replace("10.0", "91.0");
+    assert_ne!(bad, json);
+    assert!(serde_json::from_str::<Intersection>(&bad).is_err());
+}
