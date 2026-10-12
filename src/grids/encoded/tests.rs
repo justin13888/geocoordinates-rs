@@ -402,3 +402,5 @@ fn deserialize_validates_and_round_trips_as_a_bare_string() {
     assert_eq!(serde_json::to_string(&g).unwrap(), r#""dr5regy""#);
     assert_eq!(String::from(g), "dr5regy");
 }
+
+mod valid_by_construction;
