@@ -451,10 +451,11 @@ pub fn confidence_new(value: f64) -> Confidence {
 ///   decoder documents it: the maximum geodesic corner distance (Plus Code,
 ///   geohash, Maidenhead, S2), the half diagonal in ground meters (MGRS), or
 ///   the cell radius (H3).
-/// - **[`convert`]** bounds only the error of the iterative GCJ-02 / BD-09
-///   inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
-///   legs that `0.0` is not a claim of exactness: the catalogued mean shifts
-///   are good to only several meters, which the bound leaves out.
+/// - **[`convert`]** sums its legs' estimates: the iterative GCJ-02 / BD-09
+///   inverses report their own bound, the forward China offsets `0.0`, and
+///   each classic-datum (Helmert) leg its parameters' published accuracy
+///   (`DatumTransform.accuracy_m`: about 9.27 m for NAD27 and 28.72 m for
+///   Tokyo, and infinity for Pulkovo-1942, which has no published estimate).
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct ApproxCoordinate {
     /// The coordinate (carries its [`Crs`]: the conversion target, or WGS-84

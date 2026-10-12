@@ -1,13 +1,17 @@
 //! Earth-Centered, Earth-Fixed (ECEF) geocentric coordinates.
 //!
-//! ECEF is the bridge format for almost every datum transformation. Geodetic →
-//! ECEF is closed-form and exact. ECEF → geodetic uses Bowring's single-step
-//! formula, which is **not** exact: it is good to about a micrometer at
-//! terrestrial heights and degrades with altitude (see [`Ecef::try_to_coordinate`] for the bound).
-//! Both return bare types rather than [`Approx`](crate::Approx) because the
-//! error is far below the millimeter for any surface or airborne position.
-//! Named fallible methods validate the ellipsoid, numeric inputs, and
-//! ellipsoidal height semantics.
+//! ECEF is the bridge format for almost every datum transformation. Both
+//! directions are exact closed forms, accurate to floating-point round-off:
+//! geodetic → ECEF is the textbook prime-vertical formula, and ECEF → geodetic
+//! is Vermeille's closed-form solution as refined in Karney's GeographicLib
+//! (`Geocentric::Reverse`), which holds at every altitude, at the poles, and
+//! deep inside the Earth.
+//!
+//! The ellipsoid is never a separate argument: it is the ellipsoid of the
+//! coordinate's [`Crs`] ([`Ellipsoid::for_crs`]), so a NAD27 coordinate is
+//! always placed on Clarke 1866 and a WGS-84 one on WGS 84. GCJ-02 and BD-09
+//! are obfuscated renderings rather than datums and have no ECEF position;
+//! convert them to WGS-84 first.
 
 use super::ellipsoid::Ellipsoid;
 use crate::coord::{Coordinate, Crs, Height};
@@ -24,7 +28,26 @@ fn height_meters(coord: Coordinate) -> Result<f64> {
     }
 }
 
+/// The ellipsoid of `crs`, or [`Error::CrsMismatch`] (expecting WGS-84) for the
+/// China obfuscation systems, which have none.
+pub(crate) fn ellipsoid_of(crs: Crs) -> Result<Ellipsoid> {
+    Ellipsoid::for_crs(crs).ok_or(Error::CrsMismatch {
+        expected: Crs::Wgs84,
+        found: crs,
+    })
+}
+
 /// A geocentric ECEF position in meters.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, geodesy::Ecef};
+///
+/// let ecef = Ecef::try_from_coordinate(Coordinate::wgs84(0.0, 0.0)?)?;
+/// assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_137.0, 0.0, 0.0));
+/// let back = ecef.try_to_coordinate(Crs::Wgs84)?;
+/// assert_eq!((back.lat(), back.lon()), (0.0, 0.0));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ecef {
@@ -43,56 +66,48 @@ impl Ecef {
         Self { x, y, z }
     }
 
-    /// ECEF → geodetic [`Coordinate`] (lat/lon/height) on the given ellipsoid,
-    /// by Bowring's single-step closed-form inverse.
+    /// ECEF → geodetic [`Coordinate`] (lat/lon/ellipsoidal height) on the
+    /// ellipsoid of `crs`, tagged with `crs`.
     ///
-    /// **Not exact.** Height is recovered to floating-point round-off (a few
-    /// nanometers near the surface, about 15 nm at geostationary range), but the latitude
-    /// error grows with altitude. On WGS-84 it is about a micrometer for
-    /// heights within ±10 km, about 0.1 mm at 100 km, about 7 mm at 1,000 km,
-    /// and up to about 0.3 m at GNSS and geostationary altitudes
-    /// (20,000–36,000 km).
+    /// **Exact** to floating-point round-off at any altitude (Vermeille's
+    /// closed form, as refined in GeographicLib's `Geocentric::Reverse`). ECEF
+    /// itself is datum-agnostic, so `crs` names the datum the position is
+    /// expressed in, and with it the ellipsoid.
     ///
-    /// ECEF is datum-agnostic, so `crs` explicitly tags the output with the
-    /// reference system to which `ellipsoid` belongs.
-    pub fn try_to_coordinate(self, ellipsoid: Ellipsoid, crs: Crs) -> Result<Coordinate> {
-        ellipsoid.validate()?;
+    /// # Errors
+    /// - [`Error::CrsMismatch`] (expecting [`Crs::Wgs84`]) when `crs` is GCJ-02
+    ///   or BD-09, which are not geodetic datums and have no ellipsoid;
+    /// - [`Error::InvalidValue`] (field `"ECEF"`) when a component is not
+    ///   finite, and (field `"height"`) when the position is so far from the
+    ///   Earth that its height overflows.
+    pub fn try_to_coordinate(self, crs: Crs) -> Result<Coordinate> {
+        let ellipsoid = ellipsoid_of(crs)?;
         if !self.x.is_finite() || !self.y.is_finite() || !self.z.is_finite() {
             return Err(Error::InvalidValue {
                 field: "ECEF",
                 detail: "x, y, and z must be finite".into(),
             });
         }
-        let a = ellipsoid.semi_major_m;
-        let b = ellipsoid.semi_minor_m();
-        let e2 = ellipsoid.eccentricity_sq();
-        let ep2 = (a * a - b * b) / (b * b); // second eccentricity squared
-        let p = (self.x * self.x + self.y * self.y).sqrt();
+        let (lat, h) = geodetic_latitude_and_height(self, ellipsoid);
         let lon = self.y.atan2(self.x).to_degrees();
-
-        // Bowring's closed-form latitude.
-        let theta = (self.z * a).atan2(p * b);
-        let (sin_t, cos_t) = (theta.sin(), theta.cos());
-        let lat = (self.z + ep2 * b * sin_t.powi(3)).atan2(p - e2 * a * cos_t.powi(3));
-        let sin_lat = lat.sin();
-        let cos_lat = lat.cos();
-        // Height from the branchless identity h = p·cosφ + z·sinφ − a·√(1 − e²sin²φ),
-        // which (unlike p/cosφ − N) is well-defined at the poles too.
-        let w = (1.0 - e2 * sin_lat * sin_lat).sqrt();
-        let h = p * cos_lat + self.z * sin_lat - a * w;
-
         Coordinate::new(lat.to_degrees(), lon, crs)?.with_height(Height::Ellipsoidal(h))
     }
 
-    /// Geodetic [`Coordinate`] → ECEF on the given ellipsoid (exact, closed
-    /// form). Missing height means zero ellipsoidal height; orthometric height
-    /// is rejected because no geoid model is available.
-    pub fn try_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<Self> {
-        ellipsoid.validate()?;
+    /// Geodetic [`Coordinate`] → ECEF on the ellipsoid of its own [`Crs`]
+    /// (exact, closed form). Missing height means zero ellipsoidal height.
+    ///
+    /// # Errors
+    /// - [`Error::CrsMismatch`] (expecting [`Crs::Wgs84`]) when `coord` is
+    ///   GCJ-02 or BD-09, which are not geodetic datums and have no ellipsoid;
+    /// - [`Error::InvalidValue`] (field `"height"`) when `coord` carries an
+    ///   orthometric height: no geoid model is available to turn it into an
+    ///   ellipsoidal one.
+    pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
+        let ellipsoid = ellipsoid_of(coord.crs())?;
+        let h = height_meters(coord)?;
         let phi = coord.lat().to_radians();
         let lambda = coord.lon().to_radians();
-        let h = height_meters(coord)?;
-        let a = ellipsoid.semi_major_m;
+        let a = ellipsoid.semi_major_m();
         let e2 = ellipsoid.eccentricity_sq();
         let sin_phi = phi.sin();
         let cos_phi = phi.cos();
@@ -105,164 +120,66 @@ impl Ecef {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_support::assert_close;
-
-    const WGS84_A: f64 = 6_378_137.0;
-    const WGS84_B: f64 = 6_356_752.314_245_18;
-
-    #[test]
-    fn forward_reference_points() {
-        let e = Ellipsoid::WGS84;
-        let at =
-            |lat, lon| Ecef::try_from_coordinate(Coordinate::wgs84(lat, lon).unwrap(), e).unwrap();
-        let p = at(0.0, 0.0);
-        assert_close(p.x, WGS84_A, 1e-3);
-        assert_close(p.y, 0.0, 1e-3);
-        assert_close(p.z, 0.0, 1e-3);
-        let p = at(0.0, 90.0);
-        assert_close(p.x, 0.0, 1e-3);
-        assert_close(p.y, WGS84_A, 1e-3);
-        let p = at(90.0, 0.0);
-        assert_close(p.x, 0.0, 1e-3);
-        assert_close(p.z, WGS84_B, 1e-3);
+/// Geodetic latitude (radians) and ellipsoidal height (meters) of a finite
+/// ECEF position on an **oblate** ellipsoid (`f > 0`; every ellipsoid
+/// [`Ellipsoid::for_crs`] returns is one).
+///
+/// A port of the oblate branch of `Geocentric::IntReverse` from Karney's
+/// GeographicLib (MIT licence), itself Vermeille's 2002 closed-form solution
+/// with Karney's guards against cancellation, underflow, and overflow.
+fn geodetic_latitude_and_height(p: Ecef, ellipsoid: Ellipsoid) -> (f64, f64) {
+    let a = ellipsoid.semi_major_m();
+    let e2 = ellipsoid.eccentricity_sq();
+    let e2m = 1.0 - e2; // (1 − f)²
+    let e4 = e2 * e2;
+    let r = p.x.hypot(p.y);
+    let dist = r.hypot(p.z);
+    // Beyond ~6e22 m the Earth is a point: the distance to its center is the
+    // height to round-off, and the squares below could overflow.
+    if dist > 2.0 * a / f64::EPSILON {
+        return (p.z.atan2(r), dist);
     }
-
-    #[test]
-    fn round_trip_geodetic() {
-        let e = Ellipsoid::WGS84;
-        for (lat, lon, h) in [
-            (40.7128, -74.006, 100.0),
-            (-33.8688, 151.2093, 0.0),
-            (51.5074, -0.1278, 1500.0),
-            (90.0, 0.0, 0.0), // north pole (polar-axis height branch)
-            (-89.9, 179.9, 50.0),
-        ] {
-            let c = Coordinate::wgs84(lat, lon)
-                .unwrap()
-                .with_height(Height::Ellipsoidal(h))
-                .unwrap();
-            let back = Ecef::try_from_coordinate(c, e)
-                .unwrap()
-                .try_to_coordinate(e, Crs::Wgs84)
-                .unwrap();
-            assert_close(back.lat(), lat, 1e-9);
-            // Longitude is undefined at the exact pole; skip it there.
-            if lat.abs() < 90.0 {
-                assert_close(back.lon(), lon, 1e-9);
-            }
-            match back.height() {
-                Some(Height::Ellipsoidal(hb)) => assert_close(hb, h, 1e-4),
-                other => panic!("expected ellipsoidal height, got {other:?}"),
-            }
-        }
+    let pp = (r / a) * (r / a);
+    let q = e2m * (p.z / a) * (p.z / a);
+    let rr = (pp + q - e4) / 6.0;
+    if e4 * q == 0.0 && rr <= 0.0 {
+        // On the equatorial plane inside the evolute (r ≤ a·e²): the general
+        // formulas give 0/0, so take their limit. The foot point is off the
+        // equator, on the side of z's sign.
+        let zz = ((e4 - pp) / e2m).sqrt();
+        let xx = pp.sqrt();
+        let hh = zz.hypot(xx);
+        let lat = zz.atan2(xx);
+        let h = -a * e2m * hh / e2;
+        return (if p.z < 0.0 { -lat } else { lat }, h);
     }
-
-    #[test]
-    fn bowring_inverse_error_matches_the_documented_altitude_bound() {
-        // The forward direction is exact, so a round trip measures the
-        // single-step Bowring inverse alone. The worst latitude error sits in
-        // mid-latitudes; sweep them and check each documented altitude figure.
-        let e = Ellipsoid::WGS84;
-        // Worst (latitude error, height error) in meters across the sweep.
-        let worst_m = |h: f64| {
-            (0..=180)
-                .map(|i| 0.5 * f64::from(i) - 45.0)
-                .map(|lat| {
-                    let c = Coordinate::wgs84(lat, 10.0)
-                        .unwrap()
-                        .with_height(Height::Ellipsoidal(h))
-                        .unwrap();
-                    let back = Ecef::try_from_coordinate(c, e)
-                        .unwrap()
-                        .try_to_coordinate(e, Crs::Wgs84)
-                        .unwrap();
-                    let Some(Height::Ellipsoidal(hb)) = back.height() else {
-                        panic!("expected ellipsoidal height, got {:?}", back.height());
-                    };
-                    (
-                        (back.lat() - lat).abs().to_radians() * (WGS84_A + h),
-                        (hb - h).abs(),
-                    )
-                })
-                .fold((0.0_f64, 0.0_f64), |(la, ha), (l, hh)| {
-                    (la.max(l), ha.max(hh))
-                })
-        };
-        let heights = [
-            -10_000.0,
-            10_000.0,
-            100_000.0,
-            1_000_000.0,
-            20_000_000.0,
-            36_000_000.0,
-        ];
-        let [below, terrestrial, near, leo, gnss, geo] = heights.map(worst_m);
-        assert!(below.0 < 2e-6, "-10 km: {} m", below.0);
-        assert!(terrestrial.0 < 2e-6, "10 km: {} m", terrestrial.0);
-        assert!(near.0 < 2e-4, "100 km: {} m", near.0);
-        assert!((1e-3..1e-2).contains(&leo.0), "1,000 km: {} m", leo.0);
-        assert!((0.1..0.3).contains(&gnss.0), "20,000 km: {} m", gnss.0);
-        assert!((0.1..0.3).contains(&geo.0), "36,000 km: {} m", geo.0);
-        // Height is round-off: a few nanometers near the surface, about 15 nm
-        // at geostationary range.
-        for (h, (_, dh)) in heights
-            .iter()
-            .zip([below, terrestrial, near, leo, gnss, geo])
-        {
-            let bound = if h.abs() <= 1_000_000.0 { 5e-9 } else { 2e-8 };
-            assert!(dh < bound, "height error at {h} m: {dh} m");
-        }
-    }
-
-    /// C15: a NAD27 coordinate lies on the Clarke-1866 ellipsoid, so placing it
-    /// in ECEF on WGS-84 yields a geocentric position about 70 m off. That must
-    /// be rejected, not returned as `Ok`.
-    #[test]
-    fn an_ellipsoid_contradicting_the_crs_is_rejected() {
-        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap();
-        assert!(Ecef::try_from_coordinate(nad27, Ellipsoid::WGS84).is_err());
-    }
-
-    /// C15: the ECEF inverse must be exact. At a GNSS altitude (20,000 km) the
-    /// round trip may not lose a millimeter of latitude anywhere.
-    #[test]
-    fn the_inverse_is_exact_at_gnss_altitude() {
-        let e = Ellipsoid::WGS84;
-        let h = 20_000_000.0;
-        for i in 0..=180 {
-            let lat = f64::from(i) - 90.0;
-            let c = Coordinate::wgs84(lat, 10.0)
-                .unwrap()
-                .with_height(Height::Ellipsoidal(h))
-                .unwrap();
-            let back = Ecef::try_from_coordinate(c, e)
-                .unwrap()
-                .try_to_coordinate(e, Crs::Wgs84)
-                .unwrap();
-            let err_m = (back.lat() - lat).abs().to_radians() * (WGS84_A + h);
-            assert!(err_m < 1e-3, "lat {lat}: {err_m} m");
-        }
-    }
-
-    #[test]
-    fn invalid_inputs_and_orthometric_heights_are_rejected() {
-        assert!(
-            Ecef::try_from_coordinate(
-                Coordinate::wgs84(0.0, 0.0)
-                    .unwrap()
-                    .with_height(Height::Orthometric(1.0))
-                    .unwrap(),
-                Ellipsoid::WGS84,
-            )
-            .is_err()
-        );
-        assert!(
-            Ecef::new(f64::NAN, 0.0, 0.0)
-                .try_to_coordinate(Ellipsoid::WGS84, Crs::Wgs84)
-                .is_err()
-        );
-    }
+    // Multiplying the equations for s and t by r³ and r avoids dividing by
+    // r = 0.
+    let s = e4 * pp * q / 4.0;
+    let r2 = rr * rr;
+    let r3 = rr * r2;
+    let disc = s * (2.0 * r3 + s);
+    let u = if disc >= 0.0 {
+        // Take the root's sign that maximizes |t³|, avoiding cancellation.
+        let t3 = s + r3;
+        let t3 = t3 + disc.sqrt().copysign(t3);
+        let t = t3.cbrt();
+        rr + t + if t == 0.0 { 0.0 } else { r2 / t }
+    } else {
+        // Three real roots: take the one that avoids cancellation.
+        let ang = (-disc).sqrt().atan2(-(s + r3));
+        rr + 2.0 * rr * (ang / 3.0).cos()
+    };
+    let v = (u * u + e4 * q).sqrt();
+    // u + v, rearranged when u < 0 to avoid cancellation.
+    let uv = if u < 0.0 { e4 * q / (v - u) } else { u + v };
+    let w = (e2 * (uv - q) / (2.0 * v)).max(0.0);
+    let k = uv / ((uv + w * w).sqrt() + w);
+    let k2 = k + e2;
+    let lat = (p.z / k).atan2(r / k2);
+    let h = (1.0 - e2m / k) * (k * r / k2).hypot(p.z);
+    (lat, h)
 }
+
+#[cfg(test)]
+mod tests;

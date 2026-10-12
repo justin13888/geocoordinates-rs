@@ -86,18 +86,26 @@ pub(crate) fn geodesics_and_local_frames() -> DemoResult {
         Ellipsoid::CLARKE_1866,
     ] {
         assert!(ellipsoid.flattening() > 0.0);
-        assert!(ellipsoid.semi_minor_m() < ellipsoid.semi_major_m);
+        assert!(ellipsoid.semi_minor_m() < ellipsoid.semi_major_m());
         assert!((0.0..1.0).contains(&ellipsoid.eccentricity_sq()));
+        // Valid by construction: rebuilding from the parameters round-trips.
+        assert_eq!(
+            Ellipsoid::new(ellipsoid.semi_major_m(), ellipsoid.inverse_flattening())?,
+            ellipsoid
+        );
     }
+    // Every geodetic datum names its own ellipsoid; ECEF and datum transforms
+    // derive it from the coordinate's CRS rather than taking it as an argument.
+    assert_eq!(Ellipsoid::for_crs(Crs::Nad27), Some(Ellipsoid::CLARKE_1866));
 
     let origin = Coordinate::wgs84(40.0, -75.0)?.with_height(Height::Ellipsoidal(100.0))?;
     let target = Coordinate::wgs84(40.001, -74.999)?.with_height(Height::Ellipsoidal(125.0))?;
-    let ecef = Ecef::try_from_coordinate(origin, Ellipsoid::WGS84)?;
-    assert_within_meters(
-        &ecef.try_to_coordinate(Ellipsoid::WGS84, Crs::Wgs84)?,
-        &origin,
-        0.001,
-    );
+    let ecef = Ecef::try_from_coordinate(origin)?;
+    // The inverse is exact to round-off at any altitude.
+    assert_within_meters(&ecef.try_to_coordinate(Crs::Wgs84)?, &origin, 1e-6);
+    let gnss = Coordinate::wgs84(45.0, 10.0)?.with_height(Height::Ellipsoidal(20_200_000.0))?;
+    let gnss_back = Ecef::try_from_coordinate(gnss)?.try_to_coordinate(Crs::Wgs84)?;
+    assert_close(gnss_back.lat(), 45.0, 1e-12);
     let rebuilt = Ecef::new(ecef.x, ecef.y, ecef.z);
     assert_eq!(rebuilt, ecef);
 

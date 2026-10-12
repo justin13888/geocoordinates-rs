@@ -2,17 +2,14 @@
 //!
 //! These are defined relative to a reference origin, so they are expressed as
 //! methods taking the origin rather than `From` impls. The forward direction
-//! (coordinate → ENU / NED / AER) and the frame-to-frame conversions are
-//! **exact** (a rotation of the ECEF difference vector). The inverse
-//! (`try_to_coordinate`) is **not** exact: it rotates back to ECEF exactly, then
-//! recovers latitude through [`Ecef::try_to_coordinate`]'s Bowring single-step
-//! inverse, so it inherits that bound — about a micrometer for targets within
-//! ±10 km of the surface, growing to about 0.3 m of latitude at GNSS and
-//! geostationary ranges. Construction remains fallible so both positions must
-//! be valid WGS-84 coordinates with compatible ellipsoidal heights.
+//! (coordinate → ENU / NED / AER), the frame-to-frame conversions, and the
+//! inverse (`try_to_coordinate`) are all **exact** to floating-point round-off:
+//! a rotation of the ECEF difference vector, and back through
+//! [`Ecef::try_to_coordinate`]'s closed-form inverse. Construction remains
+//! fallible so both positions must be valid WGS-84 coordinates with compatible
+//! ellipsoidal heights.
 
 use super::ecef::Ecef;
-use super::ellipsoid::Ellipsoid;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 use crate::units::Length;
@@ -66,8 +63,8 @@ impl Enu {
         }
         let (sin_lat, cos_lat) = origin.lat().to_radians().sin_cos();
         let (sin_lon, cos_lon) = origin.lon().to_radians().sin_cos();
-        let t = Ecef::try_from_coordinate(target, Ellipsoid::WGS84)?;
-        let o = Ecef::try_from_coordinate(origin, Ellipsoid::WGS84)?;
+        let t = Ecef::try_from_coordinate(target)?;
+        let o = Ecef::try_from_coordinate(origin)?;
         let (dx, dy, dz) = (t.x - o.x, t.y - o.y, t.z - o.z);
         Ok(Enu {
             east: -sin_lon * dx + cos_lon * dy,
@@ -76,10 +73,8 @@ impl Enu {
         })
     }
 
-    /// Recover the absolute coordinate of this ENU offset about `origin`.
-    ///
-    /// Not exact: latitude is recovered by [`Ecef::try_to_coordinate`]'s
-    /// Bowring single-step inverse and carries its altitude-dependent bound.
+    /// Recover the absolute coordinate of this ENU offset about `origin`
+    /// (exact, through [`Ecef::try_to_coordinate`]'s closed-form inverse).
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         validate_frame_coordinate(origin)?;
         if !self.east.is_finite() || !self.north.is_finite() || !self.up.is_finite() {
@@ -95,8 +90,8 @@ impl Enu {
             -sin_lon * self.east - sin_lat * cos_lon * self.north + cos_lat * cos_lon * self.up;
         let dy = cos_lon * self.east - sin_lat * sin_lon * self.north + cos_lat * sin_lon * self.up;
         let dz = cos_lat * self.north + sin_lat * self.up;
-        let o = Ecef::try_from_coordinate(origin, Ellipsoid::WGS84)?;
-        Ecef::new(o.x + dx, o.y + dy, o.z + dz).try_to_coordinate(Ellipsoid::WGS84, origin.crs())
+        let o = Ecef::try_from_coordinate(origin)?;
+        Ecef::new(o.x + dx, o.y + dy, o.z + dz).try_to_coordinate(origin.crs())
     }
 
     /// Convert to the NED convention (exact).
@@ -112,13 +107,14 @@ impl Enu {
     /// Convert to azimuth/elevation/range (exact).
     #[must_use]
     pub fn to_aer(self) -> Aer {
-        let range = (self.east * self.east + self.north * self.north + self.up * self.up).sqrt();
+        // `hypot` neither overflows nor underflows where the squares would.
+        let horizontal = self.east.hypot(self.north);
+        let range = horizontal.hypot(self.up);
         let azimuth_deg = crate::angle::normalize_degrees(self.east.atan2(self.north).to_degrees());
-        let elevation_deg = if range > 0.0 {
-            (self.up / range).asin().to_degrees()
-        } else {
-            0.0
-        };
+        // atan2 stays in [-90°, 90°] whatever the rounding, where
+        // asin(up / range) turns NaN once |up| / range rounds past one; and a
+        // zero offset gets a defined 0° elevation.
+        let elevation_deg = self.up.atan2(horizontal).to_degrees();
         Aer {
             azimuth_deg,
             elevation_deg,
@@ -133,9 +129,8 @@ impl Ned {
         Ok(Enu::try_from_coordinate(target, origin)?.to_ned())
     }
 
-    /// Recover the absolute coordinate of this NED offset about `origin`.
-    ///
-    /// Not exact: see [`Enu::try_to_coordinate`].
+    /// Recover the absolute coordinate of this NED offset about `origin`
+    /// (exact; see [`Enu::try_to_coordinate`]).
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         self.to_enu().try_to_coordinate(origin)
     }
@@ -163,9 +158,8 @@ impl Aer {
         Ok(Enu::try_from_coordinate(target, origin)?.to_aer())
     }
 
-    /// Recover the absolute coordinate of this AER offset about `origin`.
-    ///
-    /// Not exact: see [`Enu::try_to_coordinate`].
+    /// Recover the absolute coordinate of this AER offset about `origin`
+    /// (exact; see [`Enu::try_to_coordinate`]).
     pub fn try_to_coordinate(self, origin: Coordinate) -> Result<Coordinate> {
         self.to_enu().try_to_coordinate(origin)
     }
@@ -364,6 +358,48 @@ mod tests {
         .to_aer();
         assert_close(aer.range.meters(), 0.0, 0.0);
         assert_close(aer.elevation_deg, 0.0, 0.0);
+    }
+
+    /// N4: elevation and range hold where squaring the components would
+    /// underflow or overflow, and elevation is never NaN.
+    #[test]
+    fn aer_survives_extreme_magnitudes() {
+        for up in [1e-200, 1e200, -1e-200, -1e200] {
+            let aer = Enu {
+                east: 0.0,
+                north: 0.0,
+                up,
+            }
+            .to_aer();
+            assert_close(aer.elevation_deg, 90.0_f64.copysign(up), 0.0);
+            assert_close(aer.range.meters(), up.abs(), 0.0);
+        }
+        let flat = Enu {
+            east: 3e200,
+            north: 4e200,
+            up: 0.0,
+        }
+        .to_aer();
+        assert_close(flat.range.meters(), 5e200, 1e186);
+        assert_close(flat.elevation_deg, 0.0, 0.0);
+        // A sweep of ordinary offsets never produces a NaN elevation, and
+        // matches asin(up / range) wherever that is defined.
+        for i in 1..2000 {
+            let x = f64::from(i) * 0.123_456_789;
+            let enu = Enu {
+                east: x.sin() * 1e-3,
+                north: x.cos() * 1e-3,
+                up: x,
+            };
+            let aer = enu.to_aer();
+            assert!(aer.elevation_deg.is_finite(), "{enu:?}");
+            let r = aer.range.meters();
+            assert_close(
+                aer.elevation_deg,
+                (enu.up / r).min(1.0).asin().to_degrees(),
+                1e-6,
+            );
+        }
     }
 
     #[test]

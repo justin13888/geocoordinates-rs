@@ -4,7 +4,8 @@ use geocoordinates::angle::{Axis, Ddm, Dms, Hemisphere as AngleHemisphere, wrap_
 use geocoordinates::dgg::{H3Cell, S2CellId};
 use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format};
 use geocoordinates::geodesy::{
-    DatumTransform, Ecef, Ellipsoid, Enu, destination, geodesic_distance, rhumb_destination,
+    DatumTransform, Ecef, Ellipsoid, Enu, Helmert, destination, geodesic_distance,
+    rhumb_destination,
 };
 use geocoordinates::grids::utm::{central_meridian_deg, zone_for};
 use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere};
@@ -153,11 +154,23 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     );
     assert!(
         Ecef::try_from_coordinate(
-            Coordinate::wgs84(0.0, 0.0)?.with_height(Height::Orthometric(10.0))?,
-            Ellipsoid::WGS84
+            Coordinate::wgs84(0.0, 0.0)?.with_height(Height::Orthometric(10.0))?
         )
         .is_err()
     );
+    // GCJ-02 and BD-09 are obfuscated renderings, not datums: they have no
+    // ellipsoid and so no ECEF position, and no transform can name them.
+    assert_eq!(Ellipsoid::for_crs(Crs::Gcj02), None);
+    assert!(matches!(
+        Ecef::try_from_coordinate(Coordinate::gcj02(39.9, 116.4)?),
+        Err(Error::CrsMismatch { .. })
+    ));
+    assert!(matches!(
+        Ecef::new(6_378_137.0, 0.0, 0.0).try_to_coordinate(Crs::Bd09),
+        Err(Error::CrsMismatch { .. })
+    ));
+    assert!(Ellipsoid::new(-1.0, 298.257_223_563).is_err());
+    assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, Helmert::IDENTITY, None).is_err());
     assert!(
         Enu::try_from_coordinate(
             Coordinate::gcj02(40.0, -75.0)?,
@@ -165,10 +178,10 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         )
         .is_err()
     );
-    let nad27_transform = DatumTransform::to_wgs84(Crs::Nad27).expect("catalogued");
+    let nad27_transform = DatumTransform::catalog_to_wgs84(Crs::Nad27).expect("catalogued");
     assert!(
         nad27_transform
-            .transform(Coordinate::wgs84(40.0, -100.0)?)
+            .apply(Coordinate::wgs84(40.0, -100.0)?)
             .is_err()
     );
     assert!(matches!(

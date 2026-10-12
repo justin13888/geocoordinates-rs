@@ -43,28 +43,83 @@ fn ellipsoid_constructors_carry_their_defining_parameters() {
     for (ellipsoid, a, inv_f) in cases {
         assert_eq!(ellipsoid.semi_major_m, a);
         assert_eq!(ellipsoid.inverse_flattening, inv_f);
-        assert_eq!(ellipsoid_flattening(ellipsoid), 1.0 / inv_f);
+        assert_eq!(ellipsoid_flattening(ellipsoid).unwrap(), 1.0 / inv_f);
+        assert_eq!(ellipsoid_new(a, inv_f).unwrap(), ellipsoid);
     }
+}
+
+#[test]
+fn ellipsoid_new_and_the_getters_validate() {
+    assert_eq!(
+        ellipsoid_new(6_371_000.0, f64::INFINITY).unwrap(),
+        Ellipsoid {
+            semi_major_m: 6_371_000.0,
+            inverse_flattening: f64::INFINITY,
+        }
+    );
+    let bad_axis = Ellipsoid {
+        semi_major_m: -1.0,
+        inverse_flattening: 298.0,
+    };
+    let bad_flattening = Ellipsoid {
+        semi_major_m: 6_378_137.0,
+        inverse_flattening: 0.5,
+    };
+    for e in [bad_axis, bad_flattening] {
+        assert!(matches!(
+            ellipsoid_new(e.semi_major_m, e.inverse_flattening),
+            Err(GeoError::InvalidValue { .. })
+        ));
+        assert!(matches!(
+            ellipsoid_flattening(e),
+            Err(GeoError::InvalidValue { .. })
+        ));
+        assert!(matches!(
+            ellipsoid_semi_minor_m(e),
+            Err(GeoError::InvalidValue { .. })
+        ));
+        assert!(matches!(
+            ellipsoid_eccentricity_sq(e),
+            Err(GeoError::InvalidValue { .. })
+        ));
+    }
+}
+
+#[test]
+fn ellipsoid_for_crs_names_each_datum_ellipsoid() {
+    assert_eq!(ellipsoid_for_crs(Crs::Wgs84), Some(ellipsoid_wgs84()));
+    assert_eq!(ellipsoid_for_crs(Crs::Nad27), Some(ellipsoid_clarke_1866()));
+    assert_eq!(ellipsoid_for_crs(Crs::Tokyo), Some(ellipsoid_bessel_1841()));
+    assert_eq!(
+        ellipsoid_for_crs(Crs::Pulkovo42),
+        Some(ellipsoid_krasovsky_1940())
+    );
+    assert_eq!(ellipsoid_for_crs(Crs::Gcj02), None);
+    assert_eq!(ellipsoid_for_crs(Crs::Bd09), None);
 }
 
 #[test]
 fn ellipsoid_derived_quantities_match_published_wgs84_values() {
     let wgs84 = ellipsoid_wgs84();
     close(
-        ellipsoid_flattening(wgs84),
+        ellipsoid_flattening(wgs84).unwrap(),
         0.003_352_810_664_747_480_5,
         1e-18,
     );
-    close(ellipsoid_semi_minor_m(wgs84), 6_356_752.314_245, 1e-6);
     close(
-        ellipsoid_eccentricity_sq(wgs84),
+        ellipsoid_semi_minor_m(wgs84).unwrap(),
+        6_356_752.314_245,
+        1e-6,
+    );
+    close(
+        ellipsoid_eccentricity_sq(wgs84).unwrap(),
         0.006_694_379_990_14,
         1e-14,
     );
     // Clarke 1866 publishes b = 6,356,583.8 m; deriving it from the rounded
     // inverse flattening lands about 1 µm short.
     close(
-        ellipsoid_semi_minor_m(ellipsoid_clarke_1866()),
+        ellipsoid_semi_minor_m(ellipsoid_clarke_1866()).unwrap(),
         6_356_583.8,
         1e-5,
     );
@@ -75,21 +130,42 @@ fn ellipsoid_derived_quantities_match_published_wgs84_values() {
 #[test]
 fn ecef_round_trips_through_the_coordinate() {
     let origin = wgs84(40.0, -75.0);
-    let ecef = ecef_from_coordinate(origin, ellipsoid_wgs84()).unwrap();
+    let ecef = ecef_from_coordinate(origin).unwrap();
     close(ecef.x, 1_266_325.909_016_660_2, 1e-6);
     close(ecef.y, -4_725_992.631_391_02, 1e-6);
     close(ecef.z, 4_077_985.572_200_376, 1e-6);
-    let back = ecef_to_coordinate(ecef, ellipsoid_wgs84(), Crs::Wgs84).unwrap();
+    let back = ecef_to_coordinate(ecef, Crs::Wgs84).unwrap();
     close(back.lat, 40.0, 1e-12);
     close(back.lon, -75.0, 1e-12);
     assert_eq!(back.crs, Crs::Wgs84);
-    assert_eq!(back.height, Some(Height::Ellipsoidal { meters: 0.0 }));
+    let Some(Height::Ellipsoidal { meters }) = back.height else {
+        panic!("expected an ellipsoidal height, got {:?}", back.height);
+    };
+    close(meters, 0.0, 1e-8);
 }
 
 #[test]
-fn ecef_from_coordinate_on_the_equator_meets_the_semi_major_axis() {
-    let ecef = ecef_from_coordinate(wgs84(0.0, 0.0), ellipsoid_wgs84()).unwrap();
+fn ecef_from_coordinate_uses_the_ellipsoid_of_the_crs() {
+    let ecef = ecef_from_coordinate(wgs84(0.0, 0.0)).unwrap();
     assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_137.0, 0.0, 0.0));
+    let nad27 = coordinate_new(0.0, 0.0, Crs::Nad27).unwrap();
+    let ecef = ecef_from_coordinate(nad27).unwrap();
+    assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_206.4, 0.0, 0.0));
+    let back = ecef_to_coordinate(ecef, Crs::Nad27).unwrap();
+    assert_eq!((back.lat, back.lon, back.crs), (0.0, 0.0, Crs::Nad27));
+    let gcj = coordinate_new(39.9, 116.4, Crs::Gcj02).unwrap();
+    for result in [
+        ecef_from_coordinate(gcj).map(|_| ()),
+        ecef_to_coordinate(ecef, Crs::Bd09).map(|_| ()),
+    ] {
+        assert!(matches!(
+            result,
+            Err(GeoError::CrsMismatch {
+                expected: Crs::Wgs84,
+                ..
+            })
+        ));
+    }
 }
 
 // --- Local tangent frames ---
@@ -336,7 +412,7 @@ fn helmert_identity_inverse_and_apply() {
             z: 33.0,
         }
     );
-    let inverse = helmert_inverse(shift);
+    let inverse = helmert_inverse_first_order(shift);
     assert_eq!(
         (inverse.tx_m, inverse.ty_m, inverse.tz_m),
         (-1.0, -2.0, -3.0)
@@ -353,22 +429,20 @@ fn helmert_identity_inverse_and_apply() {
 
 #[test]
 fn datum_transform_catalogue_is_pinned() {
-    assert_eq!(datum_transform_to_wgs84(Crs::Wgs84), None);
-    assert_eq!(datum_transform_to_wgs84(Crs::Gcj02), None);
-    assert_eq!(datum_transform_to_wgs84(Crs::Bd09), None);
+    assert_eq!(datum_transform_catalog_to_wgs84(Crs::Wgs84), None);
+    assert_eq!(datum_transform_catalog_to_wgs84(Crs::Gcj02), None);
+    assert_eq!(datum_transform_catalog_to_wgs84(Crs::Bd09), None);
+    // NIMA TR8350.2 mean shifts and the root-sum-square of their published
+    // per-axis accuracies (none is published for Pulkovo-1942).
     let cases = [
-        (Crs::Nad27, ellipsoid_clarke_1866(), (-8.0, 160.0, 176.0)),
-        (Crs::Tokyo, ellipsoid_bessel_1841(), (-148.0, 507.0, 685.0)),
-        (
-            Crs::Pulkovo42,
-            ellipsoid_krasovsky_1940(),
-            (28.0, -130.0, -95.0),
-        ),
+        (Crs::Nad27, (-8.0, 160.0, 176.0), Some(86f64.sqrt())),
+        (Crs::Tokyo, (-148.0, 507.0, 685.0), Some(825f64.sqrt())),
+        (Crs::Pulkovo42, (28.0, -130.0, -95.0), None),
     ];
-    for (crs, ellipsoid, (tx, ty, tz)) in cases {
-        let dt = datum_transform_to_wgs84(crs).unwrap();
+    for (crs, (tx, ty, tz), accuracy_m) in cases {
+        let dt = datum_transform_catalog_to_wgs84(crs).unwrap();
         assert_eq!((dt.from_crs, dt.to_crs), (crs, Crs::Wgs84));
-        assert_eq!((dt.from, dt.to), (ellipsoid, ellipsoid_wgs84()));
+        assert_eq!(dt.accuracy_m, accuracy_m);
         assert_eq!(
             dt.helmert,
             Helmert {
@@ -383,7 +457,7 @@ fn datum_transform_catalogue_is_pinned() {
 
 #[test]
 fn datum_transform_apply_and_inverse_round_trip() {
-    let dt = datum_transform_to_wgs84(Crs::Nad27).unwrap();
+    let dt = datum_transform_catalog_to_wgs84(Crs::Nad27).unwrap();
     let nad27 = Coordinate {
         lat: 40.0,
         lon: -100.0,
@@ -394,9 +468,10 @@ fn datum_transform_apply_and_inverse_round_trip() {
     assert_eq!(wgs.crs, Crs::Wgs84);
     close(wgs.lat, 40.000_009_482_759, 1e-9);
     close(wgs.lon, -100.000_417_622_218_8, 1e-9);
-    let inverse = datum_transform_inverse(dt);
+    let inverse = datum_transform_inverse_first_order(dt).unwrap();
     assert_eq!((inverse.from_crs, inverse.to_crs), (Crs::Wgs84, Crs::Nad27));
-    assert_eq!((inverse.from, inverse.to), (dt.to, dt.from));
+    assert_eq!(inverse.helmert, helmert_inverse_first_order(dt.helmert));
+    assert_eq!(inverse.accuracy_m, dt.accuracy_m);
     let back = datum_transform_apply(inverse, wgs).unwrap();
     assert_eq!(back.crs, Crs::Nad27);
     close(back.lat, 40.0, 1e-8);
@@ -406,6 +481,57 @@ fn datum_transform_apply_and_inverse_round_trip() {
             assert_eq!((expected, found), (Crs::Nad27, Crs::Wgs84));
         }
         other => panic!("expected CrsMismatch, got {other:?}"),
+    }
+}
+
+#[test]
+fn datum_transform_new_validates_hand_built_records() {
+    let shift = Helmert {
+        tx_m: 1.0,
+        ..helmert_identity()
+    };
+    let dt = datum_transform_new(Crs::Tokyo, Crs::Nad27, shift, Some(3.0)).unwrap();
+    assert_eq!(
+        dt,
+        DatumTransform {
+            from_crs: Crs::Tokyo,
+            to_crs: Crs::Nad27,
+            helmert: shift,
+            accuracy_m: Some(3.0),
+        }
+    );
+    let gcj = DatumTransform {
+        from_crs: Crs::Gcj02,
+        ..dt
+    };
+    let bad_helmert = DatumTransform {
+        helmert: Helmert {
+            scale_ppm: f64::NAN,
+            ..shift
+        },
+        ..dt
+    };
+    let bad_accuracy = DatumTransform {
+        accuracy_m: Some(-1.0),
+        ..dt
+    };
+    assert!(matches!(
+        datum_transform_new(gcj.from_crs, gcj.to_crs, gcj.helmert, gcj.accuracy_m),
+        Err(GeoError::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: Crs::Gcj02,
+        })
+    ));
+    let tokyo = coordinate_new(35.0, 139.0, Crs::Tokyo).unwrap();
+    for bad in [gcj, bad_helmert, bad_accuracy] {
+        assert!(datum_transform_apply(bad, tokyo).is_err(), "{bad:?}");
+        assert!(datum_transform_inverse_first_order(bad).is_err(), "{bad:?}");
+    }
+    for (bad, field) in [(bad_helmert, "helmert"), (bad_accuracy, "accuracy_m")] {
+        match datum_transform_new(bad.from_crs, bad.to_crs, bad.helmert, bad.accuracy_m) {
+            Err(GeoError::InvalidValue { field: f, .. }) => assert_eq!(f, field),
+            other => panic!("expected InvalidValue, got {other:?}"),
+        }
     }
 }
 
@@ -420,7 +546,8 @@ fn convert_routes_through_the_wgs84_hub() {
         crs: Crs::Nad27,
     };
     let out = convert(nad27, Crs::Wgs84).unwrap();
-    assert_eq!(out.max_error_m, 0.0);
+    // The Helmert leg reports TR8350.2's accuracy for the NAD27 mean shift.
+    assert_eq!(out.max_error_m, 86f64.sqrt());
     assert_eq!(out.coord.crs, Crs::Wgs84);
     close(out.coord.lat, 40.000_009_482_759, 1e-9);
     close(out.coord.lon, -100.000_417_622_218_8, 1e-9);
