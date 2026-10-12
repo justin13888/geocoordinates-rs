@@ -19,11 +19,11 @@ subsystem meets the five-point stabilization bar defined in
 | **Angles & units** | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees`, `Length`, `LengthUnit` | ✅ | ✅ |
 | **China datums** | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `out_of_china` | ✅ | ✅ |
 | **Runtime dispatch** | `convert` | ✅ | ✅ |
-| **Format** | `format`, `format_fix`, `FormatOptions`, `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ⚠️ G16 | ✅ |
-| **Parse** | `parse_coordinate`, `parse_coordinate_with`, `from_geo_uri`, `text::parse`, `text::parse_with`, `TextParseOptions` | ⚠️ G16 | ✅ |
+| **Format** | `format`, `format_fix`, `FormatOptions` (with `parse_options` for the round trip), `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ✅ | ✅ |
+| **Parse** | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `from_geo_uri`, `text::parse`, `text::parse_with` | ✅ | ✅ |
 | **Interchange & sensors** *(feature-gated)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
 | **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate`, `intersection`, rhumb and cross/along-track utilities, `Helmert`, `DatumTransform` | ⚠️ G9 | ✅ |
-| **Projected grids** | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `zone_for`, `central_meridian_deg` | ⚠️ G16 | ✅ |
+| **Projected grids** | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `zone_for`, `central_meridian_deg` | ✅ | ✅ |
 | **Encoded grids** | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
 | **Discrete global grids** *(feature-gated)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
 
