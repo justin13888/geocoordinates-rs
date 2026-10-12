@@ -202,7 +202,7 @@ impl Dms {
     pub fn to_degrees(self) -> f64 {
         let magnitude =
             f64::from(self.degrees) + f64::from(self.minutes) / 60.0 + self.seconds / 3600.0;
-        magnitude * self.hemisphere.sign()
+        magnitude.copysign(self.hemisphere.sign())
     }
 
     /// Convert to degrees-decimal-minutes, preserving the hemisphere.
@@ -286,7 +286,7 @@ impl Ddm {
     #[must_use]
     pub fn to_degrees(self) -> f64 {
         let magnitude = f64::from(self.degrees) + self.minutes / 60.0;
-        magnitude * self.hemisphere.sign()
+        magnitude.copysign(self.hemisphere.sign())
     }
 
     /// Convert to degrees-minutes-seconds, preserving the hemisphere.
