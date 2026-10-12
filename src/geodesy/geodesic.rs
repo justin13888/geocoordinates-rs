@@ -26,6 +26,20 @@
 //! bearing there is taken against the meridian of the coordinate's own
 //! longitude (GeographicLib's convention): from `(90, λ)`, bearing 180° runs
 //! down meridian `λ`, and bearing 0° down meridian `λ + 180°`.
+//!
+//! ```
+//! use geocoordinates::{Coordinate, Length, geodesy::geodesic};
+//!
+//! let a = Coordinate::wgs84(0.0, 0.0)?;
+//! let b = Coordinate::wgs84(0.0, 1.0)?;
+//! let exact = geodesic::geodesic_distance(&a, &b)?.meters(); // Karney, on WGS 84
+//! let sphere = geodesic::haversine_distance(&a, &b)?.meters(); // mean sphere
+//! assert!((exact - 111_319.491).abs() < 1e-3);
+//! assert!((exact - sphere).abs() < 200.0);
+//! let there = geodesic::destination(&a, 90.0, Length::from_meters(exact))?;
+//! assert!((there.lon() - 1.0).abs() < 1e-12);
+//! # Ok::<(), geocoordinates::Error>(())
+//! ```
 
 use geographiclib_rs::{DirectGeodesic, Geodesic, InverseGeodesic};
 
@@ -56,6 +70,22 @@ use crate::units::Length;
 /// [`Error::OutOfRange`] for an out-of-range position, and
 /// [`Error::CrsMismatch`] when the points' CRSs differ or are GCJ-02 / BD-09
 /// (obfuscated renderings with no ellipsoid; convert them to WGS-84 first).
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, Error, Wgs84, geodesy::geodesic_distance};
+///
+/// // Equator to north pole: a quarter meridian of WGS 84.
+/// let (equator, pole) = (Wgs84::new(0.0, 0.0)?, Wgs84::new(90.0, 0.0)?);
+/// let quarter = geodesic_distance(&equator, &pole)?.meters();
+/// assert!((quarter - 10_001_965.729).abs() < 1e-3);
+/// // Mixed datums are refused rather than silently measured.
+/// let nad27 = Coordinate::new(90.0, 0.0, Crs::Nad27)?;
+/// assert!(matches!(
+///     geodesic_distance(&equator, &nad27),
+///     Err(Error::CrsMismatch { .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
     let g = geodesic_for_pair(a, b)?;
     let s12: f64 = g.inverse(a.lat(), a.lon(), b.lat(), b.lon());
@@ -73,6 +103,20 @@ pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 /// As for [`geodesic_distance`], and [`Error::InvalidValue`]
 /// (`field: "points"`) when `a` and `b` are the same place, which has no
 /// bearing.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, geodesy::initial_bearing};
+///
+/// let a = Coordinate::wgs84(0.0, 0.0)?;
+/// // Due west across the equator wraps to 270°, never −90°.
+/// let west = initial_bearing(&a, &Coordinate::wgs84(0.0, -10.0)?)?;
+/// assert!((west - 270.0).abs() < 1e-9);
+/// assert!(matches!(
+///     initial_bearing(&a, &a),
+///     Err(Error::InvalidValue { field: "points", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn initial_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
     let (azi1, _) = azimuths(a, b)?;
     Ok(normalize_degrees(azi1))
@@ -88,6 +132,17 @@ pub fn initial_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 /// # Errors
 ///
 /// As for [`initial_bearing`].
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, Error, geodesy::{final_bearing, initial_bearing}};
+///
+/// // A geodesic heading north-east bends east as it climbs.
+/// let (a, b) = (Coordinate::wgs84(40.0, -74.0)?, Coordinate::wgs84(51.5, 0.0)?);
+/// assert!(final_bearing(&a, &b)? > initial_bearing(&a, &b)? + 50.0);
+/// let gcj = Coordinate::new(39.9, 116.4, Crs::Gcj02)?;
+/// assert!(matches!(final_bearing(&gcj, &gcj), Err(Error::CrsMismatch { .. })));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
     let (_, azi2) = azimuths(a, b)?;
     Ok(normalize_degrees(azi2))
@@ -102,6 +157,20 @@ pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 /// [`Error::CrsMismatch`] when `start` is GCJ-02 or BD-09, and
 /// [`Error::InvalidValue`] for a non-finite bearing or a non-finite or
 /// negative distance.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, Length, geodesy::destination};
+///
+/// // East from just west of the antimeridian lands wrapped into [-180, 180).
+/// let fiji = Coordinate::wgs84(-17.0, 179.9)?;
+/// let across = destination(&fiji, 90.0, Length::from_meters(50_000.0))?;
+/// assert!(across.lon() < -179.0);
+/// assert!(matches!(
+///     destination(&fiji, 90.0, Length::from_meters(-1.0)),
+///     Err(Error::InvalidValue { field: "distance", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Result<Coordinate> {
     let g = geodesic_for(start.crs())?;
     validate_bearing_and_distance(bearing_deg, distance)?;
@@ -116,6 +185,20 @@ pub fn destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Re
 /// # Errors
 ///
 /// As for [`intermediate`].
+///
+/// ```
+/// use geocoordinates::{Coordinate, Crs, Error, geodesy::midpoint};
+///
+/// // The shorter way round, across the antimeridian.
+/// let m = midpoint(&Coordinate::wgs84(0.0, 170.0)?, &Coordinate::wgs84(0.0, -170.0)?)?;
+/// assert!((m.lon().abs() - 180.0).abs() < 1e-9);
+/// let tokyo = Coordinate::new(35.0, 139.0, Crs::Tokyo)?;
+/// assert!(matches!(
+///     midpoint(&Coordinate::wgs84(35.0, 139.0)?, &tokyo),
+///     Err(Error::CrsMismatch { .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn midpoint(a: &Coordinate, b: &Coordinate) -> Result<Coordinate> {
     intermediate(a, b, 0.5)
 }
@@ -128,6 +211,20 @@ pub fn midpoint(a: &Coordinate, b: &Coordinate) -> Result<Coordinate> {
 ///
 /// [`Error::CrsMismatch`] as for [`geodesic_distance`], and
 /// [`Error::InvalidValue`] when `fraction` is not finite or not in `[0, 1]`.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error, geodesy::intermediate};
+///
+/// // A quarter of the way along the equator from 0° to 40° E.
+/// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 40.0)?);
+/// let p = intermediate(&a, &b, 0.25)?;
+/// assert!(p.lat().abs() < 1e-9 && (p.lon() - 10.0).abs() < 1e-9);
+/// assert!(matches!(
+///     intermediate(&a, &b, 1.5),
+///     Err(Error::InvalidValue { field: "fraction", .. })
+/// ));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn intermediate(a: &Coordinate, b: &Coordinate, fraction: f64) -> Result<Coordinate> {
     let g = geodesic_for_pair(a, b)?;
     if !fraction.is_finite() || !(0.0..=1.0).contains(&fraction) {
