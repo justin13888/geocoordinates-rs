@@ -13,7 +13,6 @@
 # a cap raised relative to the base branch.
 
 # Grandfathered: split these, then lower or remove their entries.
-972 examples/flagship.rs
 
 # Generated: tool output that is never edited by hand.
 generated CHANGELOG.md
