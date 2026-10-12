@@ -1,9 +1,10 @@
 //! Geodesic and rhumb-line navigation, ECEF, and local ENU/NED/AER frames.
 
 use geocoordinates::geodesy::{
-    Aer, Ecef, Ellipsoid, Enu, Ned, along_track_distance, cross_track_distance, destination,
-    final_bearing, geodesic_distance, haversine_distance, initial_bearing, intermediate,
-    intersection, midpoint, rhumb_bearing, rhumb_destination, rhumb_distance,
+    Aer, Ecef, Ellipsoid, Enu, Intersection, Ned, along_track_distance_spherical,
+    cross_track_distance_spherical, destination, final_bearing, geodesic_distance,
+    haversine_distance, initial_bearing, intermediate, intersection_spherical, midpoint,
+    rhumb_bearing, rhumb_destination, rhumb_distance,
 };
 use geocoordinates::{Coordinate, Crs, Height};
 
@@ -62,20 +63,56 @@ pub(crate) fn geodesics_and_local_frames() -> DemoResult {
     let path_start = Coordinate::wgs84(0.0, 0.0)?;
     let path_end = Coordinate::wgs84(0.0, 10.0)?;
     let off_path = Coordinate::wgs84(1.0, 5.0)?;
-    assert!(cross_track_distance(&off_path, &path_start, &path_end)?.meters() < 0.0);
+    assert!(cross_track_distance_spherical(&off_path, &path_start, &path_end)?.meters() < 0.0);
     assert_close(
-        along_track_distance(&off_path, &path_start, &path_end)?.meters(),
+        along_track_distance_spherical(&off_path, &path_start, &path_end)?.meters(),
         5.0 * 111_195.0,
         2_000.0,
     );
-    let crossing = intersection(
+    // A path from one point to itself fixes no great circle.
+    assert!(cross_track_distance_spherical(&off_path, &path_start, &path_start).is_err());
+    let Intersection::Crossing(crossing) = intersection_spherical(
         &Coordinate::wgs84(0.0, -10.0)?,
         90.0,
         &Coordinate::wgs84(-10.0, 0.0)?,
         0.0,
     )?
-    .expect("equator and prime meridian intersect");
+    else {
+        panic!("equator and prime meridian intersect");
+    };
     assert_within_meters(&crossing, &Coordinate::wgs84(0.0, 0.0)?, 0.02);
+    // From a pole, a bearing follows the meridian of the given longitude: 180°
+    // from (90, 10) runs down 10°E to the equator.
+    let Intersection::Crossing(from_pole) = intersection_spherical(
+        &Coordinate::wgs84(90.0, 10.0)?,
+        180.0,
+        &Coordinate::wgs84(0.0, 0.0)?,
+        90.0,
+    )?
+    else {
+        panic!("the meridian meets the equator");
+    };
+    assert_within_meters(&from_pole, &Coordinate::wgs84(0.0, 10.0)?, 0.02);
+    assert_eq!(
+        intersection_spherical(
+            &Coordinate::wgs84(0.0, 0.0)?,
+            90.0,
+            &Coordinate::wgs84(0.0, 5.0)?,
+            90.0
+        )?,
+        Intersection::SameGreatCircle
+    );
+    // Geodesics are measured on the CRS's own ellipsoid: a Tokyo-datum pair on
+    // Bessel 1841, which differs from the same numbers on WGS-84.
+    let tokyo = |lat, lon| Coordinate::new(lat, lon, Crs::Tokyo);
+    let on_bessel = geodesic_distance(&tokyo(35.0, 139.0)?, &tokyo(36.0, 140.0)?)?;
+    let on_wgs84 = geodesic_distance(
+        &Coordinate::wgs84(35.0, 139.0)?,
+        &Coordinate::wgs84(36.0, 140.0)?,
+    )?;
+    assert!((on_wgs84.meters() - on_bessel.meters()).abs() > 1.0);
+    // The same place has no bearing.
+    assert!(initial_bearing(&route_start, &route_start).is_err());
 
     for ellipsoid in [
         Ellipsoid::WGS84,

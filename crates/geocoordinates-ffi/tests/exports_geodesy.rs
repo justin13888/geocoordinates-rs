@@ -352,25 +352,67 @@ fn cross_and_along_track_distances_are_pinned() {
     let point = wgs84(1.0, 5.0);
     // North of an eastbound path is to its left: negative.
     close(
-        cross_track_distance_m(point, start, end).unwrap(),
+        cross_track_distance_spherical_m(point, start, end).unwrap(),
         -111_195.080_233_532_85,
         1e-6,
     );
     close(
-        along_track_distance_m(point, start, end).unwrap(),
+        along_track_distance_spherical_m(point, start, end).unwrap(),
         555_975.401_167_671_7,
         1e-6,
     );
+    // A path from a point to itself fixes no great circle.
+    assert!(cross_track_distance_spherical_m(point, start, start).is_err());
+    assert!(along_track_distance_spherical_m(point, start, start).is_err());
 }
 
 #[test]
 fn intersection_of_the_equator_and_the_prime_meridian_is_null_island() {
-    let hit = intersection(wgs84(0.0, -10.0), 90.0, wgs84(-10.0, 0.0), 0.0)
-        .unwrap()
-        .expect("the equator and the prime meridian intersect");
+    let IntersectionResult::Crossing { point: hit } =
+        intersection_spherical(wgs84(0.0, -10.0), 90.0, wgs84(-10.0, 0.0), 0.0).unwrap()
+    else {
+        panic!("the equator and the prime meridian intersect");
+    };
     close(hit.lat, 0.0, 1e-12);
     close(hit.lon, 0.0, 1e-12);
     assert_eq!(hit.crs, Crs::Wgs84);
+}
+
+#[test]
+fn intersection_names_each_outcome() {
+    // From the north pole, 180° runs down the given meridian to (0, 10).
+    let IntersectionResult::Crossing { point } =
+        intersection_spherical(wgs84(90.0, 10.0), 180.0, wgs84(0.0, 0.0), 90.0).unwrap()
+    else {
+        panic!("the meridian meets the equator");
+    };
+    close(point.lat, 0.0, 1e-9);
+    close(point.lon, 10.0, 1e-9);
+    assert_eq!(
+        intersection_spherical(wgs84(0.0, 0.0), 90.0, wgs84(0.0, 5.0), 90.0).unwrap(),
+        IntersectionResult::SameGreatCircle
+    );
+    assert_eq!(
+        intersection_spherical(wgs84(10.0, 0.0), 270.0, wgs84(0.0, 10.0), 0.0).unwrap(),
+        IntersectionResult::NoForwardCrossing
+    );
+    let gcj = coordinate_new(30.0, 110.0, Crs::Gcj02).unwrap();
+    assert!(intersection_spherical(gcj, 0.0, gcj, 90.0).is_err());
+}
+
+#[test]
+fn geodesics_use_the_datum_ellipsoid_and_reject_obfuscated_datums() {
+    let tokyo = |lat, lon| coordinate_new(lat, lon, Crs::Tokyo).unwrap();
+    let on_bessel = geodesic_distance_m(tokyo(35.0, 139.0), tokyo(36.0, 140.0)).unwrap();
+    let on_wgs84 = geodesic_distance_m(wgs84(35.0, 139.0), wgs84(36.0, 140.0)).unwrap();
+    assert!((on_wgs84 - on_bessel).abs() > 1.0);
+    assert_eq!(
+        destination(tokyo(35.0, 139.0), 0.0, 1_000.0).unwrap().crs,
+        Crs::Tokyo
+    );
+    let gcj = |lat, lon| coordinate_new(lat, lon, Crs::Gcj02).unwrap();
+    assert!(geodesic_distance_m(gcj(30.0, 110.0), gcj(31.0, 111.0)).is_err());
+    assert!(initial_bearing(new_york(), new_york()).is_err());
 }
 
 // --- Helmert and datum transforms ---

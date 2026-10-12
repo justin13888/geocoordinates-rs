@@ -379,9 +379,36 @@ assert approx(
 dest = gc.destination(wgs84_coord(0.0, 0.0), 90.0, 111_319.49)
 assert approx(dest.lon, 1.0, 1e-4)
 # The equator (eastbound) and the prime meridian (northbound) meet at Null Island.
-hit = gc.intersection(wgs84_coord(0.0, -10.0), 90.0, wgs84_coord(-10.0, 0.0), 0.0)
-assert hit is not None and hit.crs == gc.Crs.WGS84
+res = gc.intersection_spherical(
+    wgs84_coord(0.0, -10.0), 90.0, wgs84_coord(-10.0, 0.0), 0.0
+)
+assert res.is_CROSSING(), res
+hit = res.point
+assert hit.crs == gc.Crs.WGS84
 assert approx(hit.lat, 0.0, 1e-12) and approx(hit.lon, 0.0, 1e-12), (hit.lat, hit.lon)
+# From the north pole, 180 degrees runs down the given meridian to (0, 10).
+res = gc.intersection_spherical(wgs84_coord(90.0, 10.0), 180.0, wgs84_coord(0.0, 0.0), 90.0)
+assert res.is_CROSSING() and approx(res.point.lon, 10.0, 1e-9), res
+# Two eastbound paths along the equator share one great circle.
+res = gc.intersection_spherical(wgs84_coord(0.0, 0.0), 90.0, wgs84_coord(0.0, 5.0), 90.0)
+assert res.is_SAME_GREAT_CIRCLE(), res
+xt = gc.cross_track_distance_spherical_m(
+    wgs84_coord(1.0, 5.0), wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 10.0)
+)
+assert approx(xt, -111_195.080_233, 1e-3), xt
+at = gc.along_track_distance_spherical_m(
+    wgs84_coord(1.0, 5.0), wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 10.0)
+)
+assert approx(at, 555_975.401_168, 1e-3), at
+# Geodesics run on the CRS's own ellipsoid and reject the obfuscated datums.
+tokyo = gc.Coordinate(lat=35.0, lon=139.0, height=None, crs=gc.Crs.TOKYO)
+assert gc.destination(tokyo, 0.0, 1_000.0).crs == gc.Crs.TOKYO
+mars = gc.Coordinate(lat=30.0, lon=110.0, height=None, crs=gc.Crs.GCJ02)
+try:
+    gc.geodesic_distance_m(mars, mars)
+    raise AssertionError("expected CrsMismatch for GCJ-02")
+except gc.GeoError.CrsMismatch:
+    pass
 
 # --- Classic datums (Helmert / DatumTransform) ---
 assert gc.datum_transform_catalog_to_wgs84(gc.Crs.WGS84) is None  # no shift needed

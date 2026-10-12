@@ -3817,6 +3817,105 @@ public func FfiConverterTypeHemisphereStyle_lower(_ value: HemisphereStyle) -> R
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The outcome of [`intersection_spherical`] — mirror of
+ * [`gc::geodesy::Intersection`].
+ *
+ * `gc::geodesy::Intersection` is exhaustive, so the `From` impl below is an
+ * exhaustive match: a new outcome upstream fails this crate's build until
+ * mirrored here.
+ */
+
+public enum IntersectionResult: Equatable, Hashable {
+    
+    /**
+     * The paths cross at `point`, less than half a great circle ahead of each
+     * start (in the inputs' CRS, with no height).
+     */
+    case crossing(
+        /**
+         * The crossing point.
+         */point: Coordinate
+    )
+    /**
+     * Both paths run along the same great circle, so no single crossing
+     * exists.
+     */
+    case sameGreatCircle
+    /**
+     * Neither crossing of the two great circles lies ahead of both starts.
+     */
+    case noForwardCrossing
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension IntersectionResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIntersectionResult: FfiConverterRustBuffer {
+    typealias SwiftType = IntersectionResult
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IntersectionResult {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .crossing(point: try FfiConverterTypeCoordinate.read(from: &buf)
+        )
+        
+        case 2: return .sameGreatCircle
+        
+        case 3: return .noForwardCrossing
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: IntersectionResult, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .crossing(point):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeCoordinate.write(point, into: &buf)
+            
+        
+        case .sameGreatCircle:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .noForwardCrossing:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIntersectionResult_lift(_ buf: RustBuffer) throws -> IntersectionResult {
+    return try FfiConverterTypeIntersectionResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIntersectionResult_lower(_ value: IntersectionResult) -> RustBuffer {
+    return FfiConverterTypeIntersectionResult.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * A length unit — mirror of [`gc::LengthUnit`].
  */
 
@@ -4482,30 +4581,6 @@ fileprivate struct FfiConverterOptionTypeAccuracy: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeAccuracy.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionTypeCoordinate: FfiConverterRustBuffer {
-    typealias SwiftType = Coordinate?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeCoordinate.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeCoordinate.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -5516,11 +5591,12 @@ public func aerToNed(aer: Aer) -> Ned  {
 }
 /**
  * Along-track distance (meters) from `start` to the foot of the perpendicular
- * from `point` onto `start` → `end`.
+ * from `point` onto the great-circle path `start` → `end` on the mean sphere.
+ * Approximate; errors as [`cross_track_distance_spherical_m`] does.
  */
-public func alongTrackDistanceM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
+public func alongTrackDistanceSphericalM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_along_track_distance_m(
+    uniffi_geocoordinates_ffi_fn_func_along_track_distance_spherical_m(
         FfiConverterTypeCoordinate_lower(point),
         FfiConverterTypeCoordinate_lower(start),
         FfiConverterTypeCoordinate_lower(end),$0
@@ -5528,12 +5604,16 @@ public func alongTrackDistanceM(point: Coordinate, start: Coordinate, end: Coord
 })
 }
 /**
- * Signed perpendicular distance (meters) from `point` to the path
- * `start` → `end` (positive to the right).
+ * Signed perpendicular distance (meters) from `point` to the great-circle
+ * path `start` → `end` on the mean sphere (positive to the right).
+ * Approximate: the sphere is not the ellipsoid.
+ *
+ * Errors when `start` and `end` are the same place or antipodal (no single
+ * great circle runs through them).
  */
-public func crossTrackDistanceM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
+public func crossTrackDistanceSphericalM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_cross_track_distance_m(
+    uniffi_geocoordinates_ffi_fn_func_cross_track_distance_spherical_m(
         FfiConverterTypeCoordinate_lower(point),
         FfiConverterTypeCoordinate_lower(start),
         FfiConverterTypeCoordinate_lower(end),$0
@@ -5542,7 +5622,8 @@ public func crossTrackDistanceM(point: Coordinate, start: Coordinate, end: Coord
 }
 /**
  * The point reached from `start` along `bearing_deg` for `distance_m` meters
- * (exact, Karney).
+ * (exact, Karney), on the ellipsoid of `start`'s CRS; the result keeps that
+ * CRS and has no height. Errors for a GCJ-02 / BD-09 start.
  */
 public func destination(start: Coordinate, bearingDeg: Double, distanceM: Double)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5754,7 +5835,8 @@ public func enuToNed(enu: Enu) -> Ned  {
 })
 }
 /**
- * Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`.
+ * Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`,
+ * on the ellipsoid of their shared CRS. Errors as [`initial_bearing`] does.
  */
 public func finalBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5766,13 +5848,11 @@ public func finalBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
 }
 /**
  * Ellipsoidal (Karney) geodesic distance between two coordinates, in
- * **meters**, measured on the **WGS-84** ellipsoid whatever their shared CRS.
+ * **meters**, measured on the ellipsoid of their shared CRS (NAD27 on Clarke
+ * 1866, Tokyo on Bessel 1841, …), accurate to round-off.
  *
- * Accurate to round-off for WGS-84 points. Two classic-datum points (NAD27,
- * Tokyo, Pulkovo-1942) are off by up to about 1.3e-4 of the distance, because
- * their own ellipsoid is not WGS-84. Two GCJ-02 or BD-09 points carry the
- * difference of their obfuscation offsets; convert them to WGS-84 first for a
- * true distance.
+ * Errors for GCJ-02 / BD-09 inputs, which are obfuscated renderings with no
+ * ellipsoid (convert them to WGS-84 first), and for mixed CRSs.
  */
 public func geodesicDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5797,7 +5877,10 @@ public func haversineDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
 })
 }
 /**
- * Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
+ * Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`,
+ * on the ellipsoid of their shared CRS. From a pole the bearing follows the
+ * meridian of `a`'s own longitude. Errors when `a` and `b` are the same
+ * place, and as [`geodesic_distance_m`] does.
  */
 public func initialBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5808,7 +5891,9 @@ public func initialBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
 })
 }
 /**
- * The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic.
+ * The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the
+ * geodesic, on the ellipsoid of their shared CRS (kept, with no height).
+ * Errors for GCJ-02 / BD-09 inputs or a `fraction` outside `[0, 1]`.
  */
 public func intermediate(a: Coordinate, b: Coordinate, fraction: Double)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5820,12 +5905,16 @@ public func intermediate(a: Coordinate, b: Coordinate, fraction: Double)throws  
 })
 }
 /**
- * Intersection of two great circles (each a point + initial bearing), or
- * `None` when they are parallel/coincident or ambiguous.
+ * Where two great-circle paths (each a start point and an initial bearing in
+ * degrees) cross ahead of both starts, on the mean sphere. Approximate: the
+ * sphere is not the ellipsoid.
+ *
+ * At a pole a bearing follows the meridian of the start's own longitude.
+ * Errors for GCJ-02 / BD-09 inputs, mixed CRSs, or a non-finite bearing.
  */
-public func intersection(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> Coordinate?  {
-    return try  FfiConverterOptionTypeCoordinate.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_intersection(
+public func intersectionSpherical(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> IntersectionResult  {
+    return try  FfiConverterTypeIntersectionResult_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_intersection_spherical(
         FfiConverterTypeCoordinate_lower(a),
         FfiConverterDouble.lower(bearingADeg),
         FfiConverterTypeCoordinate_lower(b),
@@ -5834,7 +5923,8 @@ public func intersection(a: Coordinate, bearingADeg: Double, b: Coordinate, bear
 })
 }
 /**
- * The geodesic midpoint between `a` and `b`.
+ * The geodesic midpoint between `a` and `b`, on the ellipsoid of their
+ * shared CRS (kept, with no height). Errors for GCJ-02 / BD-09 inputs.
  */
 public func midpoint(a: Coordinate, b: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6611,13 +6701,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_aer_to_ned() != 57003) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_m() != 22726) {
+    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_spherical_m() != 19084) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_m() != 15519) {
+    if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_spherical_m() != 59124) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_destination() != 46783) {
+    if (uniffi_geocoordinates_ffi_checksum_func_destination() != 44460) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 4916) {
@@ -6671,25 +6761,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 44436) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_final_bearing() != 58646) {
+    if (uniffi_geocoordinates_ffi_checksum_func_final_bearing() != 8531) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geodesic_distance_m() != 17617) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geodesic_distance_m() != 10280) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_haversine_distance_m() != 48658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_initial_bearing() != 22036) {
+    if (uniffi_geocoordinates_ffi_checksum_func_initial_bearing() != 63112) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_intermediate() != 23421) {
+    if (uniffi_geocoordinates_ffi_checksum_func_intermediate() != 25155) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_intersection() != 8218) {
+    if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 493) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_midpoint() != 60124) {
+    if (uniffi_geocoordinates_ffi_checksum_func_midpoint() != 4329) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ned_from_coordinate() != 13238) {

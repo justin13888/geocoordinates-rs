@@ -114,9 +114,10 @@ pub mod prelude {
         format_fix,
     };
     pub use crate::geodesy::{
-        Aer, Ecef, Ellipsoid, Enu, Ned, along_track_distance, cross_track_distance, destination,
-        final_bearing, geodesic_distance, initial_bearing, intermediate, intersection, midpoint,
-        rhumb_bearing, rhumb_destination, rhumb_distance,
+        Aer, Ecef, Ellipsoid, Enu, Intersection, Ned, along_track_distance_spherical,
+        cross_track_distance_spherical, destination, final_bearing, geodesic_distance,
+        initial_bearing, intermediate, intersection_spherical, midpoint, rhumb_bearing,
+        rhumb_destination, rhumb_distance,
     };
     pub use crate::geodesy::{DatumTransform, Helmert};
     pub use crate::grids::{

@@ -1,15 +1,24 @@
 //! Great-circle routines on the IUGG mean sphere.
 //!
 //! [`haversine_distance`], the cross/along-track pair
-//! ([`cross_track_distance`] / [`along_track_distance`]), and the great-circle
-//! [`intersection`] model the Earth as a sphere of radius
-//! `MEAN_EARTH_RADIUS_M`, so they are approximate by construction. They are
-//! implemented here directly and re-exported from [`super::geodesic`].
+//! ([`cross_track_distance_spherical`] / [`along_track_distance_spherical`]),
+//! and the great-circle [`intersection_spherical`] model the Earth as a sphere
+//! of radius `MEAN_EARTH_RADIUS_M`, so they are approximate by construction:
+//! a great-circle distance differs from the ellipsoidal geodesic by up to
+//! about 0.56% (see [`haversine_distance`]). They are implemented here
+//! directly and re-exported from [`super::geodesic`].
+//!
+//! The sphere is not any datum's surface, so the measurements accept any
+//! shared [`Crs`](crate::Crs) and measure its latitudes and longitudes as
+//! given. [`intersection_spherical`] produces a position, and so rejects
+//! GCJ-02 and BD-09 like the ellipsoidal producers do. At a pole, a bearing is
+//! taken against the meridian of the coordinate's own longitude, as in
+//! [`super::geodesic`].
 
 use core::f64::consts::PI;
 
-use super::geodesic::{validate_pair, validate_wgs84};
-use crate::angle::wrap_longitude;
+use super::ecef::ellipsoid_of;
+use super::geodesic::{finish, validate_pair};
 use crate::coord::{Coordinate, LatLon};
 use crate::error::{Error, Result};
 use crate::units::Length;
@@ -22,6 +31,21 @@ pub(super) const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 ///
 /// Uses the IUGG mean Earth radius. The `atan2` form is numerically robust for
 /// the full range of separations, including near-antipodal points.
+///
+/// **Error bound.** Against the WGS-84 ellipsoidal geodesic
+/// ([`geodesic_distance`](super::geodesic_distance)), the relative error
+/// measured over a global 5° grid of pairs peaks at about 0.56% (≈ 5.6 m per
+/// km). Use the geodesic where that matters.
+///
+/// The sphere is no datum's surface, so any shared CRS is accepted and its
+/// latitudes and longitudes are measured as given; for GCJ-02 / BD-09 that is
+/// the distance between the obfuscated renderings, not between the true
+/// positions.
+///
+/// # Errors
+///
+/// [`Error::OutOfRange`] for an out-of-range position, and
+/// [`Error::CrsMismatch`] when the two CRSs differ.
 pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
     validate_pair(a, b)?;
     let lat1 = a.lat().to_radians();
@@ -35,14 +59,21 @@ pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 }
 
 /// Signed perpendicular distance from `point` to the great-circle path
-/// `start` → `end` (positive to the right, negative to the left).
-pub fn cross_track_distance(
+/// `start` → `end` on the mean sphere (positive to the right, negative to the
+/// left). Approximate: the sphere is not the ellipsoid.
+///
+/// # Errors
+///
+/// [`Error::OutOfRange`] for an out-of-range position, [`Error::CrsMismatch`]
+/// when the three CRSs differ, and [`Error::InvalidValue`] (`field: "path"`)
+/// when `start` and `end` are the same place or antipodal, which fixes no
+/// single great circle.
+pub fn cross_track_distance_spherical(
     point: &impl LatLon,
     start: &impl LatLon,
     end: &impl LatLon,
 ) -> Result<Length> {
-    validate_pair(point, start)?;
-    validate_pair(start, end)?;
+    validate_path(point, start, end)?;
     let d13 = angular_distance_rad(start, point);
     let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
     let xt = (d13.sin() * bearing_diff.sin()).asin();
@@ -50,15 +81,19 @@ pub fn cross_track_distance(
 }
 
 /// Distance from `start` to the foot of the perpendicular from `point` onto the
-/// great-circle path `start` → `end` (the along-track component; negative when
-/// the foot lies behind `start`).
-pub fn along_track_distance(
+/// great-circle path `start` → `end` on the mean sphere (the along-track
+/// component; negative when the foot lies behind `start`). Approximate: the
+/// sphere is not the ellipsoid.
+///
+/// # Errors
+///
+/// As for [`cross_track_distance_spherical`].
+pub fn along_track_distance_spherical(
     point: &impl LatLon,
     start: &impl LatLon,
     end: &impl LatLon,
 ) -> Result<Length> {
-    validate_pair(point, start)?;
-    validate_pair(start, end)?;
+    validate_path(point, start, end)?;
     let d13 = angular_distance_rad(start, point);
     let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
     let xt = (d13.sin() * bearing_diff.sin()).asin();
@@ -68,90 +103,145 @@ pub fn along_track_distance(
     Ok(Length::from_meters(signed * MEAN_EARTH_RADIUS_M))
 }
 
-/// Intersection of two great circles, each given by a point and an initial
-/// bearing, on the mean sphere. `None` when the paths are parallel/coincident
-/// or ambiguous. Carries `a.crs()`.
-pub fn intersection(
+/// The outcome of [`intersection_spherical`]: where two great-circle paths
+/// cross ahead of both starts, or why there is no single such point.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Intersection {
+    /// The paths cross at this point, less than half a great circle ahead of
+    /// each start (or at a start itself). It carries the inputs' CRS and no
+    /// height.
+    Crossing(Coordinate),
+    /// Both paths run along the same great circle (in either direction), so
+    /// every point of it is shared and no single crossing exists.
+    SameGreatCircle,
+    /// The two great circles cross at a pair of antipodal points, but neither
+    /// lies ahead of both starts: one path must travel backwards (or exactly
+    /// half a great circle) to reach either.
+    NoForwardCrossing,
+}
+
+/// Where two great-circle paths, each a start point and an initial bearing in
+/// degrees, cross ahead of both starts, on the mean sphere. Approximate: the
+/// sphere is not the ellipsoid (see [`haversine_distance`] for the size of
+/// that difference).
+///
+/// At a pole the bearing is taken against the meridian of the start's own
+/// longitude: from `(90, λ)`, 180° runs down meridian `λ`. The result is a
+/// [`Intersection::Crossing`] in `a.crs()` with no height, or names why there
+/// is no single crossing.
+///
+/// # Errors
+///
+/// [`Error::OutOfRange`] for an out-of-range start, [`Error::CrsMismatch`]
+/// when the CRSs differ or are GCJ-02 / BD-09 (obfuscated renderings; convert
+/// them to WGS-84 first), and [`Error::InvalidValue`] (`field: "bearing"`) for
+/// a non-finite bearing.
+pub fn intersection_spherical(
     a: &Coordinate,
     bearing_a_deg: f64,
     b: &Coordinate,
     bearing_b_deg: f64,
-) -> Result<Option<Coordinate>> {
+) -> Result<Intersection> {
     validate_pair(a, b)?;
-    validate_wgs84(a)?;
+    ellipsoid_of(a.crs())?;
     if !bearing_a_deg.is_finite() || !bearing_b_deg.is_finite() {
         return Err(Error::InvalidValue {
             field: "bearing",
             detail: "must be finite".into(),
         });
     }
-    let (phi1, lam1) = (a.lat().to_radians(), a.lon().to_radians());
-    let (phi2, lam2) = (b.lat().to_radians(), b.lon().to_radians());
-    let theta13 = bearing_a_deg.to_radians();
-    let theta23 = bearing_b_deg.to_radians();
-    let d_phi = phi2 - phi1;
-    let d_lam = lam2 - lam1;
-
-    let delta12 = 2.0
-        * ((d_phi / 2.0).sin().powi(2) + phi1.cos() * phi2.cos() * (d_lam / 2.0).sin().powi(2))
-            .sqrt()
-            .asin();
-    if is_coincident(delta12) {
-        return Ok(Some(*a)); // coincident endpoints
+    let (p1, d1) = (n_vector(a), heading(a, bearing_a_deg));
+    let (p2, d2) = (n_vector(b), heading(b, bearing_b_deg));
+    // Each path's great circle is the plane normal to p × d; the circles meet
+    // along the line both normals are perpendicular to.
+    // Its length is the sine of the angle between the circles. It is left
+    // unnormalized: the angle and position below are `atan2`s, which only its
+    // direction affects.
+    let i = cross(cross(p1, d1), cross(p2, d2));
+    if is_parallel(dot(i, i).sqrt()) {
+        return Ok(Intersection::SameGreatCircle);
     }
-
-    let theta_a = ((phi2.sin() - phi1.sin() * delta12.cos()) / (delta12.sin() * phi1.cos()))
-        .clamp(-1.0, 1.0)
-        .acos();
-    let theta_b = ((phi1.sin() - phi2.sin() * delta12.cos()) / (delta12.sin() * phi2.cos()))
-        .clamp(-1.0, 1.0)
-        .acos();
-    let (theta12, theta21) = endpoint_bearings(theta_a, theta_b, d_lam.sin());
-
-    let alpha1 = theta13 - theta12;
-    let alpha2 = theta21 - theta23;
-    if no_single_forward_intersection(alpha1.sin(), alpha2.sin()) {
-        return Ok(None);
+    for x in [i, i.map(|v| -v)] {
+        if is_forward(along_angle(p1, d1, x)) && is_forward(along_angle(p2, d2, x)) {
+            let lat = x[2].atan2(x[0].hypot(x[1])).to_degrees();
+            let lon = x[1].atan2(x[0]).to_degrees();
+            return finish(lat, lon, a.crs()).map(Intersection::Crossing);
+        }
     }
-
-    let cos_alpha3 = -alpha1.cos() * alpha2.cos() + alpha1.sin() * alpha2.sin() * delta12.cos();
-    let delta13 = (delta12.sin() * alpha1.sin() * alpha2.sin())
-        .atan2(alpha2.cos() + alpha1.cos() * cos_alpha3);
-    let phi3 = (phi1.sin() * delta13.cos() + phi1.cos() * delta13.sin() * theta13.cos())
-        .clamp(-1.0, 1.0)
-        .asin();
-    let d_lam13 =
-        (theta13.sin() * delta13.sin() * phi1.cos()).atan2(delta13.cos() - phi1.sin() * phi3.sin());
-    let lon3 = wrap_longitude((lam1 + d_lam13).to_degrees());
-    Coordinate::new(phi3.to_degrees(), lon3, a.crs()).map(Some)
+    Ok(Intersection::NoForwardCrossing)
 }
 
-/// Whether two points `delta12` radians apart are treated as one point by
-/// [`intersection`]: strictly closer than 1e-12 rad (about 6 µm).
-fn is_coincident(delta12: f64) -> bool {
-    delta12 < 1e-12
+/// A 3-vector in Earth-centred axes (x to (0, 0), z to the north pole).
+type Vec3 = [f64; 3];
+
+fn dot(u: Vec3, v: Vec3) -> f64 {
+    u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
 }
 
-/// The bearings `(θ₁₂, θ₂₁)` of the great circle between the two
-/// [`intersection`] start points, in radians, from the unsigned angles
-/// `theta_a` / `theta_b` it makes with each meridian. Point 2 lies east of
-/// point 1 when `sin_d_lam > 0`; otherwise (including `sin_d_lam == 0`, a
-/// shared meridian) the west assignment is taken.
-fn endpoint_bearings(theta_a: f64, theta_b: f64, sin_d_lam: f64) -> (f64, f64) {
-    if sin_d_lam > 0.0 {
-        (theta_a, 2.0 * PI - theta_b)
-    } else {
-        (2.0 * PI - theta_a, theta_b)
+fn cross(u: Vec3, v: Vec3) -> Vec3 {
+    [
+        u[1] * v[2] - u[2] * v[1],
+        u[2] * v[0] - u[0] * v[2],
+        u[0] * v[1] - u[1] * v[0],
+    ]
+}
+
+/// The n-vector (unit position vector) of a position on the sphere.
+fn n_vector(p: &impl LatLon) -> Vec3 {
+    let (phi, lam) = (p.lat().to_radians(), p.lon().to_radians());
+    [phi.cos() * lam.cos(), phi.cos() * lam.sin(), phi.sin()]
+}
+
+/// The unit direction of travel leaving `p` on `bearing_deg`.
+///
+/// East is `(-sin λ, cos λ, 0)` and north `(-sin φ cos λ, -sin φ sin λ, cos φ)`;
+/// both stay defined at a pole, where they take the meridian of `p`'s own
+/// longitude, so no pole needs a special case.
+fn heading(p: &impl LatLon, bearing_deg: f64) -> Vec3 {
+    let (phi, lam) = (p.lat().to_radians(), p.lon().to_radians());
+    let theta = bearing_deg.to_radians();
+    let east = [-lam.sin(), lam.cos(), 0.0];
+    let north = [-phi.sin() * lam.cos(), -phi.sin() * lam.sin(), phi.cos()];
+    [0, 1, 2].map(|k| north[k] * theta.cos() + east[k] * theta.sin())
+}
+
+/// The signed angle, in radians `[-π, π]`, travelled from `p` heading `d` to
+/// reach `x` along their great circle (negative when `x` lies behind).
+fn along_angle(p: Vec3, d: Vec3, x: Vec3) -> f64 {
+    dot(d, x).atan2(dot(p, x))
+}
+
+/// Whether two unit vectors whose cross product has length `sin_angle` are
+/// treated as parallel or antiparallel: strictly below 1e-12, about 6 µm on
+/// the Earth's surface. Two great-circle normals that are count as one circle;
+/// two positions that are count as coincident or antipodal.
+fn is_parallel(sin_angle: f64) -> bool {
+    sin_angle < 1e-12
+}
+
+/// Whether a crossing `along` radians from a start lies ahead of it: in
+/// `(-1e-12, π - 1e-12)`. The slack admits a crossing at the start itself
+/// despite rounding, and excludes the antipode of the start, which every
+/// direction reaches after half a great circle.
+fn is_forward(along: f64) -> bool {
+    along > -1e-12 && along < PI - 1e-12
+}
+
+/// Validates a cross/along-track path: each position in range, one shared
+/// CRS, and `start` / `end` neither coincident nor antipodal (either leaves
+/// the great circle through them undefined).
+fn validate_path(point: &impl LatLon, start: &impl LatLon, end: &impl LatLon) -> Result<()> {
+    validate_pair(point, start)?;
+    validate_pair(start, end)?;
+    let normal = cross(n_vector(start), n_vector(end));
+    if is_parallel(dot(normal, normal).sqrt()) {
+        return Err(Error::InvalidValue {
+            field: "path",
+            detail: "start and end must be distinct and not antipodal".into(),
+        });
     }
-}
-
-/// Whether [`intersection`] has no single forward crossing, from the sines of
-/// the angles `α₁` / `α₂` each path makes with the line joining the starts:
-/// both (almost) zero means the same great circle (infinitely many
-/// intersections), and opposite signs mean the crossing is the ambiguous
-/// antipodal one.
-fn no_single_forward_intersection(sin_alpha1: f64, sin_alpha2: f64) -> bool {
-    (sin_alpha1.abs() < 1e-12 && sin_alpha2.abs() < 1e-12) || sin_alpha1 * sin_alpha2 < 0.0
+    Ok(())
 }
 
 /// Initial bearing on a sphere, in radians.
