@@ -213,7 +213,7 @@ Set `HK=0` to skip hooks for a single git invocation.
 GitHub Actions runs these workflows:
 
 - **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, and a coverage report; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
-- **FFI** (pushes to `master` and pull requests): Clippy on the FFI crate, the bindings `cdylib` build, Python/Kotlin/Swift binding generation, a check that the committed Swift bindings are current, a WASM/TypeScript build, Python and JVM (Kotlin/Java) smoke tests, and a Swift package build on macOS.
+- **FFI** (pushes to `master` and pull requests): Clippy on the FFI crate, the bindings `cdylib` build, Python/Kotlin/Swift binding generation, a check that the committed Swift bindings are current, a WASM/TypeScript build with Node tests against the built wasm, the Python smoke test, JVM (Kotlin and Java) tests, and a Swift package build plus `swift test` on macOS.
 - **Full-tree mutation tests** (weekly, and on demand): mutates the whole tree and reports survivors without gating anything.
 - **Release dry runs**: each binding release workflow also runs as a non-publishing dry run on pull requests that touch its pipeline and weekly (see [PUBLISHING.md](PUBLISHING.md)).
 

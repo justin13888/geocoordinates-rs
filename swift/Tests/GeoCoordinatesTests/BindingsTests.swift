@@ -1,0 +1,160 @@
+// Behavioural tests of the Swift bindings: exact and approximate conversions
+// (with their stated error bounds) and each typed `GeoError` case. The cases are
+// ported from crates/geocoordinates-ffi/tests/smoke.py, which pins the reference
+// values against src/test_support.rs.
+import Foundation
+import GeoCoordinates
+import XCTest
+
+// Reference triple from src/test_support.rs (coordtransform-rs), lat first.
+private let wgs = Wgs84(lat: 39.915, lon: 116.404)
+private let gcj = Gcj02(lat: 39.91640428150164, lon: 116.41024449916938)
+private let bd = Bd09(lat: 39.922699552216216, lon: 116.41662724378733)
+
+private func wgs84(_ lat: Double, _ lon: Double) throws -> Coordinate {
+    try coordinateNew(lat: lat, lon: lon, crs: .wgs84)
+}
+
+/// Runs `body`, which must throw a `GeoError`, and returns that error for the
+/// caller to match against one case and read its typed fields.
+private func geoError<T>(
+    _ body: () throws -> T, file: StaticString = #filePath, line: UInt = #line
+) -> GeoError? {
+    do {
+        _ = try body()
+        XCTFail("expected a GeoError", file: file, line: line)
+    } catch let error as GeoError {
+        return error
+    } catch {
+        XCTFail("expected a GeoError, got \(error)", file: file, line: line)
+    }
+    return nil
+}
+
+final class ConversionTests: XCTestCase {
+    func testChinaForwardConversionsAreExact() throws {
+        let toGcj = try wgs84ToGcj02(p: wgs)
+        XCTAssertEqual(toGcj.lat, gcj.lat, accuracy: 1e-9)
+        XCTAssertEqual(toGcj.lon, gcj.lon, accuracy: 1e-9)
+        let toBd = try wgs84ToBd09(p: wgs)
+        XCTAssertEqual(toBd.lat, bd.lat, accuracy: 1e-9)
+        XCTAssertEqual(toBd.lon, bd.lon, accuracy: 1e-9)
+        XCTAssertTrue(outOfChina(lat: 51.5074, lon: -0.1278))
+        XCTAssertFalse(outOfChina(lat: wgs.lat, lon: wgs.lon))
+    }
+
+    func testRefinedInverseCarriesItsBound() throws {
+        let back = try gcj02ToWgs84Refined(p: gcj)
+        XCTAssertEqual(back.lat, wgs.lat, accuracy: 1e-5)
+        XCTAssertEqual(back.lon, wgs.lon, accuracy: 1e-5)
+        XCTAssertGreaterThan(back.maxErrorM, 0.0)
+        XCTAssertLessThanOrEqual(back.maxErrorM, 0.5)
+    }
+
+    func testConvertReportsExactAndApproximateLegs() throws {
+        let fwd = try convert(coord: wgs84(wgs.lat, wgs.lon), to: .gcj02)
+        XCTAssertEqual(fwd.maxErrorM, 0.0)
+        XCTAssertEqual(fwd.coord.crs, .gcj02)
+        XCTAssertEqual(fwd.coord.lat, gcj.lat, accuracy: 1e-9)
+
+        let inv = try convert(
+            coord: coordinateNew(lat: gcj.lat, lon: gcj.lon, crs: .gcj02), to: .wgs84)
+        XCTAssertEqual(inv.maxErrorM, 0.5)
+        XCTAssertEqual(inv.coord.crs, .wgs84)
+        XCTAssertEqual(inv.coord.lat, wgs.lat, accuracy: 1e-9)
+
+        // A Helmert leg reports its published TR8350.2 accuracy; Pulkovo has none.
+        let nad27 = try coordinateNew(lat: 40.0, lon: -100.0, crs: .nad27)
+        XCTAssertEqual(try convert(coord: nad27, to: .wgs84).maxErrorM, 86.0.squareRoot(), accuracy: 1e-12)
+        XCTAssertNil(datumTransformCatalogToWgs84(datum: .pulkovo42)?.accuracyM)
+    }
+
+    func testGridsProjectionsAndGeodesics() throws {
+        let code = try mgrsFromCoordinate(coord: wgs84(40.0, -75.0), precision: .m1)
+        XCTAssertEqual(code, "18TWK0000027757")
+        let decoded = try mgrsToCoordinate(mgrs: code)
+        XCTAssertEqual(decoded.maxErrorM, 0.5.squareRoot() / 0.9996, accuracy: 1e-12)
+        XCTAssertEqual(decoded.coord.lat, 40.0, accuracy: 1e-3)
+
+        let utm = try utmFromCoordinate(coord: wgs84(40.0, -75.0))
+        XCTAssertEqual(utm.zone, 18)
+        XCTAssertEqual(utm.hemisphere, .north)
+        XCTAssertEqual(utm.northing, 4_427_757.2188, accuracy: 1e-3)
+
+        let cell = try h3Decode(cell: h3Encode(coord: wgs84(40.7128, -74.006), resolution: 9))
+        XCTAssertEqual(cell.maxErrorM, 205.872_541, accuracy: 1e-5)
+
+        let d = try geodesicDistanceM(a: wgs84(40.7128, -74.006), b: wgs84(51.5074, -0.1278))
+        XCTAssertEqual(d, 5_585_233.578_931, accuracy: 1e-3)
+    }
+
+    func testNmeaRmcCarriesItsDate() throws {
+        let rmc = try fromNmeaSentence(
+            sentence: "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
+        XCTAssertEqual(rmc.timestamp, Date(timeIntervalSince1970: 764_426_119))
+    }
+}
+
+final class TypedErrorTests: XCTestCase {
+    func testOutOfRangeCarriesThePosition() {
+        guard case let .OutOfRange(lat, lon)? = geoError({
+            try coordinateNew(lat: 91.0, lon: 0.0, crs: .wgs84)
+        }) else { return XCTFail("expected OutOfRange") }
+        XCTAssertEqual(lat, 91.0)
+        XCTAssertEqual(lon, 0.0)
+    }
+
+    func testCrsMismatchCarriesBothSystems() {
+        guard case let .CrsMismatch(expected, found)? = geoError({
+            try baiduMercatorFromCoordinate(coord: wgs84(wgs.lat, wgs.lon))
+        }) else { return XCTFail("expected CrsMismatch") }
+        XCTAssertEqual(expected, .bd09)
+        XCTAssertEqual(found, .wgs84)
+    }
+
+    func testOutsideDomainNamesTheOperation() {
+        guard case let .OutsideDomain(pole, _, _)? = geoError({
+            try gcj02ToBd09(p: Gcj02(lat: 90.0, lon: 0.0))
+        }) else { return XCTFail("expected OutsideDomain past the pole") }
+        XCTAssertEqual(pole, "BD-09")
+        guard case let .OutsideDomain(polar, _, _)? = geoError({
+            try baiduMercatorFromBd09(p: Bd09(lat: 80.0, lon: 0.0))
+        }) else { return XCTFail("expected OutsideDomain beyond 74 degrees") }
+        XCTAssertEqual(polar, "Baidu Mercator")
+    }
+
+    func testInvalidValueNamesTheField() {
+        guard case let .InvalidValue(field, _)? = geoError({
+            try utmCentralMeridianDeg(zone: 0)
+        }) else { return XCTFail("expected InvalidValue") }
+        XCTAssertEqual(field, "zone")
+    }
+
+    func testInvalidCellIdNamesTheGridAndValue() {
+        guard case let .InvalidCellId(grid, value)? = geoError({
+            try h3Decode(cell: H3Cell(value: 0))
+        }) else { return XCTFail("expected InvalidCellId") }
+        XCTAssertEqual(grid, "H3")
+        XCTAssertEqual(value, 0)
+    }
+
+    func testInvalidGridRefCarriesTheReference() {
+        guard case let .InvalidGridRef(detail)? = geoError({
+            try mgrsToCoordinate(mgrs: "not-an-mgrs")
+        }) else { return XCTFail("expected InvalidGridRef") }
+        XCTAssertEqual(detail, "not-an-mgrs")
+    }
+
+    func testParseRejectsAmbiguousTextAndNoFixNmea() {
+        for input in ["1234.5, 10", "ezs42"] {
+            guard case .Parse? = geoError({ try parseCoordinate(input: input) }) else {
+                return XCTFail("expected Parse for \(input)")
+            }
+        }
+        guard case let .Parse(detail)? = geoError({
+            try fromNmeaSentence(
+                sentence: "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
+        }) else { return XCTFail("expected Parse for a void RMC") }
+        XCTAssertTrue(detail.contains("void"), detail)
+    }
+}

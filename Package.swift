@@ -37,5 +37,12 @@ let package = Package(
             dependencies: [.target(name: "geocoordinates_ffiFFI")],
             path: "swift/Sources/GeoCoordinates"
         ),
+        // Behavioural tests of the bindings (`swift test`); CI runs them against
+        // the local XCFramework (GEOCOORDINATES_LOCAL_XCFRAMEWORK=1).
+        .testTarget(
+            name: "GeoCoordinatesTests",
+            dependencies: ["GeoCoordinates"],
+            path: "swift/Tests/GeoCoordinatesTests"
+        ),
     ]
 )

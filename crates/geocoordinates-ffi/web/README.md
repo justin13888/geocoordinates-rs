@@ -19,6 +19,7 @@ on `PATH`, and Node.js.
 ```bash
 npm ci
 npm run build      # generate TS + wasm, then type-check (see build.sh)
+npm test           # run test/*.test.ts in Node against the built wasm
 ```
 
 `build.sh` documents the two `ubrn` pre-1.0 quirks it works around (the wrapper crate is

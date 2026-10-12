@@ -95,7 +95,8 @@ jobs:
 
   # Build the TypeScript/WebAssembly bindings end-to-end: generate via `ubrn`,
   # compile the wasm wrapper crate, run wasm-bindgen (wasm-pack), and type-check
-  # the result against @ubjs/core + the wasm typings (all driven by build.sh).
+  # the result against @ubjs/core + the wasm typings (all driven by build.sh),
+  # then run the Node behavioural tests against the built wasm.
   # RUSTFLAGS is relaxed here: the generated wrapper crate and the wasm builds of
   # third-party deps are not where we enforce -D warnings (the FFI crate's own
   # lint is covered by the clippy step above).
@@ -134,12 +135,19 @@ jobs:
           test -f src/generated/web/wasm-bindgen/index.js
           test -f src/generated/web/wasm-bindgen/index_bg.wasm
           echo "WASM/TypeScript bindings generated and type-checked."
+      # Load the built wasm in Node and exercise conversions, approximate bounds,
+      # and the typed GeoError variants (test/bindings.test.ts).
+      - name: Behavioural tests (Node)
+        working-directory: crates/geocoordinates-ffi/web
+        run: npm test
 
-  # Build the JVM (Kotlin) bindings and prove they are callable from Java: generate
-  # the Kotlin, then run a Gradle JUnit test written in Java that loads the cdylib
-  # via JNA and exercises a China conversion. This is the Java surface (Java
-  # consumes the Kotlin artifact); the host cdylib is loaded via UniFFI's
-  # libraryOverride hook so the test needs no per-platform resource staging.
+  # Build the JVM (Kotlin) bindings and test them from both languages: generate
+  # the Kotlin, then run the Gradle JUnit suites that load the cdylib via JNA -
+  # SmokeTest.java proves the API is callable idiomatically from Java (Java
+  # consumes the Kotlin artifact), and BindingsTest.kt exercises conversions,
+  # approximate bounds, and each typed GeoException subclass. The host cdylib is
+  # loaded via UniFFI's libraryOverride hook so the tests need no per-platform
+  # resource staging.
   jvm-smoke:
     name: JVM (Kotlin/Java) smoke test
     runs-on: ubuntu-latest
@@ -165,7 +173,7 @@ jobs:
           mise run bindings-kotlin
           mkdir -p crates/geocoordinates-ffi/jvm/src/main/kotlin
           cp -R bindings/kotlin/. crates/geocoordinates-ffi/jvm/src/main/kotlin/
-      - name: Gradle test (Java consumption smoke)
+      - name: Gradle test (Kotlin behaviour + Java consumption)
         working-directory: crates/geocoordinates-ffi/jvm
         env:
           GEOCOORDINATES_NATIVE_LIB: ${{ github.workspace }}/${{ env.FFI_LIB }}
@@ -175,7 +183,9 @@ jobs:
   # than in release-swift.yml after a tag is cut. Runs the same
   # build-xcframework.sh the release uses (all Apple slices + freshly generated
   # Swift sources), then builds the root Package.swift against that local
-  # XCFramework instead of the release URL.
+  # XCFramework instead of the release URL and runs its XCTest suite
+  # (swift/Tests/GeoCoordinatesTests: conversions, approximate bounds, and each
+  # typed GeoError case).
   swift-build:
     name: Swift package build
     runs-on: macos-14
@@ -189,3 +199,7 @@ jobs:
         env:
           GEOCOORDINATES_LOCAL_XCFRAMEWORK: "1"
         run: swift build
+      - name: Swift test (local XCFramework)
+        env:
+          GEOCOORDINATES_LOCAL_XCFRAMEWORK: "1"
+        run: swift test
