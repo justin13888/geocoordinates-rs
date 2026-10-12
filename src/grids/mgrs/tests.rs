@@ -262,6 +262,16 @@ fn decode_accepts_single_digit_zone() {
     // Zone 4 written without the leading zero (split == 1 is valid).
     let m = Mgrs::try_from("4QFH0460911793").expect("valid");
     assert_within_geodesic_meters(m.to_coordinate().value(), &c(20.0, -158.0), 1.0);
+    // The stored form is canonical: the zone is zero-padded, so the parsed
+    // value equals the encoder's output for the same square and displays,
+    // serializes, and re-parses as `04Q…`.
+    assert_eq!(m.as_str(), "04QFH0460911793");
+    assert_eq!(m.to_string(), "04QFH0460911793");
+    assert_eq!(Mgrs::try_from("04QFH0460911793").unwrap(), m);
+    assert_eq!(Mgrs::try_from(" 4qfh 04609 11793").unwrap(), m);
+    let encoded = Mgrs::try_from_coordinate(m.to_coordinate().into_inner(), MgrsPrecision::M1)
+        .expect("WGS-84");
+    assert_eq!(encoded, m);
 }
 
 #[test]
@@ -373,4 +383,7 @@ fn serde_validates_and_uses_the_canonical_string() {
     let m: Mgrs = serde_json::from_str(r#""18t wk 00000 27757""#).unwrap();
     assert_eq!(m.as_str(), "18TWK0000027757");
     assert_eq!(serde_json::to_string(&m).unwrap(), r#""18TWK0000027757""#);
+    // A one-digit zone deserializes to, and serializes as, the padded form.
+    let one: Mgrs = serde_json::from_str(r#""4QFH0460911793""#).unwrap();
+    assert_eq!(serde_json::to_string(&one).unwrap(), r#""04QFH0460911793""#);
 }

@@ -164,19 +164,27 @@ impl Mgrs {
 impl TryFrom<&str> for Mgrs {
     type Error = crate::Error;
 
-    /// Parse and validate an MGRS string. Whitespace is ignored and letters
-    /// are uppercased, so the stored string is canonical.
+    /// Parse and validate an MGRS string. Whitespace is ignored, letters are
+    /// uppercased, and a one-digit UTM zone is zero-padded (`4Q…` → `04Q…`),
+    /// so the stored string is canonical: the same form
+    /// [`Mgrs::try_from_coordinate`] emits.
     ///
     /// # Errors
     /// Returns [`crate::Error::InvalidGridRef`] on a bad grid-zone designator,
     /// 100 km square id, or digit group.
     fn try_from(s: &str) -> Result<Self> {
         let (_, precision) = decode(s)?;
-        let text: String = s
+        let mut text: String = s
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>()
             .to_uppercase();
+        // `decode` accepted it, so a leading digit followed by a non-digit is
+        // a one-digit zone.
+        let bytes = text.as_bytes();
+        if bytes[0].is_ascii_digit() && !bytes[1].is_ascii_digit() {
+            text.insert(0, '0');
+        }
         Ok(Mgrs { text, precision })
     }
 }
