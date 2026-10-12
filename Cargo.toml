@@ -86,7 +86,8 @@ nmea = [] # NMEA 0183 sentences (GGA/RMC/GLL), hand-rolled — no external dep
 h3 = ["dep:h3o"] # Uber H3 indexing
 s2 = ["dep:s2"] # Google S2 indexing
 #
-# Heavy / external integrations (BLOCKED — see STABILIZATION.md):
+# Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
+# any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
 # geoid = []          # EGM96/EGM2008 geoid models — needs multi-MB grid data files
 
