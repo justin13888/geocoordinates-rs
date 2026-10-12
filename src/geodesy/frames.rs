@@ -139,7 +139,8 @@ impl Enu {
     ///   for an `origin` [`try_from_coordinate`](Self::try_from_coordinate)
     ///   would reject;
     /// - [`Error::InvalidValue`] (field `"ENU"`) when a component is not
-    ///   finite.
+    ///   finite, and as for [`Ecef::try_to_coordinate`] when the offset is so
+    ///   large that the position overflows.
     ///
     /// ```
     /// use geocoordinates::{Coordinate, Error, geodesy::Enu};
