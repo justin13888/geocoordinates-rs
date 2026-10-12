@@ -100,8 +100,10 @@ fn round_trip_geodetic() {
 /// C15: the inverse is exact at every altitude, where Bowring's single step
 /// lost up to 0.3 m of latitude at GNSS and geostationary heights. A
 /// geodetic → ECEF → geodetic round trip measures the inverse alone (the
-/// forward is exact): its latitude error is held to 1e-9 m on the ground and
-/// to a few ulps of the geocentric distance above it.
+/// forward is exact): its latitude and height errors are held to eight ulps
+/// of the geocentric distance, about 1.1e-8 m on the ground. A flat 1e-9 m
+/// is below `f64` resolution: one ulp of a mid-latitude in degrees is already
+/// about 1.6e-9 m of ground.
 #[test]
 fn the_inverse_is_exact_at_every_altitude() {
     for h in [
@@ -113,7 +115,7 @@ fn the_inverse_is_exact_at_every_altitude() {
         20_000_000.0,
         36_000_000.0,
     ] {
-        let bound = 1e-9_f64.max(8.0 * f64::EPSILON * (WGS84_A + h));
+        let bound = 8.0 * f64::EPSILON * (WGS84_A + h);
         for i in 0..=360 {
             let lat = 0.5 * f64::from(i) - 90.0;
             let back = Ecef::try_from_coordinate(at(lat, 10.0, h, Crs::Wgs84))
