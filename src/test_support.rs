@@ -5,7 +5,8 @@
 //! Assertions are expressed in **meters**, so a tolerance reads as a physical
 //! bound rather than an opaque float epsilon. Two distance oracles are offered:
 //! [`assert_within_meters`] measures on the sphere (haversine), and
-//! [`assert_within_geodesic_meters`] measures on the WGS-84 ellipsoid (Karney).
+//! [`assert_within_geodesic_meters`] measures on the inputs' own CRS ellipsoid
+//! (Karney), and panics on GCJ-02 / BD-09 inputs, which the geodesic rejects.
 //! Use the geodesic one wherever the bound under test is an ellipsoidal ground
 //! distance (UTM / UPS / MGRS decodes and their `max_error_m`), because the
 //! spherical oracle can disagree with it by a few tenths of a percent and so hide a bound
@@ -41,8 +42,13 @@ pub(crate) fn assert_within_meters(a: &impl LatLon, b: &impl LatLon, max_m: f64)
 }
 
 /// Assert that two positions are within `max_m` meters of ground distance on
-/// the WGS-84 ellipsoid, measured by the library's own
+/// the ellipsoid of their own CRS (WGS-84 for WGS-84 inputs, Bessel 1841 for
+/// Tokyo, and so on), measured by the library's own
 /// [`geodesic_distance`](crate::geodesy::geodesic_distance) (Karney).
+///
+/// Both inputs must share one geodetic CRS: a GCJ-02 / BD-09 input, or a
+/// CRS mismatch, makes `geodesic_distance` return an error and this panics.
+/// Use [`assert_within_meters`] for China-datum renderings.
 ///
 /// Prefer this over [`assert_within_meters`] when the bound being checked is an
 /// ellipsoidal quantity: the spherical oracle can under-report the true ground
