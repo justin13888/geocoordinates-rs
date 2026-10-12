@@ -277,6 +277,33 @@ mod tests {
         assert_eq!(format!("{c}"), "40.712800, -74.006000");
     }
 
+    /// C4: rendering then re-parsing a coordinate must not relabel its datum or
+    /// drop its height.
+    #[test]
+    fn display_then_parse_keeps_datum_and_height() {
+        let gcj = Coordinate::gcj02(39.9, 116.4).with_height(Height::Ellipsoidal(10.0));
+        let back: Coordinate = gcj.to_string().parse().unwrap();
+        assert_eq!(back.crs, Crs::Gcj02, "datum relabelled by the round trip");
+        assert_eq!(back.height, gcj.height, "height dropped by the round trip");
+    }
+
+    /// C4: an out-of-range coordinate must not reach `Display`, which cannot
+    /// report the failure and panics inside `to_string`.
+    #[test]
+    fn out_of_range_coordinate_does_not_panic_on_render() {
+        let rendered = std::panic::catch_unwind(|| Coordinate::wgs84(91.0, 0.0).to_string());
+        assert!(rendered.is_ok(), "to_string panicked on lat = 91");
+    }
+
+    /// C9: deserialization must apply the same range check as construction.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn deserialize_rejects_out_of_range_latitude() {
+        let json = r#"{"lat":91.0,"lon":0.0,"height":null,"crs":"Wgs84"}"#;
+        let parsed: serde_json::Result<Coordinate> = serde_json::from_str(json);
+        assert!(parsed.is_err(), "lat = 91 deserialized: {parsed:?}");
+    }
+
     #[test]
     fn null_island_detection() {
         assert!(Coordinate::wgs84(0.0, 0.0).is_null_island());
