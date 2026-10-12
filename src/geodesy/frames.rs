@@ -193,7 +193,9 @@ impl Enu {
     }
 
     /// Convert to azimuth/elevation/range (exact). Azimuth is normalized to
-    /// `[0, 360)`; a zero offset has azimuth and elevation 0°.
+    /// `[0, 360)`. A zero offset has elevation 0° and a finite azimuth that
+    /// follows the signs of its zeros, as [`f64::atan2`] does: 0° when `north`
+    /// is `+0.0`, but 180° when `north` is `-0.0`.
     ///
     /// ```
     /// use geocoordinates::geodesy::Enu;
@@ -202,6 +204,12 @@ impl Enu {
     /// assert!((aer.azimuth_deg - 270.0).abs() < 1e-9);
     /// assert!((aer.elevation_deg - 45.0).abs() < 1e-9);
     /// assert!((aer.range.meters() - 100.0 * 2f64.sqrt()).abs() < 1e-9);
+    ///
+    /// // A zero offset: the azimuth depends on the sign of the zero `north`.
+    /// let zero = Enu { east: 0.0, north: 0.0, up: 0.0 }.to_aer();
+    /// assert_eq!((zero.azimuth_deg, zero.elevation_deg), (0.0, 0.0));
+    /// let neg = Enu { east: 0.0, north: -0.0, up: 0.0 }.to_aer();
+    /// assert_eq!((neg.azimuth_deg, neg.elevation_deg), (180.0, 0.0));
     /// ```
     #[must_use]
     pub fn to_aer(self) -> Aer {
