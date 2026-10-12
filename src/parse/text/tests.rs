@@ -248,3 +248,53 @@ fn is_isolated_excludes_word_letters() {
     let flanked: Vec<char> = "aNa".chars().collect();
     assert!(!is_isolated(&flanked, 1)); // N between letters
 }
+
+#[test]
+fn concatenated_ddmm_needs_a_hemisphere_letter() {
+    // C12: four or more integer digits are DDMM only beside a hemisphere
+    // letter; bare, `1234.5` is no degree value at all, not 12°34.5′.
+    assert!(parse("1234.5, 10").is_err());
+    assert!(parse("10, 01234.5").is_err());
+    let fix = parse("1234.5N, 10E").unwrap();
+    assert_close(fix.coord.lat(), 12.0 + 34.5 / 60.0, 1e-9);
+}
+
+#[test]
+fn a_fractional_field_must_be_the_last_one() {
+    // C12: `40.5 30` is not 40.5° plus 30′; fractional degrees with minutes,
+    // or fractional minutes with seconds, are rejected rather than summed.
+    assert!(parse("40.5 30, 10").is_err());
+    assert!(parse("40.5 30 0, 10").is_err());
+    assert!(parse("40 30.5 10, 74").is_err());
+    assert!(parse("40.5°30′N 74°W").is_err());
+    // The last field may carry the fraction.
+    let fix = parse("40 30.5, 10").unwrap();
+    assert_close(fix.coord.lat(), 40.0 + 30.5 / 60.0, 1e-9);
+    let fix = parse("40 30 10.5, 74").unwrap();
+    assert_close(fix.coord.lat(), 40.0 + 30.0 / 60.0 + 10.5 / 3600.0, 1e-9);
+}
+
+#[test]
+fn exponent_notation_is_rejected() {
+    // C12: the `e` of `4e1` is neither East nor an exponent a coordinate is
+    // written with.
+    for input in ["4e1 3e1", "4E1 3E1", "4e1, 3e1", "40, 7e1", "4e1N 3e1W"] {
+        let r = parse(input);
+        assert!(r.is_err(), "{input:?}: {r:?}");
+    }
+}
+
+#[test]
+fn decimal_comma_text_splits_on_the_remaining_list_separators() {
+    // C12: with a decimal comma, the commas left after the decimal rewrite
+    // (and `;`) separate the two components.
+    let opts = TextParseOptions {
+        decimal_comma: true,
+        default_axis_order: AxisOrder::LatLon,
+    };
+    for input in ["48,8566, 2,3522", "48,8566 , 2,3522", "48,8566; 2,3522"] {
+        let fix = parse_with(input, &opts).unwrap_or_else(|e| panic!("{input:?}: {e}"));
+        assert_close(fix.coord.lat(), 48.8566, 1e-9);
+        assert_close(fix.coord.lon(), 2.3522, 1e-9);
+    }
+}
