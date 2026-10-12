@@ -375,3 +375,30 @@ fn maidenhead_validation() {
     assert_invalid_grid_ref(Maidenhead::try_from("JN58t0")); // sub 2 past x ('0')
     assert_invalid_grid_ref(Maidenhead::try_from("FN20zz")); // 'z' is past x
 }
+
+/// Deserialization validates like `TryFrom<&str>`: an out-of-range code that
+/// would decode to an invalid `Coordinate` (Maidenhead `ZZ` -> lon 330, Plus
+/// Code `XX000000+` -> lon 210) is rejected, and the wire stays a bare,
+/// canonical string that round-trips.
+#[cfg(feature = "serde")]
+#[test]
+fn deserialize_validates_and_round_trips_as_a_bare_string() {
+    for bad in [r#""ZZ""#, r#""""#, r#""FN2""#] {
+        assert!(serde_json::from_str::<Maidenhead>(bad).is_err(), "{bad}");
+    }
+    for bad in [r#""XX000000+""#, r#""8FVC+""#, r#""""#] {
+        assert!(serde_json::from_str::<PlusCode>(bad).is_err(), "{bad}");
+    }
+    for bad in [r#""dr5a""#, r#""""#] {
+        assert!(serde_json::from_str::<Geohash>(bad).is_err(), "{bad}");
+    }
+
+    let m: Maidenhead = serde_json::from_str(r#""fn20XL""#).unwrap();
+    assert_eq!(m.as_str(), "FN20xl");
+    assert_eq!(serde_json::to_string(&m).unwrap(), r#""FN20xl""#);
+    let p: PlusCode = serde_json::from_str(r#""87g7x2vv+2v""#).unwrap();
+    assert_eq!(serde_json::to_string(&p).unwrap(), r#""87G7X2VV+2V""#);
+    let g: Geohash = serde_json::from_str(r#""DR5REGY""#).unwrap();
+    assert_eq!(serde_json::to_string(&g).unwrap(), r#""dr5regy""#);
+    assert_eq!(String::from(g), "dr5regy");
+}

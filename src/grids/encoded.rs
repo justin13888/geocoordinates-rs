@@ -16,22 +16,69 @@ use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 
 /// A validated geohash string (base-32), e.g. `dr5regy`.
+///
+/// Under the `serde` feature it (de)serializes as its bare string, and
+/// deserialization validates through `TryFrom<&str>`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(try_from = "String", into = "String")
+)]
 pub struct Geohash(String);
 
 /// A validated Maidenhead locator (amateur radio grid square), e.g. `FN20`.
+///
+/// Under the `serde` feature it (de)serializes as its bare string, and
+/// deserialization validates through `TryFrom<&str>`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(try_from = "String", into = "String")
+)]
 pub struct Maidenhead(String);
 
 /// A validated Open Location Code / Plus Code, e.g. `87G7X2VV+2V`.
 ///
 /// Google Maps' shareable grid representation. Only **full** codes are
 /// supported (short codes need a reference location to recover).
+///
+/// Under the `serde` feature it (de)serializes as its bare string, and
+/// deserialization validates through `TryFrom<&str>`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(try_from = "String", into = "String")
+)]
 pub struct PlusCode(String);
+
+/// `TryFrom<String>` (validating) and `From<Self> for String` for each code
+/// type: the serde route, so a deserialized code is as valid as a parsed one.
+macro_rules! string_conversions {
+    ($($ty:ident),+) => {$(
+        impl TryFrom<String> for $ty {
+            type Error = crate::Error;
+
+            /// Validate as `TryFrom<&str>` does.
+            ///
+            /// # Errors
+            /// Returns [`crate::Error::InvalidGridRef`] for a malformed code.
+            fn try_from(s: String) -> Result<Self> {
+                Self::try_from(s.as_str())
+            }
+        }
+
+        impl From<$ty> for String {
+            fn from(code: $ty) -> String {
+                code.0
+            }
+        }
+    )+};
+}
+
+string_conversions!(Geohash, Maidenhead, PlusCode);
 
 // --- Open Location Code constants (Google's reference values) ---
 const ALPHABET: &[u8; 20] = b"23456789CFGHJMPQRVWX";
