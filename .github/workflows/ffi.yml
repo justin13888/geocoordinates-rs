@@ -183,7 +183,9 @@ jobs:
   # than in release-swift.yml after a tag is cut. Runs the same
   # build-xcframework.sh the release uses (all Apple slices + freshly generated
   # Swift sources), then builds the root Package.swift against that local
-  # XCFramework instead of the release URL.
+  # XCFramework instead of the release URL and runs its XCTest suite
+  # (swift/Tests/GeoCoordinatesTests: conversions, approximate bounds, and each
+  # typed GeoError case).
   swift-build:
     name: Swift package build
     runs-on: macos-14
@@ -197,3 +199,7 @@ jobs:
         env:
           GEOCOORDINATES_LOCAL_XCFRAMEWORK: "1"
         run: swift build
+      - name: Swift test (local XCFramework)
+        env:
+          GEOCOORDINATES_LOCAL_XCFRAMEWORK: "1"
+        run: swift test
