@@ -39,9 +39,9 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     for polar in [north_pole_east, south_pole_west] {
         let plus = PlusCode::encode(polar, 10)?.decode();
         assert!(plus.lat().is_finite() && plus.lon().is_finite());
-        let h3 = H3Cell::encode(polar, 9)?.decode()?;
+        let h3 = H3Cell::encode(polar, 9)?.decode();
         assert!(h3.lat().is_finite() && h3.lon().is_finite());
-        let s2 = S2CellId::encode(polar, 20)?.decode()?;
+        let s2 = S2CellId::encode(polar, 20)?.decode();
         assert!(s2.lat().is_finite() && s2.lon().is_finite());
     }
 
@@ -199,16 +199,20 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert!(serde_json::from_str::<Mgrs>(r#""99TWK0000027757""#).is_err());
     assert!(H3Cell::encode(new_york(), 16).is_err());
     assert!(H3Cell::encode(Coordinate::gcj02(40.0, -75.0)?, 9).is_err());
+    // Cell ids are valid by construction: an undefined raw id is rejected
+    // when it is wrapped (or deserialized), so `decode` itself is infallible.
     assert_eq!(
-        H3Cell(0).decode(),
+        H3Cell::new(0),
         Err(Error::InvalidCellId {
             grid: "H3",
             value: 0,
         })
     );
+    assert!(serde_json::from_str::<H3Cell>("0").is_err());
     assert!(S2CellId::encode(new_york(), 31).is_err());
     assert!(S2CellId::encode(Coordinate::bd09(40.0, -75.0)?, 20).is_err());
-    assert!(S2CellId(0).decode().is_err());
+    assert!(S2CellId::new(0).is_err());
+    assert!(serde_json::from_str::<S2CellId>("0").is_err());
     assert!(matches!(
         parse_coordinate("not a coordinate"),
         Err(Error::Parse(_))

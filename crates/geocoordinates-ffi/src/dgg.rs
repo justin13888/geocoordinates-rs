@@ -20,16 +20,20 @@ pub struct H3Cell {
 #[uniffi::export]
 pub fn h3_encode(coord: Coordinate, resolution: u8) -> Result<H3Cell, GeoError> {
     gc::dgg::H3Cell::encode(coord.try_into()?, resolution)
-        .map(|cell| H3Cell { value: cell.0 })
+        .map(|cell| H3Cell {
+            value: cell.as_u64(),
+        })
         .map_err(Into::into)
 }
 
 /// Decode an H3 cell to its center, with the cell-radius error bound.
+///
+/// The record carries an unvalidated `u64`, so it is validated here first:
+/// an index H3 does not define fails with `InvalidCellId`.
 #[uniffi::export]
 pub fn h3_decode(cell: H3Cell) -> Result<ApproxCoordinate, GeoError> {
-    gc::dgg::H3Cell(cell.value)
-        .decode()
-        .map(approx_coordinate)
+    gc::dgg::H3Cell::new(cell.value)
+        .map(|cell| approx_coordinate(cell.decode()))
         .map_err(GeoError::from)
 }
 
@@ -44,15 +48,19 @@ pub struct S2CellId {
 #[uniffi::export]
 pub fn s2_encode(coord: Coordinate, level: u8) -> Result<S2CellId, GeoError> {
     gc::dgg::S2CellId::encode(coord.try_into()?, level)
-        .map(|cell| S2CellId { value: cell.0 })
+        .map(|cell| S2CellId {
+            value: cell.as_u64(),
+        })
         .map_err(Into::into)
 }
 
 /// Decode an S2 cell to its center, with the maximum corner-distance bound.
+///
+/// The record carries an unvalidated `u64`, so it is validated here first:
+/// an id S2 does not define fails with `InvalidCellId`.
 #[uniffi::export]
 pub fn s2_decode(cell: S2CellId) -> Result<ApproxCoordinate, GeoError> {
-    gc::dgg::S2CellId(cell.value)
-        .decode()
-        .map(approx_coordinate)
+    gc::dgg::S2CellId::new(cell.value)
+        .map(|cell| approx_coordinate(cell.decode()))
         .map_err(GeoError::from)
 }

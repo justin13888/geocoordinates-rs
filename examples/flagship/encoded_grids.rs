@@ -69,23 +69,26 @@ pub(crate) fn encoded_and_global_grids() -> DemoResult {
 
     let new_york = new_york();
     let h3 = H3Cell::encode(new_york, 9)?;
-    assert_eq!(h3.0, 617_733_151_020_810_239);
-    let h3_area = h3.decode()?;
+    assert_eq!(h3.as_u64(), 617_733_151_020_810_239);
+    // A raw index is validated once, on the way in; decoding cannot fail.
+    assert_eq!(H3Cell::new(617_733_151_020_810_239)?, h3);
+    let h3_area = h3.decode();
     assert!((205.0..206.0).contains(&h3_area.max_error_m()));
     assert_within_meters(h3_area.value(), &new_york, h3_area.max_error_m());
     assert!(
-        H3Cell::encode(new_york, 12)?.decode()?.max_error_m()
-            < H3Cell::encode(new_york, 5)?.decode()?.max_error_m()
+        H3Cell::encode(new_york, 12)?.decode().max_error_m()
+            < H3Cell::encode(new_york, 5)?.decode().max_error_m()
     );
 
     let s2 = S2CellId::encode(new_york, 20)?;
-    assert_eq!(s2.0, 9_926_595_630_970_437_632);
-    let s2_area = s2.decode()?;
+    assert_eq!(s2.as_u64(), 9_926_595_630_970_437_632);
+    assert_eq!(S2CellId::new(9_926_595_630_970_437_632)?, s2);
+    let s2_area = s2.decode();
     assert!((6.0..7.0).contains(&s2_area.max_error_m()));
     assert_within_meters(s2_area.value(), &new_york, s2_area.max_error_m());
     assert!(
-        S2CellId::encode(new_york, 25)?.decode()?.max_error_m()
-            < S2CellId::encode(new_york, 5)?.decode()?.max_error_m()
+        S2CellId::encode(new_york, 25)?.decode().max_error_m()
+            < S2CellId::encode(new_york, 5)?.decode().max_error_m()
     );
 
     Ok("encoded and global grids")
