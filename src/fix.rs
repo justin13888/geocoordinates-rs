@@ -15,6 +15,21 @@ use crate::coord::Coordinate;
 /// Motion/telemetry that some sources carry (heading from EXIF
 /// `GPSImgDirection`, NMEA course and speed) is intentionally excluded to keep
 /// the type lean.
+///
+/// ```
+/// use std::time::{Duration, SystemTime};
+///
+/// use geocoordinates::{Accuracy, Coordinate, Fix};
+///
+/// let fix = Fix {
+///     coord: Coordinate::wgs84(37.7749, -122.4194)?,
+///     accuracy: Some(Accuracy { horizontal_m: Some(4.5), vertical_m: None }),
+///     timestamp: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
+///     source: None,
+/// };
+/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(4.5));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Fix {
@@ -32,6 +47,16 @@ pub struct Fix {
 
 impl Fix {
     /// Wrap a bare coordinate with no metadata.
+    ///
+    /// ```
+    /// use geocoordinates::{Coordinate, Fix};
+    ///
+    /// let coord = Coordinate::wgs84(48.8584, 2.2945)?;
+    /// let fix = Fix::from_coord(coord);
+    /// assert_eq!(fix.coord, coord);
+    /// assert!(fix.accuracy.is_none() && fix.timestamp.is_none() && fix.source.is_none());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn from_coord(coord: Coordinate) -> Self {
         Self {
@@ -47,6 +72,13 @@ impl Fix {
 ///
 /// Real fixes usually carry an error estimate; carrying and propagating it lets
 /// the presentation layer avoid printing spurious precision.
+///
+/// ```
+/// use geocoordinates::Accuracy;
+///
+/// let a = Accuracy { horizontal_m: Some(3.0), vertical_m: Some(8.0) };
+/// assert_eq!((a.horizontal_m, a.vertical_m), (Some(3.0), Some(8.0)));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Accuracy {
@@ -61,6 +93,20 @@ pub struct Accuracy {
 
 /// The original input a coordinate was parsed from, with parse confidence and
 /// the ambiguities that were resolved.
+///
+/// Parsers fill it in; read it off the [`Fix`] they return:
+///
+/// ```
+/// use geocoordinates::fix::AxisOrder;
+/// use geocoordinates::parse::parse_coordinate;
+///
+/// let fix = parse_coordinate("40.7128, -74.0060")?;
+/// let source = fix.source.expect("the parser records its input");
+/// assert_eq!(source.raw, "40.7128, -74.0060");
+/// assert_eq!(source.axis_order, Some(AxisOrder::LatLon));
+/// assert!(source.confidence.value() > 0.0);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RawSource {
@@ -93,6 +139,15 @@ pub struct RawSource {
 /// takes one from the caller; humans, `geo:` URIs, NMEA, and many EPSG CRS are
 /// lat-first. Parsers record the listing order on [`RawSource::axis_order`] so
 /// the application can decide whether to prompt the user.
+///
+/// ```
+/// use geocoordinates::fix::AxisOrder;
+/// use geocoordinates::parse::from_geo_uri;
+///
+/// let fix = from_geo_uri("geo:48.2082,16.3738")?;
+/// assert_eq!(fix.source.and_then(|s| s.axis_order), Some(AxisOrder::LatLon));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AxisOrder {
@@ -110,6 +165,19 @@ pub enum AxisOrder {
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
 /// so adding one here is a deliberate, compile-forcing change on both sides.
+///
+/// ```
+/// use geocoordinates::fix::{Confidence, DatumAmbiguity, RawSource};
+///
+/// let source = RawSource {
+///     raw: "39.915, 116.404".to_string(),
+///     confidence: Confidence::new(0.6),
+///     axis_order: None,
+///     datum_ambiguity: Some(DatumAmbiguity::PossiblyGcj02),
+///     notes: vec!["camera sold in mainland China".to_string()],
+/// };
+/// assert_eq!(source.datum_ambiguity, Some(DatumAmbiguity::PossiblyGcj02));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DatumAmbiguity {
@@ -125,6 +193,14 @@ pub enum DatumAmbiguity {
 /// Always in range: [`new`](Self::new) clamps, and under the `serde` feature
 /// deserialization goes through the same clamp. The JSON shape is a bare
 /// number.
+///
+/// ```
+/// use geocoordinates::Confidence;
+///
+/// let c = Confidence::from(0.75);
+/// assert_eq!(f64::from(c), 0.75);
+/// assert!(Confidence::new(0.9) > c);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(from = "f64", into = "f64"))]
@@ -146,6 +222,16 @@ impl From<Confidence> for f64 {
 
 impl Confidence {
     /// Construct a confidence, clamping into the valid `0.0–1.0` range.
+    ///
+    /// Infallible: an out-of-range value is clamped and `NaN` becomes `0.0`.
+    ///
+    /// ```
+    /// use geocoordinates::Confidence;
+    ///
+    /// assert_eq!(Confidence::new(0.4).value(), 0.4);
+    /// assert_eq!(Confidence::new(1.5).value(), 1.0);
+    /// assert_eq!(Confidence::new(f64::NAN).value(), 0.0);
+    /// ```
     #[must_use]
     pub fn new(value: f64) -> Self {
         Self(if value.is_nan() {
@@ -156,6 +242,12 @@ impl Confidence {
     }
 
     /// The confidence value, in `0.0–1.0`.
+    ///
+    /// ```
+    /// use geocoordinates::Confidence;
+    ///
+    /// assert_eq!(Confidence::new(-3.0).value(), 0.0);
+    /// ```
     #[must_use]
     pub fn value(self) -> f64 {
         self.0
