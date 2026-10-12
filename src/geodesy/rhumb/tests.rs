@@ -138,6 +138,27 @@ fn inverse_runs_on_the_datum_ellipsoid() {
 }
 
 #[test]
+fn direct_runs_on_the_datum_ellipsoid_and_keeps_its_crs() {
+    // Tokyo is on Bessel 1841. RhumbSolve D 40 -75 45 2000000 with
+    // a = 6377397.155 m, f = 1/299.1528128 reaches
+    // 52°43'26.2184964665"N 056°29'53.1349326109"W.
+    let start = Coordinate::new(40.0, -75.0, Crs::Tokyo).unwrap();
+    assert_direct(
+        start,
+        45.0,
+        2_000_000.0,
+        52.723_949_582_351_81,
+        -56.498_093_036_836_36,
+    );
+    assert_eq!(
+        rhumb_destination(&start, 45.0, m(2_000_000.0))
+            .unwrap()
+            .crs(),
+        Crs::Tokyo
+    );
+}
+
+#[test]
 fn inverse_rejects_obfuscated_and_mixed_datums() {
     let gcj = Coordinate::new(30.0, 120.0, Crs::Gcj02).unwrap();
     let bd = Coordinate::new(30.0, 120.0, Crs::Bd09).unwrap();
@@ -243,6 +264,37 @@ fn direct_non_meridional_reaching_a_pole_is_invalid() {
     // …and into the south pole.
     assert_invalid(
         rhumb_destination(&c(-80.0, 0.0), 135.0, to_pole),
+        "distance",
+    );
+}
+
+#[test]
+fn direct_from_inside_the_pole_band_may_leave_or_stay() {
+    // 89.99999999999°N is 1e-11° (about 1 µm) from the pole, inside the 1e-12
+    // rad band, but not on the pole: the inverse functions accept it, and so
+    // does the direct problem unless the line heads further poleward.
+    let start = c(89.999_999_999_99, 0.0);
+    // Zero distance stays put.
+    let p = rhumb_destination(&start, 45.0, m(0.0)).unwrap();
+    assert_close(p.lat(), start.lat(), DEGREES);
+    assert_eq!(p.lon(), 0.0);
+    // A southward line leaves the band. RhumbSolve D 89.99999999999 0 225 1000
+    // reaches 89°59'37.2092960924"N 081°09'43.0962803606"W. The latitude
+    // matches to 1e-10°. The longitude is only good to 0.02° (about 0.25 m
+    // here, where 1° of longitude is 12 m): f64 holds the start's 1.7e-13 rad
+    // gap to the pole to only ~3 digits, and the longitude swept is
+    // proportional to its logarithm. This line does not stay clear of the
+    // pole, so the module's sub-millimeter bound does not cover it.
+    let p = rhumb_destination(&start, 225.0, m(1_000.0)).unwrap();
+    assert_close(p.lat(), 89.993_669_248_914_56, DEGREES);
+    assert_close(p.lon(), -81.161_971_188_989_06, 0.02);
+    // The southern mirror image.
+    let p = rhumb_destination(&c(-89.999_999_999_99, 0.0), 315.0, m(1_000.0)).unwrap();
+    assert!(p.lat() > -89.999_999_999_99, "{p:?}");
+    // Heading poleward from there still reaches the pole.
+    assert_invalid(rhumb_destination(&start, 45.0, m(1.0)), "distance");
+    assert_invalid(
+        rhumb_destination(&c(-89.999_999_999_99, 0.0), 135.0, m(1.0)),
         "distance",
     );
 }

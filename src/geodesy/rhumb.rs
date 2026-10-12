@@ -151,7 +151,9 @@ pub fn rhumb_destination(
     }
     let (sin_a, cos_a) = bearing.to_radians().sin_cos();
     let mu2 = mu1 + meters * cos_a / series.rect_a;
-    if mu2.abs() >= FRAC_PI_2 - POLE_TOLERANCE {
+    // Only a line heading poleward can reach a pole: a start already within
+    // the tolerance band may still leave it southward, or stay put.
+    if mu2.abs() >= FRAC_PI_2 - POLE_TOLERANCE && mu2.abs() > mu1.abs() {
         return Err(Error::InvalidValue {
             field: "distance",
             detail: "a rhumb line that is not a meridian spirals into a pole without \
