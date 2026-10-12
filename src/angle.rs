@@ -462,6 +462,23 @@ mod tests {
     }
 
     #[test]
+    fn normalize_degrees_never_returns_360_or_negative_zero() {
+        // `rem_euclid` rounds a tiny negative up to the excluded bound 360.
+        assert_eq!(normalize_degrees(-1e-20).to_bits(), 0.0f64.to_bits());
+        assert_eq!(normalize_degrees(-0.0).to_bits(), 0.0f64.to_bits());
+        assert_eq!(normalize_degrees(-360.0).to_bits(), 0.0f64.to_bits());
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn deserialize_rejects_out_of_range_components() {
+        let dms = r#"{"degrees":40,"minutes":60,"seconds":0.0,"hemisphere":"North"}"#;
+        assert!(serde_json::from_str::<Dms>(dms).is_err());
+        let ddm = r#"{"degrees":40,"minutes":60.0,"hemisphere":"North"}"#;
+        assert!(serde_json::from_str::<Ddm>(ddm).is_err());
+    }
+
+    #[test]
     fn invalid_angle_records_are_rejected() {
         assert!(Dd(f64::NAN).try_to_dms(Axis::Latitude).is_err());
         assert!(Dd(91.0).try_to_ddm(Axis::Latitude).is_err());
