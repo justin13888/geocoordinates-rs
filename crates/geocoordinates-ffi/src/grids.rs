@@ -71,7 +71,7 @@ pub fn maidenhead_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
 // ===========================================================================
 
 /// Northern or southern band for a UTM/UPS coordinate — mirror of
-/// [`gc::grids::utm::Hemisphere`].
+/// [`gc::grids::UtmHemisphere`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum UtmHemisphere {
     /// Northern hemisphere.
@@ -80,24 +80,28 @@ pub enum UtmHemisphere {
     South,
 }
 
-impl From<gc::grids::utm::Hemisphere> for UtmHemisphere {
-    fn from(h: gc::grids::utm::Hemisphere) -> Self {
+impl From<gc::grids::UtmHemisphere> for UtmHemisphere {
+    fn from(h: gc::grids::UtmHemisphere) -> Self {
         match h {
-            gc::grids::utm::Hemisphere::North => UtmHemisphere::North,
-            gc::grids::utm::Hemisphere::South => UtmHemisphere::South,
+            gc::grids::UtmHemisphere::North => UtmHemisphere::North,
+            gc::grids::UtmHemisphere::South => UtmHemisphere::South,
         }
     }
 }
-impl From<UtmHemisphere> for gc::grids::utm::Hemisphere {
+impl From<UtmHemisphere> for gc::grids::UtmHemisphere {
     fn from(h: UtmHemisphere) -> Self {
         match h {
-            UtmHemisphere::North => gc::grids::utm::Hemisphere::North,
-            UtmHemisphere::South => gc::grids::utm::Hemisphere::South,
+            UtmHemisphere::North => gc::grids::UtmHemisphere::North,
+            UtmHemisphere::South => gc::grids::UtmHemisphere::South,
         }
     }
 }
 
 /// A UTM coordinate — mirror of [`gc::Utm`](gc::grids::Utm).
+///
+/// A record crosses the boundary unvalidated; every export that accepts one
+/// validates it as [`gc::grids::Utm::new`] does (zone `1..=60`, easting
+/// `100 000..=900 000` m, a northing that does not fold over the pole).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Utm {
     /// Longitude zone number, 1–60.
@@ -111,6 +115,10 @@ pub struct Utm {
 }
 
 /// A UPS (polar) coordinate — mirror of [`gc::Ups`](gc::grids::Ups).
+///
+/// A record crosses the boundary unvalidated; every export that accepts one
+/// validates it as [`gc::grids::Ups::new`] does (easting and northing each in
+/// `0..=4 000 000` m).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ups {
     /// North or south polar zone.
@@ -124,43 +132,43 @@ pub struct Ups {
 impl From<gc::grids::Utm> for Utm {
     fn from(u: gc::grids::Utm) -> Self {
         Utm {
-            zone: u.zone,
-            hemisphere: u.hemisphere.into(),
-            easting: u.easting,
-            northing: u.northing,
+            zone: u.zone(),
+            hemisphere: u.hemisphere().into(),
+            easting: u.easting(),
+            northing: u.northing(),
         }
     }
 }
-impl From<Utm> for gc::grids::Utm {
-    fn from(u: Utm) -> Self {
-        gc::grids::Utm {
-            zone: u.zone,
-            hemisphere: u.hemisphere.into(),
-            easting: u.easting,
-            northing: u.northing,
-        }
+impl TryFrom<Utm> for gc::grids::Utm {
+    type Error = GeoError;
+
+    fn try_from(u: Utm) -> Result<Self, GeoError> {
+        gc::grids::Utm::new(u.zone, u.hemisphere.into(), u.easting, u.northing)
+            .map_err(GeoError::from)
     }
 }
 impl From<gc::grids::Ups> for Ups {
     fn from(u: gc::grids::Ups) -> Self {
         Ups {
-            hemisphere: u.hemisphere.into(),
-            easting: u.easting,
-            northing: u.northing,
+            hemisphere: u.hemisphere().into(),
+            easting: u.easting(),
+            northing: u.northing(),
         }
     }
 }
-impl From<Ups> for gc::grids::Ups {
-    fn from(u: Ups) -> Self {
-        gc::grids::Ups {
-            hemisphere: u.hemisphere.into(),
-            easting: u.easting,
-            northing: u.northing,
-        }
+impl TryFrom<Ups> for gc::grids::Ups {
+    type Error = GeoError;
+
+    fn try_from(u: Ups) -> Result<Self, GeoError> {
+        gc::grids::Ups::new(u.hemisphere.into(), u.easting, u.northing).map_err(GeoError::from)
     }
 }
 
 /// Geodetic → UTM. Errors in the polar regions (use UPS there).
+///
+/// # Errors
+/// `GeoError::OutsideDomain` (operation `"UTM"`) outside the 80°S–84°N band;
+/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
 #[uniffi::export]
 pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
     gc::grids::Utm::try_from_coordinate(coord.try_into()?)
@@ -169,16 +177,43 @@ pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
 }
 
 /// UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
-/// series (sub-millimeter within the UTM domain; not exact).
+/// series (sub-millimeter within the UTM domain; not exact). The longitude is
+/// wrapped into `[-180, 180)`.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the field (`zone`, `easting`, or
+/// `northing`) when the record is outside the UTM domain.
 #[uniffi::export]
 pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
-    gc::grids::Utm::from(utm)
-        .try_to_coordinate()
-        .map(Into::into)
-        .map_err(Into::into)
+    let utm = gc::grids::Utm::try_from(utm)?;
+    Ok(utm.to_coordinate().into())
+}
+
+/// The UTM longitude zone for a WGS-84 coordinate, applying the Norway and
+/// Svalbard exceptions.
+///
+/// # Errors
+/// `GeoError::OutsideDomain` (operation `"UTM"`) outside `[-80, 84)` latitude;
+/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
+#[uniffi::export]
+pub fn utm_zone_for(coord: Coordinate) -> Result<u8, GeoError> {
+    gc::grids::utm::zone_for(&coord.try_into()?).map_err(GeoError::from)
+}
+
+/// The central meridian (degrees) of a UTM zone.
+///
+/// # Errors
+/// `GeoError::InvalidValue` (field `zone`) for a zone outside `1..=60`.
+#[uniffi::export]
+pub fn utm_central_meridian_deg(zone: u8) -> Result<f64, GeoError> {
+    gc::grids::utm::central_meridian_deg(zone).map_err(GeoError::from)
 }
 
 /// Geodetic → UPS. Errors outside the polar regions (use UTM there).
+///
+/// # Errors
+/// `GeoError::OutsideDomain` (operation `"UPS"`) strictly between 80°S and
+/// 84°N; `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
 #[uniffi::export]
 pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
     gc::grids::Ups::try_from_coordinate(coord.try_into()?)
@@ -188,13 +223,15 @@ pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
 
 /// UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
 /// projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
-/// exact).
+/// exact). The longitude is wrapped into `[-180, 180)`.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the field (`easting` or `northing`) when
+/// the record is outside the UPS domain.
 #[uniffi::export]
 pub fn ups_to_coordinate(ups: Ups) -> Result<Coordinate, GeoError> {
-    gc::grids::Ups::from(ups)
-        .try_to_coordinate()
-        .map(Into::into)
-        .map_err(Into::into)
+    let ups = gc::grids::Ups::try_from(ups)?;
+    Ok(ups.to_coordinate().into())
 }
 
 /// Encode a coordinate to an MGRS string at the given precision in meters

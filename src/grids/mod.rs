@@ -18,4 +18,4 @@ pub mod utm; // transverse Mercator / polar stereographic
 
 pub use encoded::{Geohash, Maidenhead, PlusCode};
 pub use mgrs::Mgrs;
-pub use utm::{Ups, Utm};
+pub use utm::{Ups, Utm, UtmHemisphere};

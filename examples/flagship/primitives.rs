@@ -10,8 +10,7 @@ use geocoordinates::dgg::{H3Cell, S2CellId};
 use geocoordinates::fix::{AxisOrder, DatumAmbiguity};
 use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, SymbolStyle};
 use geocoordinates::geodesy::{Aer, DatumTransform, Ecef, Ellipsoid, Enu, Helmert, Ned};
-use geocoordinates::grids::utm::Hemisphere as GridHemisphere;
-use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
+use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere};
 use geocoordinates::parse::text::TextParseOptions;
 use geocoordinates::{
     Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Fix, Gcj02, Height, Length,
@@ -69,7 +68,7 @@ fn all_public_value_types_are_serde() {
     assert_serde::<Mgrs>();
     assert_serde::<Utm>();
     assert_serde::<Ups>();
-    assert_serde::<GridHemisphere>();
+    assert_serde::<UtmHemisphere>();
     assert_serde::<H3Cell>();
     assert_serde::<S2CellId>();
 }

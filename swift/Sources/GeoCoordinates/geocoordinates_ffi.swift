@@ -2617,6 +2617,10 @@ public func FfiConverterTypeTextParseOptions_lower(_ value: TextParseOptions) ->
 
 /**
  * A UPS (polar) coordinate — mirror of [`gc::Ups`](gc::grids::Ups).
+ *
+ * A record crosses the boundary unvalidated; every export that accepts one
+ * validates it as [`gc::grids::Ups::new`] does (easting and northing each in
+ * `0..=4 000 000` m).
  */
 public struct Ups: Equatable, Hashable {
     /**
@@ -2696,6 +2700,10 @@ public func FfiConverterTypeUps_lower(_ value: Ups) -> RustBuffer {
 
 /**
  * A UTM coordinate — mirror of [`gc::Utm`](gc::grids::Utm).
+ *
+ * A record crosses the boundary unvalidated; every export that accepts one
+ * validates it as [`gc::grids::Utm::new`] does (zone `1..=60`, easting
+ * `100 000..=900 000` m, a northing that does not fold over the pole).
  */
 public struct Utm: Equatable, Hashable {
     /**
@@ -3978,7 +3986,7 @@ public func FfiConverterTypeSymbolStyle_lower(_ value: SymbolStyle) -> RustBuffe
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
  * Northern or southern band for a UTM/UPS coordinate — mirror of
- * [`gc::grids::utm::Hemisphere`].
+ * [`gc::grids::UtmHemisphere`].
  */
 
 public enum UtmHemisphere: Equatable, Hashable {
@@ -5363,6 +5371,10 @@ public func plusCodeEncode(coord: Coordinate, length: UInt8)throws  -> String  {
 }
 /**
  * Geodetic → UPS. Errors outside the polar regions (use UTM there).
+ *
+ * # Errors
+ * `GeoError::OutsideDomain` (operation `"UPS"`) strictly between 80°S and
+ * 84°N; `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
  */
 public func upsFromCoordinate(coord: Coordinate)throws  -> Ups  {
     return try  FfiConverterTypeUps_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5374,7 +5386,11 @@ public func upsFromCoordinate(coord: Coordinate)throws  -> Ups  {
 /**
  * UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
  * projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
- * exact).
+ * exact). The longitude is wrapped into `[-180, 180)`.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming the field (`easting` or `northing`) when
+ * the record is outside the UPS domain.
  */
 public func upsToCoordinate(ups: Ups)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5384,7 +5400,24 @@ public func upsToCoordinate(ups: Ups)throws  -> Coordinate  {
 })
 }
 /**
+ * The central meridian (degrees) of a UTM zone.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `zone`) for a zone outside `1..=60`.
+ */
+public func utmCentralMeridianDeg(zone: UInt8)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_utm_central_meridian_deg(
+        FfiConverterUInt8.lower(zone),$0
+    )
+})
+}
+/**
  * Geodetic → UTM. Errors in the polar regions (use UPS there).
+ *
+ * # Errors
+ * `GeoError::OutsideDomain` (operation `"UTM"`) outside the 80°S–84°N band;
+ * `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
  */
 public func utmFromCoordinate(coord: Coordinate)throws  -> Utm  {
     return try  FfiConverterTypeUtm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5395,12 +5428,32 @@ public func utmFromCoordinate(coord: Coordinate)throws  -> Utm  {
 }
 /**
  * UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
- * series (sub-millimeter within the UTM domain; not exact).
+ * series (sub-millimeter within the UTM domain; not exact). The longitude is
+ * wrapped into `[-180, 180)`.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming the field (`zone`, `easting`, or
+ * `northing`) when the record is outside the UTM domain.
  */
 public func utmToCoordinate(utm: Utm)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_utm_to_coordinate(
         FfiConverterTypeUtm_lower(utm),$0
+    )
+})
+}
+/**
+ * The UTM longitude zone for a WGS-84 coordinate, applying the Norway and
+ * Svalbard exceptions.
+ *
+ * # Errors
+ * `GeoError::OutsideDomain` (operation `"UTM"`) outside `[-80, 84)` latitude;
+ * `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
+ */
+public func utmZoneFor(coord: Coordinate)throws  -> UInt8  {
+    return try  FfiConverterUInt8.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_utm_zone_for(
+        FfiConverterTypeCoordinate_lower(coord),$0
     )
 })
 }
@@ -5850,16 +5903,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_plus_code_encode() != 40389) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 35806) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 30651) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 33940) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 33262) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_utm_from_coordinate() != 51825) {
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_central_meridian_deg() != 18815) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 24330) {
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_from_coordinate() != 47257) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 31239) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_zone_for() != 21952) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 31199) {
