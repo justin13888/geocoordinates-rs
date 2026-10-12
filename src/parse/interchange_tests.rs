@@ -4,10 +4,13 @@
 use super::interchange::*;
 use crate::coord::Height;
 use crate::error::{Error, Result};
-use crate::fix::{AxisOrder, Fix, RawSource};
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "kml"))]
+use crate::fix::AxisOrder;
+use crate::fix::{Fix, RawSource};
 use crate::test_support::assert_close;
 
 /// The `(lat, lon)` of every fix, in emission order.
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx"))]
 fn lat_lons(fixes: &[Fix]) -> Vec<(f64, f64)> {
     fixes
         .iter()
@@ -19,22 +22,30 @@ fn source(fix: &Fix) -> &RawSource {
     fix.source.as_ref().unwrap()
 }
 
+// The two assertion helpers are macros rather than functions: a `()`-returning
+// helper is a mutation target whose deletion no test can observe.
+
 /// A rejection is `Parse` whose message starts with `prefix`.
-#[track_caller]
-fn assert_parse_err(r: Result<Vec<Fix>>, prefix: &str) {
-    assert!(
-        matches!(&r, Err(Error::Parse(m)) if m.starts_with(prefix)),
-        "{r:?}"
-    );
+macro_rules! assert_parse_err {
+    ($r:expr, $prefix:expr $(,)?) => {{
+        let r: Result<Vec<Fix>> = $r;
+        assert!(
+            matches!(&r, Err(Error::Parse(m)) if m.starts_with($prefix)),
+            "{r:?}"
+        );
+    }};
 }
 
 /// Every fix's raw fragment parses back, alone, to that same fix.
-#[track_caller]
-fn assert_fragments_reparse(fixes: &[Fix], parse: impl Fn(&str) -> Result<Vec<Fix>>) {
-    for fix in fixes {
-        let again = parse(&source(fix).raw).unwrap();
-        assert_eq!(again, std::slice::from_ref(fix), "{}", source(fix).raw);
-    }
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "kml"))]
+macro_rules! assert_fragments_reparse {
+    ($fixes:expr, $parse:expr $(,)?) => {{
+        let parse = $parse;
+        for fix in $fixes.iter() {
+            let again: Vec<Fix> = parse(&source(fix).raw).unwrap();
+            assert_eq!(again, std::slice::from_ref(fix), "{}", source(fix).raw);
+        }
+    }};
 }
 
 #[cfg(feature = "geojson")]
@@ -73,7 +84,7 @@ fn geojson_raw_is_each_positions_own_point() {
             r#"{"type":"Point","coordinates":[3.0,4.0]}"#,
         ]
     );
-    assert_fragments_reparse(&fixes, from_geojson);
+    assert_fragments_reparse!(&fixes, from_geojson);
 }
 
 #[cfg(feature = "geojson")]
@@ -106,7 +117,7 @@ fn geojson_walks_every_geometry_type_in_order() {
             {"type":"LineString","coordinates":[[3,4],[5,6]]}]}]}"#;
     let fixes = from_geojson(collection).unwrap();
     assert_eq!(lat_lons(&fixes), [(2.0, 1.0), (4.0, 3.0), (6.0, 5.0)]);
-    assert_fragments_reparse(&fixes, from_geojson);
+    assert_fragments_reparse!(&fixes, from_geojson);
 }
 
 #[cfg(feature = "geojson")]
@@ -131,13 +142,13 @@ fn geojson_features_with_and_without_geometry() {
 #[cfg(feature = "geojson")]
 #[test]
 fn geojson_rejections_are_parse_errors() {
-    assert_parse_err(from_geojson("not json"), "geojson: ");
-    assert_parse_err(
+    assert_parse_err!(from_geojson("not json"), "geojson: ");
+    assert_parse_err!(
         from_geojson(r#"{"type":"Point","coordinates":[2.0,91.0]}"#),
         "geojson: invalid position at index 0: ",
     );
     // One bad vertex rejects the whole line, and the error names its index.
-    assert_parse_err(
+    assert_parse_err!(
         from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[1,1],[181,0]]}"#),
         "geojson: invalid position at index 2: ",
     );
@@ -157,7 +168,7 @@ fn wkt_reads_x_y_in_the_stated_axis_order() {
     // A latitude-range check follows the stated order: 120 is a valid
     // longitude but not a valid latitude.
     assert!(from_wkt("POINT(120 10)", AxisOrder::LonLat).is_ok());
-    assert_parse_err(
+    assert_parse_err!(
         from_wkt("POINT(120 10)", AxisOrder::LatLon),
         "wkt: invalid position at index 0: ",
     );
@@ -168,7 +179,7 @@ fn wkt_reads_x_y_in_the_stated_axis_order() {
     for order in [AxisOrder::LonLat, AxisOrder::LatLon] {
         let fixes = from_wkt("LINESTRING(1 2, 3 4)", order).unwrap();
         assert_eq!(source(&fixes[1]).raw, "POINT(3 4)");
-        assert_fragments_reparse(&fixes, |raw| from_wkt(raw, order));
+        assert_fragments_reparse!(&fixes, |raw| from_wkt(raw, order));
     }
 }
 
@@ -191,7 +202,7 @@ fn wkt_walks_every_geometry_type_in_order() {
     assert_eq!((fixes[8].coord.lat(), fixes[8].coord.lon()), (7.0, 7.0));
     let fixes = xy("GEOMETRYCOLLECTION(POINT(1 2),LINESTRING(3 4,5 6))");
     assert_eq!(lat_lons(&fixes), [(2.0, 1.0), (4.0, 3.0), (6.0, 5.0)]);
-    assert_fragments_reparse(&fixes, |raw| from_wkt(raw, AxisOrder::LonLat));
+    assert_fragments_reparse!(&fixes, |raw| from_wkt(raw, AxisOrder::LonLat));
 }
 
 #[cfg(feature = "wkt")]
@@ -221,19 +232,19 @@ fn wkt_empty_and_dimensioned_geometries() {
     let zm = xy("POINT ZM(1 2 3 4)");
     assert_eq!(zm[0].coord.height(), Some(Height::Ellipsoidal(3.0)));
     for fixes in [z, m, zm] {
-        assert_fragments_reparse(&fixes, |raw| from_wkt(raw, AxisOrder::LonLat));
+        assert_fragments_reparse!(&fixes, |raw| from_wkt(raw, AxisOrder::LonLat));
     }
 }
 
 #[cfg(feature = "wkt")]
 #[test]
 fn wkt_rejections_are_parse_errors() {
-    assert_parse_err(from_wkt("CIRCLE(0 0 5)", AxisOrder::LonLat), "wkt: ");
-    assert_parse_err(
+    assert_parse_err!(from_wkt("CIRCLE(0 0 5)", AxisOrder::LonLat), "wkt: ");
+    assert_parse_err!(
         from_wkt("POINT(181 0)", AxisOrder::LonLat),
         "wkt: invalid position at index 0: ",
     );
-    assert_parse_err(
+    assert_parse_err!(
         from_wkt("LINESTRING(0 0, 0 -91)", AxisOrder::LonLat),
         "wkt: invalid position at index 1: ",
     );
@@ -339,16 +350,16 @@ fn gpx_emits_waypoints_then_tracks_then_routes() {
 #[cfg(feature = "gpx")]
 #[test]
 fn gpx_rejections_are_parse_errors() {
-    assert_parse_err(from_gpx("<gpx>broken"), "gpx: ");
+    assert_parse_err!(from_gpx("<gpx>broken"), "gpx: ");
     let negative_hdop = format!(
         r#"{GPX_HEAD}<wpt lat="1" lon="2"/><wpt lat="1" lon="2"><hdop>-1</hdop></wpt></gpx>"#
     );
-    assert_parse_err(
+    assert_parse_err!(
         from_gpx(&negative_hdop),
         "gpx: invalid position at index 1: ",
     );
     let infinite_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>inf</hdop></wpt></gpx>"#);
-    assert_parse_err(
+    assert_parse_err!(
         from_gpx(&infinite_hdop),
         "gpx: invalid position at index 0: ",
     );
@@ -358,7 +369,7 @@ fn gpx_rejections_are_parse_errors() {
     assert_eq!(accuracy.horizontal_m, Some(0.0));
     // The gpx reader range-checks attributes itself, before any index exists.
     let off_globe = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"/><wpt lat="1" lon="200"/></gpx>"#);
-    assert_parse_err(from_gpx(&off_globe), "gpx: ");
+    assert_parse_err!(from_gpx(&off_globe), "gpx: ");
 }
 
 #[cfg(feature = "kml")]
@@ -385,7 +396,7 @@ fn kml_placemark_point() {
         source(&fixes[1]).raw,
         "<Point><coordinates>1.5,2</coordinates></Point>"
     );
-    assert_fragments_reparse(&fixes, from_kml);
+    assert_fragments_reparse!(&fixes, from_kml);
 }
 
 #[cfg(feature = "kml")]
@@ -414,7 +425,7 @@ fn kml_exercises_every_geometry_arm() {
     // 1 + 2 + 4 + 4 + 1 (bare) + 2 + 4 + 1 + 4 (placemark) = 23 positions;
     // every geometry/walk arm contributes, so deleting any one is caught.
     assert_eq!(fixes.len(), 23);
-    assert_fragments_reparse(&fixes, from_kml);
+    assert_fragments_reparse!(&fixes, from_kml);
 }
 
 #[cfg(feature = "kml")]
@@ -435,13 +446,13 @@ fn kml_polygon_inner_rings_and_rejections() {
     // Mismatched tags and a non-numeric coordinate are parse errors. (A
     // truncated document such as `<kml><Point>` is not exercised: the
     // `kml` crate never returns on it, tracked in #135.)
-    assert_parse_err(from_kml("<kml></Point></kml>"), "kml: ");
-    assert_parse_err(
+    assert_parse_err!(from_kml("<kml></Point></kml>"), "kml: ");
+    assert_parse_err!(
         from_kml("<kml><Point><coordinates>abc</coordinates></Point></kml>"),
         "kml: ",
     );
-    assert_parse_err(from_kml("not xml"), "kml: ");
+    assert_parse_err!(from_kml("not xml"), "kml: ");
     let off_globe = r#"<kml xmlns="http://www.opengis.net/kml/2.2">
         <Placemark><LineString><coordinates>0,0 0,95</coordinates></LineString></Placemark></kml>"#;
-    assert_parse_err(from_kml(off_globe), "kml: invalid position at index 1: ");
+    assert_parse_err!(from_kml(off_globe), "kml: invalid position at index 1: ");
 }
