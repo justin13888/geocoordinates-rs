@@ -3,15 +3,18 @@
 Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities. The crate abstracts only geo-related complexity, as primitives for higher-level libraries to consume.
 
 > **Status:** The public API is `0.x` and may change between minor versions.
-> **0.15.0 is the internal stabilization target** — the surface below is being
-> audited subsystem by subsystem before the 1.0 freeze. See
-> [STABILIZATION.md](STABILIZATION.md) for the ledger and what remains.
+> **0.15.0 is the stabilization release**: every subsystem below was audited
+> against the five-point bar and reshaped where it fell short, so this is the
+> surface to dogfood before the 1.0 freeze. See
+> [STABILIZATION.md](STABILIZATION.md) for the ledger.
 
 ## API surface
 
-The whole public surface, by subsystem. **Rust** and **FFI** track whether that
-subsystem meets the five-point stabilization bar defined in
-[STABILIZATION.md](STABILIZATION.md); a ⚠️ links to the specific open finding.
+The whole public surface, by subsystem. A ✅ in **Rust** or **FFI** means the
+subsystem meets all five points of the stabilization bar defined in
+[STABILIZATION.md](STABILIZATION.md) on that side: conversion naming, honest
+exactness, a compiling doctest on every item, one canonical FFI form, and tested
+antimeridian / pole / round-trip edges.
 
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
@@ -29,6 +32,12 @@ subsystem meets the five-point stabilization bar defined in
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
+
+**Known open defects**, tracked in the ledger:
+`from_kml` does not return on some truncated documents
+([#135](https://github.com/justin13888/geocoordinates-rs/issues/135), G17), and
+decoding an MGRS square that its grid zone truncates can land in the
+neighbouring zone ([#149](https://github.com/justin13888/geocoordinates-rs/issues/149), G18).
 
 **Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
 a system library or multi-megabyte external data. **Out of scope:** EXIF
@@ -72,10 +81,9 @@ The API is exposed to **Python, Kotlin, Swift, and TypeScript** via
 [UniFFI](https://mozilla.github.io/uniffi-rs/), generated from the separate
 `geocoordinates-ffi` crate (Java consumes the Kotlin/JVM artifact directly).
 The bindings track the released surface and gate each release. **Full
-capability parity is the design rule** — every public capability is meant to
-have a canonical FFI form, including both H3 and S2 discrete global grids —
-but the ⚠️ rows in the FFI column of the surface table above mark subsystems
-that don't yet meet it (tracked in [STABILIZATION.md](STABILIZATION.md)).
+capability parity is the design rule**: every public capability has one
+canonical FFI form, including both H3 and S2 discrete global grids, and the FFI
+column of the surface table above records it subsystem by subsystem.
 
 The FFI surface is deliberately flatter than the idiomatic Rust API; the
 [bindings README](crates/geocoordinates-ffi/README.md) states how each Rust idiom
@@ -117,7 +125,7 @@ workflows and registry setup.
 | Python | [PyPI](https://pypi.org/project/geocoordinates-rs/) | `geocoordinates-rs` | `pip install geocoordinates-rs` |
 | TypeScript / WASM | [npm](https://www.npmjs.com/package/geocoordinates-rs) | `geocoordinates-rs` | `npm install geocoordinates-rs` |
 | Kotlin / Java | [Maven Central](https://central.sonatype.com/artifact/io.github.justin13888/geocoordinates)&nbsp;† | `io.github.justin13888:geocoordinates` | add the coordinate to Gradle / Maven |
-| Swift | [GitHub Releases](https://github.com/justin13888/geocoordinates-rs/releases) | `GeoCoordinates` | `.package(url: "https://github.com/justin13888/geocoordinates-rs", .upToNextMinor(from: "0.14.2"))` |
+| Swift | [GitHub Releases](https://github.com/justin13888/geocoordinates-rs/releases) | `GeoCoordinates` | `.package(url: "https://github.com/justin13888/geocoordinates-rs", .upToNextMinor(from: "0.15.0"))` |
 
 > † **Maven Central:** the JVM workflow uploads each release to the Central Portal with the
 > configured token and GPG key, but no version has appeared on Maven Central yet — most
