@@ -217,6 +217,36 @@ mod tests {
         }
     }
 
+    /// C15: a NAD27 coordinate lies on the Clarke-1866 ellipsoid, so placing it
+    /// in ECEF on WGS-84 yields a geocentric position about 70 m off. That must
+    /// be rejected, not returned as `Ok`.
+    #[test]
+    fn an_ellipsoid_contradicting_the_crs_is_rejected() {
+        let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap();
+        assert!(Ecef::try_from_coordinate(nad27, Ellipsoid::WGS84).is_err());
+    }
+
+    /// C15: the ECEF inverse must be exact. At a GNSS altitude (20,000 km) the
+    /// round trip may not lose a millimeter of latitude anywhere.
+    #[test]
+    fn the_inverse_is_exact_at_gnss_altitude() {
+        let e = Ellipsoid::WGS84;
+        let h = 20_000_000.0;
+        for i in 0..=180 {
+            let lat = f64::from(i) - 90.0;
+            let c = Coordinate::wgs84(lat, 10.0)
+                .unwrap()
+                .with_height(Height::Ellipsoidal(h))
+                .unwrap();
+            let back = Ecef::try_from_coordinate(c, e)
+                .unwrap()
+                .try_to_coordinate(e, Crs::Wgs84)
+                .unwrap();
+            let err_m = (back.lat() - lat).abs().to_radians() * (WGS84_A + h);
+            assert!(err_m < 1e-3, "lat {lat}: {err_m} m");
+        }
+    }
+
     #[test]
     fn invalid_inputs_and_orthometric_heights_are_rejected() {
         assert!(
