@@ -21,7 +21,7 @@ use crate::fix::Fix;
 use crate::grids::PlusCode;
 
 /// Code length used when rendering a coordinate as a Plus Code (~14 m cells).
-const PLUS_CODE_FORMAT_LENGTH: usize = 10;
+const PLUS_CODE_FORMAT_LENGTH: u8 = 10;
 /// Highest useful decimal precision for an IEEE-754 `f64`.
 const MAX_PRECISION: u8 = 15;
 
@@ -172,8 +172,11 @@ enum AngleKind {
     Ddm,
 }
 
-/// Meters spanned by one degree of latitude (mean-radius arc, ≈ 111,195 m).
-const METERS_PER_DEGREE: f64 = 111_195.0;
+/// Meters per degree of arc on the mean-radius sphere (≈ 111,195 m), a
+/// heuristic used only to turn a horizontal accuracy into displayed decimal
+/// places. Real ground distance per degree varies with latitude and azimuth;
+/// grid decoders measure their bounds geodesically instead.
+const MEAN_METERS_PER_DEGREE: f64 = 111_195.0;
 
 /// Decimal places implied by a horizontal accuracy, so digits finer than the
 /// fix's resolution are not printed. The places count the representation's
@@ -185,9 +188,9 @@ fn precision_for_accuracy(horizontal_m: f64, representation: Representation) -> 
         return None;
     }
     let meters_per_unit = match representation {
-        Representation::DecimalDegrees => METERS_PER_DEGREE,
-        Representation::Dms => METERS_PER_DEGREE / 3600.0,
-        Representation::Ddm => METERS_PER_DEGREE / 60.0,
+        Representation::DecimalDegrees => MEAN_METERS_PER_DEGREE,
+        Representation::Dms => MEAN_METERS_PER_DEGREE / 3600.0,
+        Representation::Ddm => MEAN_METERS_PER_DEGREE / 60.0,
         Representation::PlusCode => return None,
     };
     let places = (-(horizontal_m / meters_per_unit).log10())
@@ -218,9 +221,9 @@ fn render(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
             let p = options.precision.unwrap_or(3);
             render_angle_pair(coord, options, p, comma, AngleKind::Ddm)
         }
-        Representation::PlusCode => Ok(PlusCode::encode(*coord, PLUS_CODE_FORMAT_LENGTH)?
-            .as_str()
-            .to_string()),
+        Representation::PlusCode => {
+            Ok(PlusCode::encode(*coord, PLUS_CODE_FORMAT_LENGTH)?.to_string())
+        }
     }
 }
 

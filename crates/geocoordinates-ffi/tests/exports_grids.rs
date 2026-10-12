@@ -34,7 +34,7 @@ fn plus_code_encodes_and_decodes_its_cell() {
     assert_eq!(plus_code_encode(coord, 10).unwrap(), "8FVC2222+22");
     let area = plus_code_decode("8FVC2222+22".to_string()).unwrap();
     assert_eq!(area.coord, coord);
-    close(area.max_error_m, 8.421_508_929_247_13, 1e-9);
+    close(area.max_error_m, 8.418_605_830_499_43, 1e-9);
     assert!(matches!(
         plus_code_decode("not a code".to_string()),
         Err(GeoError::InvalidGridRef { .. })
@@ -46,11 +46,43 @@ fn geohash_encodes_and_decodes_its_cell() {
     assert_eq!(geohash_encode(wgs84(42.6, -5.6), 5).unwrap(), "ezs42");
     let cell = geohash_decode("ezs42".to_string()).unwrap();
     assert_eq!(cell.coord, wgs84(42.604_980_468_75, -5.603_027_343_75));
-    close(cell.max_error_m, 3_037.127_762_163_045_6, 1e-6);
+    close(cell.max_error_m, 3_034.794_837_835_592_3, 1e-6);
     assert!(matches!(
         geohash_decode("ail".to_string()),
         Err(GeoError::InvalidGridRef { .. })
     ));
+    // Twelve characters is the longest geohash, for encode and decode alike.
+    assert!(matches!(
+        geohash_encode(wgs84(42.6, -5.6), 13),
+        Err(GeoError::InvalidValue { .. })
+    ));
+    assert!(matches!(
+        geohash_decode("ezs42ezs42ezs".to_string()),
+        Err(GeoError::InvalidGridRef { .. })
+    ));
+}
+
+#[test]
+fn canonicalize_returns_the_canonical_code_or_rejects() {
+    assert_eq!(
+        plus_code_canonicalize(" 87g7x2vv+2v ".to_string()).unwrap(),
+        "87G7X2VV+2V"
+    );
+    assert_eq!(geohash_canonicalize("EZS42".to_string()).unwrap(), "ezs42");
+    assert_eq!(
+        maidenhead_canonicalize("jn58TD".to_string()).unwrap(),
+        "JN58td"
+    );
+    for rejected in [
+        plus_code_canonicalize("X2VV+2V".to_string()),
+        geohash_canonicalize("ezs42ezs42ezs".to_string()),
+        maidenhead_canonicalize("SN20".to_string()),
+    ] {
+        assert!(
+            matches!(rejected, Err(GeoError::InvalidGridRef { .. })),
+            "{rejected:?}"
+        );
+    }
 }
 
 #[test]
@@ -58,7 +90,7 @@ fn maidenhead_encodes_and_decodes_its_square() {
     assert_eq!(maidenhead_encode(wgs84(40.5, -75.0), 2).unwrap(), "FN20");
     let square = maidenhead_decode("FN20".to_string()).unwrap();
     assert_eq!(square.coord, wgs84(40.5, -75.0));
-    close(square.max_error_m, 101_308.370_254_008_04, 1e-6);
+    close(square.max_error_m, 101_592.817_120_622_36, 1e-6);
 }
 
 // --- UTM / UPS / MGRS ---

@@ -24,7 +24,7 @@ subsystem meets the five-point stabilization bar defined in
 | **Interchange & sensors** *(feature-gated)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
 | **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate`, `intersection`, rhumb and cross/along-track utilities, `Helmert`, `DatumTransform` | ⚠️ G9 | ⚠️ G5 |
 | **Projected grids** | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `zone_for`, `central_meridian_deg` | ⚠️ G7, G16 | ✅ |
-| **Encoded grids** | `PlusCode`, `Geohash`, `Maidenhead` | ⚠️ G7 | ✅ |
+| **Encoded grids** | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
 | **Discrete global grids** *(feature-gated)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,

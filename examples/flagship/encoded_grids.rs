@@ -11,6 +11,9 @@ pub(crate) fn encoded_and_global_grids() -> DemoResult {
     assert_eq!(plus.as_str(), "8FVC2222+22");
     assert_eq!(PlusCode::try_from("8FVC2222+22")?, plus);
     assert_eq!("8FVC2222+22".parse::<PlusCode>()?, plus);
+    // Display writes the canonical string, which parses back to an equal code.
+    assert_eq!(plus.to_string().parse::<PlusCode>()?, plus);
+    assert_eq!(PlusCode::try_from(String::from(plus.clone()))?, plus);
     let plus_area = plus.decode();
     assert_within_meters(
         plus_area.value(),
@@ -28,6 +31,16 @@ pub(crate) fn encoded_and_global_grids() -> DemoResult {
     assert_eq!(geohash.as_str(), "ezs42");
     assert_eq!(Geohash::try_from("EZS42")?, geohash);
     assert_eq!("ezs42".parse::<Geohash>()?, geohash);
+    assert_eq!(geohash.to_string(), "ezs42");
+    assert_eq!(AsRef::<str>::as_ref(&geohash), "ezs42");
+    // Twelve characters is the longest geohash, encoded or parsed.
+    assert_eq!(
+        Geohash::encode(Coordinate::wgs84(42.6, -5.6)?, 12)?
+            .as_str()
+            .len(),
+        12
+    );
+    assert!(Geohash::try_from("ezs42ezs42ezs").is_err());
     let geohash_area = geohash.decode();
     assert_within_meters(
         geohash_area.value(),
@@ -39,6 +52,14 @@ pub(crate) fn encoded_and_global_grids() -> DemoResult {
     assert_eq!(maidenhead.as_str(), "FN20");
     assert_eq!(Maidenhead::try_from("fn20")?, maidenhead);
     assert_eq!("FN20".parse::<Maidenhead>()?, maidenhead);
+    assert_eq!(format!("{maidenhead}"), "FN20");
+    // The encoders clamp the pole and the antimeridian: their output validates.
+    let corner = Coordinate::wgs84(90.0, 179.999_999_999_999_97)?;
+    let locator = Maidenhead::encode(corner, 3)?;
+    assert_eq!(locator.as_str(), "RR99xx");
+    assert_eq!(Maidenhead::try_from(locator.as_str())?, locator);
+    let code = PlusCode::encode(corner, 15)?;
+    assert_eq!(PlusCode::try_from(code.as_str())?, code);
     let maidenhead_area = maidenhead.decode();
     assert_within_meters(
         maidenhead_area.value(),

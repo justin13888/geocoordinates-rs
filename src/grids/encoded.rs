@@ -1,61 +1,52 @@
 //! Encoded/discrete location systems: **Plus Codes** (Open Location Code),
 //! **Geohash**, and **Maidenhead** locators.
 //!
-//! Encoding a point into a cell is exact; `decode` returns the cell **center**
-//! wrapped in [`Approx`], carrying the cell's half-diagonal (in meters) as the
-//! error bound. Strings are validated at construction (`TryFrom<&str>` /
-//! [`FromStr`]).
+//! Each code type is valid by construction: the only ways to obtain one are
+//! its `encode` (which clamps the pole and wraps the antimeridian, so it never
+//! emits a code its own validator rejects) and its validating
+//! `TryFrom<&str>` / `TryFrom<String>` / [`FromStr`] (which serde routes
+//! through too). [`Display`] and `AsRef<str>` yield the canonical string, and
+//! parsing that string back returns an equal value.
 //!
-//! [`FromStr`]: std::str::FromStr
+//! Encoding a point into a cell is exact; `decode` returns the cell **center**
+//! wrapped in [`Approx`]. Its `max_error_m` is the largest WGS-84 geodesic
+//! (Karney) distance from the center to the cell's four corners, which is a
+//! true upper bound on the distance to any point of the cell: along a meridian
+//! or a parallel the distance from a fixed point grows monotonically away from
+//! its nearest point, so it peaks at a corner.
+//!
+//! ```
+//! use geocoordinates::Coordinate;
+//! use geocoordinates::grids::Geohash;
+//!
+//! let code = Geohash::encode(Coordinate::wgs84(42.6, -5.6)?, 5)?;
+//! assert_eq!(code.to_string(), "ezs42");
+//! assert_eq!("EZS42".parse::<Geohash>()?, code);
+//! # Ok::<(), geocoordinates::Error>(())
+//! ```
+//!
+//! [`Display`]: core::fmt::Display
+//! [`FromStr`]: core::str::FromStr
 
-use core::str::FromStr;
+use geographiclib_rs::{Geodesic, InverseGeodesic};
 
-use crate::angle::{clamp_latitude, wrap_longitude};
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 
-/// A validated geohash string (base-32), e.g. `dr5regy`.
-///
-/// Under the `serde` feature it (de)serializes as its bare string, and
-/// deserialization validates through `TryFrom<&str>`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(try_from = "String", into = "String")
-)]
-pub struct Geohash(String);
+mod geohash;
+mod maidenhead;
+mod plus_code;
 
-/// A validated Maidenhead locator (amateur radio grid square), e.g. `FN20`.
-///
-/// Under the `serde` feature it (de)serializes as its bare string, and
-/// deserialization validates through `TryFrom<&str>`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(try_from = "String", into = "String")
-)]
-pub struct Maidenhead(String);
+pub use geohash::Geohash;
+pub use maidenhead::Maidenhead;
+pub use plus_code::PlusCode;
 
-/// A validated Open Location Code / Plus Code, e.g. `87G7X2VV+2V`.
-///
-/// Google Maps' shareable grid representation. Only **full** codes are
-/// supported (short codes need a reference location to recover).
-///
-/// Under the `serde` feature it (de)serializes as its bare string, and
-/// deserialization validates through `TryFrom<&str>`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(try_from = "String", into = "String")
-)]
-pub struct PlusCode(String);
-
-/// `TryFrom<String>` (validating) and `From<Self> for String` for each code
-/// type: the serde route, so a deserialized code is as valid as a parsed one.
+/// The string conversions every code type shares: `TryFrom<String>` and
+/// `FromStr` (validating, as `TryFrom<&str>` does), `From<Self> for String`,
+/// `AsRef<str>`, and `Display` (the canonical string). `TryFrom<String>` and
+/// `From<Self> for String` are the serde route, so a deserialized code is as
+/// valid as a parsed one.
 macro_rules! string_conversions {
     ($($ty:ident),+) => {$(
         impl TryFrom<String> for $ty {
@@ -70,9 +61,34 @@ macro_rules! string_conversions {
             }
         }
 
+        impl core::str::FromStr for $ty {
+            type Err = crate::Error;
+
+            /// Validate as `TryFrom<&str>` does.
+            ///
+            /// # Errors
+            /// Returns [`crate::Error::InvalidGridRef`] for a malformed code.
+            fn from_str(s: &str) -> Result<Self> {
+                Self::try_from(s)
+            }
+        }
+
         impl From<$ty> for String {
             fn from(code: $ty) -> String {
                 code.0
+            }
+        }
+
+        impl AsRef<str> for $ty {
+            fn as_ref(&self) -> &str {
+                self.as_str()
+            }
+        }
+
+        impl core::fmt::Display for $ty {
+            /// Writes the canonical string, which parses back to an equal value.
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                f.write_str(self.as_str())
             }
         }
     )+};
@@ -80,445 +96,8 @@ macro_rules! string_conversions {
 
 string_conversions!(Geohash, Maidenhead, PlusCode);
 
-// --- Open Location Code constants (Google's reference values) ---
-const ALPHABET: &[u8; 20] = b"23456789CFGHJMPQRVWX";
-const SEPARATOR: char = '+';
-const SEPARATOR_POSITION: usize = 8;
-const PADDING: char = '0';
-const PAIR_CODE_LENGTH: usize = 10;
-const GRID_CODE_LENGTH: usize = 5;
-const MAX_DIGIT_COUNT: usize = 15;
-const ENCODING_BASE: i64 = 20;
-const GRID_ROWS: i64 = 5;
-const GRID_COLUMNS: i64 = 4;
-const LATITUDE_MAX: f64 = 90.0;
-const LONGITUDE_MAX: f64 = 180.0;
-/// Integer units per degree for the pair section (`20^3`).
-const PAIR_PRECISION: i64 = 8_000;
-/// Place value of the most-significant pair digit (`20^4`).
-const PAIR_FIRST_PLACE_VALUE: i64 = 160_000;
-/// Place value of the most-significant latitude grid digit (`5^4`).
-const GRID_LAT_FIRST_PLACE_VALUE: i64 = 625;
-/// Place value of the most-significant longitude grid digit (`4^4`).
-const GRID_LON_FIRST_PLACE_VALUE: i64 = 256;
-/// Integer units per degree of latitude at full precision (`8000 * 5^5`).
-const FINAL_LAT_PRECISION: i64 = 25_000_000;
-/// Integer units per degree of longitude at full precision (`8000 * 4^5`).
-const FINAL_LON_PRECISION: i64 = 8_192_000;
-/// Meters per degree of latitude (spherical approximation).
-const METERS_PER_DEGREE: f64 = 111_320.0;
-
-impl PlusCode {
-    /// Encode a coordinate at the given code length (exact).
-    ///
-    /// `length` is the number of significant digits (the canonical values are
-    /// 2, 4, 6, 8, 10, and 11–15); all other values are rejected. The
-    /// coordinate must be valid WGS-84. Longitude is wrapped and the valid
-    /// north-pole endpoint is nudged into the final encodable cell.
-    pub fn encode(coord: Coordinate, length: usize) -> Result<Self> {
-        validate_encoding_coordinate(coord)?;
-        if !matches!(length, 2 | 4 | 6 | 8 | 10..=15) {
-            return Err(Error::InvalidValue {
-                field: "Plus Code length",
-                detail: "must be 2, 4, 6, 8, or 10 through 15".into(),
-            });
-        }
-        let mut lat = clamp_latitude(coord.lat());
-        let lon = wrap_longitude(coord.lon());
-        // Latitude 90 must drop just below so the code can be decoded.
-        if lat >= LATITUDE_MAX {
-            lat = LATITUDE_MAX - latitude_precision(length);
-        }
-
-        // Integer grid units (round to minimize floating-point error).
-        let mut lat_val = ((lat + LATITUDE_MAX) * FINAL_LAT_PRECISION as f64).round() as i64;
-        let mut lon_val = ((lon + LONGITUDE_MAX) * FINAL_LON_PRECISION as f64).round() as i64;
-
-        // Build the full 15-digit code least-significant first.
-        let mut digits = [0u8; MAX_DIGIT_COUNT];
-        for i in 0..GRID_CODE_LENGTH {
-            let ndx = (lat_val % GRID_ROWS) * GRID_COLUMNS + (lon_val % GRID_COLUMNS);
-            digits[MAX_DIGIT_COUNT - 1 - i] = ALPHABET[ndx as usize];
-            lat_val /= GRID_ROWS;
-            lon_val /= GRID_COLUMNS;
-        }
-        for i in 0..(PAIR_CODE_LENGTH / 2) {
-            digits[PAIR_CODE_LENGTH - 1 - 2 * i] = ALPHABET[(lon_val % ENCODING_BASE) as usize];
-            digits[PAIR_CODE_LENGTH - 2 - 2 * i] = ALPHABET[(lat_val % ENCODING_BASE) as usize];
-            lat_val /= ENCODING_BASE;
-            lon_val /= ENCODING_BASE;
-        }
-
-        Ok(PlusCode(assemble(&digits, length)))
-    }
-
-    /// The canonical Plus Code string.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Decode to the cell center wrapped in [`Approx`], carrying the cell's
-    /// half-diagonal (meters) as the error bound. Infallible — validated at
-    /// construction.
-    #[must_use]
-    pub fn decode(&self) -> Approx<Coordinate> {
-        // Significant digits only (drop the separator and padding; `0` is never
-        // an alphabet character, so it can only be padding).
-        let digits: Vec<i64> = self
-            .0
-            .bytes()
-            .filter_map(|b| ALPHABET.iter().position(|&a| a == b).map(|p| p as i64))
-            .collect();
-
-        let mut normal_lat = -(LATITUDE_MAX as i64) * PAIR_PRECISION;
-        let mut normal_lon = -(LONGITUDE_MAX as i64) * PAIR_PRECISION;
-        let mut grid_lat = 0i64;
-        let mut grid_lon = 0i64;
-
-        let pairs = digits.len().min(PAIR_CODE_LENGTH) / 2;
-        let mut place = PAIR_FIRST_PLACE_VALUE;
-        for pair in 0..pairs {
-            let i = pair * 2;
-            normal_lat += digits[i] * place;
-            normal_lon += digits[i + 1] * place;
-            if pair + 1 < pairs {
-                place /= ENCODING_BASE;
-            }
-        }
-        let mut lat_resolution = place as f64 / PAIR_PRECISION as f64;
-        let mut lon_resolution = place as f64 / PAIR_PRECISION as f64;
-
-        if digits.len() > PAIR_CODE_LENGTH {
-            let mut row_place = GRID_LAT_FIRST_PLACE_VALUE;
-            let mut col_place = GRID_LON_FIRST_PLACE_VALUE;
-            let grid_digits = digits.len().min(MAX_DIGIT_COUNT);
-            let last = grid_digits - PAIR_CODE_LENGTH - 1;
-            for (offset, &digit) in digits[PAIR_CODE_LENGTH..grid_digits].iter().enumerate() {
-                grid_lat += (digit / GRID_COLUMNS) * row_place;
-                grid_lon += (digit % GRID_COLUMNS) * col_place;
-                if offset < last {
-                    row_place /= GRID_ROWS;
-                    col_place /= GRID_COLUMNS;
-                }
-            }
-            lat_resolution = row_place as f64 / FINAL_LAT_PRECISION as f64;
-            lon_resolution = col_place as f64 / FINAL_LON_PRECISION as f64;
-        }
-
-        // South-west corner, then the cell center.
-        let lat_lo = normal_lat as f64 / PAIR_PRECISION as f64
-            + grid_lat as f64 / FINAL_LAT_PRECISION as f64;
-        let lon_lo = normal_lon as f64 / PAIR_PRECISION as f64
-            + grid_lon as f64 / FINAL_LON_PRECISION as f64;
-        let lat = lat_lo + lat_resolution / 2.0;
-        let lon = lon_lo + lon_resolution / 2.0;
-
-        // Error bound: half the cell diagonal, in meters at the cell latitude.
-        let lat_m = lat_resolution * METERS_PER_DEGREE;
-        let lon_m = lon_resolution * METERS_PER_DEGREE * lat.to_radians().cos();
-        let max_error_m = 0.5 * lat_m.hypot(lon_m);
-
-        // A valid code's cell lies inside the globe, so its center is in range.
-        Approx::new(
-            Coordinate::from_valid(lat, lon, None, crate::Crs::Wgs84),
-            max_error_m,
-        )
-    }
-}
-
-impl TryFrom<&str> for PlusCode {
-    type Error = crate::Error;
-
-    /// Validate and canonicalize (uppercase) a **full** Open Location Code.
-    ///
-    /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for malformed or short codes.
-    fn try_from(s: &str) -> Result<Self> {
-        let upper = s.trim().to_ascii_uppercase();
-        if is_valid_full(&upper) {
-            Ok(PlusCode(upper))
-        } else {
-            Err(Error::InvalidGridRef(format!("invalid Plus Code: {s}")))
-        }
-    }
-}
-
-impl FromStr for PlusCode {
-    type Err = crate::Error;
-    fn from_str(s: &str) -> Result<Self> {
-        Self::try_from(s)
-    }
-}
-
-/// The latitude resolution (degrees) of a code of the given length — used only
-/// to nudge latitude 90 below the maximum.
-fn latitude_precision(length: usize) -> f64 {
-    if length <= PAIR_CODE_LENGTH {
-        20f64.powi(2 - (length as i32) / 2)
-    } else {
-        20f64.powi(-3) / (GRID_ROWS as f64).powi((length - PAIR_CODE_LENGTH) as i32)
-    }
-}
-
-/// Insert the separator after position 8 and trim/pad the 15 digits to `length`.
-fn assemble(digits: &[u8; MAX_DIGIT_COUNT], length: usize) -> String {
-    let mut full = String::with_capacity(MAX_DIGIT_COUNT + 1);
-    for (i, &d) in digits.iter().enumerate() {
-        if i == SEPARATOR_POSITION {
-            full.push(SEPARATOR);
-        }
-        full.push(d as char);
-    }
-    if length >= SEPARATOR_POSITION {
-        // `length` digits plus the separator.
-        full.chars().take(length + 1).collect()
-    } else {
-        // Pad to the separator: `length` digits, `0`s, then `+`.
-        let mut s: String = full.chars().take(length).collect();
-        for _ in 0..(SEPARATOR_POSITION - length) {
-            s.push(PADDING);
-        }
-        s.push(SEPARATOR);
-        s
-    }
-}
-
-/// Whether `code` (already uppercased) is a valid **full** Open Location Code.
-fn is_valid_full(code: &str) -> bool {
-    let bytes = code.as_bytes();
-    // Exactly one separator, at the full-code position (8) — rejects short codes.
-    if code.matches(SEPARATOR).count() != 1 {
-        return false;
-    }
-    let Some(sep) = code.find(SEPARATOR) else {
-        return false;
-    };
-    if sep != SEPARATOR_POSITION {
-        return false;
-    }
-    // Every character is an alphabet digit, the separator, or padding.
-    if bytes
-        .iter()
-        .any(|&b| b as char != SEPARATOR && b as char != PADDING && !ALPHABET.contains(&b))
-    {
-        return false;
-    }
-    // Padding (if present) is a contiguous block ending at the separator,
-    // starting on an even, non-zero index, with nothing after the separator.
-    if let Some(pad_start) = code.find(PADDING) {
-        if pad_start == 0 || pad_start % 2 == 1 {
-            return false;
-        }
-        if code[pad_start..sep].bytes().any(|b| b as char != PADDING) {
-            return false;
-        }
-        if code.len() != sep + 1 {
-            return false;
-        }
-    }
-    // After the separator: 0 or ≥2 alphabet digits (never exactly 1, no padding).
-    let after = &code[sep + 1..];
-    if after.len() == 1 || after.bytes().any(|b| !ALPHABET.contains(&b)) {
-        return false;
-    }
-    // Range: the first latitude digit ≤ 8 (180°/20) and longitude ≤ 17 (360°/20).
-    let first_lat = ALPHABET.iter().position(|&a| a == bytes[0]).unwrap_or(0) as i64;
-    if first_lat * ENCODING_BASE >= 2 * LATITUDE_MAX as i64 {
-        return false;
-    }
-    let first_lon = ALPHABET.iter().position(|&a| a == bytes[1]).unwrap_or(0) as i64;
-    first_lon * ENCODING_BASE < 2 * LONGITUDE_MAX as i64
-}
-
-// --- Geohash (base-32) ---
-
-/// Geohash base-32 alphabet (omits `a`, `i`, `l`, `o`).
-const GEOHASH_ALPHABET: &[u8; 32] = b"0123456789bcdefghjkmnpqrstuvwxyz";
-
-impl Geohash {
-    /// Encode a coordinate at the given character length (exact).
-    pub fn encode(coord: Coordinate, length: usize) -> Result<Self> {
-        validate_encoding_coordinate(coord)?;
-        if !(1..=22).contains(&length) {
-            return Err(Error::InvalidValue {
-                field: "geohash length",
-                detail: "must be in 1..=22".into(),
-            });
-        }
-        let lat = clamp_latitude(coord.lat());
-        let lon = wrap_longitude(coord.lon());
-        let (mut lat_lo, mut lat_hi) = (-90.0_f64, 90.0_f64);
-        let (mut lon_lo, mut lon_hi) = (-180.0_f64, 180.0_f64);
-        let mut hash = String::with_capacity(length);
-        let mut value = 0usize;
-        for i in 0..(length * 5) {
-            value <<= 1;
-            // Even bit indices refine longitude, odd indices refine latitude.
-            if i % 2 == 0 {
-                let mid = midpoint(lon_lo, lon_hi);
-                if lon >= mid {
-                    value |= 1;
-                    lon_lo = mid;
-                } else {
-                    lon_hi = mid;
-                }
-            } else {
-                let mid = midpoint(lat_lo, lat_hi);
-                if lat >= mid {
-                    value |= 1;
-                    lat_lo = mid;
-                } else {
-                    lat_hi = mid;
-                }
-            }
-            if i % 5 == 4 {
-                hash.push(GEOHASH_ALPHABET[value] as char);
-                value = 0;
-            }
-        }
-        Ok(Geohash(hash))
-    }
-
-    /// The canonical geohash string.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Decode to the cell center; error bound is the cell half-diagonal.
-    /// Infallible — validated at construction.
-    #[must_use]
-    pub fn decode(&self) -> Approx<Coordinate> {
-        let (mut lat_lo, mut lat_hi) = (-90.0_f64, 90.0_f64);
-        let (mut lon_lo, mut lon_hi) = (-180.0_f64, 180.0_f64);
-        let mut even = true;
-        for byte in self.0.bytes() {
-            let code = GEOHASH_ALPHABET
-                .iter()
-                .position(|&a| a == byte)
-                .unwrap_or(0);
-            for shift in (0..5).rev() {
-                let bit = (code >> shift) & 1;
-                if even {
-                    let mid = midpoint(lon_lo, lon_hi);
-                    if bit == 1 {
-                        lon_lo = mid;
-                    } else {
-                        lon_hi = mid;
-                    }
-                } else {
-                    let mid = midpoint(lat_lo, lat_hi);
-                    if bit == 1 {
-                        lat_lo = mid;
-                    } else {
-                        lat_hi = mid;
-                    }
-                }
-                even = !even;
-            }
-        }
-        cell_center(lat_lo, lat_hi, lon_lo, lon_hi)
-    }
-}
-
-impl TryFrom<&str> for Geohash {
-    type Error = crate::Error;
-
-    /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for non-base-32 input.
-    fn try_from(s: &str) -> Result<Self> {
-        let lower = s.trim().to_ascii_lowercase();
-        if lower.is_empty() || lower.bytes().any(|b| !GEOHASH_ALPHABET.contains(&b)) {
-            return Err(Error::InvalidGridRef(format!("invalid geohash: {s}")));
-        }
-        Ok(Geohash(lower))
-    }
-}
-
-impl FromStr for Geohash {
-    type Err = crate::Error;
-    fn from_str(s: &str) -> Result<Self> {
-        Self::try_from(s)
-    }
-}
-
-// --- Maidenhead locator ---
-
-impl Maidenhead {
-    /// Encode a WGS-84 coordinate at exactly 1–3 character pairs.
-    pub fn encode(coord: Coordinate, pairs: usize) -> Result<Self> {
-        validate_encoding_coordinate(coord)?;
-        if !(1..=3).contains(&pairs) {
-            return Err(Error::InvalidValue {
-                field: "Maidenhead pairs",
-                detail: "must be in 1..=3".into(),
-            });
-        }
-        let mut lon = wrap_longitude(coord.lon()) + 180.0; // [0, 360)
-        let mut lat = clamp_latitude(coord.lat()) + 90.0; // [0, 180]
-        let mut s = String::with_capacity(pairs * 2);
-
-        // Field: 18 columns of 20° lon × 10° lat (letters A–R). Latitude is
-        // clamped because the north pole (lat 90) sits on the upper edge.
-        let lon_field = (lon / 20.0) as usize;
-        let lat_field = ((lat / 10.0) as usize).min(17);
-        push_offset(&mut s, b'A', lon_field);
-        push_offset(&mut s, b'A', lat_field);
-        lon -= lon_field as f64 * 20.0;
-        lat -= lat_field as f64 * 10.0;
-
-        if pairs >= 2 {
-            // Square: 10 columns of 2° lon × 1° lat (digits 0–9).
-            let lon_sq = (lon / 2.0) as usize;
-            let lat_sq = (lat as usize).min(9);
-            push_offset(&mut s, b'0', lon_sq);
-            push_offset(&mut s, b'0', lat_sq);
-            lon -= lon_sq as f64 * 2.0;
-            lat -= lat_sq as f64;
-
-            if pairs >= 3 {
-                // Subsquare: 24 columns of 5′ lon × 2.5′ lat (letters a–x).
-                let lon_sub = (lon * 12.0) as usize;
-                let lat_sub = ((lat * 24.0) as usize).min(23);
-                push_offset(&mut s, b'a', lon_sub);
-                push_offset(&mut s, b'a', lat_sub);
-            }
-        }
-        Ok(Maidenhead(s))
-    }
-
-    /// The canonical Maidenhead locator string.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Decode to the grid-square center wrapped in [`Approx`]. Infallible —
-    /// validated at construction.
-    #[must_use]
-    pub fn decode(&self) -> Approx<Coordinate> {
-        let bytes = self.0.as_bytes();
-        let mut lon = -180.0 + f64::from(bytes[0].to_ascii_uppercase() - b'A') * 20.0;
-        let mut lat = -90.0 + f64::from(bytes[1].to_ascii_uppercase() - b'A') * 10.0;
-        let mut lon_size = 20.0;
-        let mut lat_size = 10.0;
-        if bytes.len() >= 4 {
-            lon += f64::from(bytes[2] - b'0') * 2.0;
-            lat += f64::from(bytes[3] - b'0');
-            lon_size = 2.0;
-            lat_size = 1.0;
-            if bytes.len() >= 6 {
-                lon += f64::from(bytes[4].to_ascii_lowercase() - b'a') * (2.0 / 24.0);
-                lat += f64::from(bytes[5].to_ascii_lowercase() - b'a') * (1.0 / 24.0);
-                lon_size = 2.0 / 24.0;
-                lat_size = 1.0 / 24.0;
-            }
-        }
-        cell_center(lat, lat + lat_size, lon, lon + lon_size)
-    }
-}
-
+/// Reject any coordinate that is not WGS-84: every encoded grid is defined on
+/// WGS-84 latitude/longitude.
 fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
     if coord.crs() != crate::Crs::Wgs84 {
         return Err(Error::CrsMismatch {
@@ -529,79 +108,37 @@ fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
     Ok(())
 }
 
-impl TryFrom<&str> for Maidenhead {
-    type Error = crate::Error;
-
-    /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for malformed locators.
-    fn try_from(s: &str) -> Result<Self> {
-        let t = s.trim();
-        let bytes = t.as_bytes();
-        let field = |b: u8| (b'A'..=b'R').contains(&b.to_ascii_uppercase());
-        let sub = |b: u8| (b'a'..=b'x').contains(&b.to_ascii_lowercase());
-        let ok = match bytes.len() {
-            2 => field(bytes[0]) && field(bytes[1]),
-            4 => {
-                field(bytes[0])
-                    && field(bytes[1])
-                    && bytes[2].is_ascii_digit()
-                    && bytes[3].is_ascii_digit()
-            }
-            6 => {
-                field(bytes[0])
-                    && field(bytes[1])
-                    && bytes[2].is_ascii_digit()
-                    && bytes[3].is_ascii_digit()
-                    && sub(bytes[4])
-                    && sub(bytes[5])
-            }
-            _ => false,
-        };
-        if !ok {
-            return Err(Error::InvalidGridRef(format!(
-                "invalid Maidenhead locator: {s}"
-            )));
-        }
-        // Canonical form: field uppercase, square digits, subsquare lowercase.
-        let mut c: Vec<u8> = t.bytes().collect();
-        c[0] = c[0].to_ascii_uppercase();
-        c[1] = c[1].to_ascii_uppercase();
-        if c.len() >= 6 {
-            c[4] = c[4].to_ascii_lowercase();
-            c[5] = c[5].to_ascii_lowercase();
-        }
-        Ok(Maidenhead(String::from_utf8(c).unwrap_or_default()))
-    }
-}
-
-impl FromStr for Maidenhead {
-    type Err = crate::Error;
-    fn from_str(s: &str) -> Result<Self> {
-        Self::try_from(s)
-    }
-}
-
 /// Midpoint of a `[lo, hi]` range.
 fn midpoint(lo: f64, hi: f64) -> f64 {
     (lo + hi) / 2.0
 }
 
-/// Push `base + index` (as an ASCII byte) onto `s`.
-fn push_offset(s: &mut String, base: u8, index: usize) {
-    s.push((base + index as u8) as char);
-}
+/// Added to every cell bound so `f64` rounding — an encoded point landing an
+/// ulp outside its cell edge, or the geodesic solver's ~15 nm error — never
+/// pushes a true distance past it.
+const ROUNDING_MARGIN_M: f64 = 1e-6;
 
-/// The center of a `[lat_lo, lat_hi] × [lon_lo, lon_hi]` cell, with the
-/// half-diagonal (meters, at the cell latitude) as the error bound.
+/// The center of a `[lat_lo, lat_hi] × [lon_lo, lon_hi]` cell, bounded by the
+/// largest WGS-84 geodesic distance from that center to the cell's corners
+/// (plus [`ROUNDING_MARGIN_M`]).
 fn cell_center(lat_lo: f64, lat_hi: f64, lon_lo: f64, lon_hi: f64) -> Approx<Coordinate> {
     let lat = midpoint(lat_lo, lat_hi);
     let lon = midpoint(lon_lo, lon_hi);
-    let lat_half_m = (lat_hi - lat_lo) / 2.0 * METERS_PER_DEGREE;
-    let lon_half_m = (lon_hi - lon_lo) / 2.0 * METERS_PER_DEGREE * lat.to_radians().cos();
+    let geodesic = Geodesic::wgs84();
+    let max_error_m = [
+        (lat_lo, lon_lo),
+        (lat_lo, lon_hi),
+        (lat_hi, lon_lo),
+        (lat_hi, lon_hi),
+    ]
+    .into_iter()
+    .map(|(corner_lat, corner_lon)| -> f64 { geodesic.inverse(lat, lon, corner_lat, corner_lon) })
+    .fold(0.0, f64::max)
+        + ROUNDING_MARGIN_M;
     // Every caller passes a cell inside the globe, so its center is in range.
     Approx::new(
         Coordinate::from_valid(lat, lon, None, crate::Crs::Wgs84),
-        lat_half_m.hypot(lon_half_m),
+        max_error_m,
     )
 }
 

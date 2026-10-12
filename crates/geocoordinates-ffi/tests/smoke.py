@@ -209,7 +209,7 @@ area = gc.plus_code_decode("8FVC2222+22")
 # Grid decodes share the ApproxCoordinate shape with MGRS/H3/S2 and `convert`.
 assert area.coord.crs == gc.Crs.WGS84
 assert approx(area.coord.lat, 47.0000625, 1e-6) and approx(area.coord.lon, 8.0000625, 1e-6)
-assert approx(area.max_error_m, 8.421_509, 1e-5), area.max_error_m  # cell half-diagonal
+assert approx(area.max_error_m, 8.418_606, 1e-5), area.max_error_m  # geodesic corner distance
 try:
     gc.plus_code_decode("not a code")
     raise AssertionError("expected error for an invalid Plus Code")
@@ -236,12 +236,21 @@ assert gc.geohash_encode(wgs84_coord(42.6, -5.6), 5) == "ezs42"
 gh = gc.geohash_decode("ezs42")
 assert gh.coord.crs == gc.Crs.WGS84
 assert approx(gh.coord.lat, 42.604_980_468_75, 1e-12) and approx(gh.coord.lon, -5.603_027_343_75, 1e-12)
-assert approx(gh.max_error_m, 3_037.127_762, 1e-5), gh.max_error_m
+assert approx(gh.max_error_m, 3_034.794_838, 1e-5), gh.max_error_m
 assert gc.maidenhead_encode(wgs84_coord(40.5, -75.0), 2) == "FN20"
 mh = gc.maidenhead_decode("FN20")
 assert mh.coord.crs == gc.Crs.WGS84
 assert approx(mh.coord.lat, 40.5, 1e-9) and approx(mh.coord.lon, -75.0, 1e-9)
-assert approx(mh.max_error_m, 101_308.370_254, 1e-5), mh.max_error_m
+assert approx(mh.max_error_m, 101_592.817_121, 1e-5), mh.max_error_m
+# Canonicalize validates a code string and returns its canonical form.
+assert gc.plus_code_canonicalize(" 87g7x2vv+2v ") == "87G7X2VV+2V"
+assert gc.geohash_canonicalize("EZS42") == "ezs42"
+assert gc.maidenhead_canonicalize("jn58TD") == "JN58td"
+try:
+    gc.geohash_canonicalize("ezs42ezs42ezs")
+    raise AssertionError("expected error for a geohash longer than 12")
+except gc.GeoError.InvalidGridRef:
+    pass
 
 # --- Geodesy: ellipsoid, ECEF, ENU/AER ---
 wgs84 = gc.ellipsoid_wgs84()
