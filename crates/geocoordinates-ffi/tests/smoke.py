@@ -212,7 +212,7 @@ km_fix = gc.Fix(
 )
 assert gc.format_fix(km_fix, auto_opts) == "40.71, -74.01"
 # The locale heuristic picks the separator; a comma rendering re-parses with
-# decimal_comma set.
+# format_options_parse_options (which carries decimal_separator=COMMA).
 assert gc.decimal_separator_for_locale("de-DE") == gc.DecimalSeparator.COMMA
 assert gc.decimal_separator_for_locale("de-CH") == gc.DecimalSeparator.POINT
 comma_dd = gc.FormatOptions(
