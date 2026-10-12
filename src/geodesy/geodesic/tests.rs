@@ -3,6 +3,8 @@ use crate::test_support::assert_close;
 
 /// Characterization of validation, poles and the antimeridian.
 mod edges;
+/// Property: every producer's output validates.
+mod producers;
 
 fn c(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
@@ -94,7 +96,7 @@ fn destination_inverts_distance_and_bearing() {
 }
 
 #[test]
-fn destination_rejects_non_wgs84() {
+fn destination_rejects_an_obfuscated_datum() {
     assert!(matches!(
         destination(
             &Coordinate::gcj02(0.0, 0.0).unwrap(),
@@ -165,13 +167,122 @@ fn public_geodesics_reject_mixed_crs_and_invalid_parameters() {
         "bearing",
     );
     assert_invalid_value(
-        intersection(&c(0.0, 0.0), f64::NAN, &c(1.0, 1.0), 0.0),
+        intersection_spherical(&c(0.0, 0.0), f64::NAN, &c(1.0, 1.0), 0.0),
         "bearing",
     );
     assert_invalid_value(
-        intersection(&c(0.0, 0.0), 0.0, &c(1.0, 1.0), f64::INFINITY),
+        intersection_spherical(&c(0.0, 0.0), 0.0, &c(1.0, 1.0), f64::INFINITY),
         "bearing",
     );
+}
+
+#[test]
+fn coincident_points_have_no_bearing() {
+    // The same place, including a pole named at two longitudes.
+    for (a, b) in [
+        (c(12.0, 34.0), c(12.0, 34.0)),
+        (c(90.0, 0.0), c(90.0, 120.0)),
+        (c(-90.0, 10.0), c(-90.0, -80.0)),
+    ] {
+        assert_invalid_value(initial_bearing(&a, &b), "points");
+        assert_invalid_value(final_bearing(&a, &b), "points");
+    }
+    // A distinct point however close is a bearing.
+    assert!(initial_bearing(&c(0.0, 0.0), &c(0.0, 1e-9)).is_ok());
+}
+
+#[test]
+fn bearings_from_a_pole_follow_the_given_meridian() {
+    // From (90, 10), (0, 10) lies straight down meridian 10°E (bearing 180°)
+    // and (0, -170) down the opposite meridian (bearing 0°).
+    assert_close(
+        initial_bearing(&c(90.0, 10.0), &c(0.0, 10.0)).unwrap(),
+        180.0,
+        1e-9,
+    );
+    assert_close(
+        initial_bearing(&c(90.0, 10.0), &c(0.0, -170.0)).unwrap(),
+        0.0,
+        1e-9,
+    );
+}
+
+#[test]
+fn ellipsoidal_functions_reject_obfuscated_datums() {
+    for crs in [Crs::Gcj02, Crs::Bd09] {
+        let p = |lat, lon| Coordinate::new(lat, lon, crs).unwrap();
+        let (a, b) = (p(30.0, 110.0), p(31.0, 111.0));
+        let mismatch = |r: Result<f64>| {
+            assert!(
+                matches!(r, Err(Error::CrsMismatch { expected: Crs::Wgs84, found }) if found == crs),
+                "{crs:?}: {r:?}"
+            );
+        };
+        mismatch(initial_bearing(&a, &b));
+        mismatch(final_bearing(&a, &b));
+        mismatch(destination(&a, 0.0, Length::from_meters(1.0)).map(|p| p.lat()));
+        mismatch(midpoint(&a, &b).map(|p| p.lat()));
+        mismatch(intermediate(&a, &b, 0.25).map(|p| p.lat()));
+    }
+}
+
+#[test]
+fn producers_keep_a_classic_datum_and_its_ellipsoid() {
+    // A Tokyo-datum destination is computed on Bessel 1841 and stays Tokyo.
+    let bessel = crate::geodesy::Ellipsoid::BESSEL_1841;
+    let g = Geodesic::new(bessel.semi_major_m(), bessel.flattening());
+    let start = Coordinate::new(35.0, 139.0, Crs::Tokyo).unwrap();
+    let d = destination(&start, 30.0, Length::from_meters(100_000.0)).unwrap();
+    let (lat, lon): (f64, f64) = g.direct(35.0, 139.0, 30.0, 100_000.0);
+    assert_eq!((d.lat(), d.crs()), (lat, Crs::Tokyo));
+    assert_close(d.lon(), lon, 1e-12);
+    // …and a NAD27 midpoint on Clarke 1866 stays NAD27.
+    let clarke = crate::geodesy::Ellipsoid::CLARKE_1866;
+    let g = Geodesic::new(clarke.semi_major_m(), clarke.flattening());
+    let (a, b) = (
+        Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap(),
+        Coordinate::new(45.0, -90.0, Crs::Nad27).unwrap(),
+    );
+    let m = midpoint(&a, &b).unwrap();
+    let (s12, azi1, _, _): (f64, f64, f64, f64) = g.inverse(40.0, -100.0, 45.0, -90.0);
+    let (lat, lon): (f64, f64) = g.direct(40.0, -100.0, azi1, s12 / 2.0);
+    assert_eq!((m.lat(), m.crs()), (lat, Crs::Nad27));
+    // Wrapping the longitude into [-180, 180) may move it by an ulp.
+    assert_close(m.lon(), lon, 1e-12);
+    // Bearings on NAD27 are Clarke 1866's too.
+    let (azi1, azi2): (f64, f64) = {
+        let (_, a1, a2, _): (f64, f64, f64, f64) = g.inverse(40.0, -100.0, 45.0, -90.0);
+        (a1, a2)
+    };
+    assert_eq!(initial_bearing(&a, &b).unwrap(), azi1);
+    assert_eq!(final_bearing(&a, &b).unwrap(), azi2);
+}
+
+#[test]
+fn producers_drop_the_input_height() {
+    let start = c(10.0, 20.0)
+        .with_height(crate::coord::Height::Ellipsoidal(500.0))
+        .unwrap();
+    let end = c(11.0, 21.0);
+    assert_eq!(
+        destination(&start, 0.0, Length::from_meters(10.0))
+            .unwrap()
+            .height(),
+        None
+    );
+    assert_eq!(midpoint(&start, &end).unwrap().height(), None);
+    assert_eq!(intermediate(&start, &end, 0.0).unwrap().height(), None);
+}
+
+#[test]
+fn finish_wraps_the_longitude_and_validates() {
+    let p = finish(10.0, 180.0, Crs::Wgs84).unwrap();
+    assert_eq!((p.lat(), p.lon()), (10.0, -180.0));
+    let p = finish(-5.0, 190.0, Crs::Tokyo).unwrap();
+    assert_close(p.lon(), -170.0, 1e-12);
+    assert_eq!(p.crs(), Crs::Tokyo);
+    assert_out_of_range(finish(90.5, 0.0, Crs::Wgs84), 90.5, 0.0);
+    assert!(finish(f64::NAN, 0.0, Crs::Wgs84).is_err());
 }
 
 /// A rejected parameter is `InvalidValue` naming exactly `expected`.

@@ -24,22 +24,22 @@ fn measurements_cannot_receive_an_out_of_range_position_on_either_side() {
         assert_out_of_range(bad().and_then(|b| rhumb_bearing(&ok, &b)), lat, lon);
         let end = c(0.0, 10.0);
         assert_out_of_range(
-            bad().and_then(|b| cross_track_distance(&b, &ok, &end)),
+            bad().and_then(|b| cross_track_distance_spherical(&b, &ok, &end)),
             lat,
             lon,
         );
         assert_out_of_range(
-            bad().and_then(|b| cross_track_distance(&end, &ok, &b)),
+            bad().and_then(|b| cross_track_distance_spherical(&end, &ok, &b)),
             lat,
             lon,
         );
         assert_out_of_range(
-            bad().and_then(|b| along_track_distance(&b, &ok, &end)),
+            bad().and_then(|b| along_track_distance_spherical(&b, &ok, &end)),
             lat,
             lon,
         );
         assert_out_of_range(
-            bad().and_then(|b| along_track_distance(&end, &ok, &b)),
+            bad().and_then(|b| along_track_distance_spherical(&end, &ok, &b)),
             lat,
             lon,
         );
@@ -69,7 +69,7 @@ fn producers_cannot_receive_an_out_of_range_position() {
         0.0,
     );
     assert_out_of_range(
-        bad().and_then(|b| intersection(&c(0.0, 0.0), 0.0, &b, 90.0)),
+        bad().and_then(|b| intersection_spherical(&c(0.0, 0.0), 0.0, &b, 90.0)),
         91.0,
         0.0,
     );
@@ -89,7 +89,7 @@ fn an_out_of_range_datum_newtype_cannot_reach_the_measurements() {
     let ok = Wgs84::new(0.0, 0.0).unwrap();
     let end = Wgs84::new(0.0, 10.0).unwrap();
     assert!(geodesic_distance(&ok, &end).is_ok());
-    assert!(cross_track_distance(&ok, &ok, &end).is_ok());
+    assert!(cross_track_distance_spherical(&ok, &ok, &end).is_ok());
 }
 
 // ----- Ellipsoidal measurements across the antimeridian and antipode -----

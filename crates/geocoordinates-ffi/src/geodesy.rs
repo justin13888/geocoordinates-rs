@@ -358,13 +358,11 @@ pub fn aer_to_ned(aer: Aer) -> Ned {
 // ===========================================================================
 
 /// Ellipsoidal (Karney) geodesic distance between two coordinates, in
-/// **meters**, measured on the **WGS-84** ellipsoid whatever their shared CRS.
+/// **meters**, measured on the ellipsoid of their shared CRS (NAD27 on Clarke
+/// 1866, Tokyo on Bessel 1841, …), accurate to round-off.
 ///
-/// Accurate to round-off for WGS-84 points. Two classic-datum points (NAD27,
-/// Tokyo, Pulkovo-1942) are off by up to about 1.3e-4 of the distance, because
-/// their own ellipsoid is not WGS-84. Two GCJ-02 or BD-09 points carry the
-/// difference of their obfuscation offsets; convert them to WGS-84 first for a
-/// true distance.
+/// Errors for GCJ-02 / BD-09 inputs, which are obfuscated renderings with no
+/// ellipsoid (convert them to WGS-84 first), and for mixed CRSs.
 #[uniffi::export]
 pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
@@ -373,14 +371,18 @@ pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError
         .map_err(Into::into)
 }
 
-/// Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
+/// Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`,
+/// on the ellipsoid of their shared CRS. From a pole the bearing follows the
+/// meridian of `a`'s own longitude. Errors when `a` and `b` are the same
+/// place, and as [`geodesic_distance_m`] does.
 #[uniffi::export]
 pub fn initial_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::initial_bearing(&a, &b).map_err(Into::into)
 }
 
-/// Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`.
+/// Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`,
+/// on the ellipsoid of their shared CRS. Errors as [`initial_bearing`] does.
 #[uniffi::export]
 pub fn final_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
@@ -388,7 +390,8 @@ pub fn final_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 }
 
 /// The point reached from `start` along `bearing_deg` for `distance_m` meters
-/// (exact, Karney).
+/// (exact, Karney), on the ellipsoid of `start`'s CRS; the result keeps that
+/// CRS and has no height. Errors for a GCJ-02 / BD-09 start.
 #[uniffi::export]
 pub fn destination(
     start: Coordinate,
@@ -404,7 +407,8 @@ pub fn destination(
     .map_err(Into::into)
 }
 
-/// The geodesic midpoint between `a` and `b`.
+/// The geodesic midpoint between `a` and `b`, on the ellipsoid of their
+/// shared CRS (kept, with no height). Errors for GCJ-02 / BD-09 inputs.
 #[uniffi::export]
 pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
@@ -413,7 +417,9 @@ pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate, GeoError> {
         .map_err(Into::into)
 }
 
-/// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic.
+/// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the
+/// geodesic, on the ellipsoid of their shared CRS (kept, with no height).
+/// Errors for GCJ-02 / BD-09 inputs or a `fraction` outside `[0, 1]`.
 #[uniffi::export]
 pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Result<Coordinate, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
@@ -455,46 +461,93 @@ pub fn rhumb_destination(
     .map_err(Into::into)
 }
 
-/// Signed perpendicular distance (meters) from `point` to the path
-/// `start` → `end` (positive to the right).
+/// Signed perpendicular distance (meters) from `point` to the great-circle
+/// path `start` → `end` on the mean sphere (positive to the right).
+/// Approximate: the sphere is not the ellipsoid.
+///
+/// Errors when `start` and `end` are the same place or antipodal (no single
+/// great circle runs through them).
 #[uniffi::export]
-pub fn cross_track_distance_m(
+pub fn cross_track_distance_spherical_m(
     point: Coordinate,
     start: Coordinate,
     end: Coordinate,
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::cross_track_distance(&point, &start, &end)
+    gc::geodesy::cross_track_distance_spherical(&point, &start, &end)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
 
 /// Along-track distance (meters) from `start` to the foot of the perpendicular
-/// from `point` onto `start` → `end`.
+/// from `point` onto the great-circle path `start` → `end` on the mean sphere.
+/// Approximate; errors as [`cross_track_distance_spherical_m`] does.
 #[uniffi::export]
-pub fn along_track_distance_m(
+pub fn along_track_distance_spherical_m(
     point: Coordinate,
     start: Coordinate,
     end: Coordinate,
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::along_track_distance(&point, &start, &end)
+    gc::geodesy::along_track_distance_spherical(&point, &start, &end)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
 
-/// Intersection of two great circles (each a point + initial bearing), or
-/// `None` when they are parallel/coincident or ambiguous.
+/// The outcome of [`intersection_spherical`] — mirror of
+/// [`gc::geodesy::Intersection`].
+///
+/// `gc::geodesy::Intersection` is exhaustive, so the `From` impl below is an
+/// exhaustive match: a new outcome upstream fails this crate's build until
+/// mirrored here.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Enum)]
+pub enum IntersectionResult {
+    /// The paths cross at `point`, less than half a great circle ahead of each
+    /// start (in the inputs' CRS, with no height).
+    Crossing {
+        /// The crossing point.
+        point: Coordinate,
+    },
+    /// Both paths run along the same great circle, so no single crossing
+    /// exists.
+    SameGreatCircle,
+    /// Neither crossing of the two great circles lies ahead of both starts.
+    NoForwardCrossing,
+}
+
+impl From<gc::geodesy::Intersection> for IntersectionResult {
+    fn from(x: gc::geodesy::Intersection) -> Self {
+        match x {
+            gc::geodesy::Intersection::Crossing(point) => Self::Crossing {
+                point: point.into(),
+            },
+            gc::geodesy::Intersection::SameGreatCircle => Self::SameGreatCircle,
+            gc::geodesy::Intersection::NoForwardCrossing => Self::NoForwardCrossing,
+        }
+    }
+}
+
+/// Where two great-circle paths (each a start point and an initial bearing in
+/// degrees) cross ahead of both starts, on the mean sphere. Approximate: the
+/// sphere is not the ellipsoid.
+///
+/// At a pole a bearing follows the meridian of the start's own longitude.
+/// Errors for GCJ-02 / BD-09 inputs, mixed CRSs, or a non-finite bearing.
 #[uniffi::export]
-pub fn intersection(
+pub fn intersection_spherical(
     a: Coordinate,
     bearing_a_deg: f64,
     b: Coordinate,
     bearing_b_deg: f64,
-) -> Result<Option<Coordinate>, GeoError> {
-    gc::geodesy::intersection(&a.try_into()?, bearing_a_deg, &b.try_into()?, bearing_b_deg)
-        .map(|point| point.map(Into::into))
-        .map_err(Into::into)
+) -> Result<IntersectionResult, GeoError> {
+    gc::geodesy::intersection_spherical(
+        &a.try_into()?,
+        bearing_a_deg,
+        &b.try_into()?,
+        bearing_b_deg,
+    )
+    .map(Into::into)
+    .map_err(Into::into)
 }
