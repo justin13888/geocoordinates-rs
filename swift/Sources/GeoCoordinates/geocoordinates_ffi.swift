@@ -4253,58 +4253,104 @@ fileprivate struct FfiConverterSequenceTypeFix: FfiConverterRustBuffer {
     }
 }
 /**
- * The azimuth/elevation/range of `target` relative to `origin` (WGS-84).
+ * Clamp a latitude into the closed range `[-90, 90]`.
  */
-public func aerFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> Aer  {
-    return try  FfiConverterTypeAer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_aer_from_coordinate(
-        FfiConverterTypeCoordinate_lower(target),
-        FfiConverterTypeCoordinate_lower(origin),$0
+public func clampLatitude(latDeg: Double) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_clamp_latitude(
+        FfiConverterDouble.lower(latDeg),$0
     )
 })
 }
 /**
- * Recover the absolute coordinate of an AER offset about `origin`. Not exact:
- * see [`enu_to_coordinate`].
+ * Decimal degrees → degrees/decimal-minutes for the given axis.
  */
-public func aerToCoordinate(aer: Aer, origin: Coordinate)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_aer_to_coordinate(
-        FfiConverterTypeAer_lower(aer),
-        FfiConverterTypeCoordinate_lower(origin),$0
+public func ddToDdm(dd: Dd, axis: Axis)throws  -> Ddm  {
+    return try  FfiConverterTypeDdm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_dd_to_ddm(
+        FfiConverterTypeDd_lower(dd),
+        FfiConverterTypeAxis_lower(axis),$0
     )
 })
 }
 /**
- * AER → ENU.
+ * Decimal degrees → degrees/minutes/seconds for the given axis.
  */
-public func aerToEnu(aer: Aer) -> Enu  {
-    return try!  FfiConverterTypeEnu_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_aer_to_enu(
-        FfiConverterTypeAer_lower(aer),$0
+public func ddToDms(dd: Dd, axis: Axis)throws  -> Dms  {
+    return try  FfiConverterTypeDms_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_dd_to_dms(
+        FfiConverterTypeDd_lower(dd),
+        FfiConverterTypeAxis_lower(axis),$0
     )
 })
 }
 /**
- * AER → NED.
+ * Degrees/decimal-minutes → decimal degrees (signed by hemisphere).
  */
-public func aerToNed(aer: Aer) -> Ned  {
-    return try!  FfiConverterTypeNed_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_aer_to_ned(
-        FfiConverterTypeAer_lower(aer),$0
+public func ddmToDd(ddm: Ddm)throws  -> Dd  {
+    return try  FfiConverterTypeDd_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ddm_to_dd(
+        FfiConverterTypeDdm_lower(ddm),$0
     )
 })
 }
 /**
- * Along-track distance (meters) from `start` to the foot of the perpendicular
- * from `point` onto `start` → `end`.
+ * Degrees/decimal-minutes → degrees/minutes/seconds (preserves hemisphere).
  */
-public func alongTrackDistanceM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_along_track_distance_m(
-        FfiConverterTypeCoordinate_lower(point),
-        FfiConverterTypeCoordinate_lower(start),
-        FfiConverterTypeCoordinate_lower(end),$0
+public func ddmToDms(ddm: Ddm)throws  -> Dms  {
+    return try  FfiConverterTypeDms_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ddm_to_dms(
+        FfiConverterTypeDdm_lower(ddm),$0
+    )
+})
+}
+/**
+ * Degrees/minutes/seconds → decimal degrees (signed by hemisphere).
+ */
+public func dmsToDd(dms: Dms)throws  -> Dd  {
+    return try  FfiConverterTypeDd_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_dms_to_dd(
+        FfiConverterTypeDms_lower(dms),$0
+    )
+})
+}
+/**
+ * Degrees/minutes/seconds → degrees/decimal-minutes (preserves hemisphere).
+ */
+public func dmsToDdm(dms: Dms)throws  -> Ddm  {
+    return try  FfiConverterTypeDdm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_dms_to_ddm(
+        FfiConverterTypeDms_lower(dms),$0
+    )
+})
+}
+/**
+ * The numeric sign a hemisphere applies (`-1.0` for South/West, else `+1.0`).
+ */
+public func hemisphereSign(hemisphere: Hemisphere) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_hemisphere_sign(
+        FfiConverterTypeHemisphere_lower(hemisphere),$0
+    )
+})
+}
+/**
+ * Normalize an angle (degrees) into `[0, 360)`.
+ */
+public func normalizeDegrees(deg: Double) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_normalize_degrees(
+        FfiConverterDouble.lower(deg),$0
+    )
+})
+}
+/**
+ * Wrap a longitude into the half-open range `[-180, 180)` (so `180` → `-180`).
+ */
+public func wrapLongitude(lonDeg: Double) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_wrap_longitude(
+        FfiConverterDouble.lower(lonDeg),$0
     )
 })
 }
@@ -4390,6 +4436,70 @@ public func bd09ToWgs84Refined(p: Bd09)throws  -> ApproxWgs84  {
 })
 }
 /**
+ * GCJ-02 → BD-09. **Exact** forward nudge.
+ */
+public func gcj02ToBd09(p: Gcj02)throws  -> Bd09  {
+    return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_gcj02_to_bd09(
+        FfiConverterTypeGcj02_lower(p),$0
+    )
+})
+}
+/**
+ * GCJ-02 → WGS-84, fast single-step inverse (~1–2 m). **Approximate**: the
+ * returned record carries `max_error_m`.
+ */
+public func gcj02ToWgs84Fast(p: Gcj02)throws  -> ApproxWgs84  {
+    return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_gcj02_to_wgs84_fast(
+        FfiConverterTypeGcj02_lower(p),$0
+    )
+})
+}
+/**
+ * GCJ-02 → WGS-84, refined fixed-point inverse (< 0.5 m). **Approximate**: the
+ * returned record carries `max_error_m`.
+ */
+public func gcj02ToWgs84Refined(p: Gcj02)throws  -> ApproxWgs84  {
+    return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_gcj02_to_wgs84_refined(
+        FfiConverterTypeGcj02_lower(p),$0
+    )
+})
+}
+/**
+ * Whether `(lat, lon)` lies outside the China bounding box, where every China
+ * datum conversion is the identity.
+ */
+public func outOfChina(lat: Double, lon: Double) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_out_of_china(
+        FfiConverterDouble.lower(lat),
+        FfiConverterDouble.lower(lon),$0
+    )
+})
+}
+/**
+ * WGS-84 → BD-09. **Exact** composition through GCJ-02.
+ */
+public func wgs84ToBd09(p: Wgs84)throws  -> Bd09  {
+    return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_wgs84_to_bd09(
+        FfiConverterTypeWgs84_lower(p),$0
+    )
+})
+}
+/**
+ * WGS-84 → GCJ-02. **Exact** forward offset (identity outside China).
+ */
+public func wgs84ToGcj02(p: Wgs84)throws  -> Gcj02  {
+    return try  FfiConverterTypeGcj02_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_wgs84_to_gcj02(
+        FfiConverterTypeWgs84_lower(p),$0
+    )
+})
+}
+/**
  * Whether a conversion route exists between two reference systems.
  */
 public func canConvert(from: Crs, to: Crs) -> Bool  {
@@ -4397,16 +4507,6 @@ public func canConvert(from: Crs, to: Crs) -> Bool  {
     uniffi_geocoordinates_ffi_fn_func_can_convert(
         FfiConverterTypeCrs_lower(from),
         FfiConverterTypeCrs_lower(to),$0
-    )
-})
-}
-/**
- * Clamp a latitude into the closed range `[-90, 90]`.
- */
-public func clampLatitude(latDeg: Double) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_clamp_latitude(
-        FfiConverterDouble.lower(latDeg),$0
     )
 })
 }
@@ -4492,6 +4592,136 @@ public func coordinateWgs84(lat: Double, lon: Double) -> Coordinate  {
 })
 }
 /**
+ * Wrap a bare [`Coordinate`] as a [`Fix`] with no metadata.
+ */
+public func fixFromCoord(coord: Coordinate) -> Fix  {
+    return try!  FfiConverterTypeFix_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_fix_from_coord(
+        FfiConverterTypeCoordinate_lower(coord),$0
+    )
+})
+}
+/**
+ * Convert `value` expressed in `unit` to meters.
+ */
+public func lengthFromUnit(value: Double, unit: LengthUnit) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_length_from_unit(
+        FfiConverterDouble.lower(value),
+        FfiConverterTypeLengthUnit_lower(unit),$0
+    )
+})
+}
+/**
+ * Convert `meters` to `unit`.
+ */
+public func lengthToUnit(meters: Double, unit: LengthUnit) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_length_to_unit(
+        FfiConverterDouble.lower(meters),
+        FfiConverterTypeLengthUnit_lower(unit),$0
+    )
+})
+}
+/**
+ * Decode an H3 cell to its center, with the cell-radius error bound.
+ */
+public func h3Decode(cell: H3Cell)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_h3_decode(
+        FfiConverterTypeH3Cell_lower(cell),$0
+    )
+})
+}
+/**
+ * Encode a WGS-84 coordinate to its H3 cell index at `resolution` (0–15).
+ */
+public func h3Encode(coord: Coordinate, resolution: UInt8)throws  -> H3Cell  {
+    return try  FfiConverterTypeH3Cell_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_h3_encode(
+        FfiConverterTypeCoordinate_lower(coord),
+        FfiConverterUInt8.lower(resolution),$0
+    )
+})
+}
+/**
+ * Decode an S2 cell to its center, with the maximum corner-distance bound.
+ */
+public func s2Decode(cell: S2CellId)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_s2_decode(
+        FfiConverterTypeS2CellId_lower(cell),$0
+    )
+})
+}
+/**
+ * Encode a WGS-84 coordinate to its S2 cell id at `level` (0–30).
+ */
+public func s2Encode(coord: Coordinate, level: UInt8)throws  -> S2CellId  {
+    return try  FfiConverterTypeS2CellId_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_s2_encode(
+        FfiConverterTypeCoordinate_lower(coord),
+        FfiConverterUInt8.lower(level),$0
+    )
+})
+}
+/**
+ * The azimuth/elevation/range of `target` relative to `origin` (WGS-84).
+ */
+public func aerFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> Aer  {
+    return try  FfiConverterTypeAer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_aer_from_coordinate(
+        FfiConverterTypeCoordinate_lower(target),
+        FfiConverterTypeCoordinate_lower(origin),$0
+    )
+})
+}
+/**
+ * Recover the absolute coordinate of an AER offset about `origin`. Not exact:
+ * see [`enu_to_coordinate`].
+ */
+public func aerToCoordinate(aer: Aer, origin: Coordinate)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_aer_to_coordinate(
+        FfiConverterTypeAer_lower(aer),
+        FfiConverterTypeCoordinate_lower(origin),$0
+    )
+})
+}
+/**
+ * AER → ENU.
+ */
+public func aerToEnu(aer: Aer) -> Enu  {
+    return try!  FfiConverterTypeEnu_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_aer_to_enu(
+        FfiConverterTypeAer_lower(aer),$0
+    )
+})
+}
+/**
+ * AER → NED.
+ */
+public func aerToNed(aer: Aer) -> Ned  {
+    return try!  FfiConverterTypeNed_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_aer_to_ned(
+        FfiConverterTypeAer_lower(aer),$0
+    )
+})
+}
+/**
+ * Along-track distance (meters) from `start` to the foot of the perpendicular
+ * from `point` onto `start` → `end`.
+ */
+public func alongTrackDistanceM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_along_track_distance_m(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterTypeCoordinate_lower(start),
+        FfiConverterTypeCoordinate_lower(end),$0
+    )
+})
+}
+/**
  * Signed perpendicular distance (meters) from `point` to the path
  * `start` → `end` (positive to the right).
  */
@@ -4543,48 +4773,6 @@ public func datumTransformToWgs84(datum: Crs) -> DatumTransform?  {
 })
 }
 /**
- * Decimal degrees → degrees/decimal-minutes for the given axis.
- */
-public func ddToDdm(dd: Dd, axis: Axis)throws  -> Ddm  {
-    return try  FfiConverterTypeDdm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_dd_to_ddm(
-        FfiConverterTypeDd_lower(dd),
-        FfiConverterTypeAxis_lower(axis),$0
-    )
-})
-}
-/**
- * Decimal degrees → degrees/minutes/seconds for the given axis.
- */
-public func ddToDms(dd: Dd, axis: Axis)throws  -> Dms  {
-    return try  FfiConverterTypeDms_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_dd_to_dms(
-        FfiConverterTypeDd_lower(dd),
-        FfiConverterTypeAxis_lower(axis),$0
-    )
-})
-}
-/**
- * Degrees/decimal-minutes → decimal degrees (signed by hemisphere).
- */
-public func ddmToDd(ddm: Ddm)throws  -> Dd  {
-    return try  FfiConverterTypeDd_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ddm_to_dd(
-        FfiConverterTypeDdm_lower(ddm),$0
-    )
-})
-}
-/**
- * Degrees/decimal-minutes → degrees/minutes/seconds (preserves hemisphere).
- */
-public func ddmToDms(ddm: Ddm)throws  -> Dms  {
-    return try  FfiConverterTypeDms_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ddm_to_dms(
-        FfiConverterTypeDdm_lower(ddm),$0
-    )
-})
-}
-/**
  * The point reached from `start` along `bearing_deg` for `distance_m` meters
  * (exact, Karney).
  */
@@ -4594,26 +4782,6 @@ public func destination(start: Coordinate, bearingDeg: Double, distanceM: Double
         FfiConverterTypeCoordinate_lower(start),
         FfiConverterDouble.lower(bearingDeg),
         FfiConverterDouble.lower(distanceM),$0
-    )
-})
-}
-/**
- * Degrees/minutes/seconds → decimal degrees (signed by hemisphere).
- */
-public func dmsToDd(dms: Dms)throws  -> Dd  {
-    return try  FfiConverterTypeDd_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_dms_to_dd(
-        FfiConverterTypeDms_lower(dms),$0
-    )
-})
-}
-/**
- * Degrees/minutes/seconds → degrees/decimal-minutes (preserves hemisphere).
- */
-public func dmsToDdm(dms: Dms)throws  -> Ddm  {
-    return try  FfiConverterTypeDdm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_dms_to_ddm(
-        FfiConverterTypeDms_lower(dms),$0
     )
 })
 }
@@ -4783,69 +4951,351 @@ public func finalBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
 })
 }
 /**
- * Wrap a bare [`Coordinate`] as a [`Fix`] with no metadata.
+ * Ellipsoidal (Karney) geodesic distance between two coordinates, in
+ * **meters**, measured on the **WGS-84** ellipsoid whatever their shared CRS.
+ *
+ * Accurate to round-off for WGS-84 points. Two classic-datum points (NAD27,
+ * Tokyo, Pulkovo-1942) are off by up to about 1.3e-4 of the distance, because
+ * their own ellipsoid is not WGS-84. Two GCJ-02 or BD-09 points carry the
+ * difference of their obfuscation offsets; convert them to WGS-84 first for a
+ * true distance.
  */
-public func fixFromCoord(coord: Coordinate) -> Fix  {
-    return try!  FfiConverterTypeFix_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_fix_from_coord(
+public func geodesicDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geodesic_distance_m(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterTypeCoordinate_lower(b),$0
+    )
+})
+}
+/**
+ * Cheap spherical (haversine) distance between two coordinates, in **meters**.
+ *
+ * `Length` and its operators do not cross the FFI boundary, so the scalar
+ * meters value is returned directly.
+ */
+public func haversineDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_haversine_distance_m(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterTypeCoordinate_lower(b),$0
+    )
+})
+}
+/**
+ * Apply a Helmert transform to a geocentric (ECEF) position.
+ */
+public func helmertApplyEcef(helmert: Helmert, ecef: Ecef) -> Ecef  {
+    return try!  FfiConverterTypeEcef_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_helmert_apply_ecef(
+        FfiConverterTypeHelmert_lower(helmert),
+        FfiConverterTypeEcef_lower(ecef),$0
+    )
+})
+}
+/**
+ * The identity Helmert transform (no translation, rotation, or scale).
+ */
+public func helmertIdentity() -> Helmert  {
+    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_helmert_identity($0
+    )
+})
+}
+/**
+ * The inverse Helmert transform (negated parameters). Exact for
+ * translation-only transforms, as every catalogued one is; otherwise
+ * first-order, leaving about a centimeter of round-trip residual for a full
+ * seven-parameter set such as WGS-84 → OSGB36.
+ */
+public func helmertInverse(helmert: Helmert) -> Helmert  {
+    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_helmert_inverse(
+        FfiConverterTypeHelmert_lower(helmert),$0
+    )
+})
+}
+/**
+ * Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
+ */
+public func initialBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_initial_bearing(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterTypeCoordinate_lower(b),$0
+    )
+})
+}
+/**
+ * The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic.
+ */
+public func intermediate(a: Coordinate, b: Coordinate, fraction: Double)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_intermediate(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterTypeCoordinate_lower(b),
+        FfiConverterDouble.lower(fraction),$0
+    )
+})
+}
+/**
+ * Intersection of two great circles (each a point + initial bearing), or
+ * `None` when they are parallel/coincident or ambiguous.
+ */
+public func intersection(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> Coordinate?  {
+    return try  FfiConverterOptionTypeCoordinate.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_intersection(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterDouble.lower(bearingADeg),
+        FfiConverterTypeCoordinate_lower(b),
+        FfiConverterDouble.lower(bearingBDeg),$0
+    )
+})
+}
+/**
+ * The geodesic midpoint between `a` and `b`.
+ */
+public func midpoint(a: Coordinate, b: Coordinate)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_midpoint(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterTypeCoordinate_lower(b),$0
+    )
+})
+}
+/**
+ * The NED offset of `target` relative to `origin` (WGS-84).
+ */
+public func nedFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> Ned  {
+    return try  FfiConverterTypeNed_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ned_from_coordinate(
+        FfiConverterTypeCoordinate_lower(target),
+        FfiConverterTypeCoordinate_lower(origin),$0
+    )
+})
+}
+/**
+ * NED → azimuth/elevation/range.
+ */
+public func nedToAer(ned: Ned) -> Aer  {
+    return try!  FfiConverterTypeAer_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_ned_to_aer(
+        FfiConverterTypeNed_lower(ned),$0
+    )
+})
+}
+/**
+ * Recover the absolute coordinate of a NED offset about `origin`. Not exact:
+ * see [`enu_to_coordinate`].
+ */
+public func nedToCoordinate(ned: Ned, origin: Coordinate)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ned_to_coordinate(
+        FfiConverterTypeNed_lower(ned),
+        FfiConverterTypeCoordinate_lower(origin),$0
+    )
+})
+}
+/**
+ * NED → ENU.
+ */
+public func nedToEnu(ned: Ned) -> Enu  {
+    return try!  FfiConverterTypeEnu_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_ned_to_enu(
+        FfiConverterTypeNed_lower(ned),$0
+    )
+})
+}
+/**
+ * Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`.
+ */
+public func rhumbBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_rhumb_bearing(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterTypeCoordinate_lower(b),$0
+    )
+})
+}
+/**
+ * The point reached from `start` along a constant `bearing_deg` rhumb line for
+ * `distance_m` meters.
+ */
+public func rhumbDestination(start: Coordinate, bearingDeg: Double, distanceM: Double)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_rhumb_destination(
+        FfiConverterTypeCoordinate_lower(start),
+        FfiConverterDouble.lower(bearingDeg),
+        FfiConverterDouble.lower(distanceM),$0
+    )
+})
+}
+/**
+ * Rhumb-line (loxodrome) distance between two coordinates, in **meters**.
+ */
+public func rhumbDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_rhumb_distance_m(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterTypeCoordinate_lower(b),$0
+    )
+})
+}
+/**
+ * Decode a geohash to its WGS-84 cell center, with the cell half-diagonal
+ * error bound.
+ *
+ * # Errors
+ * Returns a [`GeoError`] for non-base-32 input.
+ */
+public func geohashDecode(code: String)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geohash_decode(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Encode a coordinate to a geohash of the given character length.
+ */
+public func geohashEncode(coord: Coordinate, length: UInt8)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geohash_encode(
+        FfiConverterTypeCoordinate_lower(coord),
+        FfiConverterUInt8.lower(length),$0
+    )
+})
+}
+/**
+ * Decode a Maidenhead locator to its WGS-84 grid-square center, with the
+ * square half-diagonal error bound.
+ *
+ * # Errors
+ * Returns a [`GeoError`] for a malformed locator.
+ */
+public func maidenheadDecode(code: String)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_maidenhead_decode(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Encode a coordinate to a Maidenhead locator of the given number of pairs
+ * (1–3).
+ */
+public func maidenheadEncode(coord: Coordinate, pairs: UInt8)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_maidenhead_encode(
+        FfiConverterTypeCoordinate_lower(coord),
+        FfiConverterUInt8.lower(pairs),$0
+    )
+})
+}
+/**
+ * Encode a coordinate to an MGRS string at the given precision in meters
+ * (1 m … 100 km, as a power of ten).
+ */
+public func mgrsFromCoordinate(coord: Coordinate, precisionM: UInt32)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_mgrs_from_coordinate(
+        FfiConverterTypeCoordinate_lower(coord),
+        FfiConverterUInt32.lower(precisionM),$0
+    )
+})
+}
+/**
+ * The precision in meters implied by an MGRS string's digit count.
+ *
+ * # Errors
+ * `GeoError` when the string is not a valid MGRS reference.
+ */
+public func mgrsPrecisionM(mgrs: String)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_mgrs_precision_m(
+        FfiConverterString.lower(mgrs),$0
+    )
+})
+}
+/**
+ * Decode an MGRS string to the center of its square, with the half-square
+ * error bound.
+ *
+ * # Errors
+ * `GeoError` when the string is not a valid MGRS reference.
+ */
+public func mgrsToCoordinate(mgrs: String)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_mgrs_to_coordinate(
+        FfiConverterString.lower(mgrs),$0
+    )
+})
+}
+/**
+ * Decode an Open Location Code to its WGS-84 cell center, with the cell
+ * half-diagonal error bound.
+ *
+ * # Errors
+ * Returns a [`GeoError`] for a malformed or short code.
+ */
+public func plusCodeDecode(code: String)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_plus_code_decode(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Encode a coordinate to an Open Location Code at a valid length.
+ */
+public func plusCodeEncode(coord: Coordinate, length: UInt8)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_plus_code_encode(
+        FfiConverterTypeCoordinate_lower(coord),
+        FfiConverterUInt8.lower(length),$0
+    )
+})
+}
+/**
+ * Geodetic → UPS. Errors outside the polar regions (use UTM there).
+ */
+public func upsFromCoordinate(coord: Coordinate)throws  -> Ups  {
+    return try  FfiConverterTypeUps_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ups_from_coordinate(
         FfiConverterTypeCoordinate_lower(coord),$0
     )
 })
 }
 /**
- * Render a coordinate to a string using the given options.
- *
- * # Errors
- * Returns a [`GeoError`] if the representation is undefined for the coordinate
- * (the DD/DMS/DDM representations never fail).
+ * UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
+ * projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
+ * exact).
  */
-public func formatCoordinate(coord: Coordinate, options: FormatOptions)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_format_coordinate(
-        FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterTypeFormatOptions_lower(options),$0
+public func upsToCoordinate(ups: Ups)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ups_to_coordinate(
+        FfiConverterTypeUps_lower(ups),$0
     )
 })
 }
 /**
- * Render a [`Fix`] to a string, deriving display precision from its accuracy
- * when `options.precision` is `None`.
- *
- * # Errors
- * As [`format_coordinate`].
+ * Geodetic → UTM. Errors in the polar regions (use UPS there).
  */
-public func formatFix(fix: Fix, options: FormatOptions)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_format_fix(
-        FfiConverterTypeFix_lower(fix),
-        FfiConverterTypeFormatOptions_lower(options),$0
+public func utmFromCoordinate(coord: Coordinate)throws  -> Utm  {
+    return try  FfiConverterTypeUtm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_utm_from_coordinate(
+        FfiConverterTypeCoordinate_lower(coord),$0
     )
 })
 }
 /**
- * Whether `options` render `,` as the decimal separator (the locale's primary
- * language uses a decimal comma). Pass it as
- * [`TextParseOptions::decimal_comma`] to re-parse the output with
- * [`parse_coordinate_with`].
+ * UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
+ * series (sub-millimeter within the UTM domain; not exact).
  */
-public func formatOptionsUsesDecimalComma(options: FormatOptions) -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_format_options_uses_decimal_comma(
-        FfiConverterTypeFormatOptions_lower(options),$0
-    )
-})
-}
-/**
- * Parse a `geo:` URI per RFC 5870 (lat-first; optional altitude; `crs`/`u`
- * parameters).
- *
- * # Errors
- * Returns a [`GeoError`] when the input is not a well-formed `geo:` URI.
- */
-public func fromGeoUri(input: String)throws  -> Fix  {
-    return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_from_geo_uri(
-        FfiConverterString.lower(input),$0
+public func utmToCoordinate(utm: Utm)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_utm_to_coordinate(
+        FfiConverterTypeUtm_lower(utm),$0
     )
 })
 }
@@ -4917,355 +5367,59 @@ public func fromWkt(input: String)throws  -> [Fix]  {
 })
 }
 /**
- * GCJ-02 → BD-09. **Exact** forward nudge.
- */
-public func gcj02ToBd09(p: Gcj02)throws  -> Bd09  {
-    return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_gcj02_to_bd09(
-        FfiConverterTypeGcj02_lower(p),$0
-    )
-})
-}
-/**
- * GCJ-02 → WGS-84, fast single-step inverse (~1–2 m). **Approximate**: the
- * returned record carries `max_error_m`.
- */
-public func gcj02ToWgs84Fast(p: Gcj02)throws  -> ApproxWgs84  {
-    return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_gcj02_to_wgs84_fast(
-        FfiConverterTypeGcj02_lower(p),$0
-    )
-})
-}
-/**
- * GCJ-02 → WGS-84, refined fixed-point inverse (< 0.5 m). **Approximate**: the
- * returned record carries `max_error_m`.
- */
-public func gcj02ToWgs84Refined(p: Gcj02)throws  -> ApproxWgs84  {
-    return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_gcj02_to_wgs84_refined(
-        FfiConverterTypeGcj02_lower(p),$0
-    )
-})
-}
-/**
- * Ellipsoidal (Karney) geodesic distance between two coordinates, in
- * **meters**, measured on the **WGS-84** ellipsoid whatever their shared CRS.
- *
- * Accurate to round-off for WGS-84 points. Two classic-datum points (NAD27,
- * Tokyo, Pulkovo-1942) are off by up to about 1.3e-4 of the distance, because
- * their own ellipsoid is not WGS-84. Two GCJ-02 or BD-09 points carry the
- * difference of their obfuscation offsets; convert them to WGS-84 first for a
- * true distance.
- */
-public func geodesicDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_geodesic_distance_m(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterTypeCoordinate_lower(b),$0
-    )
-})
-}
-/**
- * Decode a geohash to its WGS-84 cell center, with the cell half-diagonal
- * error bound.
+ * Render a coordinate to a string using the given options.
  *
  * # Errors
- * Returns a [`GeoError`] for non-base-32 input.
+ * Returns a [`GeoError`] if the representation is undefined for the coordinate
+ * (the DD/DMS/DDM representations never fail).
  */
-public func geohashDecode(code: String)throws  -> ApproxCoordinate  {
-    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_geohash_decode(
-        FfiConverterString.lower(code),$0
-    )
-})
-}
-/**
- * Encode a coordinate to a geohash of the given character length.
- */
-public func geohashEncode(coord: Coordinate, length: UInt8)throws  -> String  {
+public func formatCoordinate(coord: Coordinate, options: FormatOptions)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_geohash_encode(
+    uniffi_geocoordinates_ffi_fn_func_format_coordinate(
         FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterUInt8.lower(length),$0
+        FfiConverterTypeFormatOptions_lower(options),$0
     )
 })
 }
 /**
- * Decode an H3 cell to its center, with the cell-radius error bound.
- */
-public func h3Decode(cell: H3Cell)throws  -> ApproxCoordinate  {
-    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_h3_decode(
-        FfiConverterTypeH3Cell_lower(cell),$0
-    )
-})
-}
-/**
- * Encode a WGS-84 coordinate to its H3 cell index at `resolution` (0–15).
- */
-public func h3Encode(coord: Coordinate, resolution: UInt8)throws  -> H3Cell  {
-    return try  FfiConverterTypeH3Cell_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_h3_encode(
-        FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterUInt8.lower(resolution),$0
-    )
-})
-}
-/**
- * Cheap spherical (haversine) distance between two coordinates, in **meters**.
- *
- * `Length` and its operators do not cross the FFI boundary, so the scalar
- * meters value is returned directly.
- */
-public func haversineDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_haversine_distance_m(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterTypeCoordinate_lower(b),$0
-    )
-})
-}
-/**
- * Apply a Helmert transform to a geocentric (ECEF) position.
- */
-public func helmertApplyEcef(helmert: Helmert, ecef: Ecef) -> Ecef  {
-    return try!  FfiConverterTypeEcef_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_helmert_apply_ecef(
-        FfiConverterTypeHelmert_lower(helmert),
-        FfiConverterTypeEcef_lower(ecef),$0
-    )
-})
-}
-/**
- * The identity Helmert transform (no translation, rotation, or scale).
- */
-public func helmertIdentity() -> Helmert  {
-    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_helmert_identity($0
-    )
-})
-}
-/**
- * The inverse Helmert transform (negated parameters). Exact for
- * translation-only transforms, as every catalogued one is; otherwise
- * first-order, leaving about a centimeter of round-trip residual for a full
- * seven-parameter set such as WGS-84 → OSGB36.
- */
-public func helmertInverse(helmert: Helmert) -> Helmert  {
-    return try!  FfiConverterTypeHelmert_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_helmert_inverse(
-        FfiConverterTypeHelmert_lower(helmert),$0
-    )
-})
-}
-/**
- * The numeric sign a hemisphere applies (`-1.0` for South/West, else `+1.0`).
- */
-public func hemisphereSign(hemisphere: Hemisphere) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_hemisphere_sign(
-        FfiConverterTypeHemisphere_lower(hemisphere),$0
-    )
-})
-}
-/**
- * Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
- */
-public func initialBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_initial_bearing(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterTypeCoordinate_lower(b),$0
-    )
-})
-}
-/**
- * The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic.
- */
-public func intermediate(a: Coordinate, b: Coordinate, fraction: Double)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_intermediate(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterTypeCoordinate_lower(b),
-        FfiConverterDouble.lower(fraction),$0
-    )
-})
-}
-/**
- * Intersection of two great circles (each a point + initial bearing), or
- * `None` when they are parallel/coincident or ambiguous.
- */
-public func intersection(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> Coordinate?  {
-    return try  FfiConverterOptionTypeCoordinate.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_intersection(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterDouble.lower(bearingADeg),
-        FfiConverterTypeCoordinate_lower(b),
-        FfiConverterDouble.lower(bearingBDeg),$0
-    )
-})
-}
-/**
- * Convert `value` expressed in `unit` to meters.
- */
-public func lengthFromUnit(value: Double, unit: LengthUnit) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_length_from_unit(
-        FfiConverterDouble.lower(value),
-        FfiConverterTypeLengthUnit_lower(unit),$0
-    )
-})
-}
-/**
- * Convert `meters` to `unit`.
- */
-public func lengthToUnit(meters: Double, unit: LengthUnit) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_length_to_unit(
-        FfiConverterDouble.lower(meters),
-        FfiConverterTypeLengthUnit_lower(unit),$0
-    )
-})
-}
-/**
- * Decode a Maidenhead locator to its WGS-84 grid-square center, with the
- * square half-diagonal error bound.
+ * Render a [`Fix`] to a string, deriving display precision from its accuracy
+ * when `options.precision` is `None`.
  *
  * # Errors
- * Returns a [`GeoError`] for a malformed locator.
+ * As [`format_coordinate`].
  */
-public func maidenheadDecode(code: String)throws  -> ApproxCoordinate  {
-    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_maidenhead_decode(
-        FfiConverterString.lower(code),$0
-    )
-})
-}
-/**
- * Encode a coordinate to a Maidenhead locator of the given number of pairs
- * (1–3).
- */
-public func maidenheadEncode(coord: Coordinate, pairs: UInt8)throws  -> String  {
+public func formatFix(fix: Fix, options: FormatOptions)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_maidenhead_encode(
-        FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterUInt8.lower(pairs),$0
+    uniffi_geocoordinates_ffi_fn_func_format_fix(
+        FfiConverterTypeFix_lower(fix),
+        FfiConverterTypeFormatOptions_lower(options),$0
     )
 })
 }
 /**
- * Encode a coordinate to an MGRS string at the given precision in meters
- * (1 m … 100 km, as a power of ten).
+ * Whether `options` render `,` as the decimal separator (the locale's primary
+ * language uses a decimal comma). Pass it as
+ * [`TextParseOptions::decimal_comma`] to re-parse the output with
+ * [`parse_coordinate_with`].
  */
-public func mgrsFromCoordinate(coord: Coordinate, precisionM: UInt32)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_mgrs_from_coordinate(
-        FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterUInt32.lower(precisionM),$0
-    )
-})
-}
-/**
- * The precision in meters implied by an MGRS string's digit count.
- *
- * # Errors
- * `GeoError` when the string is not a valid MGRS reference.
- */
-public func mgrsPrecisionM(mgrs: String)throws  -> UInt32  {
-    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_mgrs_precision_m(
-        FfiConverterString.lower(mgrs),$0
-    )
-})
-}
-/**
- * Decode an MGRS string to the center of its square, with the half-square
- * error bound.
- *
- * # Errors
- * `GeoError` when the string is not a valid MGRS reference.
- */
-public func mgrsToCoordinate(mgrs: String)throws  -> ApproxCoordinate  {
-    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_mgrs_to_coordinate(
-        FfiConverterString.lower(mgrs),$0
-    )
-})
-}
-/**
- * The geodesic midpoint between `a` and `b`.
- */
-public func midpoint(a: Coordinate, b: Coordinate)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_midpoint(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterTypeCoordinate_lower(b),$0
-    )
-})
-}
-/**
- * The NED offset of `target` relative to `origin` (WGS-84).
- */
-public func nedFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> Ned  {
-    return try  FfiConverterTypeNed_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ned_from_coordinate(
-        FfiConverterTypeCoordinate_lower(target),
-        FfiConverterTypeCoordinate_lower(origin),$0
-    )
-})
-}
-/**
- * NED → azimuth/elevation/range.
- */
-public func nedToAer(ned: Ned) -> Aer  {
-    return try!  FfiConverterTypeAer_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_ned_to_aer(
-        FfiConverterTypeNed_lower(ned),$0
-    )
-})
-}
-/**
- * Recover the absolute coordinate of a NED offset about `origin`. Not exact:
- * see [`enu_to_coordinate`].
- */
-public func nedToCoordinate(ned: Ned, origin: Coordinate)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ned_to_coordinate(
-        FfiConverterTypeNed_lower(ned),
-        FfiConverterTypeCoordinate_lower(origin),$0
-    )
-})
-}
-/**
- * NED → ENU.
- */
-public func nedToEnu(ned: Ned) -> Enu  {
-    return try!  FfiConverterTypeEnu_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_ned_to_enu(
-        FfiConverterTypeNed_lower(ned),$0
-    )
-})
-}
-/**
- * Normalize an angle (degrees) into `[0, 360)`.
- */
-public func normalizeDegrees(deg: Double) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_normalize_degrees(
-        FfiConverterDouble.lower(deg),$0
-    )
-})
-}
-/**
- * Whether `(lat, lon)` lies outside the China bounding box, where every China
- * datum conversion is the identity.
- */
-public func outOfChina(lat: Double, lon: Double) -> Bool  {
+public func formatOptionsUsesDecimalComma(options: FormatOptions) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_out_of_china(
-        FfiConverterDouble.lower(lat),
-        FfiConverterDouble.lower(lon),$0
+    uniffi_geocoordinates_ffi_fn_func_format_options_uses_decimal_comma(
+        FfiConverterTypeFormatOptions_lower(options),$0
+    )
+})
+}
+/**
+ * Parse a `geo:` URI per RFC 5870 (lat-first; optional altitude; `crs`/`u`
+ * parameters).
+ *
+ * # Errors
+ * Returns a [`GeoError`] when the input is not a well-formed `geo:` URI.
+ */
+public func fromGeoUri(input: String)throws  -> Fix  {
+    return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_from_geo_uri(
+        FfiConverterString.lower(input),$0
     )
 })
 }
@@ -5314,160 +5468,6 @@ public func parseTextWith(input: String, options: TextParseOptions)throws  -> Fi
     )
 })
 }
-/**
- * Decode an Open Location Code to its WGS-84 cell center, with the cell
- * half-diagonal error bound.
- *
- * # Errors
- * Returns a [`GeoError`] for a malformed or short code.
- */
-public func plusCodeDecode(code: String)throws  -> ApproxCoordinate  {
-    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_plus_code_decode(
-        FfiConverterString.lower(code),$0
-    )
-})
-}
-/**
- * Encode a coordinate to an Open Location Code at a valid length.
- */
-public func plusCodeEncode(coord: Coordinate, length: UInt8)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_plus_code_encode(
-        FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterUInt8.lower(length),$0
-    )
-})
-}
-/**
- * Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`.
- */
-public func rhumbBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_rhumb_bearing(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterTypeCoordinate_lower(b),$0
-    )
-})
-}
-/**
- * The point reached from `start` along a constant `bearing_deg` rhumb line for
- * `distance_m` meters.
- */
-public func rhumbDestination(start: Coordinate, bearingDeg: Double, distanceM: Double)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_rhumb_destination(
-        FfiConverterTypeCoordinate_lower(start),
-        FfiConverterDouble.lower(bearingDeg),
-        FfiConverterDouble.lower(distanceM),$0
-    )
-})
-}
-/**
- * Rhumb-line (loxodrome) distance between two coordinates, in **meters**.
- */
-public func rhumbDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_rhumb_distance_m(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterTypeCoordinate_lower(b),$0
-    )
-})
-}
-/**
- * Decode an S2 cell to its center, with the maximum corner-distance bound.
- */
-public func s2Decode(cell: S2CellId)throws  -> ApproxCoordinate  {
-    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_s2_decode(
-        FfiConverterTypeS2CellId_lower(cell),$0
-    )
-})
-}
-/**
- * Encode a WGS-84 coordinate to its S2 cell id at `level` (0–30).
- */
-public func s2Encode(coord: Coordinate, level: UInt8)throws  -> S2CellId  {
-    return try  FfiConverterTypeS2CellId_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_s2_encode(
-        FfiConverterTypeCoordinate_lower(coord),
-        FfiConverterUInt8.lower(level),$0
-    )
-})
-}
-/**
- * Geodetic → UPS. Errors outside the polar regions (use UTM there).
- */
-public func upsFromCoordinate(coord: Coordinate)throws  -> Ups  {
-    return try  FfiConverterTypeUps_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ups_from_coordinate(
-        FfiConverterTypeCoordinate_lower(coord),$0
-    )
-})
-}
-/**
- * UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
- * projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
- * exact).
- */
-public func upsToCoordinate(ups: Ups)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ups_to_coordinate(
-        FfiConverterTypeUps_lower(ups),$0
-    )
-})
-}
-/**
- * Geodetic → UTM. Errors in the polar regions (use UPS there).
- */
-public func utmFromCoordinate(coord: Coordinate)throws  -> Utm  {
-    return try  FfiConverterTypeUtm_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_utm_from_coordinate(
-        FfiConverterTypeCoordinate_lower(coord),$0
-    )
-})
-}
-/**
- * UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
- * series (sub-millimeter within the UTM domain; not exact).
- */
-public func utmToCoordinate(utm: Utm)throws  -> Coordinate  {
-    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_utm_to_coordinate(
-        FfiConverterTypeUtm_lower(utm),$0
-    )
-})
-}
-/**
- * WGS-84 → BD-09. **Exact** composition through GCJ-02.
- */
-public func wgs84ToBd09(p: Wgs84)throws  -> Bd09  {
-    return try  FfiConverterTypeBd09_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_wgs84_to_bd09(
-        FfiConverterTypeWgs84_lower(p),$0
-    )
-})
-}
-/**
- * WGS-84 → GCJ-02. **Exact** forward offset (identity outside China).
- */
-public func wgs84ToGcj02(p: Wgs84)throws  -> Gcj02  {
-    return try  FfiConverterTypeGcj02_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_wgs84_to_gcj02(
-        FfiConverterTypeWgs84_lower(p),$0
-    )
-})
-}
-/**
- * Wrap a longitude into the half-open range `[-180, 180)` (so `180` → `-180`).
- */
-public func wrapLongitude(lonDeg: Double) -> Double  {
-    return try!  FfiConverterDouble.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_wrap_longitude(
-        FfiConverterDouble.lower(lonDeg),$0
-    )
-})
-}
 
 private enum InitializationResult {
     case ok
@@ -5484,319 +5484,319 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 14415) {
+    if (uniffi_geocoordinates_ffi_checksum_func_clamp_latitude() != 20955) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 30335) {
+    if (uniffi_geocoordinates_ffi_checksum_func_dd_to_ddm() != 15643) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_enu() != 64395) {
+    if (uniffi_geocoordinates_ffi_checksum_func_dd_to_dms() != 44006) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_ned() != 21958) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_dd() != 57508) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_m() != 28073) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_dms() != 51987) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_bd09() != 5637) {
+    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_dd() != 43462) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_coordinate() != 36215) {
+    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_ddm() != 36281) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_bd09() != 3300) {
+    if (uniffi_geocoordinates_ffi_checksum_func_hemisphere_sign() != 61036) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_coordinate() != 11601) {
+    if (uniffi_geocoordinates_ffi_checksum_func_normalize_degrees() != 32675) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_fast() != 11615) {
+    if (uniffi_geocoordinates_ffi_checksum_func_wrap_longitude() != 16962) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_refined() != 36010) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_bd09() != 62849) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_refined() != 42538) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_from_coordinate() != 19688) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_can_convert() != 32654) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_bd09() != 59911) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_clamp_latitude() != 44182) {
+    if (uniffi_geocoordinates_ffi_checksum_func_baidu_mercator_to_coordinate() != 33099) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_confidence_new() != 45696) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_fast() != 41468) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_convert() != 64460) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_refined() != 42492) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_bd09() != 48845) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_refined() != 50339) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_gcj02() != 23936) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_bd09() != 49717) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_is_null_island() != 30336) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 17050) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_validate() != 21385) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 11095) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_wgs84() != 5480) {
+    if (uniffi_geocoordinates_ffi_checksum_func_out_of_china() != 29902) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_m() != 52386) {
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_bd09() != 8477) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 65268) {
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_gcj02() != 60957) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_inverse() != 6161) {
+    if (uniffi_geocoordinates_ffi_checksum_func_can_convert() != 49766) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_to_wgs84() != 36694) {
+    if (uniffi_geocoordinates_ffi_checksum_func_confidence_new() != 10507) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dd_to_ddm() != 22202) {
+    if (uniffi_geocoordinates_ffi_checksum_func_convert() != 56128) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dd_to_dms() != 58089) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_bd09() != 5981) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_dd() != 12845) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_gcj02() != 59138) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_dms() != 33283) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_is_null_island() != 53682) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_destination() != 1716) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_validate() != 7083) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_dd() != 54056) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_wgs84() != 22996) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dms_to_ddm() != 63571) {
+    if (uniffi_geocoordinates_ffi_checksum_func_fix_from_coord() != 2642) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 31983) {
+    if (uniffi_geocoordinates_ffi_checksum_func_length_from_unit() != 28617) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 48406) {
+    if (uniffi_geocoordinates_ffi_checksum_func_length_to_unit() != 23152) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_airy_1830() != 35969) {
+    if (uniffi_geocoordinates_ffi_checksum_func_h3_decode() != 13592) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_bessel_1841() != 52038) {
+    if (uniffi_geocoordinates_ffi_checksum_func_h3_encode() != 35871) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_clarke_1866() != 1563) {
+    if (uniffi_geocoordinates_ffi_checksum_func_s2_decode() != 53757) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_eccentricity_sq() != 57073) {
+    if (uniffi_geocoordinates_ffi_checksum_func_s2_encode() != 10687) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_flattening() != 61883) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 3027) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_grs80() != 26167) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 10340) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_krasovsky_1940() != 27221) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_enu() != 573) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_semi_minor_m() != 7898) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_ned() != 57003) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_wgs84() != 8177) {
+    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_m() != 22726) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_from_coordinate() != 64648) {
+    if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_m() != 15519) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_aer() != 27301) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 10028) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 21101) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_inverse() != 45278) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 65065) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_to_wgs84() != 4427) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_final_bearing() != 49140) {
+    if (uniffi_geocoordinates_ffi_checksum_func_destination() != 46783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_fix_from_coord() != 50689) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 4004) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 14690) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 5025) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 19855) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_airy_1830() != 49200) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_options_uses_decimal_comma() != 58914) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_bessel_1841() != 15190) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_geo_uri() != 24723) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_clarke_1866() != 61807) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 45919) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_eccentricity_sq() != 32949) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 3429) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_flattening() != 1081) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 11553) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_grs80() != 9218) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 19356) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_krasovsky_1940() != 4146) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 22763) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_semi_minor_m() != 19811) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_bd09() != 65519) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_wgs84() != 31681) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 64135) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_from_coordinate() != 18626) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 35361) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_aer() != 55640) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geodesic_distance_m() != 62038) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 43456) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geohash_decode() != 45162) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 44436) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geohash_encode() != 24833) {
+    if (uniffi_geocoordinates_ffi_checksum_func_final_bearing() != 58646) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_h3_decode() != 5922) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geodesic_distance_m() != 17617) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_h3_encode() != 41697) {
+    if (uniffi_geocoordinates_ffi_checksum_func_haversine_distance_m() != 48658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_haversine_distance_m() != 12330) {
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 46764) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 50418) {
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_identity() != 56488) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_identity() != 8761) {
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse() != 13625) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse() != 46670) {
+    if (uniffi_geocoordinates_ffi_checksum_func_initial_bearing() != 22036) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_hemisphere_sign() != 1780) {
+    if (uniffi_geocoordinates_ffi_checksum_func_intermediate() != 23421) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_initial_bearing() != 60012) {
+    if (uniffi_geocoordinates_ffi_checksum_func_intersection() != 8218) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_intermediate() != 28487) {
+    if (uniffi_geocoordinates_ffi_checksum_func_midpoint() != 60124) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_intersection() != 40297) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_from_coordinate() != 13238) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_length_from_unit() != 14500) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_aer() != 43200) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_length_to_unit() != 4564) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 14532) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_decode() != 32312) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 5658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_encode() != 22415) {
+    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_bearing() != 19857) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_from_coordinate() != 56844) {
+    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_destination() != 51337) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_precision_m() != 15066) {
+    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_distance_m() != 42838) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_to_coordinate() != 11471) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geohash_decode() != 30846) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_midpoint() != 53186) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geohash_encode() != 60037) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_from_coordinate() != 28088) {
+    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_decode() != 24783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_aer() != 11931) {
+    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_encode() != 46629) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 59590) {
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_from_coordinate() != 708) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 22829) {
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_precision_m() != 21211) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_normalize_degrees() != 32571) {
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_to_coordinate() != 17994) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_out_of_china() != 22213) {
+    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_decode() != 31482) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 3101) {
+    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_encode() != 40389) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 4955) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 35806) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 15332) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 33940) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_decode() != 53042) {
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_from_coordinate() != 51825) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_encode() != 58443) {
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 24330) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_bearing() != 35048) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 31199) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_destination() != 50142) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 34162) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_distance_m() != 28500) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 3078) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_s2_decode() != 41313) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 26367) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_s2_encode() != 24229) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 47392) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 33273) {
+    if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 46243) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 19549) {
+    if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 47017) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_utm_from_coordinate() != 37330) {
+    if (uniffi_geocoordinates_ffi_checksum_func_format_options_uses_decimal_comma() != 48822) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 51217) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_geo_uri() != 1309) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_bd09() != 64475) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 33133) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_gcj02() != 50235) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 62433) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_wrap_longitude() != 7922) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 13914) {
         return InitializationResult.apiChecksumMismatch
     }
 

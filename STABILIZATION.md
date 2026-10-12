@@ -54,13 +54,13 @@ column below reflects what has actually landed since.
 | G1 | FFI CI red — Java smoke test does not declare the now-checked `GeoException` | `jvm/…/SmokeTest.java:15,21` | PR 1 | closed (#37) |
 | G2 | `Wgs84`/`Gcj02`/`Bd09` ↔ `Coordinate` existed only as six `From`/`TryFrom` impls with no named method — violates the mandatory rule and cannot cross FFI | `src/china/mod.rs` | PR 1 | closed (#37) |
 | G3 | No FFI way to CRS-check a `Coordinate` down to a typed datum; `Error::CrsMismatch` protection is Rust-only | consequence of G2 | PR 7 | open |
-| G4 | FFI exposes only `coordinate_wgs84`/`_gcj02`/`_bd09`; no `coordinate_new(lat, lon, crs)`, so `Nad27`/`Tokyo`/`Pulkovo42` cannot be constructed by name despite `convert` accepting them | ffi `lib.rs:897-911` | PR 7 | open |
-| G5 | `validate()` unreachable across FFI except for `Coordinate` — no mirror for `Dms`, `Ddm`, `Ellipsoid`, or the China newtypes | ffi `lib.rs:1159` | PR 7 | open |
+| G4 | FFI exposes only `coordinate_wgs84`/`_gcj02`/`_bd09`; no `coordinate_new(lat, lon, crs)`, so `Nad27`/`Tokyo`/`Pulkovo42` cannot be constructed by name despite `convert` accepting them | ffi `src/core.rs:360-377` (`coordinate_wgs84`..`coordinate_bd09`) | PR 7 | open |
+| G5 | `validate()` unreachable across FFI except for `Coordinate` — no mirror for `Dms`, `Ddm`, `Ellipsoid`, or the China newtypes | ffi `src/core.rs:400` (`coordinate_validate`) | PR 7 | open |
 | G6 | `zone_for` / `central_meridian_deg` have no FFI mirror | `src/grids/utm.rs:94,118` | PR 7 | open |
 | G7 | `Geohash`, `Maidenhead`, `PlusCode`, `Mgrs` implement `FromStr` but **no `Display`** — breaks the crate's own round-trip invariant | `src/grids/` | PR 3 | open |
 | G8 | `utm::Hemisphere` is not re-exported, though it types public fields of both `Utm` and `Ups` | `src/grids/mod.rs:17-19` | PR 3 | open |
 | G9 | Geodesic producers never validate their output; `intersection` divides by `phi1.cos()`, so near-pole degeneracy escapes as `Ok` | `src/geodesy/spherical.rs:103,106` | PR 4 | open |
-| G10 | Utm/Ups forward failures are `OutOfRange`, reverse are `InvalidValue`; and 7 of 9 `Error` variants collapse into `GeoError::Other { detail }` across FFI, forcing string-matching | `utm.rs:140,246` vs `:184-187`; ffi `lib.rs:552` | PR 2 / 3 / 7 | open |
+| G10 | Utm/Ups forward failures are `OutOfRange`, reverse are `InvalidValue`; and 7 of 9 `Error` variants collapse into `GeoError::Other { detail }` across FFI, forcing string-matching | `utm.rs:140,246` vs `:184-187`; ffi `src/error.rs:38-51` (`From<gc::Error> for GeoError`) | PR 2 / 3 / 7 | open |
 | G11 | Doc drift — `ROADMAP.md` and `src/lib.rs` described shipped modules as unshipped | `src/lib.rs` | PR 1 | closed (#37) |
 | G12 | **Zero executable doc examples crate-wide** | `src/lib.rs:21` | PR 6 | open |
 | G13 | `src/proj/mod.rs` and `src/height/mod.rs` are undeclared dead files holding four `todo!()`s | `proj:30`, `height:34,42,50` | PR 9 | closed (#103: stubs deleted) |
