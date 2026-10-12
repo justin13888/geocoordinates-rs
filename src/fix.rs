@@ -23,7 +23,8 @@ pub struct Fix {
     /// Positional accuracy, if reported.
     pub accuracy: Option<Accuracy>,
     /// Observation time, if known, as a [`SystemTime`] (UTC, no leap-second or
-    /// GPS-week handling).
+    /// GPS-week handling). Filled from GPX `<time>` and from an NMEA `RMC`
+    /// sentence's date and time; `None` for sources that carry no full date.
     pub timestamp: Option<SystemTime>,
     /// The raw input and how confidently it was interpreted.
     pub source: Option<RawSource>,

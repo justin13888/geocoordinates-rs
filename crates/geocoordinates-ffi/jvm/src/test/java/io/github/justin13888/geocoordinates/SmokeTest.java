@@ -14,6 +14,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformCatal
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ecefFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidClarke1866;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidForCrs;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.fromNmeaSentence;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
@@ -28,6 +29,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84Validate;
 
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import uniffi.geocoordinates_ffi.ApproxWgs84;
 import uniffi.geocoordinates_ffi.AxisOrder;
@@ -156,5 +158,25 @@ class SmokeTest {
         ParseOptions geohash =
                 new ParseOptions(AxisOrder.LAT_LON, DecimalSeparator.POINT, GridKind.GEOHASH);
         assertEquals(42.6, parseCoordinateWith("ezs42", geohash).getCoord().getLat(), 0.03);
+    }
+
+    // An NMEA RMC fix carries its UTC date and time as a `java.time.Instant`, and a
+    // sentence reporting no fix (void status, GGA quality 0) is a typed `Parse` error.
+    @Test
+    void nmeaFixesFromJava() throws GeoException {
+        Fix rmc =
+                fromNmeaSentence(
+                        "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10");
+        assertEquals(Instant.parse("1994-03-23T12:35:19Z"), rmc.getTimestamp());
+        assertEquals(AxisOrder.LAT_LON, rmc.getSource().getAxisOrder());
+
+        assertThrows(
+                GeoException.Parse.class,
+                () ->
+                        fromNmeaSentence(
+                                "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"));
+        assertThrows(
+                GeoException.Parse.class,
+                () -> fromNmeaSentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"));
     }
 }

@@ -269,6 +269,16 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"),
         Err(Error::Parse(_))
     ));
+    // A sentence reporting no fix is an error, never a position: RMC status V
+    // (void) and GGA fix quality 0.
+    assert!(matches!(
+        from_nmea_sentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
+        Err(Error::Parse(_))
+    ));
+    assert!(matches!(
+        from_nmea_sentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"),
+        Err(Error::Parse(_))
+    ));
 
     Ok("boundaries and typed errors")
 }

@@ -536,6 +536,21 @@ assert approx(nmea.coord.lat, 48.0 + 7.038 / 60.0, 1e-9)
 assert approx(nmea.coord.lon, 11.0 + 31.0 / 60.0, 1e-9)
 assert nmea.source.axis_order == gc.AxisOrder.LAT_LON  # NMEA lists lat first
 assert approx(nmea.accuracy.horizontal_m, 0.9 * 5.0, 1e-9)  # HDOP x nominal UERE
+assert nmea.timestamp is None  # GGA has a time of day but no date
+rmc = gc.from_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
+assert rmc.timestamp is not None
+assert rmc.timestamp.timestamp() == 764_426_119  # 1994-03-23T12:35:19Z
+# A sentence reporting no fix is an error, never a position.
+for no_fix, reason in [
+    ("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07", "void"),
+    ("$GPGLL,4916.45,N,12311.12,W,225444,V", "void"),
+    ("$GPGGA,123519,,,,,0,00,,,M,,M,,", "quality 0"),
+]:
+    try:
+        gc.from_nmea_sentence(no_fix)
+        raise AssertionError(f"expected {no_fix!r} to be rejected")
+    except gc.GeoError.Parse as e:
+        assert reason in e.detail, e.detail
 try:
     gc.from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")  # bad checksum
     raise AssertionError("expected a checksum error")

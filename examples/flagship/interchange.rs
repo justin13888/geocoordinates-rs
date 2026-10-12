@@ -1,5 +1,7 @@
 //! Interchange formats (GeoJSON, WKT, GPX, KML) and NMEA sentences.
 
+use std::time::{Duration, SystemTime};
+
 use geocoordinates::Height;
 use geocoordinates::fix::AxisOrder;
 use geocoordinates::parse::interchange::{from_geojson, from_gpx, from_kml, from_wkt};
@@ -80,6 +82,15 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
             .expect("GGA HDOP provides horizontal accuracy"),
         4.5,
         1e-9,
+    );
+    // RMC carries the UTC date and time, so its fix is timestamped
+    // (1994-03-23T12:35:19Z); GGA has only a time of day, so it is not.
+    assert_eq!(nmea.timestamp, None);
+    let rmc = from_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")?;
+    assert_close(rmc.coord.lat(), -(33.0 + 40.0 / 60.0), 1e-9);
+    assert_eq!(
+        rmc.timestamp,
+        Some(SystemTime::UNIX_EPOCH + Duration::from_secs(764_426_119))
     );
 
     Ok("interchange and NMEA")

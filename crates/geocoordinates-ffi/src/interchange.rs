@@ -73,8 +73,15 @@ pub fn from_kml(input: String) -> Result<Vec<Fix>, GeoError> {
 /// Parse a single NMEA 0183 sentence (GGA/RMC/GLL) into a [`Fix`]. The optional
 /// `*HH` checksum is verified when present.
 ///
+/// Only a sentence that reports a fix yields one. `RMC` fills the fix's
+/// `timestamp` from its UTC date and time (two-digit year read as 1980–2079);
+/// `GGA` and `GLL` carry no date, so theirs is `None`.
+///
 /// # Errors
-/// `GeoError` on an unrecognized/invalid sentence or a checksum mismatch.
+/// `GeoError::Parse` on an unrecognized/invalid sentence or a checksum
+/// mismatch; on a sentence reporting no fix (`RMC`/`GLL` status `V` or mode
+/// `N`, `GGA` quality `0`); on a coordinate whose minutes are not two integer
+/// digits; and on a `GGA` altitude whose unit is not `M`.
 #[uniffi::export]
 pub fn from_nmea_sentence(sentence: String) -> Result<Fix, GeoError> {
     gc::parse::sensors::from_nmea_sentence(&sentence)

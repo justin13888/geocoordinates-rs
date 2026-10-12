@@ -353,6 +353,28 @@ fn from_nmea_sentence_reads_a_gga_fix() {
     ));
 }
 
+#[test]
+fn from_nmea_sentence_timestamps_rmc_and_rejects_no_fix() {
+    let rmc = from_nmea_sentence(
+        "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10".to_string(),
+    )
+    .unwrap();
+    // 1994-03-23T12:35:19Z crosses as the native timestamp.
+    assert_eq!(
+        rmc.timestamp,
+        Some(std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(764_426_119))
+    );
+    for no_fix in [
+        "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07",
+        "$GPGGA,123519,,,,,0,00,,,M,,M,,",
+    ] {
+        assert!(matches!(
+            from_nmea_sentence(no_fix.to_string()),
+            Err(GeoError::Parse { .. })
+        ));
+    }
+}
+
 // --- H3 and S2 ---
 
 #[test]
