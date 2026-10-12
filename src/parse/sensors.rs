@@ -560,6 +560,28 @@ mod tests {
         assert!(from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A").is_ok());
     }
 
+    /// The checksum is exactly two hex digits, even where a shorter or signed
+    /// field would parse to the right value (this sentence's XOR is 0x03).
+    #[test]
+    fn checksum_must_be_two_hex_digits() {
+        let data = "$GNGLL,4916.45,N,12311.12,W,225444,A,";
+        assert!(from_nmea_sentence(&format!("{data}*03")).is_ok());
+        for cs in ["3", "+3"] {
+            let r = from_nmea_sentence(&format!("{data}*{cs}"));
+            assert!(matches!(&r, Err(Error::Parse(m)) if m.contains("checksum field")));
+        }
+    }
+
+    /// An HDOP of zero is a (perfect) dilution, not a negative one.
+    #[test]
+    fn gga_hdop_zero_is_accepted_and_negative_rejected() {
+        let gga = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.0,545.4,M,46.9,M,,*4E";
+        let fix = from_nmea_sentence(gga).unwrap();
+        assert_eq!(fix.accuracy.unwrap().horizontal_m, Some(0.0));
+        let gga = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,-0.9,545.4,M,46.9,M,,*6A";
+        assert!(matches!(from_nmea_sentence(gga), Err(Error::Parse(m)) if m.contains("HDOP")));
+    }
+
     #[test]
     fn unsupported_and_malformed_are_errors() {
         assert!(from_nmea_sentence("$GPVTG,054.7,T,034.4,M,005.5,N,010.2,K*48").is_err());
