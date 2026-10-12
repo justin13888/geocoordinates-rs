@@ -308,6 +308,17 @@ fn parsing_rejects_malformed_references() {
     assert_invalid_grid_ref(Mgrs::try_from("18TWK000000277577")); // more than 5+5 digits
 }
 
+/// Each UPS zone letter has its own column alphabet. Zone Z's stops at J, so
+/// a later column letter that zone B accepts is invalid there.
+#[test]
+fn ups_zone_z_rejects_columns_beyond_its_alphabet() {
+    assert!(Mgrs::try_from("ZJH0000000000").is_ok());
+    for s in ["ZKH0000000000", "ZRH0000000000"] {
+        assert_invalid_grid_ref(Mgrs::try_from(s));
+    }
+    assert!(Mgrs::try_from("BKH0000000000").is_ok());
+}
+
 #[test]
 fn multibyte_references_are_invalid_grid_refs_not_panics() {
     // Multibyte characters in the band/column/row position used to land a

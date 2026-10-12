@@ -388,6 +388,14 @@ mod tests {
         assert!(from_geo_uri("geo:1,2,inf").is_err());
     }
 
+    /// RFC 5870 allows `u=0` (an exact position); only a negative value is
+    /// rejected.
+    #[test]
+    fn geo_uri_accepts_zero_uncertainty() {
+        let fix = from_geo_uri("geo:1,2;u=0").unwrap();
+        assert_eq!(fix.accuracy.unwrap().horizontal_m, Some(0.0));
+    }
+
     #[test]
     fn parse_coordinate_dispatches() {
         // geo: path -> the RFC's lat-first listing order.

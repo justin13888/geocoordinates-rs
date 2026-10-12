@@ -153,6 +153,21 @@ fn destination_over_a_pole_and_across_the_antimeridian() {
     assert_close(p.lon(), 179.643_959_703, 1e-8);
 }
 
+/// Zero is the smallest valid distance, not an error: going nowhere returns
+/// the start, on the geodesic and on the rhumb line alike (the rhumb line to
+/// within its rectifying-latitude series round-off, a few micrometers).
+#[test]
+fn a_zero_distance_destination_is_the_start() {
+    let start = c(12.5, -45.25);
+    for p in [
+        destination(&start, 30.0, Length::from_meters(0.0)).unwrap(),
+        rhumb_destination(&start, 30.0, Length::from_meters(0.0)).unwrap(),
+    ] {
+        assert_close(p.lat(), start.lat(), 1e-10);
+        assert_close(p.lon(), start.lon(), 1e-10);
+    }
+}
+
 #[test]
 fn midpoint_and_intermediate_across_the_antimeridian_and_over_a_pole() {
     // The short way between 170°E and 170°W crosses 180°.

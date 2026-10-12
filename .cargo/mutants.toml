@@ -1,0 +1,17 @@
+# cargo-mutants configuration, read by `mise run mutants` and `mutants-all`.
+#
+# Every entry in `exclude_re` is a mutant shown to be equivalent: no input
+# reachable through the public API (nor any state a test could build without
+# breaking an invariant the code itself asserts) behaves differently under it.
+# Each one carries its written argument. A mutant that merely lacks a test does
+# not belong here: kill it with a behaviour-named test instead, and never
+# exclude a whole file or function to make a run pass.
+exclude_re = [
+    # geodesy::geodesic::validate_position re-checks a position handed to the
+    # measurements. Every `LatLon` is valid by construction: the trait is
+    # sealed, its only implementors (`Coordinate`, `Wgs84`, `Gcj02`, `Bd09`)
+    # range-check in their public constructors and deserializers, and their
+    # crate-internal `from_valid` debug-asserts the range. No reachable
+    # position fails the check, so `Ok(())` is indistinguishable from it.
+    'src/geodesy/geodesic\.rs:.*: replace validate_position -> Result<\(\)> with Ok\(\(\)\)',
+]
