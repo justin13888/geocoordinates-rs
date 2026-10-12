@@ -8,16 +8,21 @@ use crate::{ApproxCoordinate, Coordinate, GeoError};
 
 // --- Grid systems (Plus Code, geohash, Maidenhead) ---
 
-/// Encode a coordinate to an Open Location Code at a valid length.
+/// Encode a WGS-84 coordinate to a full Open Location Code of `length`
+/// significant digits (2, 4, 6, 8, or 10–15).
+///
+/// # Errors
+/// Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
+/// [`GeoError::InvalidValue`] for any other `length`.
 #[uniffi::export]
 pub fn plus_code_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
-    gc::grids::PlusCode::encode(coord.try_into()?, usize::from(length))
-        .map(|code| code.as_str().to_string())
+    gc::grids::PlusCode::encode(coord.try_into()?, length)
+        .map(String::from)
         .map_err(Into::into)
 }
 
-/// Decode an Open Location Code to its WGS-84 cell center, with the cell
-/// half-diagonal error bound.
+/// Decode an Open Location Code to its WGS-84 cell center, bounded by the
+/// largest geodesic distance from the center to a cell corner.
 ///
 /// # Errors
 /// Returns a [`GeoError`] for a malformed or short code.
@@ -27,36 +32,71 @@ pub fn plus_code_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
     Ok(approx_coordinate(pc.decode()))
 }
 
-/// Encode a coordinate to a geohash of the given character length.
+/// Validate a full Open Location Code and return its canonical (trimmed,
+/// uppercase) form — the FFI form of `PlusCode`'s `TryFrom<&str>` and
+/// `Display`.
+///
+/// # Errors
+/// Returns [`GeoError::InvalidGridRef`] for a malformed or short code.
 #[uniffi::export]
-pub fn geohash_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
-    gc::grids::Geohash::encode(coord.try_into()?, usize::from(length))
-        .map(|code| code.as_str().to_string())
+pub fn plus_code_canonicalize(code: String) -> Result<String, GeoError> {
+    gc::grids::PlusCode::try_from(code)
+        .map(String::from)
         .map_err(Into::into)
 }
 
-/// Decode a geohash to its WGS-84 cell center, with the cell half-diagonal
-/// error bound.
+/// Encode a WGS-84 coordinate to a geohash of `length` characters (1–12).
 ///
 /// # Errors
-/// Returns a [`GeoError`] for non-base-32 input.
+/// Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
+/// [`GeoError::InvalidValue`] for a `length` outside 1–12.
+#[uniffi::export]
+pub fn geohash_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
+    gc::grids::Geohash::encode(coord.try_into()?, length)
+        .map(String::from)
+        .map_err(Into::into)
+}
+
+/// Decode a geohash to its WGS-84 cell center, bounded by the largest
+/// geodesic distance from the center to a cell corner.
+///
+/// # Errors
+/// Returns a [`GeoError`] for empty, overlong, or non-base-32 input.
 #[uniffi::export]
 pub fn geohash_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
     let gh = gc::grids::Geohash::try_from(code.as_str()).map_err(GeoError::from)?;
     Ok(approx_coordinate(gh.decode()))
 }
 
-/// Encode a coordinate to a Maidenhead locator of the given number of pairs
-/// (1–3).
+/// Validate a 1–12 character geohash and return its canonical (trimmed,
+/// lowercase) form — the FFI form of `Geohash`'s `TryFrom<&str>` and
+/// `Display`.
+///
+/// # Errors
+/// Returns [`GeoError::InvalidGridRef`] for empty, overlong, or non-base-32
+/// input.
 #[uniffi::export]
-pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoError> {
-    gc::grids::Maidenhead::encode(coord.try_into()?, usize::from(pairs))
-        .map(|code| code.as_str().to_string())
+pub fn geohash_canonicalize(code: String) -> Result<String, GeoError> {
+    gc::grids::Geohash::try_from(code)
+        .map(String::from)
         .map_err(Into::into)
 }
 
-/// Decode a Maidenhead locator to its WGS-84 grid-square center, with the
-/// square half-diagonal error bound.
+/// Encode a WGS-84 coordinate to a Maidenhead locator of `pairs` character
+/// pairs (1–3).
+///
+/// # Errors
+/// Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
+/// [`GeoError::InvalidValue`] for `pairs` outside 1–3.
+#[uniffi::export]
+pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoError> {
+    gc::grids::Maidenhead::encode(coord.try_into()?, pairs)
+        .map(String::from)
+        .map_err(Into::into)
+}
+
+/// Decode a Maidenhead locator to its WGS-84 grid-square center, bounded by
+/// the largest geodesic distance from the center to a square corner.
 ///
 /// # Errors
 /// Returns a [`GeoError`] for a malformed locator.
@@ -64,6 +104,19 @@ pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoErro
 pub fn maidenhead_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
     let mh = gc::grids::Maidenhead::try_from(code.as_str()).map_err(GeoError::from)?;
     Ok(approx_coordinate(mh.decode()))
+}
+
+/// Validate a 2-, 4-, or 6-character Maidenhead locator and return its
+/// canonical form (uppercase field, digit square, lowercase subsquare) — the
+/// FFI form of `Maidenhead`'s `TryFrom<&str>` and `Display`.
+///
+/// # Errors
+/// Returns [`GeoError::InvalidGridRef`] for a malformed locator.
+#[uniffi::export]
+pub fn maidenhead_canonicalize(code: String) -> Result<String, GeoError> {
+    gc::grids::Maidenhead::try_from(code)
+        .map(String::from)
+        .map_err(Into::into)
 }
 
 // ===========================================================================

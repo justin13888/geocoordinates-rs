@@ -1,9 +1,16 @@
 use super::*;
 use crate::Crs;
-use crate::test_support::{assert_close, assert_within_meters};
+use crate::test_support::{assert_close, assert_within_geodesic_meters, assert_within_meters};
 
 fn wgs(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
+}
+
+/// The WGS-84 geodesic distance (meters) from a decoded center to a corner.
+fn corner_distance_m(area: &Approx<Coordinate>, lat: f64, lon: f64) -> f64 {
+    crate::geodesy::geodesic_distance(area.value(), &wgs(lat, lon))
+        .unwrap()
+        .meters()
 }
 
 /// Every malformed code string is rejected as `InvalidGridRef`.
@@ -59,7 +66,7 @@ fn round_trip_stays_within_bound() {
         for length in [10, 11, 12] {
             let code = PlusCode::encode(c, length).unwrap();
             let area = code.decode();
-            assert_within_meters(&c, &*area, area.max_error_m());
+            assert_within_geodesic_meters(&c, &*area, area.max_error_m());
         }
     }
 }
@@ -133,15 +140,6 @@ fn try_from_round_trips_canonical_string() {
 }
 
 #[test]
-fn latitude_precision_values() {
-    assert_close(latitude_precision(2), 20.0, 1e-9);
-    assert_close(latitude_precision(8), 0.0025, 1e-9);
-    assert_close(latitude_precision(10), 0.000125, 1e-12);
-    assert_close(latitude_precision(11), 0.000125 / 5.0, 1e-12);
-    assert_close(latitude_precision(15), 0.000125 / 3125.0, 1e-15);
-}
-
-#[test]
 fn invalid_encoding_configuration_is_rejected() {
     let c = wgs(0.0, 0.0);
     assert_invalid_value(PlusCode::encode(c, 3), "Plus Code length");
@@ -188,8 +186,8 @@ fn invalid_encoding_configuration_is_rejected() {
 
 #[test]
 fn latitude_90_is_nudged_below_max() {
-    // Encoding latitude 90 nudges it just below the maximum — identical to
-    // encoding the nudged value directly.
+    // Encoding latitude 90 clamps into the top row — identical to encoding
+    // the lower edge of the top length-10 cell directly.
     let at_pole = PlusCode::encode(wgs(90.0, 0.0), 10).unwrap();
     let nudged = PlusCode::encode(wgs(90.0 - 0.000125, 0.0), 10).unwrap();
     assert_eq!(at_pole, nudged);
@@ -200,10 +198,14 @@ fn decode_center_and_bound_precise() {
     let area = PlusCode::try_from("8FVC2222+22").unwrap().decode();
     assert_close(area.lat(), 47.0000625, 1e-9);
     assert_close(area.lon(), 8.0000625, 1e-9);
-    // Cell is 0.000125° square; the bound is the half-diagonal in meters.
-    let lat_m: f64 = 0.000125 * 111_320.0;
-    let lon_m: f64 = 0.000125 * 111_320.0 * 47.0000625_f64.to_radians().cos();
-    assert_close(area.max_error_m(), 0.5 * lat_m.hypot(lon_m), 1e-6);
+    // Cell is 0.000125° square; the bound is the geodesic distance from the
+    // center to a southern corner (the wider edge, north of the equator).
+    assert_close(
+        area.max_error_m(),
+        corner_distance_m(&area, 47.0, 8.0) + ROUNDING_MARGIN_M,
+        1e-9,
+    );
+    assert_close(area.max_error_m(), 8.418_605_830_499_43, 1e-9);
 }
 
 #[test]
@@ -282,7 +284,7 @@ fn geohash_round_trip_within_bound() {
     ] {
         for len in [6, 8, 10] {
             let area = Geohash::encode(c, len).unwrap().decode();
-            assert_within_meters(&c, &*area, area.max_error_m());
+            assert_within_geodesic_meters(&c, &*area, area.max_error_m());
         }
     }
 }
@@ -321,10 +323,14 @@ fn maidenhead_reference_and_decode() {
     let area = Maidenhead::try_from("FN20").unwrap().decode();
     assert_close(area.lat(), 40.5, 1e-9);
     assert_close(area.lon(), -75.0, 1e-9);
-    // The half-diagonal bound of the 2°×1° cell, pinned exactly.
-    let lat_half: f64 = 0.5 * 111_320.0;
-    let lon_half: f64 = 111_320.0 * 40.5_f64.to_radians().cos();
-    assert_close(area.max_error_m(), lat_half.hypot(lon_half), 1e-6);
+    // The 2°×1° cell's bound: the geodesic distance from the center to a
+    // southern corner, pinned exactly.
+    assert_close(
+        area.max_error_m(),
+        corner_distance_m(&area, 40.0, -76.0) + ROUNDING_MARGIN_M,
+        1e-9,
+    );
+    assert_close(area.max_error_m(), 101_592.817_120_622_36, 1e-9);
 }
 
 #[test]
@@ -342,7 +348,7 @@ fn maidenhead_three_pairs_round_trip() {
     let mh = Maidenhead::encode(c, 3).unwrap();
     assert_eq!(mh.as_str().len(), 6);
     let area = mh.decode();
-    assert_within_meters(&c, &*area, area.max_error_m());
+    assert_within_geodesic_meters(&c, &*area, area.max_error_m());
 }
 
 #[test]

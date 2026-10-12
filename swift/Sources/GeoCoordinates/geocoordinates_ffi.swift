@@ -758,9 +758,9 @@ public func FfiConverterTypeAer_lower(_ value: Aer) -> RustBuffer {
  *
  * - **Grid / cell decoders** return the WGS-84 cell center; the bound is the
  * distance from that center to the farthest point of the cell, as each
- * decoder documents it: the half-diagonal (Plus Code, geohash,
- * Maidenhead), the half-square (MGRS), the cell radius (H3), or the
- * maximum corner distance (S2).
+ * decoder documents it: the maximum geodesic corner distance (Plus Code,
+ * geohash, Maidenhead, S2), the half-square (MGRS), or the cell radius
+ * (H3).
  * - **[`convert`]** bounds only the error of the iterative GCJ-02 / BD-09
  * inverses; every other leg contributes `0.0`. For classic-datum (Helmert)
  * legs that `0.0` is not a claim of exactness: the catalogued mean shifts
@@ -5257,11 +5257,27 @@ public func rhumbDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
 })
 }
 /**
- * Decode a geohash to its WGS-84 cell center, with the cell half-diagonal
- * error bound.
+ * Validate a 1–12 character geohash and return its canonical (trimmed,
+ * lowercase) form — the FFI form of `Geohash`'s `TryFrom<&str>` and
+ * `Display`.
  *
  * # Errors
- * Returns a [`GeoError`] for non-base-32 input.
+ * Returns [`GeoError::InvalidGridRef`] for empty, overlong, or non-base-32
+ * input.
+ */
+public func geohashCanonicalize(code: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geohash_canonicalize(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Decode a geohash to its WGS-84 cell center, bounded by the largest
+ * geodesic distance from the center to a cell corner.
+ *
+ * # Errors
+ * Returns a [`GeoError`] for empty, overlong, or non-base-32 input.
  */
 public func geohashDecode(code: String)throws  -> ApproxCoordinate  {
     return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5271,7 +5287,11 @@ public func geohashDecode(code: String)throws  -> ApproxCoordinate  {
 })
 }
 /**
- * Encode a coordinate to a geohash of the given character length.
+ * Encode a WGS-84 coordinate to a geohash of `length` characters (1–12).
+ *
+ * # Errors
+ * Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
+ * [`GeoError::InvalidValue`] for a `length` outside 1–12.
  */
 public func geohashEncode(coord: Coordinate, length: UInt8)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5282,8 +5302,23 @@ public func geohashEncode(coord: Coordinate, length: UInt8)throws  -> String  {
 })
 }
 /**
- * Decode a Maidenhead locator to its WGS-84 grid-square center, with the
- * square half-diagonal error bound.
+ * Validate a 2-, 4-, or 6-character Maidenhead locator and return its
+ * canonical form (uppercase field, digit square, lowercase subsquare) — the
+ * FFI form of `Maidenhead`'s `TryFrom<&str>` and `Display`.
+ *
+ * # Errors
+ * Returns [`GeoError::InvalidGridRef`] for a malformed locator.
+ */
+public func maidenheadCanonicalize(code: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_maidenhead_canonicalize(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Decode a Maidenhead locator to its WGS-84 grid-square center, bounded by
+ * the largest geodesic distance from the center to a square corner.
  *
  * # Errors
  * Returns a [`GeoError`] for a malformed locator.
@@ -5296,8 +5331,12 @@ public func maidenheadDecode(code: String)throws  -> ApproxCoordinate  {
 })
 }
 /**
- * Encode a coordinate to a Maidenhead locator of the given number of pairs
- * (1–3).
+ * Encode a WGS-84 coordinate to a Maidenhead locator of `pairs` character
+ * pairs (1–3).
+ *
+ * # Errors
+ * Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
+ * [`GeoError::InvalidValue`] for `pairs` outside 1–3.
  */
 public func maidenheadEncode(coord: Coordinate, pairs: UInt8)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5347,8 +5386,23 @@ public func mgrsToCoordinate(mgrs: String)throws  -> ApproxCoordinate  {
 })
 }
 /**
- * Decode an Open Location Code to its WGS-84 cell center, with the cell
- * half-diagonal error bound.
+ * Validate a full Open Location Code and return its canonical (trimmed,
+ * uppercase) form — the FFI form of `PlusCode`'s `TryFrom<&str>` and
+ * `Display`.
+ *
+ * # Errors
+ * Returns [`GeoError::InvalidGridRef`] for a malformed or short code.
+ */
+public func plusCodeCanonicalize(code: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_plus_code_canonicalize(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Decode an Open Location Code to its WGS-84 cell center, bounded by the
+ * largest geodesic distance from the center to a cell corner.
  *
  * # Errors
  * Returns a [`GeoError`] for a malformed or short code.
@@ -5361,7 +5415,12 @@ public func plusCodeDecode(code: String)throws  -> ApproxCoordinate  {
 })
 }
 /**
- * Encode a coordinate to an Open Location Code at a valid length.
+ * Encode a WGS-84 coordinate to a full Open Location Code of `length`
+ * significant digits (2, 4, 6, 8, or 10–15).
+ *
+ * # Errors
+ * Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
+ * [`GeoError::InvalidValue`] for any other `length`.
  */
 public func plusCodeEncode(coord: Coordinate, length: UInt8)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5884,16 +5943,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_rhumb_distance_m() != 42838) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geohash_decode() != 30846) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geohash_canonicalize() != 64160) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geohash_encode() != 60037) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geohash_decode() != 13060) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_decode() != 24783) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geohash_encode() != 13509) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_encode() != 46629) {
+    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_canonicalize() != 1246) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_decode() != 57786) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_encode() != 53257) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_mgrs_from_coordinate() != 708) {
@@ -5905,10 +5970,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_mgrs_to_coordinate() != 17994) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_decode() != 31482) {
+    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_canonicalize() != 31071) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_encode() != 40389) {
+    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_decode() != 46951) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_encode() != 8211) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 30651) {
