@@ -52,6 +52,30 @@ const MAX_DECIMALS: u8 = 15;
 /// take the same size parameter as the grid's own `encode`. UTM has no string
 /// form and so no variant. Exhaustive (no `#[non_exhaustive]`): adding a
 /// variant compile-forces both the [`format()`] dispatch and the FFI mirror.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::format::{
+///     FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
+/// };
+///
+/// let c = Coordinate::wgs84(40.7128, -74.006)?;
+/// let ddm = FormatOptions {
+///     representation: Representation::Ddm {
+///         minute_decimals: Some(3),
+///         symbols: SymbolStyle::Unicode,
+///         hemisphere: HemisphereStyle::Cardinal,
+///     },
+///     ..FormatOptions::default()
+/// };
+/// assert_eq!(format(&c, &ddm)?, "40°42.768′N 74°00.360′W");
+/// let maidenhead = FormatOptions {
+///     representation: Representation::Maidenhead { pairs: 2 },
+///     ..FormatOptions::default()
+/// };
+/// assert_eq!(format(&c, &maidenhead)?, "FN20");
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Representation {
@@ -110,6 +134,27 @@ pub enum Representation {
 }
 
 /// Symbol style for DMS/DDM rendering.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::format::{
+///     FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
+/// };
+///
+/// let c = Coordinate::wgs84(40.7128, -74.006)?;
+/// let dms = |symbols| FormatOptions {
+///     representation: Representation::Dms {
+///         second_decimals: Some(0),
+///         symbols,
+///         hemisphere: HemisphereStyle::Cardinal,
+///     },
+///     ..FormatOptions::default()
+/// };
+/// assert_eq!(format(&c, &dms(SymbolStyle::Unicode))?, "40°42′46″N 74°00′22″W");
+/// assert_eq!(format(&c, &dms(SymbolStyle::Ascii))?, "40°42'46\"N 74°00'22\"W");
+/// assert_eq!(format(&c, &dms(SymbolStyle::Letters))?, "40d42m46sN 74d00m22sW");
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SymbolStyle {
@@ -122,6 +167,23 @@ pub enum SymbolStyle {
 }
 
 /// Sign style for hemispheres.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format};
+///
+/// let c = Coordinate::wgs84(40.7128, -74.006)?;
+/// let dd = |hemisphere| FormatOptions {
+///     representation: Representation::DecimalDegrees {
+///         decimals: Some(3),
+///         hemisphere,
+///     },
+///     ..FormatOptions::default()
+/// };
+/// assert_eq!(format(&c, &dd(HemisphereStyle::Signed))?, "40.713, -74.006");
+/// assert_eq!(format(&c, &dd(HemisphereStyle::Cardinal))?, "40.713 N, 74.006 W");
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum HemisphereStyle {
@@ -136,6 +198,20 @@ pub enum HemisphereStyle {
 /// The default is signed decimal degrees with the decimal count unset (6 for
 /// a bare coordinate, derived from accuracy by [`format_fix`]) and a
 /// [`Point`](DecimalSeparator::Point) separator.
+///
+/// ```
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::format::{DecimalSeparator, FormatOptions, format};
+///
+/// let c = Coordinate::wgs84(40.7128, -74.006)?;
+/// assert_eq!(format(&c, &FormatOptions::default())?, "40.712800, -74.006000");
+/// let german = FormatOptions {
+///     decimal_separator: DecimalSeparator::for_locale("de-DE"),
+///     ..FormatOptions::default()
+/// };
+/// assert_eq!(format(&c, &german)?, "40,712800 -74,006000");
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FormatOptions {
@@ -215,6 +291,23 @@ impl Default for FormatOptions {
 ///
 /// Otherwise the angle representations never fail: a [`Coordinate`] is in
 /// range by construction.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Error};
+/// use geocoordinates::format::{FormatOptions, Representation, format};
+///
+/// let options = FormatOptions {
+///     representation: Representation::PlusCode { length: 10 },
+///     ..FormatOptions::default()
+/// };
+/// let c = Coordinate::wgs84(40.7128, -74.006)?;
+/// assert_eq!(format(&c, &options)?, "87G7PX7V+4J");
+///
+/// // A grid is defined on WGS-84 only.
+/// let mars = Coordinate::gcj02(40.7128, -74.006)?;
+/// assert!(matches!(format(&mars, &options), Err(Error::CrsMismatch { .. })));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
     let separator = options.decimal_separator;
     match options.representation {
@@ -264,6 +357,29 @@ pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
 ///
 /// # Errors
 /// As [`format()`].
+///
+/// ```
+/// use geocoordinates::{Accuracy, Coordinate, Error, Fix};
+/// use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format_fix};
+///
+/// let mut fix = Fix::from_coord(Coordinate::wgs84(40.7128, -74.006)?);
+/// fix.accuracy = Some(Accuracy {
+///     horizontal_m: Some(1000.0),
+///     vertical_m: None,
+/// });
+/// // A 1 km fix earns 2 decimals of degrees, not the default 6.
+/// assert_eq!(format_fix(&fix, &FormatOptions::default())?, "40.71, -74.01");
+///
+/// let too_fine = FormatOptions {
+///     representation: Representation::DecimalDegrees {
+///         decimals: Some(16),
+///         hemisphere: HemisphereStyle::Signed,
+///     },
+///     ..FormatOptions::default()
+/// };
+/// assert!(matches!(format_fix(&fix, &too_fine), Err(Error::InvalidValue { .. })));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
     let horizontal_m = fix.accuracy.and_then(|a| a.horizontal_m);
     let representation = match horizontal_m {
