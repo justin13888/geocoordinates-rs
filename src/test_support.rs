@@ -88,16 +88,24 @@ pub(crate) struct DatumVector {
 impl DatumVector {
     /// The WGS-84 point as a typed newtype.
     pub(crate) fn wgs84(&self) -> Wgs84 {
-        Wgs84::new(self.wgs84.0, self.wgs84.1)
+        Wgs84::new(self.wgs84.0, self.wgs84.1).unwrap()
     }
     /// The GCJ-02 point as a typed newtype.
     pub(crate) fn gcj02(&self) -> Gcj02 {
-        Gcj02::new(self.gcj02.0, self.gcj02.1)
+        Gcj02::new(self.gcj02.0, self.gcj02.1).unwrap()
     }
     /// The BD-09 point as a typed newtype, where the source provides one.
     pub(crate) fn bd09(&self) -> Option<Bd09> {
-        self.bd09.map(|(lat, lon)| Bd09::new(lat, lon))
+        self.bd09.map(|(lat, lon)| Bd09::new(lat, lon).unwrap())
     }
+}
+
+/// Every 0.5° grid point inside the China box, as `(lat, lon)`: latitude
+/// 1.0–55.5 and longitude 72.5–137.5. Each is at least 0.17° from the box edge,
+/// so the GCJ-02 offset never carries one across it.
+pub(crate) fn china_box_grid() -> impl Iterator<Item = (f64, f64)> {
+    (2..=111_u32)
+        .flat_map(|i| (145..=275_u32).map(move |j| (f64::from(i) * 0.5, f64::from(j) * 0.5)))
 }
 
 /// Full-precision reference points (same physical location across datums).

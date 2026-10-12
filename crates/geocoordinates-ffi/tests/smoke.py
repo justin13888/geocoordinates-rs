@@ -82,6 +82,35 @@ except gc.GeoError.CrsMismatch as e:
 ok =gc.baidu_mercator_from_coordinate(bd09_coord(BD[0], BD[1]))
 assert approx(ok.x, merc.x, 1e-6) and approx(ok.y, merc.y, 1e-6)
 
+# --- China records: validation, Coordinate bridges, and domain edges ---
+gc.wgs84_validate(gc.Wgs84(lat=WGS[0], lon=WGS[1]))
+try:
+    gc.gcj02_validate(gc.Gcj02(lat=91.0, lon=0.0))
+    raise AssertionError("expected OutOfRange for an out-of-range record")
+except gc.GeoError.OutOfRange:
+    pass
+c = gc.bd09_to_coordinate(gc.Bd09(lat=BD[0], lon=BD[1]))
+assert c.crs == gc.Crs.BD09 and gc.bd09_from_coordinate(c) == gc.Bd09(lat=BD[0], lon=BD[1])
+try:
+    gc.wgs84_from_coordinate(c)
+    raise AssertionError("expected CrsMismatch for a BD-09 coordinate")
+except gc.GeoError.CrsMismatch:
+    pass
+# BD-09 wraps at the antimeridian and refuses to cross a pole.
+edge = gc.gcj02_to_bd09(gc.Gcj02(lat=0.0, lon=180.0))
+assert approx(edge.lon, -179.9935, 1e-3), edge.lon
+try:
+    gc.gcj02_to_bd09(gc.Gcj02(lat=90.0, lon=0.0))
+    raise AssertionError("expected OutsideDomain past the pole")
+except gc.GeoError.OutsideDomain as e:
+    assert e.operation == "BD-09", e.operation
+# Baidu Mercator is defined only within 74 degrees of latitude.
+try:
+    gc.baidu_mercator_from_bd09(gc.Bd09(lat=80.0, lon=0.0))
+    raise AssertionError("expected OutsideDomain beyond 74 degrees")
+except gc.GeoError.OutsideDomain as e:
+    assert e.operation == "Baidu Mercator", e.operation
+
 # --- Distance (Length flattened to meters) ---
 a = wgs84_coord(WGS[0], WGS[1])
 assert gc.haversine_distance_m(a, a) == 0.0
@@ -317,7 +346,7 @@ e = gc.helmert_apply_ecef(ident, gc.Ecef(x=4_000_000.0, y=-2_000_000.0, z=4_500_
 assert approx(e.x, 4_000_000.0, 1e-6)
 
 # --- Runtime conversion dispatch ---
-assert gc.can_convert(gc.Crs.BD09, gc.Crs.TOKYO) is True
+assert gc.convert(bd09_coord(BD[0], BD[1]), gc.Crs.TOKYO).coord.crs == gc.Crs.TOKYO
 # WGS-84 -> GCJ-02 is exact (bound 0); the inverse is approximate (bound > 0).
 fwd = gc.convert(wgs84_coord(WGS[0], WGS[1]), gc.Crs.GCJ02)
 assert fwd.max_error_m == 0.0 and fwd.coord.crs == gc.Crs.GCJ02

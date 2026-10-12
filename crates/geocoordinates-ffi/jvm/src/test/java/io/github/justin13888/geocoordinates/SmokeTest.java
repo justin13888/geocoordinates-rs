@@ -6,17 +6,24 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 // Top-level Kotlin functions compile to static methods on the file class.
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateNew;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsPrecision;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.outOfChina;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84FromCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84Validate;
 
 import org.junit.jupiter.api.Test;
 import uniffi.geocoordinates_ffi.ApproxWgs84;
+import uniffi.geocoordinates_ffi.Bd09;
+import uniffi.geocoordinates_ffi.Coordinate;
 import uniffi.geocoordinates_ffi.Crs;
 import uniffi.geocoordinates_ffi.Gcj02;
 import uniffi.geocoordinates_ffi.GeoException;
@@ -44,6 +51,26 @@ class SmokeTest {
 
         assertTrue(outOfChina(0.0, 0.0));
         assertFalse(outOfChina(39.915, 116.404));
+    }
+
+    // China records are validated as they cross in, and BD-09 / Baidu Mercator
+    // report their domain edges as typed errors.
+    @Test
+    void chinaDomainEdgesFromJava() throws GeoException {
+        assertThrows(GeoException.OutOfRange.class, () -> wgs84Validate(new Wgs84(91.0, 0.0)));
+        Coordinate coord = wgs84ToCoordinate(new Wgs84(39.915, 116.404));
+        assertEquals(Crs.WGS84, coord.getCrs());
+        assertEquals(new Wgs84(39.915, 116.404), wgs84FromCoordinate(coord));
+
+        GeoException.OutsideDomain pole =
+                assertThrows(
+                        GeoException.OutsideDomain.class, () -> gcj02ToBd09(new Gcj02(90.0, 0.0)));
+        assertEquals("BD-09", pole.getOperation());
+        GeoException.OutsideDomain polar =
+                assertThrows(
+                        GeoException.OutsideDomain.class,
+                        () -> baiduMercatorFromBd09(new Bd09(80.0, 0.0)));
+        assertEquals("Baidu Mercator", polar.getOperation());
     }
 
     // Each core error crosses as its own typed `GeoException` subclass, so Java

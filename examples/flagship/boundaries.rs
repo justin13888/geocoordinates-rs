@@ -11,7 +11,7 @@ use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHe
 use geocoordinates::parse::sensors::from_nmea_sentence;
 use geocoordinates::parse::text::parse as parse_text;
 use geocoordinates::parse::{from_geo_uri, parse_coordinate};
-use geocoordinates::{BaiduMercator, Coordinate, Crs, Error, Height, Length, Wgs84};
+use geocoordinates::{BaiduMercator, Bd09, Coordinate, Crs, Error, Gcj02, Height, Length, Wgs84};
 
 use crate::support::{DemoResult, new_york};
 
@@ -128,7 +128,18 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         Wgs84::try_from(Coordinate::gcj02(39.915, 116.404)?),
         Err(Error::CrsMismatch { .. })
     ));
-    assert!(Wgs84::new(f64::NAN, 116.404).try_to_gcj02().is_err());
+    assert!(matches!(
+        Wgs84::new(f64::NAN, 116.404),
+        Err(Error::OutOfRange { .. })
+    ));
+    assert!(matches!(
+        Gcj02::new(90.0, 0.0)?.try_to_bd09(),
+        Err(Error::OutsideDomain { .. })
+    ));
+    assert!(matches!(
+        BaiduMercator::try_from_bd09(Bd09::new(80.0, 0.0)?),
+        Err(Error::OutsideDomain { .. })
+    ));
     assert!(
         geodesic_distance(&Coordinate::wgs84(0.0, 0.0)?, &Coordinate::gcj02(0.0, 1.0)?).is_err()
     );

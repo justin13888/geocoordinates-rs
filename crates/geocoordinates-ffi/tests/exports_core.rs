@@ -133,7 +133,7 @@ fn gcj02_inverses_land_within_their_stated_bounds() {
         lon: GCJ.1,
     };
     let fast = gcj02_to_wgs84_fast(gcj).unwrap();
-    assert_eq!(fast.max_error_m, 5.0);
+    assert_eq!(fast.max_error_m, 6.0);
     close(fast.lat, 39.915_001_202_576_08, 1e-12);
     close(fast.lon, 116.404_001_915_379_34, 1e-12);
     let refined = gcj02_to_wgs84_refined(gcj).unwrap();
@@ -149,7 +149,7 @@ fn bd09_inverses_land_within_their_stated_bounds() {
         lon: BD.1,
     };
     let fast = bd09_to_gcj02_fast(bd).unwrap();
-    assert_eq!(fast.max_error_m, 1.0);
+    assert_eq!(fast.max_error_m, 0.5);
     close(fast.lat, 39.916_403_256_363_04, 1e-12);
     close(fast.lon, 116.410_245_062_296_18, 1e-12);
     let refined = bd09_to_gcj02_refined(bd).unwrap();

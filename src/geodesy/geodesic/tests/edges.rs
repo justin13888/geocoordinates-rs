@@ -75,25 +75,21 @@ fn producers_cannot_receive_an_out_of_range_position() {
     );
 }
 
-/// The datum newtypes still have public fields, so an out-of-range one can
-/// reach the `&impl LatLon` measurements, which must reject it on either side.
+/// The datum newtypes are valid by construction, so an out-of-range one can no
+/// longer reach the `&impl LatLon` measurements: it is rejected where it would
+/// be built, with the same error the measurements report.
 #[test]
-fn measurements_reject_an_out_of_range_datum_newtype_on_either_side() {
-    use crate::Wgs84;
-    let ok = Wgs84::new(0.0, 0.0);
-    let end = Wgs84::new(0.0, 10.0);
+fn an_out_of_range_datum_newtype_cannot_reach_the_measurements() {
+    use crate::{Bd09, Gcj02, Wgs84};
     for (lat, lon) in [(91.0, 0.0), (0.0, -180.5)] {
-        let bad = Wgs84::new(lat, lon);
-        assert_out_of_range(geodesic_distance(&bad, &ok), lat, lon);
-        assert_out_of_range(geodesic_distance(&ok, &bad), lat, lon);
-        assert_out_of_range(haversine_distance(&ok, &bad), lat, lon);
-        assert_out_of_range(initial_bearing(&bad, &ok), lat, lon);
-        assert_out_of_range(final_bearing(&ok, &bad), lat, lon);
-        assert_out_of_range(rhumb_distance(&bad, &ok), lat, lon);
-        assert_out_of_range(rhumb_bearing(&ok, &bad), lat, lon);
-        assert_out_of_range(cross_track_distance(&bad, &ok, &end), lat, lon);
-        assert_out_of_range(along_track_distance(&end, &ok, &bad), lat, lon);
+        assert_out_of_range(Wgs84::new(lat, lon), lat, lon);
+        assert_out_of_range(Gcj02::new(lat, lon), lat, lon);
+        assert_out_of_range(Bd09::new(lat, lon), lat, lon);
     }
+    let ok = Wgs84::new(0.0, 0.0).unwrap();
+    let end = Wgs84::new(0.0, 10.0).unwrap();
+    assert!(geodesic_distance(&ok, &end).is_ok());
+    assert!(cross_track_distance(&ok, &ok, &end).is_ok());
 }
 
 // ----- Ellipsoidal measurements across the antimeridian and antipode -----
