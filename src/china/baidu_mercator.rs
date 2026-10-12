@@ -527,6 +527,38 @@ mod tests {
         assert!(std::ptr::eq(lookup(&MCBAND, &MC2LL, 0.0), &MC2LL[4]));
     }
 
+    /// The forward fit reproduces Baidu's value to the millimeter, including
+    /// the row's constant term (a few millimeters on its own).
+    #[test]
+    fn forward_matches_the_pinned_value() {
+        let m = BaiduMercator::try_from_bd09(bd(39.922_699_552_216_216, 116.416_627_243_787_33))
+            .unwrap();
+        assert_close(m.x(), 12_959_580.673_891_693, 1e-6);
+        assert_close(m.y(), 4_827_036.867_073_46, 1e-6);
+    }
+
+    /// An easting that maps exactly onto 180° of longitude is still inside.
+    #[test]
+    fn easting_mapping_exactly_to_180_degrees_is_inside() {
+        let row = &MC2LL[4];
+        let mut x = (180.0 - row[0]) / row[1];
+        // Step to the float whose image is exactly 180.0.
+        for _ in 0..64 {
+            let lon = row[0] + row[1] * x;
+            if lon == 180.0 {
+                break;
+            }
+            x = if lon < 180.0 {
+                x.next_up()
+            } else {
+                x.next_down()
+            };
+        }
+        assert_eq!(row[0] + row[1] * x, 180.0, "no float maps exactly to 180°");
+        assert_eq!(merc(x, 0.0).try_to_bd09().unwrap().lon(), 180.0);
+        assert!(merc(x.next_up().next_up(), 0.0).try_to_bd09().is_err());
+    }
+
     /// The northing limit is the forward image of 74°, to the last digit.
     #[test]
     fn northing_limit_is_the_image_of_74_degrees() {
