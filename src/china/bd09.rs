@@ -130,6 +130,17 @@ impl Bd09 {
     /// Returns [`Error::OutsideDomain`] (operation `"BD-09 inverse"`) when the
     /// preimage would lie past a pole, which happens within about 0.006° of
     /// the South Pole: no GCJ-02 point nudges there.
+    ///
+    /// ```
+    /// use geocoordinates::{Bd09, Error};
+    ///
+    /// let gcj = Bd09::new(39.922_700, 116.416_627)?.try_to_gcj02_fast()?;
+    /// assert_eq!(gcj.max_error_m(), 0.5);
+    /// assert!((gcj.lon() - 116.410_244).abs() < 1e-5);
+    /// let south_pole = Bd09::new(-90.0, 0.0)?.try_to_gcj02_fast();
+    /// assert!(matches!(south_pole, Err(Error::OutsideDomain { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_gcj02_fast(self) -> Result<Approx<Gcj02>> {
         let (lat, lon) = bd_to_gcj(self.lat(), self.lon());
         within_poles(lat, "BD-09 inverse", (self.lat(), self.lon()))?;
@@ -160,6 +171,7 @@ impl Bd09 {
     /// let gcj = Bd09::new(0.0, -180.0)?.try_to_gcj02_refined()?;
     /// assert!((gcj.lon() - 179.9935).abs() < 1e-3); // wrapped
     /// assert_eq!(gcj.max_error_m(), 0.5);
+    /// assert!(Bd09::new(-90.0, 0.0)?.try_to_gcj02_refined().is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn try_to_gcj02_refined(self) -> Result<Approx<Gcj02>> {
@@ -178,6 +190,16 @@ impl Wgs84 {
     /// # Errors
     ///
     /// As [`Gcj02::try_to_bd09`].
+    ///
+    /// ```
+    /// use geocoordinates::{Error, Wgs84};
+    ///
+    /// let bd = Wgs84::new(39.915, 116.404)?.try_to_bd09()?;
+    /// assert!((bd.lon() - 116.416_627).abs() < 1e-5);
+    /// let north_pole = Wgs84::new(90.0, 0.0)?.try_to_bd09();
+    /// assert!(matches!(north_pole, Err(Error::OutsideDomain { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_bd09(self) -> Result<Bd09> {
         self.to_gcj02().try_to_bd09()
     }
@@ -201,6 +223,16 @@ impl Bd09 {
     /// # Errors
     ///
     /// As [`try_to_gcj02_refined`](Self::try_to_gcj02_refined).
+    ///
+    /// ```
+    /// use geocoordinates::Bd09;
+    ///
+    /// let wgs = Bd09::new(39.922_700, 116.416_627)?.try_to_wgs84_refined()?;
+    /// assert_eq!(wgs.max_error_m(), 1.0); // 0.5 m per refined leg
+    /// assert!((wgs.lat() - 39.915).abs() < 1e-5);
+    /// assert!(Bd09::new(-90.0, 0.0)?.try_to_wgs84_refined().is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_wgs84_refined(self) -> Result<Approx<Wgs84>> {
         let gcj = self.try_to_gcj02_refined()?;
         let wgs = gcj.value().to_wgs84_refined();

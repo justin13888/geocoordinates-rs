@@ -65,6 +65,13 @@ use crate::geodesy::datum::{DatumTransform, HubRoute};
 /// let wgs = convert(gcj, Crs::Wgs84)?;
 /// assert_eq!(wgs.crs(), Crs::Wgs84);
 /// assert_eq!(wgs.max_error_m(), 0.5); // the refined GCJ-02 inverse
+///
+/// // The BD-09 nudge would carry a point at the North Pole past it.
+/// let pole = Coordinate::gcj02(90.0, 0.0)?;
+/// assert!(matches!(
+///     convert(pole, Crs::Bd09),
+///     Err(geocoordinates::Error::OutsideDomain { .. })
+/// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn convert(coord: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {

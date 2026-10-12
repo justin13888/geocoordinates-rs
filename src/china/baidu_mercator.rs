@@ -202,6 +202,14 @@ fn poly(factors: &[f64], x: f64) -> f64 {
 /// Both components are finite by construction ([`BaiduMercator::new`]);
 /// whether they lie inside the projection's domain is checked by
 /// [`BaiduMercator::try_to_bd09`].
+///
+/// ```
+/// use geocoordinates::BaiduMercator;
+///
+/// let m = BaiduMercator::new(12_957_729.7, 4_823_755.6)?;
+/// assert!((m.try_to_bd09()?.lat() - 39.9).abs() < 0.01);
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "BaiduMercatorRecord"))]
@@ -263,12 +271,22 @@ impl BaiduMercator {
     }
 
     /// Easting (longitude axis), in meters.
+    ///
+    /// ```
+    /// assert_eq!(geocoordinates::BaiduMercator::new(1.5, 2.5)?.x(), 1.5);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn x(&self) -> f64 {
         self.x
     }
 
     /// Northing (latitude axis), in meters.
+    ///
+    /// ```
+    /// assert_eq!(geocoordinates::BaiduMercator::new(1.5, 2.5)?.y(), 2.5);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub fn y(&self) -> f64 {
         self.y
@@ -285,6 +303,15 @@ impl BaiduMercator {
     /// Returns [`Error::InvalidValue`] naming `"y"` when the northing is
     /// beyond the forward image of ±74° (about ±12 474 104 m), or `"x"` when
     /// the easting maps past ±180° of longitude.
+    ///
+    /// ```
+    /// use geocoordinates::BaiduMercator;
+    ///
+    /// let bd = BaiduMercator::new(12_957_729.7, 4_823_755.6)?.try_to_bd09()?;
+    /// assert!((bd.lon() - 116.4).abs() < 0.01);
+    /// assert!(BaiduMercator::new(0.0, 13_000_000.0)?.try_to_bd09().is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_bd09(self) -> Result<Bd09> {
         if self.y.abs() > MAX_NORTHING_M {
             return Err(Error::InvalidValue {
@@ -314,6 +341,16 @@ impl BaiduMercator {
     ///
     /// Returns [`Error::OutsideDomain`] (operation `"Baidu Mercator"`) when
     /// the latitude is beyond ±74°, where Baidu's projection is not defined.
+    ///
+    /// ```
+    /// use geocoordinates::{BaiduMercator, Bd09, Error};
+    ///
+    /// let m = BaiduMercator::try_from_bd09(Bd09::new(39.9, 116.4)?)?;
+    /// assert!((m.x() - 12_957_729.7).abs() < 0.1);
+    /// let polar = BaiduMercator::try_from_bd09(Bd09::new(-74.5, 0.0)?);
+    /// assert!(matches!(polar, Err(Error::OutsideDomain { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_from_bd09(p: Bd09) -> Result<Self> {
         if p.lat().abs() > MAX_LAT_DEG {
             return Err(Error::OutsideDomain {
@@ -338,6 +375,15 @@ impl BaiduMercator {
     /// # Errors
     ///
     /// As [`BaiduMercator::try_to_bd09`].
+    ///
+    /// ```
+    /// use geocoordinates::{BaiduMercator, Crs};
+    ///
+    /// let c = BaiduMercator::new(12_957_729.7, 4_823_755.6)?.try_to_coordinate()?;
+    /// assert_eq!(c.crs(), Crs::Bd09);
+    /// assert!(BaiduMercator::new(1e9, 0.0)?.try_to_coordinate().is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_to_coordinate(self) -> Result<Coordinate> {
         Ok(self.try_to_bd09()?.to_coordinate())
     }
@@ -348,6 +394,16 @@ impl BaiduMercator {
     /// Returns [`Error::CrsMismatch`] unless `coord.crs()` is [`Crs::Bd09`](crate::Crs) — a
     /// non-BD-09 coordinate must be converted to BD-09 first, never silently
     /// reprojected — and otherwise as [`BaiduMercator::try_from_bd09`].
+    ///
+    /// ```
+    /// use geocoordinates::{BaiduMercator, Coordinate, Error};
+    ///
+    /// let m = BaiduMercator::try_from_coordinate(Coordinate::bd09(39.9, 116.4)?)?;
+    /// assert!(m.y() > 0.0);
+    /// let wgs = BaiduMercator::try_from_coordinate(Coordinate::wgs84(39.9, 116.4)?);
+    /// assert!(matches!(wgs, Err(Error::CrsMismatch { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
         Self::try_from_bd09(Bd09::try_from_coordinate(coord)?)
     }

@@ -81,6 +81,13 @@ pub(crate) const BD_DLON: f64 = 0.006_5;
 /// border regions where the rectangle over-reaches). Kept as a box here for
 /// parity with the reference implementations and to avoid a large vendored
 /// vertex table.
+///
+/// ```
+/// use geocoordinates::china::out_of_china;
+///
+/// assert!(!out_of_china(39.915, 116.404)); // Beijing
+/// assert!(out_of_china(51.5, -0.12)); // London
+/// ```
 #[must_use]
 pub fn out_of_china(lat: f64, lon: f64) -> bool {
     !near_china_box(lat, lon, 0.0)
@@ -98,6 +105,15 @@ pub(crate) fn near_china_box(lat: f64, lon: f64, margin_deg: f64) -> bool {
 /// Valid by construction: build one with [`Wgs84::new`] or
 /// [`Wgs84::try_from_coordinate`]. Latitude is in `[-90, 90]` and longitude in
 /// `[-180, 180]`, both finite.
+///
+/// ```
+/// use geocoordinates::Wgs84;
+///
+/// let wgs = Wgs84::new(39.915, 116.404)?;
+/// assert_eq!((wgs.lat(), wgs.lon()), (39.915, 116.404));
+/// assert!(Wgs84::new(90.5, 116.404).is_err());
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "LatLonRecord"))]
@@ -111,6 +127,15 @@ pub struct Wgs84 {
 /// Valid by construction: build one with [`Gcj02::new`] or
 /// [`Gcj02::try_from_coordinate`]. Latitude is in `[-90, 90]` and longitude in
 /// `[-180, 180]`, both finite.
+///
+/// ```
+/// use geocoordinates::Gcj02;
+///
+/// let gcj = Gcj02::new(39.916_404, 116.410_244)?;
+/// assert_eq!(gcj.lat(), 39.916_404);
+/// assert!(Gcj02::new(39.9, f64::NAN).is_err());
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "LatLonRecord"))]
@@ -124,6 +149,15 @@ pub struct Gcj02 {
 /// Valid by construction: build one with [`Bd09::new`] or
 /// [`Bd09::try_from_coordinate`]. Latitude is in `[-90, 90]` and longitude in
 /// `[-180, 180]`, both finite.
+///
+/// ```
+/// use geocoordinates::Bd09;
+///
+/// let bd = Bd09::new(39.922_700, 116.416_627)?;
+/// assert_eq!(bd.lon(), 116.416_627);
+/// assert!(Bd09::new(39.9, 180.5).is_err());
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "LatLonRecord"))]
@@ -154,6 +188,15 @@ macro_rules! impl_latlon {
             /// Returns [`Error::OutOfRange`] when latitude is outside
             /// `[-90, 90]`, longitude is outside `[-180, 180]`, or either is not
             /// finite.
+            ///
+            /// ```
+            #[doc = concat!("use geocoordinates::", stringify!($t), ";")]
+            ///
+            #[doc = concat!("let p = ", stringify!($t), "::new(39.9, 180.0)?; // closed range")]
+            /// assert_eq!(p.lon(), 180.0);
+            #[doc = concat!("assert!(", stringify!($t), "::new(-90.1, 0.0).is_err());")]
+            /// # Ok::<(), geocoordinates::Error>(())
+            /// ```
             pub fn new(lat: f64, lon: f64) -> Result<Self> {
                 Coordinate::new(lat, lon, $crs).map(|c| Self { lat: c.lat(), lon: c.lon() })
             }
@@ -172,12 +215,22 @@ macro_rules! impl_latlon {
             }
 
             /// Latitude in decimal degrees, in `[-90, 90]`.
+            ///
+            /// ```
+            #[doc = concat!("assert_eq!(geocoordinates::", stringify!($t), "::new(39.9, 116.4)?.lat(), 39.9);")]
+            /// # Ok::<(), geocoordinates::Error>(())
+            /// ```
             #[must_use]
             pub fn lat(&self) -> f64 {
                 self.lat
             }
 
             /// Longitude in decimal degrees, in `[-180, 180]`.
+            ///
+            /// ```
+            #[doc = concat!("assert_eq!(geocoordinates::", stringify!($t), "::new(39.9, 116.4)?.lon(), 116.4);")]
+            /// # Ok::<(), geocoordinates::Error>(())
+            /// ```
             #[must_use]
             pub fn lon(&self) -> f64 {
                 self.lon
@@ -187,6 +240,15 @@ macro_rules! impl_latlon {
             /// datum's [`Crs`].
             ///
             /// Exact and infallible. Height is left unset.
+            ///
+            /// ```
+            #[doc = concat!("use geocoordinates::{Crs, ", stringify!($t), "};")]
+            ///
+            #[doc = concat!("let c = ", stringify!($t), "::new(39.9, 116.4)?.to_coordinate();")]
+            #[doc = concat!("assert_eq!(c.crs(), Crs::", stringify!($t), ");")]
+            /// assert_eq!((c.lat(), c.lon(), c.height()), (39.9, 116.4, None));
+            /// # Ok::<(), geocoordinates::Error>(())
+            /// ```
             #[must_use]
             pub fn to_coordinate(self) -> Coordinate {
                 Coordinate::from_valid(self.lat, self.lon, None, $crs)
@@ -201,6 +263,19 @@ macro_rules! impl_latlon {
             ///
             /// Returns [`Error::CrsMismatch`] unless `coord.crs()` matches this
             /// datum, so a datum is never silently laundered.
+            ///
+            /// ```
+            #[doc = concat!("use geocoordinates::{Coordinate, Crs, Error, ", stringify!($t), "};")]
+            ///
+            #[doc = concat!("let c = Coordinate::new(39.9, 116.4, Crs::", stringify!($t), ")?;")]
+            #[doc = concat!("assert_eq!(", stringify!($t), "::try_from_coordinate(c)?.lat(), 39.9);")]
+            /// let nad27 = Coordinate::new(39.9, 116.4, Crs::Nad27)?;
+            /// assert!(matches!(
+            #[doc = concat!("    ", stringify!($t), "::try_from_coordinate(nad27),")]
+            ///     Err(Error::CrsMismatch { .. })
+            /// ));
+            /// # Ok::<(), geocoordinates::Error>(())
+            /// ```
             pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
                 if coord.crs() == $crs {
                     Ok(Self { lat: coord.lat(), lon: coord.lon() })
