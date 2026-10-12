@@ -111,6 +111,10 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          # Pinned: the action's `latest` lookup can silently resolve to v0.9.1,
+          # whose bundled wasm-opt rejects modern multi-table wasm and fails the build.
+          version: v0.15.0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
