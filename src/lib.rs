@@ -77,6 +77,21 @@ pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 // in Cargo.toml until a concrete consumer appears.
 
 /// Discrete global grid indexing (H3 / S2), via external crates (optional).
+///
+/// ```
+/// # #[cfg(feature = "h3")]
+/// # {
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::dgg::H3Cell;
+///
+/// let cell = H3Cell::encode(Coordinate::wgs84(40.7128, -74.006)?, 9)?;
+/// let center = cell.decode(); // a cell covers an area: the center is approximate
+/// assert!((center.lat() - 40.7128).abs() < 0.01 && center.max_error_m() > 0.0);
+/// // Encoding needs a WGS-84 position.
+/// assert!(H3Cell::encode(Coordinate::gcj02(40.7128, -74.006)?, 9).is_err());
+/// # }
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 #[cfg(any(feature = "h3", feature = "s2"))]
 pub mod dgg;
 
@@ -98,6 +113,21 @@ pub use units::{Length, LengthUnit};
 /// Brings in the canonical types, the China datums, the angle encodings, the
 /// `Fix` metadata, and the geodesy, grid, formatting, parsing, and conversion
 /// items. Anything outside this working set is reached by its module path.
+///
+/// ```
+/// use geocoordinates::prelude::*;
+///
+/// let a = Coordinate::wgs84(51.5074, -0.1278)?;
+/// let b = Coordinate::wgs84(48.8566, 2.3522)?;
+/// let km = geodesic_distance(&a, &b)?.to_unit(LengthUnit::Kilometer);
+/// assert!((km - 343.9).abs() < 1.0);
+/// let lat = Dms::from_degrees(a.lat(), Axis::Latitude)?;
+/// assert_eq!((lat.degrees(), lat.hemisphere()), (51, Hemisphere::North));
+/// // The glob import brings the crate's `Result<T>` alias, which shadows std's.
+/// let bad: Result<Coordinate> = Coordinate::wgs84(0.0, 200.0);
+/// assert!(bad.is_err());
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
 pub mod prelude {
     pub use crate::{
         Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Error, Fix, Gcj02,
