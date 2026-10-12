@@ -18,7 +18,7 @@
 //! return a bare datum record, while approximate inverses return an `Approx*`
 //! record and keep the `_fast` / `_refined` suffix.
 //!
-//! The angle encodings (`Dd` / `Dms` / `Ddm`), their conversions and the
+//! The angle encodings (`Dms` / `Ddm`), their conversions and the
 //! normalization helpers, the `Length` / `LengthUnit` unit helpers, coordinate
 //! validation, and the `Fix` observation family (`Fix` / `Accuracy` /
 //! `RawSource` / `Confidence`, with `SystemTime` mapped natively to UniFFI's

@@ -89,20 +89,38 @@ one_deg_north = wgs84_coord(WGS[0] + 1.0, WGS[1])
 d = gc.haversine_distance_m(a, one_deg_north)
 assert math.isclose(d, 111194.9, abs_tol=50.0), d  # ~mean-earth-radius * pi/180
 
-# --- Angle conversions: DD <-> DMS decomposition + round trip ---
-dms = gc.dd_to_dms(gc.Dd(value=40.7127753), gc.Axis.LATITUDE)
+# --- Angle conversions: degrees <-> DMS / DDM decomposition + round trip ---
+dms = gc.dms_from_degrees(40.7127753, gc.Axis.LATITUDE)
 assert dms.degrees == 40 and dms.minutes == 42, (dms.degrees, dms.minutes)
 assert approx(dms.seconds, 45.99108, 1e-3), dms.seconds
 assert dms.hemisphere == gc.Hemisphere.NORTH, dms.hemisphere
-assert approx(gc.dms_to_dd(dms).value, 40.7127753, 1e-9)
+assert approx(gc.dms_to_degrees(dms), 40.7127753, 1e-9)
+ddm = gc.ddm_from_degrees(-74.006, gc.Axis.LONGITUDE)
+assert ddm.degrees == 74 and approx(ddm.minutes, 0.36, 1e-9), (ddm.degrees, ddm.minutes)
+assert approx(gc.ddm_to_degrees(gc.dms_to_ddm(gc.ddm_to_dms(ddm))), -74.006, 1e-9)
 # -0.0 reads as the positive hemisphere, never South/West.
-neg_zero = gc.dd_to_dms(gc.Dd(value=-0.0), gc.Axis.LATITUDE)
+neg_zero = gc.dms_from_degrees(-0.0, gc.Axis.LATITUDE)
 assert neg_zero.hemisphere == gc.Hemisphere.NORTH, neg_zero.hemisphere
+# A hand-built record is validated on use: 60 minutes is out of range.
+gc.dms_validate(dms)
+bad_dms = gc.Dms(degrees=40, minutes=60, seconds=0.0, hemisphere=gc.Hemisphere.NORTH)
+for call in (gc.dms_validate, gc.dms_to_degrees):
+    try:
+        call(bad_dms)
+        raise AssertionError("expected GeoError.InvalidValue for minutes = 60")
+    except gc.GeoError.InvalidValue as e:
+        assert e.field == "minutes", e.field
+try:
+    gc.ddm_validate(gc.Ddm(degrees=91, minutes=0.0, hemisphere=gc.Hemisphere.SOUTH))
+    raise AssertionError("expected GeoError.InvalidValue for 91 degrees latitude")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "degrees", e.field
 
 # --- Angle normalization (antimeridian / poles) ---
 assert approx(gc.wrap_longitude(180.0), -180.0, 1e-9)  # half-open
 assert approx(gc.clamp_latitude(91.0), 90.0, 1e-9)
 assert approx(gc.normalize_degrees(-1.0), 359.0, 1e-9)
+assert gc.normalize_degrees(-1e-20) == 0.0  # never the excluded bound 360
 
 # --- Length unit conversions (flattened to meters) ---
 assert approx(gc.length_from_unit(1.0, gc.LengthUnit.KILOMETER), 1000.0, 1e-9)

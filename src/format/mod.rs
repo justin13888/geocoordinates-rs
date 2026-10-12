@@ -14,7 +14,7 @@
 //! exactly [`parse_coordinate`](crate::parse::parse_coordinate). Plus Code
 //! output re-parses through either to the decoded cell's center.
 
-use crate::angle::{Axis, Dd};
+use crate::angle::{Axis, Ddm, Dms};
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 use crate::fix::Fix;
@@ -258,14 +258,14 @@ fn render_angle(
     let (deg_sym, min_sym, sec_sym) = symbols(options.symbol_style);
     let core = match kind {
         AngleKind::Dms => {
-            let dms = Dd(value).try_to_dms(axis)?;
-            let (deg, min, sec) = round_carry_dms(dms.degrees, dms.minutes, dms.seconds, p);
+            let dms = Dms::from_degrees(value, axis)?;
+            let (deg, min, sec) = round_carry_dms(dms.degrees(), dms.minutes(), dms.seconds(), p);
             let sec_str = decimalize(&pad_two(sec, p), comma);
             format!("{deg}{deg_sym}{min:02}{min_sym}{sec_str}{sec_sym}")
         }
         AngleKind::Ddm => {
-            let ddm = Dd(value).try_to_ddm(axis)?;
-            let (deg, min) = round_carry_ddm(ddm.degrees, ddm.minutes, p);
+            let ddm = Ddm::from_degrees(value, axis)?;
+            let (deg, min) = round_carry_ddm(ddm.degrees(), ddm.minutes(), p);
             let min_str = decimalize(&pad_two(min, p), comma);
             format!("{deg}{deg_sym}{min_str}{min_sym}")
         }

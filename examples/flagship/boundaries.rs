@@ -1,6 +1,6 @@
 //! Antimeridian, pole, and range boundaries, and the typed errors they raise.
 
-use geocoordinates::angle::{Axis, Dd, Dms, Hemisphere as AngleHemisphere, wrap_longitude};
+use geocoordinates::angle::{Axis, Ddm, Dms, Hemisphere as AngleHemisphere, wrap_longitude};
 use geocoordinates::dgg::{H3Cell, S2CellId};
 use geocoordinates::format::{FormatOptions, format};
 use geocoordinates::geodesy::{
@@ -69,20 +69,41 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     let out_of_range_json = valid_json.replace("41.0", "91.0");
     assert_ne!(out_of_range_json, valid_json);
     assert!(serde_json::from_str::<Coordinate>(&out_of_range_json).is_err());
+    // Angle encodings are valid by construction too: every constructor and
+    // deserialization rejects a component outside its range.
     assert!(matches!(
-        Dd(f64::NAN).try_to_dms(Axis::Latitude),
-        Err(Error::InvalidValue { .. })
+        Dms::from_degrees(f64::NAN, Axis::Latitude),
+        Err(Error::InvalidValue {
+            field: "decimal degrees",
+            ..
+        })
     ));
     assert!(matches!(
-        Dms {
-            degrees: 40,
-            minutes: 60,
-            seconds: 0.0,
-            hemisphere: AngleHemisphere::North,
-        }
-        .try_to_dd(),
-        Err(Error::InvalidValue { .. })
+        Ddm::from_degrees(90.5, Axis::Latitude),
+        Err(Error::InvalidValue {
+            field: "decimal degrees",
+            ..
+        })
     ));
+    assert!(matches!(
+        Dms::new(40, 60, 0.0, AngleHemisphere::North),
+        Err(Error::InvalidValue {
+            field: "minutes",
+            ..
+        })
+    ));
+    assert!(matches!(
+        Ddm::new(181, 0.0, AngleHemisphere::East),
+        Err(Error::InvalidValue {
+            field: "degrees",
+            ..
+        })
+    ));
+    let dms_json = serde_json::to_string(&Dms::new(40, 59, 0.0, AngleHemisphere::North)?)?;
+    assert!(serde_json::from_str::<Dms>(&dms_json).is_ok());
+    let bad_dms_json = dms_json.replace("59", "60");
+    assert_ne!(bad_dms_json, dms_json);
+    assert!(serde_json::from_str::<Dms>(&bad_dms_json).is_err());
     assert!(
         format(
             &new_york(),
