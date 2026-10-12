@@ -328,3 +328,19 @@ fn squares_across_the_antimeridian_decode_wrapped() {
     let east = east.to_coordinate();
     assert!(east.value().lon() < -179.8, "{:?}", east.value());
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_validates_and_uses_the_canonical_string() {
+    // C9: a derived struct form let an invalid reference deserialize, and
+    // `to_coordinate` then panicked on it. The wire form is the canonical
+    // string, validated exactly as parsing is.
+    let invalid_struct = r#"{"text":"99TWK","precision_m":1}"#;
+    assert!(serde_json::from_str::<Mgrs>(invalid_struct).is_err());
+    for bad in [r#""99TWK""#, r#""18TWK000""#, r#""""#] {
+        assert!(serde_json::from_str::<Mgrs>(bad).is_err(), "{bad}");
+    }
+    let m: Mgrs = serde_json::from_str(r#""18t wk 00000 27757""#).unwrap();
+    assert_eq!(m.as_str(), "18TWK0000027757");
+    assert_eq!(serde_json::to_string(&m).unwrap(), r#""18TWK0000027757""#);
+}
