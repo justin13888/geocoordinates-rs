@@ -181,16 +181,13 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
         }
     }
 
-    let mut coord = Coordinate::wgs84(lat, lon);
-    coord
-        .validate()
-        .map_err(|_| Error::Parse(format!("geo: coordinate out of range: {input}")))?;
+    let out_of_range = |_| Error::Parse(format!("geo: coordinate out of range: {input}"));
+    let mut coord = Coordinate::wgs84(lat, lon).map_err(out_of_range)?;
     if let Some(alt) = altitude {
-        coord = coord.with_height(Height::Ellipsoidal(alt));
+        coord = coord
+            .with_height(Height::Ellipsoidal(alt))
+            .map_err(out_of_range)?;
     }
-    coord
-        .validate()
-        .map_err(|_| Error::Parse(format!("geo: coordinate out of range: {input}")))?;
 
     Ok(Fix {
         coord,
@@ -230,11 +227,15 @@ mod tests {
     use crate::format::{FormatOptions, format};
     use crate::test_support::{assert_close, assert_within_meters};
 
+    fn wgs(lat: f64, lon: f64) -> Coordinate {
+        Coordinate::wgs84(lat, lon).unwrap()
+    }
+
     #[test]
     fn geo_uri_basic() {
         let fix = from_geo_uri("geo:13.4125,103.8667").unwrap();
-        assert_close(fix.coord.lat, 13.4125, 1e-9);
-        assert_close(fix.coord.lon, 103.8667, 1e-9);
+        assert_close(fix.coord.lat(), 13.4125, 1e-9);
+        assert_close(fix.coord.lon(), 103.8667, 1e-9);
         let s = fix.source.as_ref().unwrap();
         assert_eq!(s.axis_order, None); // RFC 5870 fixes lat-first
         assert_close(s.confidence.value(), 1.0, 1e-12);
@@ -244,9 +245,9 @@ mod tests {
     #[test]
     fn geo_uri_with_altitude_crs_and_accuracy() {
         let fix = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40").unwrap();
-        assert_close(fix.coord.lat, 48.2, 1e-9);
-        assert_close(fix.coord.lon, 16.3, 1e-9);
-        assert_eq!(fix.coord.height, Some(Height::Ellipsoidal(183.0)));
+        assert_close(fix.coord.lat(), 48.2, 1e-9);
+        assert_close(fix.coord.lon(), 16.3, 1e-9);
+        assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(183.0)));
         assert_eq!(
             fix.accuracy,
             Some(Accuracy {
@@ -295,21 +296,21 @@ mod tests {
     }
 
     #[test]
-    fn coordinate_from_str() {
-        let c: Coordinate = "40.7128, -74.006".parse().unwrap();
-        assert_close(c.lat, 40.7128, 1e-9);
-        assert_close(c.lon, -74.006, 1e-9);
-        assert!("not a coordinate".parse::<Coordinate>().is_err());
+    fn parse_coordinate_yields_the_coordinate() {
+        let c: Coordinate = parse_coordinate("40.7128, -74.006").unwrap().coord;
+        assert_close(c.lat(), 40.7128, 1e-9);
+        assert_close(c.lon(), -74.006, 1e-9);
+        assert!(parse_coordinate("not a coordinate").is_err());
     }
 
     #[test]
     fn round_trip_format_then_parse() {
         // Default DD formatting (6 dp ≈ 0.11 m) must re-parse to within 0.2 m.
         let coords = [
-            Coordinate::wgs84(40.7128, -74.006),
-            Coordinate::wgs84(-33.8688, 151.2093), // range rule forces order back
-            Coordinate::wgs84(0.0, 0.0),
-            Coordinate::wgs84(51.5074, -0.1278),
+            wgs(40.7128, -74.006),
+            wgs(-33.8688, 151.2093), // range rule forces order back
+            wgs(0.0, 0.0),
+            wgs(51.5074, -0.1278),
         ];
         for c in coords {
             let text = format(&c, &FormatOptions::default()).unwrap();
@@ -324,14 +325,14 @@ mod tests {
         use text::TextParseOptions;
         // Hemispheres, the range rule, the antimeridian and both poles.
         let coords = [
-            Coordinate::wgs84(40.7128, -74.006),
-            Coordinate::wgs84(-33.8688, 151.2093),
-            Coordinate::wgs84(10.5, -20.25),
-            Coordinate::wgs84(0.0, 0.0),
-            Coordinate::wgs84(-0.5, 180.0),
-            Coordinate::wgs84(12.25, -180.0),
-            Coordinate::wgs84(90.0, 45.0),
-            Coordinate::wgs84(-90.0, -135.5),
+            wgs(40.7128, -74.006),
+            wgs(-33.8688, 151.2093),
+            wgs(10.5, -20.25),
+            wgs(0.0, 0.0),
+            wgs(-0.5, 180.0),
+            wgs(12.25, -180.0),
+            wgs(90.0, 45.0),
+            wgs(-90.0, -135.5),
         ];
         let representations = [
             Representation::DecimalDegrees,
@@ -385,14 +386,14 @@ mod tests {
             ..text::TextParseOptions::default()
         };
         let fix = parse_coordinate_with("40,7128 -74,006", &comma).unwrap();
-        assert_close(fix.coord.lat, 40.7128, 1e-9);
-        assert_close(fix.coord.lon, -74.006, 1e-9);
+        assert_close(fix.coord.lat(), 40.7128, 1e-9);
+        assert_close(fix.coord.lon(), -74.006, 1e-9);
         assert!(parse_coordinate("40,7128 -74,006").is_err());
         // geo: URIs and Plus Codes ignore the text options.
         let geo = parse_coordinate_with("geo:13.4125,103.8667", &comma).unwrap();
-        assert_close(geo.coord.lon, 103.8667, 1e-9);
+        assert_close(geo.coord.lon(), 103.8667, 1e-9);
         let plus = parse_coordinate_with("8FVC2222+22", &comma).unwrap();
-        assert_close(plus.coord.lat, 47.0000625, 1e-6);
+        assert_close(plus.coord.lat(), 47.0000625, 1e-6);
     }
 
     #[test]
@@ -421,8 +422,8 @@ mod tests {
     #[test]
     fn parse_coordinate_detects_plus_code() {
         let fix = parse_coordinate("8FVC2222+22").unwrap();
-        assert_close(fix.coord.lat, 47.0000625, 1e-6);
-        assert_close(fix.coord.lon, 8.0000625, 1e-6);
+        assert_close(fix.coord.lat(), 47.0000625, 1e-6);
+        assert_close(fix.coord.lon(), 8.0000625, 1e-6);
         let s = fix.source.as_ref().unwrap();
         assert_eq!(s.axis_order, None); // a Plus Code fixes the axis order
         assert_close(s.confidence.value(), 1.0, 1e-12);
@@ -434,7 +435,7 @@ mod tests {
     #[test]
     fn plus_code_round_trip() {
         use crate::format::Representation;
-        let c = Coordinate::wgs84(40.7128, -74.006);
+        let c = Coordinate::wgs84(40.7128, -74.006).unwrap();
         let options = FormatOptions {
             representation: Representation::PlusCode,
             ..FormatOptions::default()

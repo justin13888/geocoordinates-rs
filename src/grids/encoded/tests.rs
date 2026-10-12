@@ -2,6 +2,10 @@ use super::*;
 use crate::Crs;
 use crate::test_support::{assert_close, assert_within_meters};
 
+fn wgs(lat: f64, lon: f64) -> Coordinate {
+    Coordinate::wgs84(lat, lon).unwrap()
+}
+
 /// Every malformed code string is rejected as `InvalidGridRef`.
 #[track_caller]
 fn assert_invalid_grid_ref<T: core::fmt::Debug>(r: Result<T>) {
@@ -21,13 +25,11 @@ fn assert_invalid_value<T: core::fmt::Debug>(r: Result<T>, expected: &str) {
 fn encode_reference_vectors() {
     // Canonical Open Location Code test vectors.
     assert_eq!(
-        PlusCode::encode(Coordinate::wgs84(20.375, 2.775), 6)
-            .unwrap()
-            .as_str(),
+        PlusCode::encode(wgs(20.375, 2.775), 6).unwrap().as_str(),
         "7FG49Q00+"
     );
     assert_eq!(
-        PlusCode::encode(Coordinate::wgs84(47.0000625, 8.0000625), 10)
+        PlusCode::encode(wgs(47.0000625, 8.0000625), 10)
             .unwrap()
             .as_str(),
         "8FVC2222+22"
@@ -38,8 +40,8 @@ fn encode_reference_vectors() {
 fn decode_known_code() {
     // 8FVC2222+22 is the length-10 cell whose center is the encode input.
     let area = PlusCode::try_from("8FVC2222+22").unwrap().decode();
-    assert_close(area.lat, 47.0000625, 1e-7);
-    assert_close(area.lon, 8.0000625, 1e-7);
+    assert_close(area.lat(), 47.0000625, 1e-7);
+    assert_close(area.lon(), 8.0000625, 1e-7);
     assert!(area.max_error_m() > 0.0 && area.max_error_m() < 20.0);
 }
 
@@ -47,17 +49,17 @@ fn decode_known_code() {
 fn round_trip_stays_within_bound() {
     // The original must lie within the decoded cell's reported error bound.
     let coords = [
-        Coordinate::wgs84(40.7128, -74.006),
-        Coordinate::wgs84(-33.8688, 151.2093),
-        Coordinate::wgs84(0.0, 0.0),
-        Coordinate::wgs84(51.5074, -0.1278),
-        Coordinate::wgs84(89.9999, 179.9999), // near a pole / the antimeridian
+        wgs(40.7128, -74.006),
+        wgs(-33.8688, 151.2093),
+        wgs(0.0, 0.0),
+        wgs(51.5074, -0.1278),
+        wgs(89.9999, 179.9999), // near a pole / the antimeridian
     ];
     for c in coords {
         for length in [10, 11, 12] {
             let code = PlusCode::encode(c, length).unwrap();
             let area = code.decode();
-            assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
+            assert_within_meters(&c, &*area, area.max_error_m());
         }
     }
 }
@@ -65,15 +67,15 @@ fn round_trip_stays_within_bound() {
 #[test]
 fn antimeridian_and_pole_do_not_panic() {
     // lat 90 / lon 180 must clamp/wrap and round-trip without panicking.
-    let code = PlusCode::encode(Coordinate::wgs84(90.0, 180.0), 10).unwrap();
+    let code = PlusCode::encode(wgs(90.0, 180.0), 10).unwrap();
     let area = code.decode();
-    assert!(area.lat <= 90.0 && area.lon < 180.0);
+    assert!(area.lat() <= 90.0 && area.lon() < 180.0);
 }
 
 #[test]
 fn shorter_lengths_pad() {
     assert_eq!(
-        PlusCode::encode(Coordinate::wgs84(47.0000625, 8.0000625), 4)
+        PlusCode::encode(wgs(47.0000625, 8.0000625), 4)
             .unwrap()
             .as_str(),
         "8FVC0000+"
@@ -125,7 +127,7 @@ fn from_str_matches_try_from() {
 
 #[test]
 fn try_from_round_trips_canonical_string() {
-    let code = PlusCode::encode(Coordinate::wgs84(40.7128, -74.006), 11).unwrap();
+    let code = PlusCode::encode(wgs(40.7128, -74.006), 11).unwrap();
     let reparsed = PlusCode::try_from(code.as_str()).unwrap();
     assert_eq!(code, reparsed);
 }
@@ -141,7 +143,7 @@ fn latitude_precision_values() {
 
 #[test]
 fn invalid_encoding_configuration_is_rejected() {
-    let c = Coordinate::wgs84(0.0, 0.0);
+    let c = wgs(0.0, 0.0);
     assert_invalid_value(PlusCode::encode(c, 3), "Plus Code length");
     assert_invalid_value(PlusCode::encode(c, 9), "Plus Code length");
     assert_invalid_value(PlusCode::encode(c, 16), "Plus Code length");
@@ -150,7 +152,7 @@ fn invalid_encoding_configuration_is_rejected() {
     assert_invalid_value(Maidenhead::encode(c, 0), "Maidenhead pairs");
     assert_invalid_value(Maidenhead::encode(c, 4), "Maidenhead pairs");
     // Every encoder demands WGS-84 and rejects an out-of-range input first.
-    let gcj = Coordinate::gcj02(0.0, 0.0);
+    let gcj = Coordinate::gcj02(0.0, 0.0).unwrap();
     let mismatch = |r: Result<String>| {
         matches!(
             r,
@@ -167,17 +169,19 @@ fn invalid_encoding_configuration_is_rejected() {
     assert!(mismatch(
         Maidenhead::encode(gcj, 2).map(|m| m.as_str().into())
     ));
-    let bad = Coordinate::wgs84(91.0, 0.0);
+    // An out-of-range input can no longer reach the encoders: construction
+    // itself rejects it with that exact position.
+    let bad = || Coordinate::wgs84(91.0, 0.0);
     assert!(matches!(
-        Geohash::encode(bad, 5),
+        bad().and_then(|c| Geohash::encode(c, 5)),
         Err(Error::OutOfRange { lat, lon }) if lat == 91.0 && lon == 0.0
     ));
     assert!(matches!(
-        PlusCode::encode(bad, 10),
+        bad().and_then(|c| PlusCode::encode(c, 10)),
         Err(Error::OutOfRange { .. })
     ));
     assert!(matches!(
-        Maidenhead::encode(bad, 2),
+        bad().and_then(|c| Maidenhead::encode(c, 2)),
         Err(Error::OutOfRange { .. })
     ));
 }
@@ -186,16 +190,16 @@ fn invalid_encoding_configuration_is_rejected() {
 fn latitude_90_is_nudged_below_max() {
     // Encoding latitude 90 nudges it just below the maximum — identical to
     // encoding the nudged value directly.
-    let at_pole = PlusCode::encode(Coordinate::wgs84(90.0, 0.0), 10).unwrap();
-    let nudged = PlusCode::encode(Coordinate::wgs84(90.0 - 0.000125, 0.0), 10).unwrap();
+    let at_pole = PlusCode::encode(wgs(90.0, 0.0), 10).unwrap();
+    let nudged = PlusCode::encode(wgs(90.0 - 0.000125, 0.0), 10).unwrap();
     assert_eq!(at_pole, nudged);
 }
 
 #[test]
 fn decode_center_and_bound_precise() {
     let area = PlusCode::try_from("8FVC2222+22").unwrap().decode();
-    assert_close(area.lat, 47.0000625, 1e-9);
-    assert_close(area.lon, 8.0000625, 1e-9);
+    assert_close(area.lat(), 47.0000625, 1e-9);
+    assert_close(area.lon(), 8.0000625, 1e-9);
     // Cell is 0.000125° square; the bound is the half-diagonal in meters.
     let lat_m: f64 = 0.000125 * 111_320.0;
     let lon_m: f64 = 0.000125 * 111_320.0 * 47.0000625_f64.to_radians().cos();
@@ -206,8 +210,8 @@ fn decode_center_and_bound_precise() {
 fn decode_grid_refinement() {
     // One grid digit (X = row 4, col 3) refines the length-10 cell.
     let area = PlusCode::try_from("8FVC2222+22X").unwrap().decode();
-    assert_close(area.lat, 47.0001 + 0.000_025 / 2.0, 1e-9);
-    assert_close(area.lon, 8.00009375 + 0.000_031_25 / 2.0, 1e-9);
+    assert_close(area.lat(), 47.0001 + 0.000_025 / 2.0, 1e-9);
+    assert_close(area.lon(), 8.00009375 + 0.000_031_25 / 2.0, 1e-9);
     // The grid cell is far smaller than the length-10 cell (~8.4 m bound).
     assert!(area.max_error_m() < 4.0);
 }
@@ -216,8 +220,8 @@ fn decode_grid_refinement() {
 fn decode_two_grid_digits() {
     // Two grid digits exercise the row/column grid place-value divisions.
     let area = PlusCode::try_from("8FVC2222+22XX").unwrap().decode();
-    assert_close(area.lat, 47.0001225, 1e-7);
-    assert_close(area.lon, 8.000121094, 1e-7);
+    assert_close(area.lat(), 47.0001225, 1e-7);
+    assert_close(area.lon(), 8.000121094, 1e-7);
 }
 
 #[test]
@@ -225,12 +229,9 @@ fn decode_center_within_absolute_bound() {
     // Coordinates with non-zero digits in every pair, checked against a
     // fixed ~14 m cell bound — so a broken pair place value (which would
     // also inflate the reported bound) can't hide behind it.
-    for c in [
-        Coordinate::wgs84(40.7128, -74.006),
-        Coordinate::wgs84(-33.8688, 151.2093),
-    ] {
+    for c in [wgs(40.7128, -74.006), wgs(-33.8688, 151.2093)] {
         let area = PlusCode::encode(c, 10).unwrap().decode();
-        assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, 20.0);
+        assert_within_meters(&c, &*area, 20.0);
     }
 }
 
@@ -260,13 +261,11 @@ fn validation_padding_and_range_rules() {
 #[test]
 fn geohash_reference_vectors() {
     assert_eq!(
-        Geohash::encode(Coordinate::wgs84(42.6, -5.6), 5)
-            .unwrap()
-            .as_str(),
+        Geohash::encode(wgs(42.6, -5.6), 5).unwrap().as_str(),
         "ezs42"
     );
     assert_eq!(
-        Geohash::encode(Coordinate::wgs84(57.64911, 10.40744), 11)
+        Geohash::encode(wgs(57.64911, 10.40744), 11)
             .unwrap()
             .as_str(),
         "u4pruydqqvj"
@@ -276,14 +275,14 @@ fn geohash_reference_vectors() {
 #[test]
 fn geohash_round_trip_within_bound() {
     for c in [
-        Coordinate::wgs84(40.7128, -74.006),
-        Coordinate::wgs84(-33.8688, 151.2093),
-        Coordinate::wgs84(0.0, 0.0),
-        Coordinate::wgs84(89.9, 179.9),
+        wgs(40.7128, -74.006),
+        wgs(-33.8688, 151.2093),
+        wgs(0.0, 0.0),
+        wgs(89.9, 179.9),
     ] {
         for len in [6, 8, 10] {
             let area = Geohash::encode(c, len).unwrap().decode();
-            assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
+            assert_within_meters(&c, &*area, area.max_error_m());
         }
     }
 }
@@ -293,7 +292,7 @@ fn geohash_decode_matches_known_cell() {
     let area = Geohash::try_from("ezs42").unwrap().decode();
     // Fixed ~5 km bound (the cell is ~5 km): a decode that fails to
     // alternate lon/lat would land thousands of km away.
-    assert_within_meters(&Coordinate::wgs84(42.605, -5.603), &*area, 5000.0);
+    assert_within_meters(&wgs(42.605, -5.603), &*area, 5000.0);
     assert!(area.max_error_m() > 0.0);
 }
 
@@ -316,14 +315,12 @@ fn geohash_validation() {
 #[test]
 fn maidenhead_reference_and_decode() {
     assert_eq!(
-        Maidenhead::encode(Coordinate::wgs84(40.5, -75.0), 2)
-            .unwrap()
-            .as_str(),
+        Maidenhead::encode(wgs(40.5, -75.0), 2).unwrap().as_str(),
         "FN20"
     );
     let area = Maidenhead::try_from("FN20").unwrap().decode();
-    assert_close(area.lat, 40.5, 1e-9);
-    assert_close(area.lon, -75.0, 1e-9);
+    assert_close(area.lat(), 40.5, 1e-9);
+    assert_close(area.lon(), -75.0, 1e-9);
     // The half-diagonal bound of the 2°×1° cell, pinned exactly.
     let lat_half: f64 = 0.5 * 111_320.0;
     let lon_half: f64 = 111_320.0 * 40.5_f64.to_radians().cos();
@@ -335,25 +332,23 @@ fn maidenhead_subsquare_decode() {
     // JN58td: field J/N, square 5/8, subsquare t(19)/d(3).
     // SW corner (48.125, 11.583…); subsquare cell (2/24°)×(1/24°).
     let area = Maidenhead::try_from("JN58td").unwrap().decode();
-    assert_close(area.lat, 48.125 + (1.0 / 24.0) / 2.0, 1e-9);
-    assert_close(area.lon, 10.0 + 19.0 / 12.0 + (2.0 / 24.0) / 2.0, 1e-9);
+    assert_close(area.lat(), 48.125 + (1.0 / 24.0) / 2.0, 1e-9);
+    assert_close(area.lon(), 10.0 + 19.0 / 12.0 + (2.0 / 24.0) / 2.0, 1e-9);
 }
 
 #[test]
 fn maidenhead_three_pairs_round_trip() {
-    let c = Coordinate::wgs84(48.146, 11.605);
+    let c = wgs(48.146, 11.605);
     let mh = Maidenhead::encode(c, 3).unwrap();
     assert_eq!(mh.as_str().len(), 6);
     let area = mh.decode();
-    assert_within_meters(&Coordinate::wgs84(c.lat, c.lon), &*area, area.max_error_m());
+    assert_within_meters(&c, &*area, area.max_error_m());
 }
 
 #[test]
 fn maidenhead_pole_does_not_panic() {
-    let area = Maidenhead::encode(Coordinate::wgs84(90.0, 180.0), 3)
-        .unwrap()
-        .decode();
-    assert!(area.lat <= 90.0 && area.lon < 180.0);
+    let area = Maidenhead::encode(wgs(90.0, 180.0), 3).unwrap().decode();
+    assert!(area.lat() <= 90.0 && area.lon() < 180.0);
 }
 
 #[test]
@@ -379,4 +374,31 @@ fn maidenhead_validation() {
     assert_invalid_grid_ref(Maidenhead::try_from("JN580d")); // sub 1 past x ('0')
     assert_invalid_grid_ref(Maidenhead::try_from("JN58t0")); // sub 2 past x ('0')
     assert_invalid_grid_ref(Maidenhead::try_from("FN20zz")); // 'z' is past x
+}
+
+/// Deserialization validates like `TryFrom<&str>`: an out-of-range code that
+/// would decode to an invalid `Coordinate` (Maidenhead `ZZ` -> lon 330, Plus
+/// Code `XX000000+` -> lon 210) is rejected, and the wire stays a bare,
+/// canonical string that round-trips.
+#[cfg(feature = "serde")]
+#[test]
+fn deserialize_validates_and_round_trips_as_a_bare_string() {
+    for bad in [r#""ZZ""#, r#""""#, r#""FN2""#] {
+        assert!(serde_json::from_str::<Maidenhead>(bad).is_err(), "{bad}");
+    }
+    for bad in [r#""XX000000+""#, r#""8FVC+""#, r#""""#] {
+        assert!(serde_json::from_str::<PlusCode>(bad).is_err(), "{bad}");
+    }
+    for bad in [r#""dr5a""#, r#""""#] {
+        assert!(serde_json::from_str::<Geohash>(bad).is_err(), "{bad}");
+    }
+
+    let m: Maidenhead = serde_json::from_str(r#""fn20XL""#).unwrap();
+    assert_eq!(m.as_str(), "FN20xl");
+    assert_eq!(serde_json::to_string(&m).unwrap(), r#""FN20xl""#);
+    let p: PlusCode = serde_json::from_str(r#""87g7x2vv+2v""#).unwrap();
+    assert_eq!(serde_json::to_string(&p).unwrap(), r#""87G7X2VV+2V""#);
+    let g: Geohash = serde_json::from_str(r#""DR5REGY""#).unwrap();
+    assert_eq!(serde_json::to_string(&g).unwrap(), r#""dr5regy""#);
+    assert_eq!(String::from(g), "dr5regy");
 }

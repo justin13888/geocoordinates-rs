@@ -5,7 +5,7 @@ use crate::test_support::assert_close;
 mod edges;
 
 fn c(lat: f64, lon: f64) -> Coordinate {
-    Coordinate::wgs84(lat, lon)
+    Coordinate::wgs84(lat, lon).unwrap()
 }
 
 #[test]
@@ -28,8 +28,8 @@ fn geodesic_distance_measures_other_datums_on_wgs84() {
     let bessel = crate::geodesy::Ellipsoid::BESSEL_1841;
     let (a, b) = ((35.0, 139.0), (36.0, 140.0));
     let tokyo = geodesic_distance(
-        &Coordinate::new(a.0, a.1, Crs::Tokyo),
-        &Coordinate::new(b.0, b.1, Crs::Tokyo),
+        &Coordinate::new(a.0, a.1, Crs::Tokyo).unwrap(),
+        &Coordinate::new(b.0, b.1, Crs::Tokyo).unwrap(),
     )
     .unwrap()
     .meters();
@@ -69,15 +69,15 @@ fn destination_inverts_distance_and_bearing() {
         geodesic_distance(&start, &end).unwrap(),
     )
     .unwrap();
-    assert_close(d.lat, 41.0, 1e-6);
-    assert_close(d.lon, -73.0, 1e-6);
+    assert_close(d.lat(), 41.0, 1e-6);
+    assert_close(d.lon(), -73.0, 1e-6);
 }
 
 #[test]
 fn destination_rejects_non_wgs84() {
     assert!(matches!(
         destination(
-            &Coordinate::gcj02(0.0, 0.0),
+            &Coordinate::gcj02(0.0, 0.0).unwrap(),
             90.0,
             Length::from_meters(100_000.0),
         ),
@@ -91,10 +91,12 @@ fn destination_rejects_non_wgs84() {
 #[test]
 fn midpoint_and_intermediate() {
     let mid = midpoint(&c(0.0, 0.0), &c(0.0, 2.0)).unwrap();
-    assert_close(mid.lat, 0.0, 1e-6);
-    assert_close(mid.lon, 1.0, 1e-6);
+    assert_close(mid.lat(), 0.0, 1e-6);
+    assert_close(mid.lon(), 1.0, 1e-6);
     assert_close(
-        intermediate(&c(0.0, 0.0), &c(0.0, 10.0), 0.25).unwrap().lon,
+        intermediate(&c(0.0, 0.0), &c(0.0, 10.0), 0.25)
+            .unwrap()
+            .lon(),
         2.5,
         1e-6,
     );
@@ -116,7 +118,7 @@ fn final_bearing_is_not_constant_zero() {
 #[test]
 fn public_geodesics_reject_mixed_crs_and_invalid_parameters() {
     assert!(matches!(
-        geodesic_distance(&Coordinate::wgs84(0.0, 0.0), &Coordinate::gcj02(0.0, 1.0)),
+        geodesic_distance(&c(0.0, 0.0), &Coordinate::gcj02(0.0, 1.0).unwrap()),
         Err(Error::CrsMismatch {
             expected: Crs::Wgs84,
             found: Crs::Gcj02,

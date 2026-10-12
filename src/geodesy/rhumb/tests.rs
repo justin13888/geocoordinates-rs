@@ -2,7 +2,7 @@ use super::*;
 use crate::test_support::assert_close;
 
 fn c(lat: f64, lon: f64) -> Coordinate {
-    Coordinate::wgs84(lat, lon)
+    Coordinate::wgs84(lat, lon).unwrap()
 }
 
 #[test]
@@ -34,8 +34,8 @@ fn rhumb_destination_round_trip() {
         rhumb_distance(&start, &end).unwrap(),
     )
     .unwrap();
-    assert_close(d.lat, 45.0, 1e-6);
-    assert_close(d.lon, -70.0, 1e-6);
+    assert_close(d.lat(), 45.0, 1e-6);
+    assert_close(d.lon(), -70.0, 1e-6);
 }
 
 #[test]
@@ -97,20 +97,20 @@ fn east_west_scale_falls_back_to_cos_at_and_below_the_threshold() {
 fn rhumb_destination_due_east_holds_latitude() {
     // A due-east rhumb keeps latitude fixed (d_psi → 0, so q = cos φ₁).
     let d = rhumb_destination(&c(40.0, 0.0), 90.0, Length::from_meters(100_000.0)).unwrap();
-    assert_close(d.lat, 40.0, 1e-9);
-    assert_close(d.lon, 1.173_979_358_250_968, 1e-9);
+    assert_close(d.lat(), 40.0, 1e-9);
+    assert_close(d.lon(), 1.173_979_358_250_968, 1e-9);
 }
 
 #[test]
 fn rhumb_destination_reflects_over_the_poles() {
     // Pushing north past the pole reflects the latitude back down the far side.
     let n = rhumb_destination(&c(80.0, 0.0), 0.0, Length::from_meters(1_668_000.0)).unwrap();
-    assert_close(n.lat, 84.999_336_333_074_71, 1e-9);
-    assert_close(n.lon, -180.0, 1e-9);
+    assert_close(n.lat(), 84.999_336_333_074_71, 1e-9);
+    assert_close(n.lon(), -180.0, 1e-9);
     // …and symmetrically over the south pole (the negative reflection arm).
     let s = rhumb_destination(&c(-80.0, 0.0), 180.0, Length::from_meters(1_668_000.0)).unwrap();
-    assert_close(s.lat, -84.999_336_333_074_71, 1e-9);
-    assert_close(s.lon, -180.0, 1e-9);
+    assert_close(s.lat(), -84.999_336_333_074_71, 1e-9);
+    assert_close(s.lon(), -180.0, 1e-9);
 }
 
 #[test]
@@ -120,8 +120,8 @@ fn rhumb_destination_over_a_pole_adds_a_half_turn_to_the_longitude() {
     // this pins the exact rounding of the addition: −179.9 + 180 is
     // 0.099_999_999_999_994_32, while −179.9 − 180 wraps to 0.100_000_000_000_022_74.
     let p = rhumb_destination(&c(80.0, -179.9), 0.0, Length::from_meters(1_668_000.0)).unwrap();
-    assert_close(p.lat, 84.999_336_333_074_71, 1e-9);
-    assert_eq!(p.lon, 0.099_999_999_999_994_32);
+    assert_close(p.lat(), 84.999_336_333_074_71, 1e-9);
+    assert_eq!(p.lon(), 0.099_999_999_999_994_32);
 }
 
 #[test]
@@ -132,8 +132,8 @@ fn rhumb_across_the_antimeridian_takes_the_short_way() {
     let expected = MEAN_EARTH_RADIUS_M * 1.0_f64.to_radians() * 10.0_f64.to_radians().cos();
     assert_close(rhumb_distance(&a, &b).unwrap().meters(), expected, 1e-6);
     let d = rhumb_destination(&a, 90.0, Length::from_meters(110_000.0)).unwrap();
-    assert_close(d.lat, 10.0, 1e-12);
-    assert_close(d.lon, -179.495_486_787, 1e-8);
+    assert_close(d.lat(), 10.0, 1e-12);
+    assert_close(d.lon(), -179.495_486_787, 1e-8);
 }
 
 #[test]
@@ -191,8 +191,8 @@ fn rhumb_destination_due_north_onto_the_pole_keeps_its_meridian() {
     // crossing it, so there is no reflection and no 180° longitude flip.
     let ten_deg = Length::from_meters(10.0_f64.to_radians() * MEAN_EARTH_RADIUS_M);
     let p = rhumb_destination(&c(80.0, 0.0), 0.0, ten_deg).unwrap();
-    assert_close(p.lat, 90.0, 1e-9);
-    assert_eq!(p.lon, 0.0);
+    assert_close(p.lat(), 90.0, 1e-9);
+    assert_eq!(p.lon(), 0.0);
 }
 
 #[test]
@@ -201,13 +201,14 @@ fn rhumb_destination_oblique_past_the_pole_reflects() {
     // into the pole and never crosses it, but the spherical routine reflects
     // over it as if it were a meridian and returns an arbitrary position.
     let p = rhumb_destination(&c(80.0, 0.0), 45.0, Length::from_meters(2_000_000.0)).unwrap();
-    assert_close(p.lat, 87.281_689_447, 1e-8);
-    assert_close(p.lon, -105.233_022_646, 1e-8);
+    assert_close(p.lat(), 87.281_689_447, 1e-8);
+    assert_close(p.lon(), -105.233_022_646, 1e-8);
     // KNOWN WRONG (C7, flipped by #115): landing on the pole along 45° divides
     // by Δψ → ∞, so the longitude is round-off noise; only its range is pinned.
     let to_pole =
         Length::from_meters(10.0_f64.to_radians() * MEAN_EARTH_RADIUS_M / FRAC_PI_4.cos());
     let p = rhumb_destination(&c(80.0, 0.0), 45.0, to_pole).unwrap();
-    assert_close(p.lat, 90.0, 1e-9);
-    assert!(p.validate().is_ok(), "{p:?}");
+    assert_close(p.lat(), 90.0, 1e-9);
+    // A `Coordinate` is in range by construction; its components re-validate.
+    assert!(Coordinate::wgs84(p.lat(), p.lon()).is_ok(), "{p:?}");
 }

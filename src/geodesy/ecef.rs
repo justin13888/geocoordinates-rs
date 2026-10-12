@@ -14,7 +14,7 @@ use crate::coord::{Coordinate, Crs, Height};
 use crate::error::{Error, Result};
 
 fn height_meters(coord: Coordinate) -> Result<f64> {
-    match coord.height {
+    match coord.height() {
         Some(Height::Ellipsoidal(h)) => Ok(h),
         Some(Height::Orthometric(_)) => Err(Error::InvalidValue {
             field: "height",
@@ -81,20 +81,16 @@ impl Ecef {
         let w = (1.0 - e2 * sin_lat * sin_lat).sqrt();
         let h = p * cos_lat + self.z * sin_lat - a * w;
 
-        let result =
-            Coordinate::new(lat.to_degrees(), lon, crs).with_height(Height::Ellipsoidal(h));
-        result.validate()?;
-        Ok(result)
+        Coordinate::new(lat.to_degrees(), lon, crs)?.with_height(Height::Ellipsoidal(h))
     }
 
     /// Geodetic [`Coordinate`] → ECEF on the given ellipsoid (exact, closed
     /// form). Missing height means zero ellipsoidal height; orthometric height
     /// is rejected because no geoid model is available.
     pub fn try_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<Self> {
-        coord.validate()?;
         ellipsoid.validate()?;
-        let phi = coord.lat.to_radians();
-        let lambda = coord.lon.to_radians();
+        let phi = coord.lat().to_radians();
+        let lambda = coord.lon().to_radians();
         let h = height_meters(coord)?;
         let a = ellipsoid.semi_major_m;
         let e2 = ellipsoid.eccentricity_sq();
@@ -120,7 +116,8 @@ mod tests {
     #[test]
     fn forward_reference_points() {
         let e = Ellipsoid::WGS84;
-        let at = |lat, lon| Ecef::try_from_coordinate(Coordinate::wgs84(lat, lon), e).unwrap();
+        let at =
+            |lat, lon| Ecef::try_from_coordinate(Coordinate::wgs84(lat, lon).unwrap(), e).unwrap();
         let p = at(0.0, 0.0);
         assert_close(p.x, WGS84_A, 1e-3);
         assert_close(p.y, 0.0, 1e-3);
@@ -143,17 +140,20 @@ mod tests {
             (90.0, 0.0, 0.0), // north pole (polar-axis height branch)
             (-89.9, 179.9, 50.0),
         ] {
-            let c = Coordinate::wgs84(lat, lon).with_height(Height::Ellipsoidal(h));
+            let c = Coordinate::wgs84(lat, lon)
+                .unwrap()
+                .with_height(Height::Ellipsoidal(h))
+                .unwrap();
             let back = Ecef::try_from_coordinate(c, e)
                 .unwrap()
                 .try_to_coordinate(e, Crs::Wgs84)
                 .unwrap();
-            assert_close(back.lat, lat, 1e-9);
+            assert_close(back.lat(), lat, 1e-9);
             // Longitude is undefined at the exact pole; skip it there.
             if lat.abs() < 90.0 {
-                assert_close(back.lon, lon, 1e-9);
+                assert_close(back.lon(), lon, 1e-9);
             }
-            match back.height {
+            match back.height() {
                 Some(Height::Ellipsoidal(hb)) => assert_close(hb, h, 1e-4),
                 other => panic!("expected ellipsoidal height, got {other:?}"),
             }
@@ -171,16 +171,19 @@ mod tests {
             (0..=180)
                 .map(|i| 0.5 * f64::from(i) - 45.0)
                 .map(|lat| {
-                    let c = Coordinate::wgs84(lat, 10.0).with_height(Height::Ellipsoidal(h));
+                    let c = Coordinate::wgs84(lat, 10.0)
+                        .unwrap()
+                        .with_height(Height::Ellipsoidal(h))
+                        .unwrap();
                     let back = Ecef::try_from_coordinate(c, e)
                         .unwrap()
                         .try_to_coordinate(e, Crs::Wgs84)
                         .unwrap();
-                    let Some(Height::Ellipsoidal(hb)) = back.height else {
-                        panic!("expected ellipsoidal height, got {:?}", back.height);
+                    let Some(Height::Ellipsoidal(hb)) = back.height() else {
+                        panic!("expected ellipsoidal height, got {:?}", back.height());
                     };
                     (
-                        (back.lat - lat).abs().to_radians() * (WGS84_A + h),
+                        (back.lat() - lat).abs().to_radians() * (WGS84_A + h),
                         (hb - h).abs(),
                     )
                 })
@@ -218,7 +221,10 @@ mod tests {
     fn invalid_inputs_and_orthometric_heights_are_rejected() {
         assert!(
             Ecef::try_from_coordinate(
-                Coordinate::wgs84(0.0, 0.0).with_height(Height::Orthometric(1.0)),
+                Coordinate::wgs84(0.0, 0.0)
+                    .unwrap()
+                    .with_height(Height::Orthometric(1.0))
+                    .unwrap(),
                 Ellipsoid::WGS84,
             )
             .is_err()

@@ -47,9 +47,13 @@ pub enum Height {
 
 /// The canonical coordinate — mirror of [`gc::Coordinate`].
 ///
-/// Unvalidated until used: constructing one does not check that `lat` is in
-/// `[-90, 90]`, `lon` in `[-180, 180]`, or a height finite. Call
-/// [`coordinate_validate`] to reject such values up front.
+/// A record can be built field by field in foreign code, so it is checked at
+/// the boundary instead: every function that takes one rejects a latitude
+/// outside `[-90, 90]`, a longitude outside `[-180, 180]`, a non-finite
+/// component, or a non-finite height with [`GeoError::OutOfRange`] /
+/// [`GeoError::InvalidValue`] before doing anything else. Build one with
+/// [`coordinate_new`] to fail at construction, or call [`coordinate_validate`]
+/// on a hand-built record. Every `Coordinate` this library returns is valid.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Coordinate {
     /// Latitude in decimal degrees.
@@ -200,20 +204,24 @@ impl From<Height> for gc::Height {
 impl From<gc::Coordinate> for Coordinate {
     fn from(c: gc::Coordinate) -> Self {
         Coordinate {
-            lat: c.lat,
-            lon: c.lon,
-            height: c.height.map(Into::into),
-            crs: c.crs.into(),
+            lat: c.lat(),
+            lon: c.lon(),
+            height: c.height().map(Into::into),
+            crs: c.crs().into(),
         }
     }
 }
 
-impl From<Coordinate> for gc::Coordinate {
-    fn from(c: Coordinate) -> Self {
-        let base = gc::Coordinate::new(c.lat, c.lon, c.crs.into());
+/// Every mirror record entering the core crate is validated here, so a
+/// hand-built out-of-range record is rejected rather than computed on.
+impl TryFrom<Coordinate> for gc::Coordinate {
+    type Error = gc::Error;
+
+    fn try_from(c: Coordinate) -> Result<Self, gc::Error> {
+        let base = gc::Coordinate::new(c.lat, c.lon, c.crs.into())?;
         match c.height {
             Some(h) => base.with_height(h.into()),
-            None => base,
+            None => Ok(base),
         }
     }
 }
@@ -341,14 +349,17 @@ impl From<gc::Fix> for Fix {
     }
 }
 
-impl From<Fix> for gc::Fix {
-    fn from(f: Fix) -> Self {
-        gc::Fix {
-            coord: f.coord.into(),
+/// Validates the embedded [`Coordinate`], as its own `TryFrom` does.
+impl TryFrom<Fix> for gc::Fix {
+    type Error = gc::Error;
+
+    fn try_from(f: Fix) -> Result<Self, gc::Error> {
+        Ok(gc::Fix {
+            coord: f.coord.try_into()?,
             accuracy: f.accuracy.map(Into::into),
             timestamp: f.timestamp,
             source: f.source.map(Into::into),
-        }
+        })
     }
 }
 
@@ -356,24 +367,18 @@ impl From<Fix> for gc::Fix {
 // Exported API
 // ===========================================================================
 
-// --- Coordinate constructors ---
+// --- Coordinate constructor ---
 
-/// Construct a WGS-84 [`Coordinate`] from latitude/longitude in degrees.
+/// Construct a [`Coordinate`] from latitude and longitude in decimal degrees
+/// (latitude first) in `crs`, with no height. Attach a height by setting the
+/// record's `height` field; it is validated wherever the record is used.
+///
+/// # Errors
+/// [`GeoError::OutOfRange`] when latitude is outside `[-90, 90]`, longitude is
+/// outside `[-180, 180]`, or either is not finite.
 #[uniffi::export]
-pub fn coordinate_wgs84(lat: f64, lon: f64) -> Coordinate {
-    gc::Coordinate::wgs84(lat, lon).into()
-}
-
-/// Construct a GCJ-02 [`Coordinate`] from latitude/longitude in degrees.
-#[uniffi::export]
-pub fn coordinate_gcj02(lat: f64, lon: f64) -> Coordinate {
-    gc::Coordinate::gcj02(lat, lon).into()
-}
-
-/// Construct a BD-09 [`Coordinate`] from latitude/longitude in degrees.
-#[uniffi::export]
-pub fn coordinate_bd09(lat: f64, lon: f64) -> Coordinate {
-    gc::Coordinate::bd09(lat, lon).into()
+pub fn coordinate_new(lat: f64, lon: f64, crs: Crs) -> Result<Coordinate, GeoError> {
+    Ok(gc::Coordinate::new(lat, lon, crs.into())?.into())
 }
 
 // --- Length unit conversions (`Length` is flattened to `f64` meters) ---
@@ -392,30 +397,37 @@ pub fn length_to_unit(meters: f64, unit: LengthUnit) -> f64 {
 
 // --- Coordinate validation ---
 
-/// Validate that the coordinate's latitude/longitude are in range.
+/// Validate a (possibly hand-built) coordinate record: latitude in
+/// `[-90, 90]`, longitude in `[-180, 180]`, both finite, and any height finite.
 ///
 /// # Errors
-/// Returns [`GeoError::OutOfRange`] when either component is out of range.
+/// [`GeoError::OutOfRange`] when either horizontal component is invalid, or
+/// [`GeoError::InvalidValue`] when the height is not finite.
 #[uniffi::export]
 pub fn coordinate_validate(coord: Coordinate) -> Result<(), GeoError> {
-    gc::Coordinate::from(coord)
-        .validate()
-        .map_err(GeoError::from)
+    gc::Coordinate::try_from(coord)?;
+    Ok(())
 }
 
 /// Whether the coordinate is "Null Island" — both components within ~0.11 m of
 /// zero, the telltale of a missing or defaulted fix.
+///
+/// # Errors
+/// As [`coordinate_validate`], for an invalid record.
 #[uniffi::export]
-pub fn coordinate_is_null_island(coord: Coordinate) -> bool {
-    gc::Coordinate::from(coord).is_null_island()
+pub fn coordinate_is_null_island(coord: Coordinate) -> Result<bool, GeoError> {
+    Ok(gc::Coordinate::try_from(coord)?.is_null_island())
 }
 
 // --- Fix observation family constructors ---
 
 /// Wrap a bare [`Coordinate`] as a [`Fix`] with no metadata.
+///
+/// # Errors
+/// As [`coordinate_validate`], for an invalid record.
 #[uniffi::export]
-pub fn fix_from_coord(coord: Coordinate) -> Fix {
-    gc::Fix::from_coord(coord.into()).into()
+pub fn fix_from_coord(coord: Coordinate) -> Result<Fix, GeoError> {
+    Ok(gc::Fix::from_coord(coord.try_into()?).into())
 }
 
 /// Construct a [`Confidence`], clamping `value` into `[0.0, 1.0]`.
@@ -469,9 +481,10 @@ pub(crate) fn approx_coordinate(approx: gc::Approx<gc::Coordinate>) -> ApproxCoo
 /// `GeoError` when no route is known between the two systems.
 #[uniffi::export]
 pub fn convert(coord: Coordinate, to: Crs) -> Result<ApproxCoordinate, GeoError> {
-    gc::convert::convert(coord.into(), to.into())
-        .map(approx_coordinate)
-        .map_err(GeoError::from)
+    Ok(approx_coordinate(gc::convert::convert(
+        coord.try_into()?,
+        to.into(),
+    )?))
 }
 
 /// Whether a conversion route exists between two reference systems.

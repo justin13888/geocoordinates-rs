@@ -25,15 +25,17 @@
 //! builtin `Timestamp`) all cross the boundary as flat records / enums and free
 //! functions.
 //!
-//! Mirror records are **unvalidated until used**: they are plain data, so
-//! foreign code can build one with any field values (an out-of-range latitude,
-//! a negative semi-major axis, a confidence of `7.0`). Nothing checks a record
-//! when it is constructed or crosses into Rust, and nothing normalizes one
-//! there except [`Confidence`], whose value is clamped into `[0.0, 1.0]` when
-//! it crosses in (as `gc::Confidence::new` does). Beyond that, each exported
-//! function applies the core crate's own rules to the values it consumes,
-//! exactly as the matching Rust function does. Call an explicit validator
-//! (such as [`coordinate_validate`]) to reject bad input up front.
+//! Mirror records are plain data, so foreign code can build one with any field
+//! values (an out-of-range latitude, a negative semi-major axis, a confidence
+//! of `7.0`). A [`Coordinate`] record (alone or inside a [`Fix`]) is
+//! **validated as it crosses into Rust**: every exported function that takes
+//! one rejects an out-of-range or non-finite record with a `GeoError` before
+//! doing anything else, because the core `Coordinate` is valid by
+//! construction. Build one with [`coordinate_new`] to fail at construction
+//! instead. [`Confidence`] is clamped into `[0.0, 1.0]` when it crosses in (as
+//! `gc::Confidence::new` does). Every other record is **unvalidated until
+//! used**: each exported function applies the core crate's own rules to the
+//! values it consumes, exactly as the matching Rust function does.
 
 uniffi::setup_scaffolding!();
 

@@ -101,11 +101,8 @@ fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f6
 fn coordinate(lat: &str, ns: &str, lon: &str, ew: &str, raw: &str) -> Result<Coordinate> {
     let lat = parse_ddm(lat, ns, 2, raw)?;
     let lon = parse_ddm(lon, ew, 3, raw)?;
-    let coord = Coordinate::wgs84(lat, lon);
-    coord
-        .validate()
-        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))?;
-    Ok(coord)
+    Coordinate::wgs84(lat, lon)
+        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))
 }
 
 /// The `i`-th comma-separated field, or `""` when absent.
@@ -148,7 +145,9 @@ fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
     let mut coord = coordinate(field(f, 2), field(f, 3), field(f, 4), field(f, 5), raw)?;
     let mut notes = Vec::new();
     if let Some(alt) = optional_number(field(f, 9), "altitude", raw)? {
-        coord = coord.with_height(Height::Orthometric(alt));
+        coord = coord
+            .with_height(Height::Orthometric(alt))
+            .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))?;
     }
     if let Some(sep) = optional_number(field(f, 11), "geoid separation", raw)? {
         notes.push(format!("geoid separation {sep} m"));
@@ -164,9 +163,6 @@ fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
             })
         })
         .transpose()?;
-    coord
-        .validate()
-        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))?;
     Ok(base_fix(coord, accuracy, notes, raw))
 }
 
@@ -200,9 +196,9 @@ mod tests {
         let fix =
             from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
                 .unwrap();
-        assert_close(fix.coord.lat, 48.0 + 7.038 / 60.0, 1e-9);
-        assert_close(fix.coord.lon, 11.0 + 31.0 / 60.0, 1e-9);
-        assert_eq!(fix.coord.height, Some(Height::Orthometric(545.4)));
+        assert_close(fix.coord.lat(), 48.0 + 7.038 / 60.0, 1e-9);
+        assert_close(fix.coord.lon(), 11.0 + 31.0 / 60.0, 1e-9);
+        assert_eq!(fix.coord.height(), Some(Height::Orthometric(545.4)));
         assert_close(
             fix.accuracy.unwrap().horizontal_m.unwrap(),
             0.9 * NOMINAL_UERE_M,
@@ -218,8 +214,8 @@ mod tests {
         let fix =
             from_nmea_sentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
                 .unwrap();
-        assert_close(fix.coord.lat, -(33.0 + 40.0 / 60.0), 1e-9);
-        assert_close(fix.coord.lon, -(70.0 + 30.0 / 60.0), 1e-9);
+        assert_close(fix.coord.lat(), -(33.0 + 40.0 / 60.0), 1e-9);
+        assert_close(fix.coord.lon(), -(70.0 + 30.0 / 60.0), 1e-9);
         assert!(fix.accuracy.is_none());
         assert!(fix.source.unwrap().notes.iter().any(|n| n.contains("void")));
     }
@@ -227,8 +223,8 @@ mod tests {
     #[test]
     fn gll_west() {
         let fix = from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1D").unwrap();
-        assert_close(fix.coord.lat, 49.0 + 16.45 / 60.0, 1e-9);
-        assert_close(fix.coord.lon, -(123.0 + 11.12 / 60.0), 1e-9);
+        assert_close(fix.coord.lat(), 49.0 + 16.45 / 60.0, 1e-9);
+        assert_close(fix.coord.lon(), -(123.0 + 11.12 / 60.0), 1e-9);
         // Status "A" is valid, so no void note is attached.
         assert!(fix.source.unwrap().notes.is_empty());
     }

@@ -273,13 +273,13 @@ impl BaiduMercator {
     /// via [`BaiduMercator::try_to_bd09`]. Height is left unset — the
     /// projection is 2-D.
     pub fn try_to_coordinate(self) -> Result<Coordinate> {
-        Ok(self.try_to_bd09()?.into())
+        self.try_to_bd09()?.try_to_coordinate()
     }
 
     /// Canonical [`Coordinate`] → Baidu Web Mercator.
     ///
     /// # Errors
-    /// Returns [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Bd09`](crate::Crs) — a
+    /// Returns [`Error::CrsMismatch`] unless `coord.crs()` is [`Crs::Bd09`](crate::Crs) — a
     /// non-BD-09 coordinate must be converted to BD-09 first, never silently
     /// reprojected.
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Self> {
@@ -308,7 +308,7 @@ impl TryFrom<BaiduMercator> for Bd09 {
 impl TryFrom<Coordinate> for BaiduMercator {
     type Error = Error;
 
-    /// Fails with [`Error::CrsMismatch`] unless `coord.crs` is [`Crs::Bd09`](crate::Crs).
+    /// Fails with [`Error::CrsMismatch`] unless `coord.crs()` is [`Crs::Bd09`](crate::Crs).
     fn try_from(coord: Coordinate) -> Result<Self> {
         Self::try_from_coordinate(coord)
     }
@@ -369,9 +369,10 @@ mod tests {
     fn coordinate_bridge_round_trips_and_checks_crs() {
         let m = BaiduMercator::new(REF_XY.0, REF_XY.1);
         let coord = m.try_to_coordinate().unwrap();
-        assert_eq!(coord.crs, Crs::Bd09);
+        assert_eq!(coord.crs(), Crs::Bd09);
         // A non-BD-09 coordinate must be rejected, not silently reprojected.
-        assert!(BaiduMercator::try_from(Coordinate::wgs84(REF_BD09_LAT, REF_BD09_LON)).is_err());
+        let wgs = Coordinate::wgs84(REF_BD09_LAT, REF_BD09_LON).unwrap();
+        assert!(BaiduMercator::try_from(wgs).is_err());
     }
 
     #[test]

@@ -68,8 +68,7 @@ pub fn parse_with(input: &str, options: &TextParseOptions) -> Result<Fix> {
         .ok_or_else(|| Error::Parse(format!("could not parse component: {second}")))?;
 
     let resolved = resolve(a, b, options.default_axis_order)?;
-    let coord = Coordinate::wgs84(resolved.lat, resolved.lon);
-    coord.validate().map_err(|_| {
+    let coord = Coordinate::wgs84(resolved.lat, resolved.lon).map_err(|_| {
         Error::Parse(format!(
             "coordinate out of range: {}, {}",
             resolved.lat, resolved.lon

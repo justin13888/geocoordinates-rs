@@ -15,7 +15,7 @@ subsystem meets the five-point stabilization bar defined in
 
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
-| **Core types** | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Fix`, `Accuracy`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ⚠️ G4 |
+| **Core types** | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Fix`, `Accuracy`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
 | **Angles & units** | `Dd`, `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees`, `Length`, `LengthUnit` | ✅ | ⚠️ G5 |
 | **China datums** | `Wgs84`, `Gcj02`, `Bd09` (exact forward, `_fast` / `_refined` inverses), `BaiduMercator`, `out_of_china` | ✅ | ⚠️ G3, G5 |
 | **Runtime dispatch** | `convert`, `can_convert` | ✅ | ✅ |

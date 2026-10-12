@@ -133,14 +133,13 @@ impl Utm {
     /// [`Error::OutOfRange`] for latitudes outside the UTM band (south of 80°S
     /// or north of 84°N).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Utm> {
-        coord.validate()?;
-        if coord.crs != crate::Crs::Wgs84 {
+        if coord.crs() != crate::Crs::Wgs84 {
             return Err(Error::CrsMismatch {
                 expected: crate::Crs::Wgs84,
-                found: coord.crs,
+                found: coord.crs(),
             });
         }
-        let (lat, lon) = (coord.lat, coord.lon);
+        let (lat, lon) = (coord.lat(), coord.lon());
         if !(-80.0..84.0).contains(&lat) {
             return Err(Error::OutOfRange { lat, lon });
         }
@@ -215,9 +214,7 @@ impl Utm {
             lat += DELTA[j - 1] * (2.0 * jf * chi).sin();
         }
         let lon = lon0.to_radians() + eta_p.sinh().atan2(xi_p.cos());
-        let result = Coordinate::wgs84(lat.to_degrees(), lon.to_degrees());
-        result.validate()?;
-        Ok(result)
+        Coordinate::wgs84(lat.to_degrees(), lon.to_degrees())
     }
 }
 
@@ -239,14 +236,13 @@ impl Ups {
     /// [`Error::OutOfRange`] for latitudes outside the polar zones (between 80°S
     /// and 84°N, which are UTM territory).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Ups> {
-        coord.validate()?;
-        if coord.crs != crate::Crs::Wgs84 {
+        if coord.crs() != crate::Crs::Wgs84 {
             return Err(Error::CrsMismatch {
                 expected: crate::Crs::Wgs84,
-                found: coord.crs,
+                found: coord.crs(),
             });
         }
-        let (lat, lon) = (coord.lat, coord.lon);
+        let (lat, lon) = (coord.lat(), coord.lon());
         let north = lat >= 0.0;
         if (north && lat < 84.0) || (!north && lat > -80.0) {
             return Err(Error::OutOfRange { lat, lon });
@@ -279,9 +275,7 @@ impl Ups {
         }
         let north = self.hemisphere == Hemisphere::North;
         let (lat, lon) = ups_inverse(self.easting, self.northing, north);
-        let result = Coordinate::wgs84(lat, lon);
-        result.validate()?;
-        Ok(result)
+        Coordinate::wgs84(lat, lon)
     }
 }
 

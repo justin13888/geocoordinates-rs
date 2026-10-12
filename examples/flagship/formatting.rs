@@ -6,18 +6,30 @@ use geocoordinates::format::{
 };
 use geocoordinates::parse::text::{TextParseOptions, parse as parse_text, parse_with};
 use geocoordinates::parse::{from_geo_uri, parse_coordinate, parse_coordinate_with};
-use geocoordinates::{Accuracy, Coordinate, Fix, Height};
+use geocoordinates::{Accuracy, Coordinate, Crs, Fix, Height};
 
-use crate::support::{DemoResult, NEW_YORK, assert_close, assert_within_meters};
+use crate::support::{DemoResult, assert_close, assert_within_meters, new_york};
 
 pub(crate) fn formatting_and_parsing() -> DemoResult {
+    let new_york = new_york();
     assert_eq!(
-        format(&NEW_YORK, &FormatOptions::default())?,
+        format(&new_york, &FormatOptions::default())?,
         "40.712800, -74.006000"
     );
-    assert_eq!(NEW_YORK.to_string(), "40.712800, -74.006000");
-    let from_str: Coordinate = "40.7128, -74.006".parse()?;
-    assert_within_meters(&from_str, &NEW_YORK, 0.01);
+    // `Coordinate` has no `Display`/`FromStr`: text carries no datum, so the
+    // explicit `format` / `parse_coordinate` routes are the only text paths.
+    let parsed = parse_coordinate("40.7128, -74.006")?.coord;
+    assert_within_meters(&parsed, &new_york, 0.01);
+    // A GCJ-02 coordinate renders to the same digits, but the datum does not
+    // survive the trip: parsed text is always WGS-84 until the caller re-tags it.
+    let mars = Coordinate::gcj02(39.915, 116.404)?;
+    let mars_text = format(&mars, &FormatOptions::default())?;
+    assert_eq!(mars_text, "39.915000, 116.404000");
+    let reparsed_mars = parse_coordinate(&mars_text)?.coord;
+    assert_eq!(reparsed_mars.crs(), Crs::Wgs84);
+    assert_ne!(reparsed_mars.crs(), mars.crs());
+    let retagged = Coordinate::new(reparsed_mars.lat(), reparsed_mars.lon(), Crs::Gcj02)?;
+    assert_within_meters(&retagged, &mars, 0.2);
 
     for representation in [
         Representation::DecimalDegrees,
@@ -26,7 +38,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         Representation::PlusCode,
     ] {
         let rendered = format(
-            &NEW_YORK,
+            &new_york,
             &FormatOptions {
                 representation,
                 ..FormatOptions::default()
@@ -42,7 +54,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     ];
     for (symbol_style, expected) in symbols {
         let rendered = format(
-            &Coordinate::wgs84(10.5, 20.25),
+            &Coordinate::wgs84(10.5, 20.25)?,
             &FormatOptions {
                 representation: Representation::Dms,
                 precision: Some(0),
@@ -55,7 +67,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     }
     assert_eq!(
         format(
-            &NEW_YORK,
+            &new_york,
             &FormatOptions {
                 hemisphere_style: HemisphereStyle::Cardinal,
                 ..FormatOptions::default()
@@ -65,7 +77,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     );
     assert_eq!(
         format(
-            &NEW_YORK,
+            &new_york,
             &FormatOptions {
                 locale: Some("de-DE".to_owned()),
                 ..FormatOptions::default()
@@ -74,7 +86,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         "40,712800 -74,006000"
     );
     let low_accuracy = Fix {
-        coord: NEW_YORK,
+        coord: new_york,
         accuracy: Some(Accuracy {
             horizontal_m: Some(1_000.0),
             vertical_m: None,
@@ -94,12 +106,12 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     );
 
     let dms = parse_text("40°42′46″N 74°00′22″W")?;
-    assert_close(dms.coord.lat, 40.0 + 42.0 / 60.0 + 46.0 / 3_600.0, 1e-9);
-    assert_close(dms.coord.lon, -(74.0 + 22.0 / 3_600.0), 1e-9);
+    assert_close(dms.coord.lat(), 40.0 + 42.0 / 60.0 + 46.0 / 3_600.0, 1e-9);
+    assert_close(dms.coord.lon(), -(74.0 + 22.0 / 3_600.0), 1e-9);
     assert_eq!(dms.source.as_ref().and_then(|s| s.axis_order), None);
     let ddm = parse_text("40 42.766 N 74 0.456 W")?;
-    assert_close(ddm.coord.lat, 40.0 + 42.766 / 60.0, 1e-9);
-    assert_close(ddm.coord.lon, -(74.0 + 0.456 / 60.0), 1e-9);
+    assert_close(ddm.coord.lat(), 40.0 + 42.766 / 60.0, 1e-9);
+    assert_close(ddm.coord.lon(), -(74.0 + 0.456 / 60.0), 1e-9);
 
     let lon_lat = parse_with(
         "-74.006, 40.7128",
@@ -112,7 +124,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         lon_lat.source.as_ref().and_then(|s| s.axis_order),
         Some(AxisOrder::LonLat)
     );
-    assert_within_meters(&lon_lat.coord, &NEW_YORK, 0.01);
+    assert_within_meters(&lon_lat.coord, &new_york, 0.01);
     let decimal_comma = parse_with(
         "40,7128 -74,006",
         &TextParseOptions {
@@ -120,10 +132,10 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
             decimal_comma: true,
         },
     )?;
-    assert_within_meters(&decimal_comma.coord, &NEW_YORK, 0.01);
+    assert_within_meters(&decimal_comma.coord, &new_york, 0.01);
 
     let uri = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
-    assert_eq!(uri.coord.height, Some(Height::Ellipsoidal(183.0)));
+    assert_eq!(uri.coord.height(), Some(Height::Ellipsoidal(183.0)));
     assert_eq!(
         uri.accuracy.and_then(|accuracy| accuracy.horizontal_m),
         Some(40.0)
@@ -139,14 +151,14 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         )
     );
 
-    let rendered = format(&NEW_YORK, &FormatOptions::default())?;
+    let rendered = format(&new_york, &FormatOptions::default())?;
     let reparsed = parse_coordinate(&rendered)?;
-    assert_within_meters(&reparsed.coord, &NEW_YORK, 0.2);
+    assert_within_meters(&reparsed.coord, &new_york, 0.2);
 
     // Letter-style DMS re-parses through `parse_coordinate`; a decimal-comma
     // locale re-parses once `decimal_comma` follows the format options.
     let letters = format(
-        &NEW_YORK,
+        &new_york,
         &FormatOptions {
             representation: Representation::Dms,
             symbol_style: SymbolStyle::Letters,
@@ -154,14 +166,14 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
             ..FormatOptions::default()
         },
     )?;
-    assert_within_meters(&parse_coordinate(&letters)?.coord, &NEW_YORK, 0.5);
+    assert_within_meters(&parse_coordinate(&letters)?.coord, &new_york, 0.5);
     let german = FormatOptions {
         representation: Representation::Ddm,
         locale: Some("de-DE".to_owned()),
         ..FormatOptions::default()
     };
     assert!(german.uses_decimal_comma());
-    let rendered = format(&NEW_YORK, &german)?;
+    let rendered = format(&new_york, &german)?;
     assert!(parse_coordinate(&rendered).is_err());
     let reparsed = parse_coordinate_with(
         &rendered,
@@ -170,7 +182,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
             ..TextParseOptions::default()
         },
     )?;
-    assert_within_meters(&reparsed.coord, &NEW_YORK, 1.0);
+    assert_within_meters(&reparsed.coord, &new_york, 1.0);
 
     Ok("formatting and parsing")
 }

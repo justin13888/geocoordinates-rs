@@ -14,8 +14,8 @@ use geocoordinates::grids::utm::Hemisphere as GridHemisphere;
 use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm};
 use geocoordinates::parse::text::TextParseOptions;
 use geocoordinates::{
-    Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Fix, Gcj02, Height, LatLon,
-    Length, LengthUnit, RawSource, Wgs84,
+    Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Fix, Gcj02, Height, Length,
+    LengthUnit, RawSource, Wgs84,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -75,13 +75,19 @@ fn all_public_value_types_are_serde() {
 }
 
 pub(crate) fn primitives_and_serde() -> DemoResult {
-    let coordinate = Coordinate::wgs84(40.7128, -74.006).with_height(Height::Ellipsoidal(12.5));
-    coordinate.validate()?;
+    // Construction validates, so a `Coordinate` in hand is always in range.
+    let coordinate = Coordinate::wgs84(40.7128, -74.006)?.with_height(Height::Ellipsoidal(12.5))?;
     assert!(!coordinate.is_null_island());
-    assert!(Coordinate::wgs84(0.0, 0.0).is_null_island());
-    assert_eq!(coordinate.crs.to_string(), "WGS84");
+    assert!(Coordinate::wgs84(0.0, 0.0)?.is_null_island());
+    assert_eq!(coordinate.crs().to_string(), "WGS84");
+    assert_eq!(coordinate.height(), Some(Height::Ellipsoidal(12.5)));
     assert_close(coordinate.lat(), 40.7128, 1e-12);
     assert_close(coordinate.lon(), -74.006, 1e-12);
+    // Lon-first input (GeoJSON / WKT order) has its own named constructor.
+    assert_eq!(
+        Coordinate::from_lon_lat(-74.006, 40.7128, Crs::Wgs84)?,
+        Coordinate::wgs84(40.7128, -74.006)?
+    );
 
     let dd = Dd(-73.9857);
     let dms = dd.try_to_dms(Axis::Longitude)?;
@@ -146,6 +152,9 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
     let json = serde_json::to_string(&fix)?;
     let decoded: Fix = serde_json::from_str(&json)?;
     assert_eq!(decoded, fix);
+    // `Confidence` is a bare number on the wire and deserializes through its clamp.
+    assert_eq!(serde_json::to_string(&Confidence::new(0.5))?, "0.5");
+    assert_eq!(serde_json::from_str::<Confidence>("2.0")?.value(), 1.0);
     let axis_json = serde_json::to_string(&Axis::Longitude)?;
     assert_eq!(serde_json::from_str::<Axis>(&axis_json)?, Axis::Longitude);
 

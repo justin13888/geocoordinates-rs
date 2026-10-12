@@ -1205,9 +1205,13 @@ public func FfiConverterTypeConfidence_lower(_ value: Confidence) -> RustBuffer 
 /**
  * The canonical coordinate — mirror of [`gc::Coordinate`].
  *
- * Unvalidated until used: constructing one does not check that `lat` is in
- * `[-90, 90]`, `lon` in `[-180, 180]`, or a height finite. Call
- * [`coordinate_validate`] to reject such values up front.
+ * A record can be built field by field in foreign code, so it is checked at
+ * the boundary instead: every function that takes one rejects a latitude
+ * outside `[-90, 90]`, a longitude outside `[-180, 180]`, a non-finite
+ * component, or a non-finite height with [`GeoError::OutOfRange`] /
+ * [`GeoError::InvalidValue`] before doing anything else. Build one with
+ * [`coordinate_new`] to fail at construction, or call [`coordinate_validate`]
+ * on a hand-built record. Every `Coordinate` this library returns is valid.
  */
 public struct Coordinate: Equatable, Hashable {
     /**
@@ -4644,43 +4648,44 @@ public func convert(coord: Coordinate, to: Crs)throws  -> ApproxCoordinate  {
 })
 }
 /**
- * Construct a BD-09 [`Coordinate`] from latitude/longitude in degrees.
- */
-public func coordinateBd09(lat: Double, lon: Double) -> Coordinate  {
-    return try!  FfiConverterTypeCoordinate_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_coordinate_bd09(
-        FfiConverterDouble.lower(lat),
-        FfiConverterDouble.lower(lon),$0
-    )
-})
-}
-/**
- * Construct a GCJ-02 [`Coordinate`] from latitude/longitude in degrees.
- */
-public func coordinateGcj02(lat: Double, lon: Double) -> Coordinate  {
-    return try!  FfiConverterTypeCoordinate_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_coordinate_gcj02(
-        FfiConverterDouble.lower(lat),
-        FfiConverterDouble.lower(lon),$0
-    )
-})
-}
-/**
  * Whether the coordinate is "Null Island" — both components within ~0.11 m of
  * zero, the telltale of a missing or defaulted fix.
+ *
+ * # Errors
+ * As [`coordinate_validate`], for an invalid record.
  */
-public func coordinateIsNullIsland(coord: Coordinate) -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
+public func coordinateIsNullIsland(coord: Coordinate)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_coordinate_is_null_island(
         FfiConverterTypeCoordinate_lower(coord),$0
     )
 })
 }
 /**
- * Validate that the coordinate's latitude/longitude are in range.
+ * Construct a [`Coordinate`] from latitude and longitude in decimal degrees
+ * (latitude first) in `crs`, with no height. Attach a height by setting the
+ * record's `height` field; it is validated wherever the record is used.
  *
  * # Errors
- * Returns [`GeoError::OutOfRange`] when either component is out of range.
+ * [`GeoError::OutOfRange`] when latitude is outside `[-90, 90]`, longitude is
+ * outside `[-180, 180]`, or either is not finite.
+ */
+public func coordinateNew(lat: Double, lon: Double, crs: Crs)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_coordinate_new(
+        FfiConverterDouble.lower(lat),
+        FfiConverterDouble.lower(lon),
+        FfiConverterTypeCrs_lower(crs),$0
+    )
+})
+}
+/**
+ * Validate a (possibly hand-built) coordinate record: latitude in
+ * `[-90, 90]`, longitude in `[-180, 180]`, both finite, and any height finite.
+ *
+ * # Errors
+ * [`GeoError::OutOfRange`] when either horizontal component is invalid, or
+ * [`GeoError::InvalidValue`] when the height is not finite.
  */
 public func coordinateValidate(coord: Coordinate)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_coordinate_validate(
@@ -4689,21 +4694,13 @@ public func coordinateValidate(coord: Coordinate)throws   {try rustCallWithError
 }
 }
 /**
- * Construct a WGS-84 [`Coordinate`] from latitude/longitude in degrees.
- */
-public func coordinateWgs84(lat: Double, lon: Double) -> Coordinate  {
-    return try!  FfiConverterTypeCoordinate_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_coordinate_wgs84(
-        FfiConverterDouble.lower(lat),
-        FfiConverterDouble.lower(lon),$0
-    )
-})
-}
-/**
  * Wrap a bare [`Coordinate`] as a [`Fix`] with no metadata.
+ *
+ * # Errors
+ * As [`coordinate_validate`], for an invalid record.
  */
-public func fixFromCoord(coord: Coordinate) -> Fix  {
-    return try!  FfiConverterTypeFix_lift(try! rustCall() {
+public func fixFromCoord(coord: Coordinate)throws  -> Fix  {
+    return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_fix_from_coord(
         FfiConverterTypeCoordinate_lower(coord),$0
     )
@@ -5670,22 +5667,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_convert() != 56128) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_bd09() != 5981) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_is_null_island() != 4657) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_gcj02() != 59138) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_new() != 36788) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_is_null_island() != 53682) {
+    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_validate() != 28461) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_validate() != 7083) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_coordinate_wgs84() != 22996) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_fix_from_coord() != 2642) {
+    if (uniffi_geocoordinates_ffi_checksum_func_fix_from_coord() != 4840) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_length_from_unit() != 28617) {

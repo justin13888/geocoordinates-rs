@@ -10,40 +10,53 @@
 //! *n* fixes), tagged with confidence `1.0` because the structured input is
 //! unambiguous. Each format is behind its own cargo feature.
 
-use crate::coord::{Coordinate, Height};
+use crate::coord::{Coordinate, Crs, Height};
 use crate::error::{Error, Result};
 use crate::fix::{AxisOrder, Confidence, Fix, RawSource};
 
 /// Build a [`Fix`] from a single position, recording the source axis order.
-fn position_fix(lon: f64, lat: f64, alt: Option<f64>, axis: AxisOrder, raw: &str) -> Fix {
-    let mut coord = Coordinate::wgs84(lat, lon);
+///
+/// `format` names the source format in the error for an out-of-range position
+/// or a non-finite altitude.
+fn position_fix(
+    lon: f64,
+    lat: f64,
+    alt: Option<f64>,
+    axis: AxisOrder,
+    format: &str,
+) -> Result<Fix> {
+    let mut coord = Coordinate::from_lon_lat(lon, lat, Crs::Wgs84);
     if let Some(a) = alt {
-        coord = coord.with_height(Height::Ellipsoidal(a));
+        coord = coord.and_then(|c| c.with_height(Height::Ellipsoidal(a)));
     }
-    Fix {
+    let coord = coord.map_err(|e| Error::Parse(format!("{format}: invalid position: {e}")))?;
+    Ok(Fix {
         coord,
         accuracy: None,
         timestamp: None,
         source: Some(RawSource {
-            raw: raw.to_string(),
+            raw: format.to_string(),
             confidence: Confidence::new(1.0),
             axis_order: Some(axis),
             datum_ambiguity: None,
             notes: Vec::new(),
         }),
-    }
+    })
 }
 
-fn validate_positions(mut positions: Vec<Fix>, input: &str, format: &str) -> Result<Vec<Fix>> {
-    for fix in &mut positions {
-        fix.coord
-            .validate()
-            .map_err(|e| Error::Parse(format!("{format}: invalid position: {e}")))?;
-        if let Some(source) = &mut fix.source {
-            source.raw = input.to_string();
-        }
-    }
-    Ok(positions)
+/// Fail on the first invalid position, in document order, and stamp each fix
+/// with the whole input as its raw source.
+fn validate_positions(positions: Vec<Result<Fix>>, input: &str) -> Result<Vec<Fix>> {
+    positions
+        .into_iter()
+        .map(|fix| {
+            let mut fix = fix?;
+            if let Some(source) = &mut fix.source {
+                source.raw = input.to_string();
+            }
+            Ok(fix)
+        })
+        .collect()
 }
 
 /// Parse one or more positions from a GeoJSON value (lon-lat order).
@@ -57,13 +70,13 @@ fn validate_positions(mut positions: Vec<Fix>, input: &str, format: &str) -> Res
 pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
     use geojson::{GeoJson, Geometry, GeometryValue, Position};
 
-    fn position(p: &Position, out: &mut Vec<Fix>) {
+    fn position(p: &Position, out: &mut Vec<Result<Fix>>) {
         if p.len() >= 2 {
             let alt = if p.len() >= 3 { Some(p[2]) } else { None };
             out.push(position_fix(p[0], p[1], alt, AxisOrder::LonLat, "geojson"));
         }
     }
-    fn geometry(g: &Geometry, out: &mut Vec<Fix>) {
+    fn geometry(g: &Geometry, out: &mut Vec<Result<Fix>>) {
         match &g.value {
             GeometryValue::Point { coordinates } => position(coordinates, out),
             GeometryValue::MultiPoint { coordinates }
@@ -104,7 +117,7 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
             }
         }),
     }
-    validate_positions(out, input, "geojson")
+    validate_positions(out, input)
 }
 
 /// Parse a coordinate/geometry from a WKT string (X Y order).
@@ -118,10 +131,10 @@ pub fn from_wkt(input: &str) -> Result<Vec<Fix>> {
     use wkt::Wkt;
     use wkt::types::Coord;
 
-    fn coord(c: &Coord<f64>, out: &mut Vec<Fix>) {
+    fn coord(c: &Coord<f64>, out: &mut Vec<Result<Fix>>) {
         out.push(position_fix(c.x, c.y, c.z, AxisOrder::LonLat, "wkt"));
     }
-    fn geometry(g: &Wkt<f64>, out: &mut Vec<Fix>) {
+    fn geometry(g: &Wkt<f64>, out: &mut Vec<Result<Fix>>) {
         match g {
             Wkt::Point(p) => {
                 if let Some(c) = p.coord() {
@@ -154,7 +167,7 @@ pub fn from_wkt(input: &str) -> Result<Vec<Fix>> {
     let parsed = Wkt::<f64>::from_str(input).map_err(|e| Error::Parse(format!("wkt: {e}")))?;
     let mut out = Vec::new();
     geometry(&parsed, &mut out);
-    validate_positions(out, input, "wkt")
+    validate_positions(out, input)
 }
 
 /// Parse track/route/waypoint positions from a GPX document.
@@ -163,7 +176,7 @@ pub fn from_wkt(input: &str) -> Result<Vec<Fix>> {
 /// Returns [`crate::Error::Parse`] on malformed GPX.
 #[cfg(feature = "gpx")]
 pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
-    fn push(wp: &gpx::Waypoint, out: &mut Vec<Fix>) {
+    fn push(wp: &gpx::Waypoint, out: &mut Vec<Result<Fix>>) {
         let p = wp.point(); // geo-types Point: x = lon, y = lat
         out.push(position_fix(
             p.x(),
@@ -191,7 +204,7 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
             push(wp, &mut out);
         }
     }
-    validate_positions(out, input, "gpx")
+    validate_positions(out, input)
 }
 
 /// Parse placemark positions from a KML document.
@@ -205,10 +218,10 @@ pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
     use kml::Kml;
     use kml::types::{Coord, Geometry};
 
-    fn coord(c: &Coord<f64>, out: &mut Vec<Fix>) {
+    fn coord(c: &Coord<f64>, out: &mut Vec<Result<Fix>>) {
         out.push(position_fix(c.x, c.y, c.z, AxisOrder::LonLat, "kml"));
     }
-    fn geometry(g: &Geometry<f64>, out: &mut Vec<Fix>) {
+    fn geometry(g: &Geometry<f64>, out: &mut Vec<Result<Fix>>) {
         match g {
             Geometry::Point(p) => coord(&p.coord, out),
             Geometry::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
@@ -223,7 +236,7 @@ pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
             _ => {} // Element / future variants carry no coordinates
         }
     }
-    fn walk(k: &Kml<f64>, out: &mut Vec<Fix>) {
+    fn walk(k: &Kml<f64>, out: &mut Vec<Result<Fix>>) {
         match k {
             Kml::Point(p) => coord(&p.coord, out),
             Kml::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
@@ -250,7 +263,7 @@ pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
     let parsed = Kml::<f64>::from_str(input).map_err(|e| Error::Parse(format!("kml: {e}")))?;
     let mut out = Vec::new();
     walk(&parsed, &mut out);
-    validate_positions(out, input, "kml")
+    validate_positions(out, input)
 }
 
 #[cfg(test)]
@@ -265,9 +278,9 @@ mod tests {
         // A single Point with altitude.
         let pt = from_geojson(r#"{"type":"Point","coordinates":[2.0,9.0,100.0]}"#).unwrap();
         assert_eq!(pt.len(), 1);
-        assert_close(pt[0].coord.lat, 9.0, 1e-12); // lat is the SECOND element
-        assert_close(pt[0].coord.lon, 2.0, 1e-12);
-        assert_eq!(pt[0].coord.height, Some(Height::Ellipsoidal(100.0)));
+        assert_close(pt[0].coord.lat(), 9.0, 1e-12); // lat is the SECOND element
+        assert_close(pt[0].coord.lon(), 2.0, 1e-12);
+        assert_eq!(pt[0].coord.height(), Some(Height::Ellipsoidal(100.0)));
         let src = pt[0].source.as_ref().unwrap();
         assert_eq!(src.axis_order, Some(AxisOrder::LonLat));
         assert_close(src.confidence.value(), 1.0, 1e-12);
@@ -278,8 +291,8 @@ mod tests {
              "coordinates":[[0.0,0.0],[1.0,1.0],[2.0,3.0]]},"properties":null}]}"#;
         let line = from_geojson(fc).unwrap();
         assert_eq!(line.len(), 3);
-        assert_close(line[2].coord.lat, 3.0, 1e-12);
-        assert_close(line[2].coord.lon, 2.0, 1e-12);
+        assert_close(line[2].coord.lat(), 3.0, 1e-12);
+        assert_close(line[2].coord.lon(), 2.0, 1e-12);
         assert!(from_geojson("not json").is_err());
         assert!(from_geojson(r#"{"type":"Point","coordinates":[2.0,91.0]}"#).is_err());
     }
@@ -289,16 +302,16 @@ mod tests {
     fn wkt_point_and_linestring_are_x_y() {
         let pt = from_wkt("POINT(2 9)").unwrap();
         assert_eq!(pt.len(), 1);
-        assert_close(pt[0].coord.lat, 9.0, 1e-12); // y = latitude
-        assert_close(pt[0].coord.lon, 2.0, 1e-12); // x = longitude
+        assert_close(pt[0].coord.lat(), 9.0, 1e-12); // y = latitude
+        assert_close(pt[0].coord.lon(), 2.0, 1e-12); // x = longitude
         assert_eq!(
             pt[0].source.as_ref().unwrap().axis_order,
             Some(AxisOrder::LonLat)
         );
         let line = from_wkt("LINESTRING(0 0, 10 20, 30 40)").unwrap();
         assert_eq!(line.len(), 3);
-        assert_close(line[1].coord.lat, 20.0, 1e-12);
-        assert_close(line[1].coord.lon, 10.0, 1e-12);
+        assert_close(line[1].coord.lat(), 20.0, 1e-12);
+        assert_close(line[1].coord.lon(), 10.0, 1e-12);
         assert!(from_wkt("CIRCLE(0 0 5)").is_err());
         assert!(from_wkt("POINT(181 0)").is_err());
     }
@@ -316,14 +329,14 @@ mod tests {
             </gpx>"#;
         let fixes = from_gpx(doc).unwrap();
         assert_eq!(fixes.len(), 3); // 1 waypoint + 2 track points
-        assert_close(fixes[0].coord.lat, 48.2, 1e-9);
-        assert_close(fixes[0].coord.lon, 16.3, 1e-9);
-        assert_eq!(fixes[0].coord.height, Some(Height::Ellipsoidal(183.0)));
+        assert_close(fixes[0].coord.lat(), 48.2, 1e-9);
+        assert_close(fixes[0].coord.lon(), 16.3, 1e-9);
+        assert_eq!(fixes[0].coord.height(), Some(Height::Ellipsoidal(183.0)));
         assert_eq!(
             fixes[0].source.as_ref().unwrap().axis_order,
             Some(AxisOrder::LatLon)
         );
-        assert_close(fixes[2].coord.lat, 41.0, 1e-9);
+        assert_close(fixes[2].coord.lat(), 41.0, 1e-9);
         assert!(from_gpx("<gpx>broken").is_err());
     }
 
@@ -337,9 +350,9 @@ mod tests {
             </Document></kml>"#;
         let fixes = from_kml(doc).unwrap();
         assert_eq!(fixes.len(), 1);
-        assert_close(fixes[0].coord.lat, 48.2, 1e-9);
-        assert_close(fixes[0].coord.lon, 16.3, 1e-9);
-        assert_eq!(fixes[0].coord.height, Some(Height::Ellipsoidal(183.0)));
+        assert_close(fixes[0].coord.lat(), 48.2, 1e-9);
+        assert_close(fixes[0].coord.lon(), 16.3, 1e-9);
+        assert_eq!(fixes[0].coord.height(), Some(Height::Ellipsoidal(183.0)));
         assert_eq!(
             fixes[0].source.as_ref().unwrap().axis_order,
             Some(AxisOrder::LonLat)
@@ -376,7 +389,10 @@ mod tests {
 
     /// The `(lat, lon)` of every fix, in emission order.
     fn lat_lons(fixes: &[Fix]) -> Vec<(f64, f64)> {
-        fixes.iter().map(|f| (f.coord.lat, f.coord.lon)).collect()
+        fixes
+            .iter()
+            .map(|f| (f.coord.lat(), f.coord.lon()))
+            .collect()
     }
 
     /// A rejection is `Parse` whose message names the format first.
@@ -410,7 +426,7 @@ mod tests {
             [[[0,0],[1,0],[0,0]]],[[[5,5],[6,5],[5,5]],[[7,7],[8,7],[7,7]]]]}"#;
         let fixes = from_geojson(multi_polygon).unwrap();
         assert_eq!(fixes.len(), 9);
-        assert_eq!((fixes[8].coord.lat, fixes[8].coord.lon), (7.0, 7.0));
+        assert_eq!((fixes[8].coord.lat(), fixes[8].coord.lon()), (7.0, 7.0));
         // A GeometryCollection recurses, nested collections included.
         let collection = r#"{"type":"GeometryCollection","geometries":[
             {"type":"Point","coordinates":[1,2]},
@@ -442,7 +458,7 @@ mod tests {
             {"type":"Feature","geometry":{"type":"Point","coordinates":[3,4]},"properties":null}]}"#;
         assert_eq!(lat_lons(&from_geojson(fc).unwrap()), [(4.0, 3.0)]);
         // Without an altitude there is no height.
-        assert_eq!(from_geojson(feature).unwrap()[0].coord.height, None);
+        assert_eq!(from_geojson(feature).unwrap()[0].coord.height(), None);
     }
 
     #[cfg(feature = "geojson")]
@@ -477,7 +493,7 @@ mod tests {
         let multi_polygon = "MULTIPOLYGON(((0 0,1 0,0 0)),((5 5,6 5,5 5),(7 7,8 7,7 7)))";
         let fixes = from_wkt(multi_polygon).unwrap();
         assert_eq!(fixes.len(), 9);
-        assert_eq!((fixes[8].coord.lat, fixes[8].coord.lon), (7.0, 7.0));
+        assert_eq!((fixes[8].coord.lat(), fixes[8].coord.lon()), (7.0, 7.0));
         let collection = "GEOMETRYCOLLECTION(POINT(1 2),LINESTRING(3 4,5 6))";
         assert_eq!(
             lat_lons(&from_wkt(collection).unwrap()),
@@ -495,13 +511,13 @@ mod tests {
         assert!(from_wkt("MULTIPOINT EMPTY").unwrap().is_empty());
         // Z is read as an ellipsoidal height.
         let z = from_wkt("POINT Z(1 2 3)").unwrap();
-        assert_eq!(z[0].coord.height, Some(Height::Ellipsoidal(3.0)));
+        assert_eq!(z[0].coord.height(), Some(Height::Ellipsoidal(3.0)));
         // M is a measure, not a height: it is dropped.
         let m = from_wkt("POINT M(1 2 3)").unwrap();
-        assert_eq!((m[0].coord.lat, m[0].coord.lon), (2.0, 1.0));
-        assert_eq!(m[0].coord.height, None);
+        assert_eq!((m[0].coord.lat(), m[0].coord.lon()), (2.0, 1.0));
+        assert_eq!(m[0].coord.height(), None);
         let zm = from_wkt("POINT ZM(1 2 3 4)").unwrap();
-        assert_eq!(zm[0].coord.height, Some(Height::Ellipsoidal(3.0)));
+        assert_eq!(zm[0].coord.height(), Some(Height::Ellipsoidal(3.0)));
     }
 
     #[cfg(feature = "wkt")]
@@ -536,8 +552,8 @@ mod tests {
                 (11.0, 21.0)
             ]
         );
-        assert_eq!(fixes[4].coord.height, Some(Height::Ellipsoidal(5.5)));
-        assert_eq!(fixes[3].coord.height, None);
+        assert_eq!(fixes[4].coord.height(), Some(Height::Ellipsoidal(5.5)));
+        assert_eq!(fixes[3].coord.height(), None);
         assert!(fixes.iter().all(|f| f.source.as_ref().unwrap().raw == doc));
     }
 

@@ -69,22 +69,22 @@ pub fn final_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 }
 
 /// Direct geodesic problem: the point reached from `start` by traveling
-/// `distance` along `bearing_deg` (exact, Karney). Carries `start.crs`.
+/// `distance` along `bearing_deg` (exact, Karney). Carries `start.crs()`.
 pub fn destination(start: &Coordinate, bearing_deg: f64, distance: Length) -> Result<Coordinate> {
     validate_wgs84(start)?;
     validate_bearing_and_distance(bearing_deg, distance)?;
     let (lat2, lon2): (f64, f64) =
-        Geodesic::wgs84().direct(start.lat, start.lon, bearing_deg, distance.meters());
-    Ok(Coordinate::new(lat2, lon2, start.crs))
+        Geodesic::wgs84().direct(start.lat(), start.lon(), bearing_deg, distance.meters());
+    Coordinate::new(lat2, lon2, start.crs())
 }
 
-/// The geodesic midpoint between `a` and `b`. Carries `a.crs`.
+/// The geodesic midpoint between `a` and `b`. Carries `a.crs()`.
 pub fn midpoint(a: &Coordinate, b: &Coordinate) -> Result<Coordinate> {
     intermediate(a, b, 0.5)
 }
 
 /// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic
-/// from `a` to `b`. Carries `a.crs`.
+/// from `a` to `b`. Carries `a.crs()`.
 pub fn intermediate(a: &Coordinate, b: &Coordinate, fraction: f64) -> Result<Coordinate> {
     validate_pair(a, b)?;
     validate_wgs84(a)?;
@@ -96,13 +96,13 @@ pub fn intermediate(a: &Coordinate, b: &Coordinate, fraction: f64) -> Result<Coo
     }
     let g = Geodesic::wgs84();
     // The 4-tuple is (s12, azi1, azi2, a12); travel `fraction · s12` along azi1.
-    let (s12, azi1, _, _): (f64, f64, f64, f64) = g.inverse(a.lat, a.lon, b.lat, b.lon);
-    let (lat, lon): (f64, f64) = g.direct(a.lat, a.lon, azi1, s12 * fraction);
-    Ok(Coordinate::new(lat, lon, a.crs))
+    let (s12, azi1, _, _): (f64, f64, f64, f64) = g.inverse(a.lat(), a.lon(), b.lat(), b.lon());
+    let (lat, lon): (f64, f64) = g.direct(a.lat(), a.lon(), azi1, s12 * fraction);
+    Coordinate::new(lat, lon, a.crs())
 }
 
 fn validate_position(position: &impl LatLon) -> Result<()> {
-    Coordinate::new(position.lat(), position.lon(), position.crs()).validate()
+    Coordinate::new(position.lat(), position.lon(), position.crs()).map(|_| ())
 }
 
 pub(super) fn validate_pair(a: &impl LatLon, b: &impl LatLon) -> Result<()> {
@@ -118,11 +118,10 @@ pub(super) fn validate_pair(a: &impl LatLon, b: &impl LatLon) -> Result<()> {
 }
 
 pub(super) fn validate_wgs84(position: &Coordinate) -> Result<()> {
-    position.validate()?;
-    if position.crs != Crs::Wgs84 {
+    if position.crs() != Crs::Wgs84 {
         return Err(Error::CrsMismatch {
             expected: Crs::Wgs84,
-            found: position.crs,
+            found: position.crs(),
         });
     }
     Ok(())

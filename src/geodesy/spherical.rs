@@ -70,7 +70,7 @@ pub fn along_track_distance(
 
 /// Intersection of two great circles, each given by a point and an initial
 /// bearing, on the mean sphere. `None` when the paths are parallel/coincident
-/// or ambiguous. Carries `a.crs`.
+/// or ambiguous. Carries `a.crs()`.
 pub fn intersection(
     a: &Coordinate,
     bearing_a_deg: f64,
@@ -85,8 +85,8 @@ pub fn intersection(
             detail: "must be finite".into(),
         });
     }
-    let (phi1, lam1) = (a.lat.to_radians(), a.lon.to_radians());
-    let (phi2, lam2) = (b.lat.to_radians(), b.lon.to_radians());
+    let (phi1, lam1) = (a.lat().to_radians(), a.lon().to_radians());
+    let (phi2, lam2) = (b.lat().to_radians(), b.lon().to_radians());
     let theta13 = bearing_a_deg.to_radians();
     let theta23 = bearing_b_deg.to_radians();
     let d_phi = phi2 - phi1;
@@ -123,7 +123,7 @@ pub fn intersection(
     let d_lam13 =
         (theta13.sin() * delta13.sin() * phi1.cos()).atan2(delta13.cos() - phi1.sin() * phi3.sin());
     let lon3 = wrap_longitude((lam1 + d_lam13).to_degrees());
-    Ok(Some(Coordinate::new(phi3.to_degrees(), lon3, a.crs)))
+    Coordinate::new(phi3.to_degrees(), lon3, a.crs()).map(Some)
 }
 
 /// Whether two points `delta12` radians apart are treated as one point by

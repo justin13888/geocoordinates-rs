@@ -11,8 +11,8 @@ use crate::{Coordinate, Crs, GeoError};
 /// meters value is returned directly.
 #[uniffi::export]
 pub fn haversine_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
-    let a: gc::Coordinate = a.into();
-    let b: gc::Coordinate = b.into();
+    let a: gc::Coordinate = a.try_into()?;
+    let b: gc::Coordinate = b.try_into()?;
     gc::geodesy::haversine_distance(&a, &b)
         .map(|length| length.meters())
         .map_err(Into::into)
@@ -216,7 +216,7 @@ pub fn ellipsoid_eccentricity_sq(ellipsoid: Ellipsoid) -> f64 {
 /// Geodetic [`Coordinate`] → ECEF on the given ellipsoid.
 #[uniffi::export]
 pub fn ecef_from_coordinate(coord: Coordinate, ellipsoid: Ellipsoid) -> Result<Ecef, GeoError> {
-    gc::geodesy::Ecef::try_from_coordinate(coord.into(), ellipsoid.into())
+    gc::geodesy::Ecef::try_from_coordinate(coord.try_into()?, ellipsoid.into())
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -239,7 +239,7 @@ pub fn ecef_to_coordinate(
 /// The ENU offset of `target` relative to `origin` (WGS-84).
 #[uniffi::export]
 pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Enu, GeoError> {
-    gc::geodesy::Enu::try_from_coordinate(target.into(), origin.into())
+    gc::geodesy::Enu::try_from_coordinate(target.try_into()?, origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -249,7 +249,7 @@ pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Enu
 #[uniffi::export]
 pub fn enu_to_coordinate(enu: Enu, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Enu::from(enu)
-        .try_to_coordinate(origin.into())
+        .try_to_coordinate(origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -267,7 +267,7 @@ pub fn enu_to_aer(enu: Enu) -> Aer {
 /// The NED offset of `target` relative to `origin` (WGS-84).
 #[uniffi::export]
 pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Ned, GeoError> {
-    gc::geodesy::Ned::try_from_coordinate(target.into(), origin.into())
+    gc::geodesy::Ned::try_from_coordinate(target.try_into()?, origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -276,7 +276,7 @@ pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Ned
 #[uniffi::export]
 pub fn ned_to_coordinate(ned: Ned, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Ned::from(ned)
-        .try_to_coordinate(origin.into())
+        .try_to_coordinate(origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -294,7 +294,7 @@ pub fn ned_to_aer(ned: Ned) -> Aer {
 /// The azimuth/elevation/range of `target` relative to `origin` (WGS-84).
 #[uniffi::export]
 pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Aer, GeoError> {
-    gc::geodesy::Aer::try_from_coordinate(target.into(), origin.into())
+    gc::geodesy::Aer::try_from_coordinate(target.try_into()?, origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -303,7 +303,7 @@ pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Aer
 #[uniffi::export]
 pub fn aer_to_coordinate(aer: Aer, origin: Coordinate) -> Result<Coordinate, GeoError> {
     gc::geodesy::Aer::from(aer)
-        .try_to_coordinate(origin.into())
+        .try_to_coordinate(origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -332,7 +332,7 @@ pub fn aer_to_ned(aer: Aer) -> Ned {
 /// true distance.
 #[uniffi::export]
 pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
-    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::geodesic_distance(&a, &b)
         .map(|length| length.meters())
         .map_err(Into::into)
@@ -341,14 +341,14 @@ pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError
 /// Initial bearing (forward azimuth) from `a` to `b`, in degrees `[0, 360)`.
 #[uniffi::export]
 pub fn initial_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
-    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::initial_bearing(&a, &b).map_err(Into::into)
 }
 
 /// Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`.
 #[uniffi::export]
 pub fn final_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
-    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::final_bearing(&a, &b).map_err(Into::into)
 }
 
@@ -361,7 +361,7 @@ pub fn destination(
     distance_m: f64,
 ) -> Result<Coordinate, GeoError> {
     gc::geodesy::destination(
-        &start.into(),
+        &start.try_into()?,
         bearing_deg,
         gc::Length::from_meters(distance_m),
     )
@@ -372,7 +372,7 @@ pub fn destination(
 /// The geodesic midpoint between `a` and `b`.
 #[uniffi::export]
 pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate, GeoError> {
-    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::midpoint(&a, &b)
         .map(Into::into)
         .map_err(Into::into)
@@ -381,7 +381,7 @@ pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate, GeoError> {
 /// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic.
 #[uniffi::export]
 pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Result<Coordinate, GeoError> {
-    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::intermediate(&a, &b, fraction)
         .map(Into::into)
         .map_err(Into::into)
@@ -390,7 +390,7 @@ pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Result<Coord
 /// Rhumb-line (loxodrome) distance between two coordinates, in **meters**.
 #[uniffi::export]
 pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
-    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::rhumb_distance(&a, &b)
         .map(|length| length.meters())
         .map_err(Into::into)
@@ -399,7 +399,7 @@ pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 /// Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`.
 #[uniffi::export]
 pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
-    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.into(), b.into());
+    let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
     gc::geodesy::rhumb_bearing(&a, &b).map_err(Into::into)
 }
 
@@ -412,7 +412,7 @@ pub fn rhumb_destination(
     distance_m: f64,
 ) -> Result<Coordinate, GeoError> {
     gc::geodesy::rhumb_destination(
-        &start.into(),
+        &start.try_into()?,
         bearing_deg,
         gc::Length::from_meters(distance_m),
     )
@@ -429,7 +429,7 @@ pub fn cross_track_distance_m(
     end: Coordinate,
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
-        (point.into(), start.into(), end.into());
+        (point.try_into()?, start.try_into()?, end.try_into()?);
     gc::geodesy::cross_track_distance(&point, &start, &end)
         .map(|length| length.meters())
         .map_err(Into::into)
@@ -444,7 +444,7 @@ pub fn along_track_distance_m(
     end: Coordinate,
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
-        (point.into(), start.into(), end.into());
+        (point.try_into()?, start.try_into()?, end.try_into()?);
     gc::geodesy::along_track_distance(&point, &start, &end)
         .map(|length| length.meters())
         .map_err(Into::into)
@@ -459,7 +459,7 @@ pub fn intersection(
     b: Coordinate,
     bearing_b_deg: f64,
 ) -> Result<Option<Coordinate>, GeoError> {
-    gc::geodesy::intersection(&a.into(), bearing_a_deg, &b.into(), bearing_b_deg)
+    gc::geodesy::intersection(&a.try_into()?, bearing_a_deg, &b.try_into()?, bearing_b_deg)
         .map(|point| point.map(Into::into))
         .map_err(Into::into)
 }
@@ -605,7 +605,7 @@ pub fn datum_transform_apply(
     coord: Coordinate,
 ) -> Result<Coordinate, GeoError> {
     gc::geodesy::DatumTransform::from(transform)
-        .transform(coord.into())
+        .transform(coord.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }

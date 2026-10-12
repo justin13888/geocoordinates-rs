@@ -16,12 +16,16 @@ fn close(actual: f64, expected: f64, tol: f64) {
     );
 }
 
+fn wgs84(lat: f64, lon: f64) -> Coordinate {
+    coordinate_new(lat, lon, Crs::Wgs84).unwrap()
+}
+
 fn new_york() -> Coordinate {
-    coordinate_wgs84(40.7128, -74.006)
+    wgs84(40.7128, -74.006)
 }
 
 fn london() -> Coordinate {
-    coordinate_wgs84(51.5074, -0.1278)
+    wgs84(51.5074, -0.1278)
 }
 
 // --- Ellipsoids ---
@@ -70,7 +74,7 @@ fn ellipsoid_derived_quantities_match_published_wgs84_values() {
 
 #[test]
 fn ecef_round_trips_through_the_coordinate() {
-    let origin = coordinate_wgs84(40.0, -75.0);
+    let origin = wgs84(40.0, -75.0);
     let ecef = ecef_from_coordinate(origin, ellipsoid_wgs84()).unwrap();
     close(ecef.x, 1_266_325.909_016_660_2, 1e-6);
     close(ecef.y, -4_725_992.631_391_02, 1e-6);
@@ -84,7 +88,7 @@ fn ecef_round_trips_through_the_coordinate() {
 
 #[test]
 fn ecef_from_coordinate_on_the_equator_meets_the_semi_major_axis() {
-    let ecef = ecef_from_coordinate(coordinate_wgs84(0.0, 0.0), ellipsoid_wgs84()).unwrap();
+    let ecef = ecef_from_coordinate(wgs84(0.0, 0.0), ellipsoid_wgs84()).unwrap();
     assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_137.0, 0.0, 0.0));
 }
 
@@ -92,8 +96,8 @@ fn ecef_from_coordinate_on_the_equator_meets_the_semi_major_axis() {
 
 #[test]
 fn enu_ned_and_aer_from_coordinate_agree() {
-    let origin = coordinate_wgs84(40.0, -75.0);
-    let target = coordinate_wgs84(40.1, -74.9);
+    let origin = wgs84(40.0, -75.0);
+    let target = wgs84(40.1, -74.9);
     let enu = enu_from_coordinate(target, origin).unwrap();
     close(enu.east, 8_526.911_601_003_281, 1e-6);
     close(enu.north, 11_108.336_797_369_358, 1e-6);
@@ -111,8 +115,8 @@ fn enu_ned_and_aer_from_coordinate_agree() {
 
 #[test]
 fn frame_offsets_recover_the_absolute_coordinate() {
-    let origin = coordinate_wgs84(40.0, -75.0);
-    let target = coordinate_wgs84(40.1, -74.9);
+    let origin = wgs84(40.0, -75.0);
+    let target = wgs84(40.1, -74.9);
     let enu = enu_from_coordinate(target, origin).unwrap();
     let from_enu = enu_to_coordinate(enu, origin).unwrap();
     close(from_enu.lat, 40.1, 1e-9);
@@ -229,7 +233,7 @@ fn geodesic_distance_and_bearings_are_pinned() {
 
 #[test]
 fn destination_follows_the_equator() {
-    let dest = destination(coordinate_wgs84(0.0, 0.0), 90.0, 111_319.49).unwrap();
+    let dest = destination(wgs84(0.0, 0.0), 90.0, 111_319.49).unwrap();
     close(dest.lat, 0.0, 1e-12);
     close(dest.lon, 1.0, 1e-7);
     assert_eq!(dest.crs, Crs::Wgs84);
@@ -267,9 +271,9 @@ fn rhumb_line_distance_bearing_and_destination_are_pinned() {
 
 #[test]
 fn cross_and_along_track_distances_are_pinned() {
-    let start = coordinate_wgs84(0.0, 0.0);
-    let end = coordinate_wgs84(0.0, 10.0);
-    let point = coordinate_wgs84(1.0, 5.0);
+    let start = wgs84(0.0, 0.0);
+    let end = wgs84(0.0, 10.0);
+    let point = wgs84(1.0, 5.0);
     // North of an eastbound path is to its left: negative.
     close(
         cross_track_distance_m(point, start, end).unwrap(),
@@ -285,14 +289,9 @@ fn cross_and_along_track_distances_are_pinned() {
 
 #[test]
 fn intersection_of_the_equator_and_the_prime_meridian_is_null_island() {
-    let hit = intersection(
-        coordinate_wgs84(0.0, -10.0),
-        90.0,
-        coordinate_wgs84(-10.0, 0.0),
-        0.0,
-    )
-    .unwrap()
-    .expect("the equator and the prime meridian intersect");
+    let hit = intersection(wgs84(0.0, -10.0), 90.0, wgs84(-10.0, 0.0), 0.0)
+        .unwrap()
+        .expect("the equator and the prime meridian intersect");
     close(hit.lat, 0.0, 1e-12);
     close(hit.lon, 0.0, 1e-12);
     assert_eq!(hit.crs, Crs::Wgs84);
@@ -402,7 +401,7 @@ fn datum_transform_apply_and_inverse_round_trip() {
     assert_eq!(back.crs, Crs::Nad27);
     close(back.lat, 40.0, 1e-8);
     close(back.lon, -100.0, 1e-8);
-    match datum_transform_apply(dt, coordinate_wgs84(40.0, -100.0)) {
+    match datum_transform_apply(dt, wgs84(40.0, -100.0)) {
         Err(GeoError::CrsMismatch { expected, found }) => {
             assert_eq!((expected, found), (Crs::Nad27, Crs::Wgs84));
         }

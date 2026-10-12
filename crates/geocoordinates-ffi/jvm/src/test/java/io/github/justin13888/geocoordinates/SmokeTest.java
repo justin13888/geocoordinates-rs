@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 // Top-level Kotlin functions compile to static methods on the file class.
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromCoordinate;
-import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateWgs84;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.outOfChina;
@@ -50,9 +50,17 @@ class SmokeTest {
         GeoException.CrsMismatch mismatch =
                 assertThrows(
                         GeoException.CrsMismatch.class,
-                        () -> baiduMercatorFromCoordinate(coordinateWgs84(39.915, 116.404)));
+                        () ->
+                                baiduMercatorFromCoordinate(
+                                        coordinateNew(39.915, 116.404, Crs.WGS84)));
         assertEquals(Crs.BD09, mismatch.getExpected());
         assertEquals(Crs.WGS84, mismatch.getFound());
+
+        GeoException.OutOfRange outOfRange =
+                assertThrows(
+                        GeoException.OutOfRange.class, () -> coordinateNew(91.0, 0.0, Crs.WGS84));
+        assertEquals(91.0, outOfRange.getLat());
+        assertEquals(0.0, outOfRange.getLon());
 
         GeoException.InvalidGridRef badGrid =
                 assertThrows(

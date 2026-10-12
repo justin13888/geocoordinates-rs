@@ -14,10 +14,10 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
 
     for datum in [Crs::Nad27, Crs::Tokyo, Crs::Pulkovo42] {
         let transform = DatumTransform::to_wgs84(datum).expect("classic datum is catalogued");
-        let source = Coordinate::new(40.0, -100.0, datum).with_height(Height::Ellipsoidal(0.0));
+        let source = Coordinate::new(40.0, -100.0, datum)?.with_height(Height::Ellipsoidal(0.0))?;
         let wgs = transform.transform(source)?;
         let restored = transform.inverse().transform(wgs)?;
-        assert_eq!(restored.crs, datum);
+        assert_eq!(restored.crs(), datum);
         assert_within_meters(&restored, &source, 0.001);
     }
     assert!(DatumTransform::to_wgs84(Crs::Wgs84).is_none());
@@ -27,7 +27,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     assert_eq!(zone_for(78.0, 20.0), 33);
     assert_eq!(central_meridian_deg(18), -75.0);
 
-    let philadelphia = Coordinate::wgs84(40.0, -75.0);
+    let philadelphia = Coordinate::wgs84(40.0, -75.0)?;
     let utm = Utm::try_from_coordinate(philadelphia)?;
     assert_eq!(utm.zone, 18);
     assert_eq!(utm.hemisphere, GridHemisphere::North);
@@ -36,17 +36,17 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     assert_within_meters(&utm.try_to_coordinate()?, &philadelphia, 0.001);
     assert_eq!(Utm::try_from(philadelphia)?, utm);
     assert_eq!(
-        Utm::try_from_coordinate(Coordinate::wgs84(-40.0, -75.0))?.hemisphere,
+        Utm::try_from_coordinate(Coordinate::wgs84(-40.0, -75.0)?)?.hemisphere,
         GridHemisphere::South
     );
 
-    let north_polar = Coordinate::wgs84(85.0, 0.0);
+    let north_polar = Coordinate::wgs84(85.0, 0.0)?;
     let ups = Ups::try_from_coordinate(north_polar)?;
     assert_eq!(ups.hemisphere, GridHemisphere::North);
     assert_within_meters(&ups.try_to_coordinate()?, &north_polar, 0.001);
     assert_eq!(Ups::try_from(north_polar)?, ups);
     assert_eq!(
-        Ups::try_from_coordinate(Coordinate::wgs84(-85.0, 0.0))?.hemisphere,
+        Ups::try_from_coordinate(Coordinate::wgs84(-85.0, 0.0)?)?.hemisphere,
         GridHemisphere::South
     );
 

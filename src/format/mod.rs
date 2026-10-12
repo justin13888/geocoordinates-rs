@@ -120,7 +120,6 @@ impl Default for FormatOptions {
 /// coordinate — e.g. a future UTM representation at the poles (see
 /// [`crate::Error::InvalidGridRef`]). The DD/DMS/DDM representations never fail.
 pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
-    coord.validate()?;
     if options
         .precision
         .is_some_and(|precision| precision > MAX_PRECISION)
@@ -204,8 +203,8 @@ fn render(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
     match options.representation {
         Representation::DecimalDegrees => {
             let p = options.precision.unwrap_or(6);
-            let lat = render_dd(coord.lat, Axis::Latitude, options, p, comma);
-            let lon = render_dd(coord.lon, Axis::Longitude, options, p, comma);
+            let lat = render_dd(coord.lat(), Axis::Latitude, options, p, comma);
+            let lon = render_dd(coord.lon(), Axis::Longitude, options, p, comma);
             // A comma decimal separator collides with a ", " list separator, so
             // switch to whitespace (which the text parser splits on) there.
             let sep = if comma { " " } else { ", " };
@@ -243,8 +242,8 @@ fn render_angle_pair(
     comma: bool,
     kind: AngleKind,
 ) -> Result<String> {
-    let lat = render_angle(coord.lat, Axis::Latitude, options, p, comma, kind)?;
-    let lon = render_angle(coord.lon, Axis::Longitude, options, p, comma, kind)?;
+    let lat = render_angle(coord.lat(), Axis::Latitude, options, p, comma, kind)?;
+    let lon = render_angle(coord.lon(), Axis::Longitude, options, p, comma, kind)?;
     Ok(format!("{lat} {lon}"))
 }
 

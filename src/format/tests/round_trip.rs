@@ -56,7 +56,7 @@ fn options() -> impl Strategy<Value = FormatOptions> {
 /// One trip: render, parse back with the separator the options imply, render
 /// again. Returns both renderings.
 fn trip(lat: f64, lon: f64, options: &FormatOptions) -> (String, String) {
-    let first = fmt(&Coordinate::wgs84(lat, lon), options);
+    let first = fmt(&wgs(lat, lon), options);
     let parse_options = TextParseOptions {
         decimal_comma: options.uses_decimal_comma(),
         ..TextParseOptions::default()

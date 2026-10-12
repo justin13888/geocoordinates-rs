@@ -21,19 +21,23 @@ fn opts(
     }
 }
 
+fn wgs(lat: f64, lon: f64) -> Coordinate {
+    Coordinate::wgs84(lat, lon).unwrap()
+}
+
 fn fmt(coord: &Coordinate, options: &FormatOptions) -> String {
     format(coord, options).expect("DD/DMS/DDM formatting is infallible")
 }
 
 #[test]
 fn dd_default_matches_doc() {
-    let c = Coordinate::wgs84(40.7128, -74.006);
+    let c = wgs(40.7128, -74.006);
     assert_eq!(fmt(&c, &FormatOptions::default()), "40.712800, -74.006000");
 }
 
 #[test]
 fn dd_cardinal_and_precision() {
-    let c = Coordinate::wgs84(40.7128, -74.006);
+    let c = wgs(40.7128, -74.006);
     assert_eq!(
         fmt(
             &c,
@@ -66,7 +70,7 @@ fn dd_cardinal_and_precision() {
 
 #[test]
 fn dms_clean_and_styles() {
-    let c = Coordinate::wgs84(10.5, 20.25);
+    let c = wgs(10.5, 20.25);
     let dms = |sym, hemi| fmt(&c, &opts(Representation::Dms, Some(0), sym, hemi, None));
     assert_eq!(
         dms(SymbolStyle::Unicode, HemisphereStyle::Cardinal),
@@ -84,7 +88,7 @@ fn dms_clean_and_styles() {
 
 #[test]
 fn dms_signed_puts_minus_on_degrees() {
-    let c = Coordinate::wgs84(10.5, -20.25);
+    let c = wgs(10.5, -20.25);
     assert_eq!(
         fmt(
             &c,
@@ -104,7 +108,7 @@ fn dms_signed_puts_minus_on_degrees() {
 fn dms_seconds_carry_rolls_up() {
     // lat ~0.9999999 -> 0°59′59.99964″, which rounds to 60″ at p=2 and must
     // carry to 1°00′00.00″ rather than render 0°59′60.00″ or 0°60′00″.
-    let c = Coordinate::wgs84(0.9999999, 0.0);
+    let c = wgs(0.9999999, 0.0);
     assert_eq!(
         fmt(
             &c,
@@ -122,7 +126,7 @@ fn dms_seconds_carry_rolls_up() {
 
 #[test]
 fn ddm_clean_and_doc_example() {
-    let c = Coordinate::wgs84(40.5, -74.25);
+    let c = wgs(40.5, -74.25);
     assert_eq!(
         fmt(
             &c,
@@ -137,7 +141,7 @@ fn ddm_clean_and_doc_example() {
         "40°30.000′N 74°15.000′W"
     );
     // The module-doc example: 40°42.766′N.
-    let doc = Coordinate::wgs84(40.0 + 42.766 / 60.0, 0.0);
+    let doc = wgs(40.0 + 42.766 / 60.0, 0.0);
     let out = fmt(
         &doc,
         &opts(
@@ -153,7 +157,7 @@ fn ddm_clean_and_doc_example() {
 
 #[test]
 fn locale_decimal_comma() {
-    let c = Coordinate::wgs84(40.7128, -74.006);
+    let c = wgs(40.7128, -74.006);
     // Comma locale: comma decimals, whitespace list separator (round-trips
     // through `parse_coordinate_with` with `decimal_comma` set).
     assert_eq!(
@@ -200,7 +204,7 @@ fn uses_decimal_comma_follows_locale() {
 
 #[test]
 fn format_fix_derives_precision_from_accuracy() {
-    let coord = Coordinate::wgs84(40.7128, -74.006);
+    let coord = wgs(40.7128, -74.006);
     let fix = |horizontal_m: Option<f64>| Fix {
         coord,
         accuracy: Some(Accuracy {
@@ -244,7 +248,7 @@ fn format_fix_derives_precision_from_accuracy() {
 
 #[test]
 fn format_fix_derives_dms_ddm_precision_in_their_own_units() {
-    let coord = Coordinate::wgs84(40.7128, -74.006);
+    let coord = wgs(40.7128, -74.006);
     let fix = |horizontal_m: Option<f64>| Fix {
         coord,
         accuracy: Some(Accuracy {
@@ -315,7 +319,7 @@ fn precision_for_accuracy_uses_the_representations_unit() {
 #[test]
 fn ddm_minutes_carry_rolls_up() {
     // Minutes round to 60.000 at p=3 and must carry into the degree.
-    let c = Coordinate::wgs84(0.9999999, 0.0);
+    let c = wgs(0.9999999, 0.0);
     assert_eq!(
         fmt(
             &c,
@@ -334,7 +338,7 @@ fn ddm_minutes_carry_rolls_up() {
 #[test]
 fn signed_zero_has_no_minus() {
     // A zero component must not gain a leading '-' in the signed style.
-    let c = Coordinate::wgs84(0.0, 10.0);
+    let c = wgs(0.0, 10.0);
     assert_eq!(
         fmt(
             &c,
@@ -352,7 +356,7 @@ fn signed_zero_has_no_minus() {
 
 #[test]
 fn negative_zero_longitude_is_east() {
-    let c = Coordinate::wgs84(0.0, -0.0);
+    let c = wgs(0.0, -0.0);
     assert_eq!(
         fmt(
             &c,
@@ -370,7 +374,7 @@ fn negative_zero_longitude_is_east() {
 
 #[test]
 fn plus_code_representation() {
-    let c = Coordinate::wgs84(47.0000625, 8.0000625);
+    let c = wgs(47.0000625, 8.0000625);
     assert_eq!(
         fmt(
             &c,
