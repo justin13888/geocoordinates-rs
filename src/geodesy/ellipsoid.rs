@@ -1,4 +1,11 @@
 //! Reference ellipsoid definitions.
+//!
+//! ```
+//! use geocoordinates::{Crs, geodesy::ellipsoid::Ellipsoid};
+//!
+//! let bessel = Ellipsoid::for_crs(Crs::Tokyo).unwrap();
+//! assert!(bessel.semi_major_m() < Ellipsoid::WGS84.semi_major_m());
+//! ```
 
 use crate::coord::Crs;
 use crate::error::{Error, Result};
@@ -46,36 +53,82 @@ impl TryFrom<EllipsoidRecord> for Ellipsoid {
 
 impl Ellipsoid {
     /// The WGS-84 ellipsoid.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::Ellipsoid};
+    ///
+    /// assert_eq!(Ellipsoid::WGS84.semi_major_m(), 6_378_137.0);
+    /// assert_eq!(Ellipsoid::for_crs(Crs::Wgs84), Some(Ellipsoid::WGS84));
+    /// ```
     pub const WGS84: Ellipsoid = Ellipsoid {
         semi_major_m: 6_378_137.0,
         inverse_flattening: 298.257_223_563,
     };
 
     /// The GRS80 ellipsoid (NAD83/ETRS89).
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ellipsoid;
+    ///
+    /// // Same equatorial radius as WGS 84; the semi-minor axes differ by ~0.1 mm.
+    /// let (grs, wgs) = (Ellipsoid::GRS80, Ellipsoid::WGS84);
+    /// assert_eq!(grs.semi_major_m(), wgs.semi_major_m());
+    /// assert!((grs.semi_minor_m() - wgs.semi_minor_m()).abs() < 1e-3);
+    /// ```
     pub const GRS80: Ellipsoid = Ellipsoid {
         semi_major_m: 6_378_137.0,
         inverse_flattening: 298.257_222_101,
     };
 
     /// The Krasovsky-1940 ellipsoid (Pulkovo-1942, SK-42, and derived datums).
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::Ellipsoid};
+    ///
+    /// assert_eq!(Ellipsoid::for_crs(Crs::Pulkovo42), Some(Ellipsoid::KRASOVSKY_1940));
+    /// assert_eq!(Ellipsoid::KRASOVSKY_1940.inverse_flattening(), 298.3);
+    /// ```
     pub const KRASOVSKY_1940: Ellipsoid = Ellipsoid {
         semi_major_m: 6_378_245.0,
         inverse_flattening: 298.3,
     };
 
     /// The Airy-1830 ellipsoid (OSGB36 / Ordnance Survey of Great Britain).
+    ///
+    /// No built-in [`Crs`] uses it; it parameterizes user-built transforms.
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ellipsoid;
+    ///
+    /// assert_eq!(Ellipsoid::AIRY_1830.semi_major_m(), 6_377_563.396);
+    /// assert!(Ellipsoid::AIRY_1830.semi_major_m() < Ellipsoid::WGS84.semi_major_m());
+    /// ```
     pub const AIRY_1830: Ellipsoid = Ellipsoid {
         semi_major_m: 6_377_563.396,
         inverse_flattening: 299.324_964_6,
     };
 
     /// The Bessel-1841 ellipsoid (Tokyo datum, older European datums).
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::Ellipsoid};
+    ///
+    /// assert_eq!(Ellipsoid::for_crs(Crs::Tokyo), Some(Ellipsoid::BESSEL_1841));
+    /// assert_eq!(Ellipsoid::BESSEL_1841.semi_major_m(), 6_377_397.155);
+    /// ```
     pub const BESSEL_1841: Ellipsoid = Ellipsoid {
         semi_major_m: 6_377_397.155,
         inverse_flattening: 299.152_812_8,
     };
 
     /// The Clarke-1866 ellipsoid (NAD27 / North American Datum 1927).
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, geodesy::Ellipsoid};
+    ///
+    /// assert_eq!(Ellipsoid::for_crs(Crs::Nad27), Some(Ellipsoid::CLARKE_1866));
+    /// assert_eq!(Ellipsoid::CLARKE_1866.semi_major_m(), 6_378_206.4);
+    /// ```
     pub const CLARKE_1866: Ellipsoid = Ellipsoid {
         semi_major_m: 6_378_206.4,
         inverse_flattening: 294.978_698_2,
@@ -144,30 +197,69 @@ impl Ellipsoid {
     }
 
     /// Semi-major axis `a`, in meters.
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ellipsoid;
+    ///
+    /// assert_eq!(Ellipsoid::new(6_371_000.0, f64::INFINITY)?.semi_major_m(), 6_371_000.0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub const fn semi_major_m(&self) -> f64 {
         self.semi_major_m
     }
 
     /// Inverse flattening `1/f` (positive infinity for a sphere).
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ellipsoid;
+    ///
+    /// assert_eq!(Ellipsoid::WGS84.inverse_flattening(), 298.257_223_563);
+    /// let sphere = Ellipsoid::new(6_371_000.0, f64::INFINITY)?;
+    /// assert_eq!(sphere.inverse_flattening(), f64::INFINITY);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub const fn inverse_flattening(&self) -> f64 {
         self.inverse_flattening
     }
 
     /// Flattening `f`.
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ellipsoid;
+    ///
+    /// let f = Ellipsoid::new(6_378_137.0, 300.0)?.flattening();
+    /// assert!((f - 1.0 / 300.0).abs() < 1e-18);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub const fn flattening(&self) -> f64 {
         1.0 / self.inverse_flattening
     }
 
     /// Semi-minor axis `b`, in meters.
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ellipsoid;
+    ///
+    /// // WGS 84's polar radius is about 21.4 km shorter than its equatorial one.
+    /// assert!((Ellipsoid::WGS84.semi_minor_m() - 6_356_752.314_245).abs() < 1e-3);
+    /// ```
     #[must_use]
     pub const fn semi_minor_m(&self) -> f64 {
         self.semi_major_m * (1.0 - self.flattening())
     }
 
     /// First eccentricity squared `e² = f(2 − f)`.
+    ///
+    /// ```
+    /// use geocoordinates::geodesy::Ellipsoid;
+    ///
+    /// assert!((Ellipsoid::WGS84.eccentricity_sq() - 0.006_694_379_990_141).abs() < 1e-15);
+    /// assert_eq!(Ellipsoid::new(6_371_000.0, f64::INFINITY)?.eccentricity_sq(), 0.0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
     #[must_use]
     pub const fn eccentricity_sq(&self) -> f64 {
         let f = self.flattening();
