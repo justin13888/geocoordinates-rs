@@ -21,3 +21,13 @@ lcov.info
 # Release, the generated Swift sources under swift/Sources/ are committed).
 /swift/*.xcframework/
 /swift/*.xcframework.zip
+
+# Android AAR and generated Kotlin/native build inputs.
+/crates/geocoordinates-ffi/android/.gradle/
+/crates/geocoordinates-ffi/android/.kotlin/
+/crates/geocoordinates-ffi/android/build/
+/crates/geocoordinates-ffi/android/local.properties
+/crates/geocoordinates-ffi/android/src/main/kotlin/
+/crates/geocoordinates-ffi/android/src/main/jniLibs/
+/android-dist/
+/work/

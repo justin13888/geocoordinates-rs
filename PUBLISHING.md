@@ -4,6 +4,10 @@ The `geocoordinates-ffi` UniFFI bindings are published to each ecosystem's regis
 by per-language GitHub Actions workflows, using that ecosystem's native tooling. The
 core Rust crate continues to publish to crates.io via release-plz, untouched.
 
+Android AARs use a separate daily GitHub Release pipeline, described under
+[Android Library](#android-library--github-releases) below. The registry trigger
+and versioning rules in the next section apply to the four other binding workflows.
+
 ## Trigger & versioning
 
 When a release PR merges, `release-plz.yml` cuts the **`v*` GitHub Release** and then
@@ -86,8 +90,21 @@ version is on Maven Central yet, though: the Gradle build calls
 `publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)` without automatic release, so each
 uploaded deployment most likely waits in the portal for a manual **Publish**. If the
 secrets are ever removed, the publish step skips with a warning instead, and the other
-registries are unaffected either way. (Desktop JVM only for now; Android AAR is future
-work.)
+registries are unaffected either way. This artifact targets desktop JVM; Android
+uses the separate AAR release pipeline below.
+
+### Android Library — GitHub Releases
+
+`release-android.yml` checks daily at 06:00 Asia/Shanghai for build-input changes
+since the last successful Android release. It builds an AAR with Kotlin bindings
+and four Android ABIs, uploads it to a dedicated `android-*` GitHub Release, and
+keeps only the newest three Android releases and their tags. Other release
+families are not pruned. Manual dispatch checks for changes too; pull requests
+build and lint without publishing. Only default-branch runs publish, using the
+built-in `GITHUB_TOKEN`; no registry credentials are needed.
+
+See [Android Library](crates/geocoordinates-ffi/android/README.md) for installation,
+JNA dependencies, scheduling, retention, and local build details.
 
 ### SwiftPM — nothing to configure
 The release workflow builds the XCFramework, uploads it to the GitHub Release, writes

@@ -125,6 +125,7 @@ workflows and registry setup.
 | Python | [PyPI](https://pypi.org/project/geocoordinates-rs/) | `geocoordinates-rs` | `pip install geocoordinates-rs` |
 | TypeScript / WASM | [npm](https://www.npmjs.com/package/geocoordinates-rs) | `geocoordinates-rs` | `npm install geocoordinates-rs` |
 | Kotlin / Java | [Maven Central](https://central.sonatype.com/artifact/io.github.justin13888/geocoordinates)&nbsp;† | `io.github.justin13888:geocoordinates` | add the coordinate to Gradle / Maven |
+| Android (Kotlin / Java) | GitHub Releases (`android-*` tags) | `geocoordinates-android.aar` | [Android installation guide](crates/geocoordinates-ffi/android/README.md) |
 | Swift | [GitHub Releases](https://github.com/justin13888/geocoordinates-rs/releases) | `GeoCoordinates` | `.package(url: "https://github.com/justin13888/geocoordinates-rs", .upToNextMinor(from: "0.15.0"))` |
 
 > † **Maven Central:** the JVM workflow uploads each release to the Central Portal with the

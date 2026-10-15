@@ -29,11 +29,18 @@ crate-type = ["cdylib", "staticlib", "lib"]
 # The core crate, by path. Its `serde` feature is intentionally NOT enabled —
 # the translation layer only reads public fields and calls inherent methods.
 geocoordinates = { path = "../..", version = "0.14", features = ["geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2"] }
-uniffi = { version = "0.31", features = ["cli"] }
+uniffi = { version = "0.31" }
 thiserror = "2.0"
+
+[features]
+# Existing host-generation commands keep working. Android libraries need only
+# the FFI runtime, not the bindgen CLI and its compiler/parser dependencies.
+default = ["bindgen"]
+bindgen = ["uniffi/cli"]
 
 [[bin]]
 # Standard library-mode bindgen shim; `uniffi-bindgen generate --library` runs
 # through this so the bindgen version is locked to the runtime's `uniffi`.
 name = "uniffi-bindgen"
 path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]

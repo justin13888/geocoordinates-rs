@@ -31,3 +31,6 @@ print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
 ```
 
 The WebAssembly/TypeScript bindings live in [`web/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web).
+
+Android Kotlin/Java bindings ship as an AAR with four native ABIs. See the
+[Android installation and release guide](android/README.md).

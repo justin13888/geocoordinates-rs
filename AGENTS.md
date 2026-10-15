@@ -16,6 +16,9 @@ library built on this one).
 
 ## Quality
 
+Android Library release progress, design decisions, verification and follow-up
+items are recorded in `docs/android-library-release.md`.
+
 Validate every change against the gates listed in the `README.md` Development
 section (each is a `mise run <task>` defined in `.mise.toml`).
 
