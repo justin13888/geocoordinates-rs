@@ -49,6 +49,11 @@ The first hosted build is requested as part of this handoff. Its result is
 recorded below once the default-branch workflow finishes. No additional secrets
 are needed beyond the publishing job's built-in `GITHUB_TOKEN`.
 
+The first synchronization run succeeded with no upstream changes (no empty PR).
+The first Android attempt exposed a removed Google SDK `tools` package in the
+setup action's default inputs; the workflow now requests only `platform-tools`
+before installing its pinned SDK and NDK packages.
+
 Install and local-build instructions:
 [`crates/geocoordinates-ffi/android/README.md`](../crates/geocoordinates-ffi/android/README.md).
 

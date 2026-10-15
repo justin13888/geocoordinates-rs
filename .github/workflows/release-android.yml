@@ -71,6 +71,9 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: android-actions/setup-android@v3
+        with:
+          # Google's repository no longer publishes the legacy `tools` package.
+          packages: platform-tools
       - name: Install Android SDK and NDK
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
       - uses: gradle/actions/setup-gradle@v4
@@ -98,7 +101,9 @@ jobs:
             build --locked --release -p geocoordinates-ffi --lib --no-default-features
       - name: Assemble and lint Android Library
         working-directory: crates/geocoordinates-ffi/android
-        run: gradle --no-daemon assembleRelease lintRelease
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+        run: gradle --no-daemon -PreleaseVersion="${RELEASE_VERSION:-0.0.0-local}" assembleRelease lintRelease
       - name: Verify AAR contents
         run: |
           python3 - <<'PY'
