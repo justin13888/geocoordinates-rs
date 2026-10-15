@@ -48,13 +48,14 @@ No API key or network access is needed for coordinate calculations.
 
 `.github/workflows/release-android.yml` checks the default branch daily at
 **06:00 Asia/Shanghai (22:00 UTC the previous day)**. GitHub may delay scheduled
-runs. It compares build inputs with the last successfully published Android
-release; it publishes on the first run and whenever those inputs differ.
-Build failures leave the previous baseline intact, so the next run retries.
+runs. The root Cargo version must equal upstream's latest official GitHub
+Release version. Each version is published once as `android-vX.Y.Z`, such as
+`android-v0.14.2`; there is no independent Android version bump or date suffix.
+Unreleased development versions wait until upstream publishes them. Build
+failures leave the version unpublished, so the next run retries.
 Manual dispatch performs the same check; only default-branch runs can publish.
 Relevant pull requests build and lint the AAR without publishing or deleting.
 
-Release tags use `android-<crate-version>-<UTC-timestamp>-<run-id>.<attempt>`.
 The workflow first creates a draft, uploads the AAR, checksum and documentation,
 then publishes it without changing GitHub's latest release designation.
 After successful publication, it retains the newest **three published Android
@@ -69,6 +70,22 @@ Only the built-in `GITHUB_TOKEN` with `contents: write` in the publishing job is
 required; no Maven Central account, PAT, or signing secret is needed. Enable
 Actions and scheduled workflows in forks. The workflow must be on the default
 branch for the schedule to run.
+
+## Daily upstream synchronization
+
+`.github/workflows/sync-upstream.yml` runs at **05:00 Asia/Shanghai**. It merges
+`justin13888/geocoordinates-rs:master` into the fork's current default-branch
+history, then uses `peter-evans/create-pull-request@v7` to create/update the
+`sync/upstream` PR. It merges that PR while respecting branch protection and
+dispatches the Android release check explicitly (bot-created merges do not
+trigger other workflows through ordinary push events).
+
+Fork-specific Android files and commits are preserved. Merge conflicts stop the
+workflow for manual resolution; required reviews/checks can also block merging.
+The built-in token needs `contents: write`, `pull-requests: write`, and
+`actions: write`. Repository settings must allow Actions to create pull requests.
+Forks skip the upstream `release-plz` jobs, so only upstream controls crate
+versions and official registry publication.
 
 ## Local build
 

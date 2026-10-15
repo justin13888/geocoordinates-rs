@@ -1,8 +1,11 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { androidReleases, plan, prune } = require('./android-release.cjs');
+const { androidReleases, plan: planImplementation, prune } = require('./android-release.cjs');
 
 const sha = 'a'.repeat(40);
+function plan(args, git = () => sha, manifest = '[package]\nversion = "0.14.2"\n') {
+  return planImplementation(args, git, manifest);
+}
 function release(id, overrides = {}) {
   return {
     id, tag_name: `android-test-${id}`, draft: false,
@@ -19,7 +22,10 @@ function api(releases) {
     github: {
       paginate: async () => releases,
       rest: {
-        repos: { listReleases() {}, deleteRelease: async r => deleted.push(r.release_id) },
+        repos: {
+          listReleases() {}, deleteRelease: async r => deleted.push(r.release_id),
+          getLatestRelease: async () => ({ data: { tag_name: 'v0.14.2' } }),
+        },
         git: { deleteRef: async r => tags.push(r.ref) },
       },
     },
@@ -42,25 +48,34 @@ test('first run builds even without any previous release', async () => {
   assert.equal(args.outputs.sha, sha);
 });
 
-test('unchanged build inputs skip; changed inputs build from last successful release', async () => {
-  for (const diff of ['', 'src/china.rs']) {
-    const args = api([release(1), release(2, { draft: true })]);
-    await plan(args, command => {
-      if (command[0] === 'rev-parse') return 'b'.repeat(40);
-      assert.deepEqual(command.slice(0, 5), ['diff', '--name-only', sha, 'b'.repeat(40), '--']);
-      assert.ok(command.includes('Cargo.lock'));
-      assert.ok(command.includes('crates/geocoordinates-ffi'));
-      return diff;
-    });
-    assert.equal(args.outputs.changed, String(Boolean(diff)));
+test('an already published upstream version is immutable even when the commit changes', async () => {
+  const args = api([release(1, { tag_name: 'android-v0.14.2' })]);
+  await plan(args, () => 'b'.repeat(40));
+  assert.equal(args.outputs.changed, 'false');
+  assert.equal(args.outputs.version, '0.14.2');
+  assert.equal(args.outputs.tag, 'android-v0.14.2');
+});
+
+test('a previous version or failed draft does not block the next release', async () => {
+  const args = api([release(1, { tag_name: 'android-v0.14.1' }),
+    release(2, { tag_name: 'android-v0.14.2', draft: true })]);
+  await plan(args, () => sha);
+  assert.equal(args.outputs.changed, 'true');
+});
+
+test('wait for synchronization or an official upstream release when versions differ', async () => {
+  for (const version of ['0.14.1', '0.15.0']) {
+    const args = api([]);
+    await plan(args, () => sha, `[package]\nversion = "${version}"\n`);
+    assert.equal(args.outputs.changed, 'false');
   }
 });
 
-test('an inaccessible baseline fails rather than falsely reporting unchanged', async () => {
-  await assert.rejects(plan(api([release(1)]), command => {
-    if (command[0] === 'rev-parse') return sha;
-    throw new Error('missing commit');
-  }), /missing commit/);
+test('invalid versions and upstream API failures fail without inventing a version', async () => {
+  await assert.rejects(plan(api([]), () => sha, 'version = "0.15.0-dev"'), /stable crate version/);
+  const args = api([]);
+  args.github.rest.repos.getLatestRelease = async () => { throw new Error('upstream unavailable'); };
+  await assert.rejects(plan(args, () => sha), /upstream unavailable/);
 });
 
 test('retention removes older owned releases, abandoned drafts and their exact tags', async () => {

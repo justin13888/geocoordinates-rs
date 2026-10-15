@@ -1,0 +1,63 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # Daily 05:00 Asia/Shanghai, before Android release checks.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository != 'justin13888/geocoordinates-rs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - name: Merge upstream history while preserving fork changes
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/justin13888/geocoordinates-rs.git
+          git fetch --no-tags upstream master
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            merge --no-ff upstream/master -m 'chore(sync): merge upstream master'
+      - name: Create or update upstream sync PR
+        id: pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          base: ${{ github.event.repository.default_branch }}
+          branch: sync/upstream
+          delete-branch: true
+          title: "chore(sync): merge upstream master"
+          body: |
+            Daily merge of justin13888/geocoordinates-rs:master.
+
+            Preserves this fork's Android packaging and automation. Android
+            version numbers follow upstream's official releases. Merge conflicts
+            stop synchronization for manual resolution; branch protection is respected.
+      - name: Merge the sync PR
+        if: steps.pr.outputs.pull-request-number != ''
+        env:
+          PR_URL: ${{ steps.pr.outputs.pull-request-url }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.pull-request-head-sha }}
+        run: gh pr merge "$PR_URL" --merge --delete-branch --match-head-commit "$PR_HEAD_SHA"
+      - name: Check for a new Android release after merging
+        if: steps.pr.outputs.pull-request-number != ''
+        run: gh workflow run release-android.yml --ref "$DEFAULT_BRANCH"

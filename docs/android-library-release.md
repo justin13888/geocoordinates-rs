@@ -7,8 +7,15 @@ Updated: 2026-10-15 (Asia/Shanghai).
 - `.github/workflows/release-android.yml` checks the default branch daily at
   06:00 Asia/Shanghai and supports manual dispatch. Relevant pull requests build
   without publishing.
-- Build-input changes are compared with the last successfully published Android
-  release. Failed builds are retried on subsequent checks.
+- Android uses the root Cargo version only when it matches upstream's latest
+  official GitHub Release. Each version is published once as `android-vX.Y.Z`;
+  failed builds retry on subsequent checks. Development versions wait for the
+  corresponding upstream release.
+- `sync-upstream.yml` runs at 05:00 Asia/Shanghai, merges upstream master while
+  preserving fork changes, uses `peter-evans/create-pull-request@v7`, merges the
+  PR and dispatches an Android release check. Conflicts or branch protection
+  stop automatic merging. Forks skip upstream's release-plz jobs to avoid
+  independent version bumps and registry publication.
 - The Android AAR includes Kotlin bindings and arm64-v8a, armeabi-v7a, x86_64,
   and x86 native libraries. The minimum Android API is 23; timestamps require
   core library desugaring on API 23–25.
@@ -26,7 +33,9 @@ Updated: 2026-10-15 (Asia/Shanghai).
 - `mise run check`: Rust formatting, Clippy and core tests passed.
 - `mise run ffi-check` and `mise run ffi-test`: passed.
 - `cargo test --locked -p geocoordinates-ffi --no-default-features`: passed.
-- Nine Node release-planning/retention tests and actionlint: passed.
+- Eleven Node release-planning/retention tests and actionlint: passed.
+- Push hooks passed, including 98.85% line coverage (98% floor); no changed Rust
+  source lines required mutation testing.
 - NDK 28.2.13676358 release builds for all four Android ABIs: passed.
 - Gradle 8.11.1/JDK 17 `assembleRelease lintRelease`: passed.
 - Final local AAR: 3,078,017 bytes; Kotlin classes, consumer rules and all four

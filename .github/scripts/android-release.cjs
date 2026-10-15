@@ -1,12 +1,7 @@
 const { execFileSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
 
 const marker = /<!-- android-library-release commit=([a-f0-9]{40}) -->/;
-const paths = [
-  'src', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml',
-  'LICENSE-MIT', 'LICENSE-APACHE',
-  'crates/geocoordinates-ffi', '.github/workflows/release-android.yml',
-  '.github/scripts/android-release.cjs', '.mise.toml',
-];
 
 // A prefix alone is insufficient: only releases created by this pipeline qualify.
 function ownedRelease(release) {
@@ -26,19 +21,23 @@ async function list(github, context) {
 }
 
 async function plan({ github, context, core }, git = args =>
-  execFileSync('git', args, { encoding: 'utf8' }).trim()) {
+  execFileSync('git', args, { encoding: 'utf8' }).trim(),
+  manifest = readFileSync('Cargo.toml', 'utf8')) {
   const releases = androidReleases(await list(github, context));
   const sha = git(['rev-parse', 'HEAD']);
-  let changed = true;
-  if (releases.length) {
-    const previous = releases[0].body.match(marker)[1];
-    // Full checkout history is available. Failure to resolve a baseline must fail
-    // visibly, rather than silently skip an unpublished change.
-    changed = git(['diff', '--name-only', previous, sha, '--', ...paths]) !== '';
-  }
+  const version = manifest.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
+  if (!version || !/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Expected a stable crate version');
+  const upstream = await github.rest.repos.getLatestRelease({ owner: 'justin13888', repo: 'geocoordinates-rs' });
+  const upstreamVersion = upstream.data.tag_name.replace(/^v/, '');
+  const tag = `android-v${version}`;
+  // Publish each official upstream version once. Development commits retaining
+  // the same Cargo version must not create additional, differently numbered releases.
+  const changed = version === upstreamVersion && !releases.some(r => r.tag_name === tag);
   core.setOutput('changed', String(changed));
   core.setOutput('sha', sha);
-  core.info(changed ? `Build Android Library from ${sha}` : 'No Android build inputs changed.');
+  core.setOutput('version', version);
+  core.setOutput('tag', tag);
+  core.info(changed ? `Build ${tag} from ${sha}` : `Skip: upstream=${upstreamVersion}, local=${version}; version may already be published.`);
 }
 
 async function prune({ github, context, core }) {

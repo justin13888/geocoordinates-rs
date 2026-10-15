@@ -32,6 +32,8 @@ jobs:
     outputs:
       changed: ${{ steps.plan.outputs.changed }}
       sha: ${{ steps.plan.outputs.sha }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -145,10 +147,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
         run: |
           set -euo pipefail
-          version="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
-          tag="android-${version}-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
+          version="$RELEASE_VERSION"
+          tag="$RELEASE_TAG"
           notes="${RUNNER_TEMP}/android-release-notes.md"
           cat > "$notes" <<EOF
           Android Library built from ${SOURCE_SHA} (Rust crate ${version}).
@@ -160,9 +164,16 @@ jobs:
           JNA is a separate dependency (see README.md). SHA256SUMS verifies the AAR.
           Only the latest three Android Library releases are retained.
           EOF
-          gh release create "$tag" --target "$SOURCE_SHA" --draft \
-            --title "Android Library ${version} (${tag#android-${version}-})" --notes-file "$notes"
-          gh release upload "$tag" android-dist/*
+          # A failed upload may have left this version's draft. Only resume a
+          # draft with our ownership marker; never overwrite a published release.
+          if gh release view "$tag" --json isDraft,body > "$RUNNER_TEMP/android-existing.json" 2>/dev/null; then
+            jq -e '.isDraft and (.body | test("<!-- android-library-release commit=[a-f0-9]{40} -->"))' "$RUNNER_TEMP/android-existing.json" > /dev/null
+            gh release edit "$tag" --title "Android Library ${version}" --notes-file "$notes"
+          else
+            gh release create "$tag" --target "$SOURCE_SHA" --draft \
+              --title "Android Library ${version}" --notes-file "$notes"
+          fi
+          gh release upload "$tag" android-dist/* --clobber
           gh release edit "$tag" --draft=false --latest=false
 
   cleanup:

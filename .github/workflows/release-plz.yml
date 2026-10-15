@@ -10,6 +10,8 @@ permissions:
 jobs:
   # Release unpublished versions (runs after a release PR is merged to master).
   release-plz-release:
+    # Forks follow upstream versions and publish only their Android AARs.
+    if: github.repository == 'justin13888/geocoordinates-rs'
     name: Release-plz release
     runs-on: ubuntu-latest
     permissions:
@@ -64,6 +66,7 @@ jobs:
 
   # Maintain the release PR (version bump + CHANGELOG) as commits land on master.
   release-plz-pr:
+    if: github.repository == 'justin13888/geocoordinates-rs'
     name: Release-plz PR
     runs-on: ubuntu-latest
     permissions:

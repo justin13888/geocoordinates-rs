@@ -95,13 +95,21 @@ uses the separate AAR release pipeline below.
 
 ### Android Library — GitHub Releases
 
-`release-android.yml` checks daily at 06:00 Asia/Shanghai for build-input changes
-since the last successful Android release. It builds an AAR with Kotlin bindings
-and four Android ABIs, uploads it to a dedicated `android-*` GitHub Release, and
+`sync-upstream.yml` uses `peter-evans/create-pull-request` daily at 05:00
+Asia/Shanghai to merge upstream history into the fork through a PR. It preserves
+fork changes and respects merge conflicts and branch protection. After a merge,
+it dispatches the Android release check explicitly.
+
+`release-android.yml` also checks daily at 06:00 Asia/Shanghai. The root Cargo
+version must match upstream's latest official release; each version is published
+once as `android-vX.Y.Z`. It builds an AAR with Kotlin bindings
+and four Android ABIs, uploads it to a dedicated GitHub Release, and
 keeps only the newest three Android releases and their tags. Other release
-families are not pruned. Manual dispatch checks for changes too; pull requests
+families are not pruned. Manual dispatch checks for a new upstream version too; pull requests
 build and lint without publishing. Only default-branch runs publish, using the
 built-in `GITHUB_TOKEN`; no registry credentials are needed.
+The fork skips upstream's `release-plz` jobs, avoiding independent version bumps
+and registry publication.
 
 See [Android Library](crates/geocoordinates-ffi/android/README.md) for installation,
 JNA dependencies, scheduling, retention, and local build details.
