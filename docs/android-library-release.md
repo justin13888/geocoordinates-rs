@@ -45,14 +45,26 @@ Updated: 2026-10-15 (Asia/Shanghai).
 
 ## Release operation
 
-The first hosted build is requested as part of this handoff. Its result is
-recorded below once the default-branch workflow finishes. No additional secrets
-are needed beyond the publishing job's built-in `GITHUB_TOKEN`.
+The first hosted release succeeded on 2026-10-15 at 11:15 Asia/Shanghai:
+
+- Release: [Android Library 0.14.2](https://github.com/uJZk/geocoordinates-rs/releases/tag/android-v0.14.2).
+- Workflow: [build, publish and cleanup passed](https://github.com/uJZk/geocoordinates-rs/actions/runs/38674781083).
+- Source commit: `2945763901c9319df7e036585b8e8604f5c3e7bc`.
+- Published AAR: 3,077,904 bytes. Re-downloaded successfully, SHA256SUMS passed,
+  and all four native ABIs and consumer rules were confirmed.
+- No additional secrets were needed beyond the built-in `GITHUB_TOKEN`.
+- A [second check](https://github.com/uJZk/geocoordinates-rs/actions/runs/38675411367)
+  passed with build/publication skipped, confirming that the same upstream
+  version does not produce duplicate releases; retention still ran successfully.
 
 The first synchronization run succeeded with no upstream changes (no empty PR).
 The first Android attempt exposed a removed Google SDK `tools` package in the
 setup action's default inputs; the workflow now requests only `platform-tools`
 before installing its pinned SDK and NDK packages.
+
+The first sync exercised the no-change path. Actual PR creation/merging awaits
+the next upstream change; repository settings must allow Actions to create PRs.
+Merge conflicts and protected-branch requirements still require resolution.
 
 Install and local-build instructions:
 [`crates/geocoordinates-ffi/android/README.md`](../crates/geocoordinates-ffi/android/README.md).
