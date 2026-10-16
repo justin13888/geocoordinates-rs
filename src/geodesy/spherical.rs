@@ -271,6 +271,35 @@ pub fn intersection_spherical(
             detail: "must be finite".into(),
         });
     }
+    let Some(crossings) = great_circle_crossings(a, bearing_a_deg, b, bearing_b_deg) else {
+        return Ok(Intersection::SameGreatCircle);
+    };
+    match crossings.into_iter().find(|crossing| crossing.forward) {
+        Some(crossing) => finish(crossing.lat, crossing.lon, a.crs()).map(Intersection::Crossing),
+        None => Ok(Intersection::NoForwardCrossing),
+    }
+}
+
+/// One of the two antipodal points where the great circles of two paths
+/// cross, in degrees (longitude unwrapped), and whether it lies ahead of both
+/// starts.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct GreatCircleCrossing {
+    pub(super) lat: f64,
+    pub(super) lon: f64,
+    pub(super) forward: bool,
+}
+
+/// The two antipodal points where the great circles of two paths (each a
+/// start and an initial bearing in degrees) cross on the mean sphere, or
+/// `None` when both paths run along one great circle. The ellipsoidal
+/// [`intersection`](super::intersection) starts its iteration from them.
+pub(super) fn great_circle_crossings(
+    a: &impl LatLon,
+    bearing_a_deg: f64,
+    b: &impl LatLon,
+    bearing_b_deg: f64,
+) -> Option<[GreatCircleCrossing; 2]> {
     let (p1, d1) = (n_vector(a), heading(a, bearing_a_deg));
     let (p2, d2) = (n_vector(b), heading(b, bearing_b_deg));
     // Each path's great circle is the plane normal to p × d; the circles meet
@@ -280,16 +309,13 @@ pub fn intersection_spherical(
     // direction affects.
     let i = cross(cross(p1, d1), cross(p2, d2));
     if is_parallel(dot(i, i).sqrt()) {
-        return Ok(Intersection::SameGreatCircle);
+        return None;
     }
-    for x in [i, i.map(|v| -v)] {
-        if is_forward(along_angle(p1, d1, x)) && is_forward(along_angle(p2, d2, x)) {
-            let lat = x[2].atan2(x[0].hypot(x[1])).to_degrees();
-            let lon = x[1].atan2(x[0]).to_degrees();
-            return finish(lat, lon, a.crs()).map(Intersection::Crossing);
-        }
-    }
-    Ok(Intersection::NoForwardCrossing)
+    Some([i, i.map(|v| -v)].map(|x| GreatCircleCrossing {
+        lat: x[2].atan2(x[0].hypot(x[1])).to_degrees(),
+        lon: x[1].atan2(x[0]).to_degrees(),
+        forward: is_forward(along_angle(p1, d1, x)) && is_forward(along_angle(p2, d2, x)),
+    }))
 }
 
 /// A 3-vector in Earth-centred axes (x to (0, 0), z to the north pole).
@@ -353,14 +379,21 @@ fn is_forward(along: f64) -> bool {
 fn validate_path(point: &impl LatLon, start: &impl LatLon, end: &impl LatLon) -> Result<()> {
     validate_pair(point, start)?;
     validate_pair(start, end)?;
-    let normal = cross(n_vector(start), n_vector(end));
-    if is_parallel(dot(normal, normal).sqrt()) {
+    if coincident_or_antipodal(start, end) {
         return Err(Error::InvalidValue {
             field: "path",
             detail: "start and end must be distinct and not antipodal".into(),
         });
     }
     Ok(())
+}
+
+/// Whether two positions are the same place or antipodal, to within about
+/// 6 µm (see [`is_parallel`]). Either fixes no single path between them; the
+/// ellipsoidal cross/along-track pair rejects the same paths.
+pub(super) fn coincident_or_antipodal(a: &impl LatLon, b: &impl LatLon) -> bool {
+    let normal = cross(n_vector(a), n_vector(b));
+    is_parallel(dot(normal, normal).sqrt())
 }
 
 /// Initial bearing on a sphere, in radians.

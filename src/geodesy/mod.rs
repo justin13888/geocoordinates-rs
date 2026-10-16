@@ -22,6 +22,12 @@
 //! [`Error::CrsMismatch`](crate::Error::CrsMismatch); convert them to WGS-84
 //! first.
 //!
+//! The path routines run on that ellipsoid too: [`cross_track_distance`] /
+//! [`along_track_distance`] find the foot of the perpendicular from a point to
+//! a geodesic path, and [`intersection`] where two geodesic paths cross
+//! ([`GeodesicIntersection`]). Each iterates (after Karney) to well under a
+//! micrometre, and states its stopping rule.
+//!
 //! The great-circle routines on the IUGG mean sphere — [`haversine_distance`],
 //! [`cross_track_distance_spherical`] / [`along_track_distance_spherical`], and
 //! [`intersection_spherical`] — sit beside the ellipsoidal rhumb-line routines
@@ -67,6 +73,7 @@ mod geodesic; // ellipsoidal (Karney) geodesics
 mod rhumb; // rhumb/loxodrome on the datum ellipsoid
 pub(crate) mod series; // Krüger n-series shared by rhumb lines and UTM
 mod spherical; // haversine, cross/along-track, intersection on the mean sphere
+mod track; // cross/along-track and intersection on the datum ellipsoid
 
 pub(crate) use datum::HubRoute;
 pub use datum::{DatumTransform, Helmert};
@@ -81,3 +88,4 @@ pub use spherical::{
     Intersection, along_track_distance_spherical, cross_track_distance_spherical,
     haversine_distance, intersection_spherical,
 };
+pub use track::{GeodesicIntersection, along_track_distance, cross_track_distance, intersection};
