@@ -227,8 +227,12 @@ impl Bd09 {
     /// [`Gcj02::to_wgs84_fast`] and sums their `max_error` bounds: 6.5 m in
     /// the China box away from its edge, where each leg's bound is a sweep's
     /// measured worst case with room to spare, and the GCJ-02 leg's measured
-    /// residual on top wherever its step crosses the box edge. Outside the box
-    /// the GCJ-02 leg is the identity and only the BD-09 leg's 0.5 m (125 m
+    /// residual on top wherever its step crosses the box edge. Within about
+    /// 0.011° past the box edge an inside WGS-84 point may also map onto the
+    /// GCJ-02 intermediate, and the GCJ-02 leg's bound widens to cover that
+    /// preimage: hundreds of meters (about 520 m for GCJ-02 points at lat
+    /// 40.0, lon 137.835–137.840, just past the east edge). Farther out the
+    /// GCJ-02 leg is the identity and only the BD-09 leg's 0.5 m (125 m
     /// within 0.02° of the antimeridian) remains. Use
     /// [`try_to_wgs84_refined`](Self::try_to_wgs84_refined) for a sub-meter
     /// result.
@@ -243,6 +247,11 @@ impl Bd09 {
     /// let wgs = Bd09::new(39.922_700, 116.416_627)?.try_to_wgs84_fast()?;
     /// assert_eq!(wgs.max_error().meters(), 6.5); // 0.5 m + 6 m
     /// assert!((wgs.value().lat() - 39.915).abs() < 1e-4);
+    ///
+    /// // Just past the box's east edge the GCJ-02 leg covers an inside
+    /// // preimage too, so the bound is hundreds of meters, not 0.5 m.
+    /// let edge = Bd09::new(40.005_762, 137.844_587)?.try_to_wgs84_fast()?;
+    /// assert!(edge.max_error().meters() > 500.0);
     /// assert!(Bd09::new(-90.0, 0.0)?.try_to_wgs84_fast().is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```

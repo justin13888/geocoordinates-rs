@@ -325,8 +325,10 @@ pub fn bd09_to_gcj02_refined(p: Bd09) -> Result<ApproxGcj02, GeoError> {
 
 /// BD-09 → WGS-84, fast composition through GCJ-02. **Approximate**: the
 /// returned record carries the summed `max_error_m` — 6.5 m in the China box
-/// away from its edge, more where the GCJ-02 step crosses the edge, and the
-/// BD-09 leg's bound alone outside the box.
+/// away from its edge, more where the GCJ-02 step crosses the edge, hundreds
+/// of meters (about 520 m at lat 40.0 just past the east edge) within about
+/// 0.011° past the edge where an inside preimage widens the GCJ-02 leg, and
+/// the BD-09 leg's bound alone farther outside the box.
 ///
 /// # Errors
 /// As [`bd09_to_gcj02_fast`].

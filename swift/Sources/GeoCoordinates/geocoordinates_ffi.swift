@@ -5118,8 +5118,10 @@ public func bd09ToGcj02Refined(p: Bd09)throws  -> ApproxGcj02  {
 /**
  * BD-09 → WGS-84, fast composition through GCJ-02. **Approximate**: the
  * returned record carries the summed `max_error_m` — 6.5 m in the China box
- * away from its edge, more where the GCJ-02 step crosses the edge, and the
- * BD-09 leg's bound alone outside the box.
+ * away from its edge, more where the GCJ-02 step crosses the edge, hundreds
+ * of meters (about 520 m at lat 40.0 just past the east edge) within about
+ * 0.011° past the edge where an inside preimage widens the GCJ-02 leg, and
+ * the BD-09 leg's bound alone farther outside the box.
  *
  * # Errors
  * As [`bd09_to_gcj02_fast`].
@@ -6651,7 +6653,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_refined() != 15279) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_fast() != 45067) {
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_fast() != 25648) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_refined() != 57298) {
