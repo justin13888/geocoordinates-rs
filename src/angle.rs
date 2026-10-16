@@ -548,8 +548,9 @@ pub enum Axis {
 /// Wrap a longitude into the half-open range `[-180, 180)`.
 ///
 /// The range is **half-open**: the antimeridian normalizes to the western
-/// edge, so `wrap_longitude(180.0) == -180.0`. Finite input is expected
-/// (a non-finite input propagates as `NaN`).
+/// edge, so `wrap_longitude(180.0) == -180.0`. A zero result is always
+/// `+0.0`, never `-0.0`. Finite input is expected (a non-finite input
+/// propagates as `NaN`).
 ///
 /// ```
 /// use geocoordinates::angle::wrap_longitude;
@@ -557,11 +558,20 @@ pub enum Axis {
 /// assert_eq!(wrap_longitude(190.0), -170.0);
 /// assert_eq!(wrap_longitude(-540.0), -180.0);
 /// assert_eq!(wrap_longitude(180.0), -180.0);
+/// assert!(wrap_longitude(-0.0).is_sign_positive());
 /// ```
 #[must_use]
 pub fn wrap_longitude(lon_deg: f64) -> f64 {
-    let east = lon_deg.rem_euclid(360.0); // [0, 360)
-    if east >= 180.0 { east - 360.0 } else { east }
+    let east = lon_deg.rem_euclid(360.0); // [0, 360]
+    // `rem_euclid` keeps the sign of a zero remainder (`-0.0`, `-360.0`);
+    // map it to `+0.0`.
+    if east >= 180.0 {
+        east - 360.0
+    } else if east == 0.0 {
+        0.0
+    } else {
+        east
+    }
 }
 
 /// Clamp a latitude into the closed range `[-90, 90]`.

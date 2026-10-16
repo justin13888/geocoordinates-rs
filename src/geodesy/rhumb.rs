@@ -68,7 +68,6 @@ const POLE_TOLERANCE: f64 = 1e-12;
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range position, and
 /// [`Error::CrsMismatch`] when the points' CRSs differ or are GCJ-02 / BD-09
 /// (obfuscated renderings with no ellipsoid; convert them to WGS-84 first).
 ///
@@ -270,7 +269,7 @@ fn series_for(crs: Crs) -> Result<KrugerSeries> {
     Ok(KrugerSeries::new(ellipsoid_of(crs)?))
 }
 
-/// Validates a pair (each in range, one shared CRS) and returns the series of
+/// Validates a pair (one shared CRS) and returns the series of
 /// that CRS's ellipsoid.
 fn series_for_pair(a: &impl LatLon, b: &impl LatLon) -> Result<KrugerSeries> {
     validate_pair(a, b)?;

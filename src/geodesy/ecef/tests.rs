@@ -202,18 +202,22 @@ fn distant_positions_keep_their_direction() {
 #[test]
 fn china_systems_have_no_ecef_position() {
     for crs in [Crs::Gcj02, Crs::Bd09] {
-        let mismatch = Err(Error::CrsMismatch {
-            expected: Crs::Wgs84,
-            found: crs,
-        });
+        // A coordinate carrying the China system is on the wrong datum.
         let c = Coordinate::new(39.9, 116.4, crs).unwrap();
         assert_eq!(
             Ecef::try_from_coordinate(c),
-            mismatch.clone().map(|_: ()| Ecef::new(0.0, 0.0, 0.0))
+            Err(Error::CrsMismatch {
+                expected: Crs::Wgs84,
+                found: crs,
+            })
         );
+        // Asked for as the target system, it is a bad argument instead.
         assert_eq!(
             Ecef::new(WGS84_A, 0.0, 0.0).try_to_coordinate(crs),
-            mismatch.map(|_: ()| c)
+            Err(Error::InvalidValue {
+                field: "crs",
+                detail: format!("{crs} is not a geodetic datum and has no ellipsoid"),
+            })
         );
     }
 }

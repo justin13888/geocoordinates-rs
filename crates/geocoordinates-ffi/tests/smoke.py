@@ -439,9 +439,9 @@ assert back.crs == gc.Crs.NAD27 and approx(back.lat, 40.0, 1e-8) and approx(back
 # A hand-built transform cannot name a system without an ellipsoid.
 try:
     gc.datum_transform_new(gc.Crs.GCJ02, gc.Crs.WGS84, gc.helmert_identity(), None)
-    raise AssertionError("expected CrsMismatch: GCJ-02 is not a datum")
-except gc.GeoError.CrsMismatch:
-    pass
+    raise AssertionError("expected InvalidValue: GCJ-02 is not a datum")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "from_crs", e.field
 # convert reports the Helmert leg's published accuracy as its bound.
 assert approx(gc.convert(nad27, gc.Crs.WGS84).max_error_m, 86 ** 0.5, 1e-12)
 # apply_ecef + inverse identity at the ECEF level.

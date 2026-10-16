@@ -5497,8 +5497,8 @@ public func datumTransformInverseFirstOrder(transform: DatumTransform)throws  ->
  * Build a validated datum transform — the FFI form of `DatumTransform::new`.
  *
  * # Errors
- * `GeoError::CrsMismatch` (expecting WGS-84) when either system is GCJ-02 or
- * BD-09; `GeoError::InvalidValue` (field `helmert`) for a non-finite
+ * `GeoError::InvalidValue` (field `from_crs` or `to_crs`) when that system is
+ * GCJ-02 or BD-09; (field `helmert`) for a non-finite
  * parameter, and (field `accuracy`) for a negative or non-finite accuracy.
  */
 public func datumTransformNew(fromCrs: Crs, toCrs: Crs, helmert: Helmert, accuracyM: Double?)throws  -> DatumTransform  {
@@ -5638,7 +5638,9 @@ public func aerToNed(aer: Aer) -> Ned  {
 /**
  * Along-track distance (meters) from `start` to the foot of the perpendicular
  * from `point` onto the great-circle path `start` → `end` on the mean sphere.
- * Approximate; errors as [`cross_track_distance_spherical_m`] does.
+ * Approximate; errors as [`cross_track_distance_spherical_m`] does, and with
+ * `GeoError::InvalidValue` (field `point`) when `point` is a pole of the
+ * path's great circle, where no along-track distance is defined.
  */
 public func alongTrackDistanceSphericalM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5703,7 +5705,7 @@ public func ecefFromCoordinate(coord: Coordinate)throws  -> Ecef  {
  * form, as refined in GeographicLib).
  *
  * # Errors
- * `GeoError::CrsMismatch` (expecting WGS-84) when `crs` is GCJ-02 or BD-09;
+ * `GeoError::InvalidValue` (field `crs`) when `crs` is GCJ-02 or BD-09;
  * `GeoError::InvalidValue` (field `ECEF`) for a non-finite component, and
  * (field `height`) when the height overflows.
  */
@@ -6737,7 +6739,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_inverse_first_order() != 47466) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_new() != 1820) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_new() != 64104) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 15241) {
@@ -6773,7 +6775,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_aer_to_ned() != 57003) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_spherical_m() != 19084) {
+    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_spherical_m() != 41447) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_spherical_m() != 59124) {
@@ -6785,7 +6787,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 4916) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 52436) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 1466) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_airy_1830() != 49200) {

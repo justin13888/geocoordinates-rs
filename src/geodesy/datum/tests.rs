@@ -150,15 +150,18 @@ fn new_validates_its_systems_parameters_and_accuracy() {
         (Crs::Tokyo, Crs::Nad27, shift, Some(Length::ZERO))
     );
     assert!(DatumTransform::new(Crs::Wgs84, Crs::Wgs84, shift, None).is_ok());
-    for (from, to, found) in [
-        (Crs::Gcj02, Crs::Wgs84, Crs::Gcj02),
-        (Crs::Wgs84, Crs::Bd09, Crs::Bd09),
+    // A China system is a bad argument, named by the field that carried it;
+    // NAD27 shows the error invents no "expected WGS-84".
+    for (from, to, field, bad) in [
+        (Crs::Gcj02, Crs::Nad27, "from_crs", Crs::Gcj02),
+        (Crs::Wgs84, Crs::Bd09, "to_crs", Crs::Bd09),
+        (Crs::Bd09, Crs::Gcj02, "from_crs", Crs::Bd09),
     ] {
         assert_eq!(
             DatumTransform::new(from, to, shift, None),
-            Err(Error::CrsMismatch {
-                expected: Crs::Wgs84,
-                found,
+            Err(Error::InvalidValue {
+                field,
+                detail: format!("{bad} is not a geodetic datum and has no ellipsoid"),
             })
         );
     }

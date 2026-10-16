@@ -44,7 +44,6 @@ pub(super) const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range position, and
 /// [`Error::CrsMismatch`] when the two CRSs differ.
 ///
 /// ```
@@ -75,8 +74,8 @@ pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range position, [`Error::CrsMismatch`]
-/// when the three CRSs differ, and [`Error::InvalidValue`] (`field: "path"`)
+/// [`Error::CrsMismatch`] when the three CRSs differ, and
+/// [`Error::InvalidValue`] (`field: "path"`)
 /// when `start` and `end` are the same place or antipodal, which fixes no
 /// single great circle.
 ///
@@ -101,7 +100,8 @@ pub fn cross_track_distance_spherical(
     validate_path(point, start, end)?;
     let d13 = angular_distance_rad(start, point);
     let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
-    let xt = (d13.sin() * bearing_diff.sin()).asin();
+    // `+ 0.0` turns a -0.0 (a point at `start`) into +0.0.
+    let xt = (d13.sin() * bearing_diff.sin()).asin() + 0.0;
     Ok(Length::from_meters(xt * MEAN_EARTH_RADIUS_M))
 }
 
@@ -110,9 +110,15 @@ pub fn cross_track_distance_spherical(
 /// component; negative when the foot lies behind `start`). Approximate: the
 /// sphere is not the ellipsoid.
 ///
+/// The result lies in `[-πR, πR]`: the foot is measured the shorter way round
+/// the great circle from `start`.
+///
 /// # Errors
 ///
-/// As for [`cross_track_distance_spherical`].
+/// As for [`cross_track_distance_spherical`], and [`Error::InvalidValue`]
+/// (`field: "point"`) when `point` is a pole of the path's great circle (within
+/// about 6 µm), where every foot is equally near and no along-track distance
+/// is defined.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Error, geodesy::along_track_distance_spherical};
@@ -130,6 +136,11 @@ pub fn cross_track_distance_spherical(
 ///     along_track_distance_spherical(&end, &start, &antipode),
 ///     Err(Error::InvalidValue { field: "path", .. })
 /// ));
+/// // The north pole is a pole of the equator: it has no along-track distance.
+/// assert!(matches!(
+///     along_track_distance_spherical(&Coordinate::wgs84(90.0, 0.0)?, &start, &end),
+///     Err(Error::InvalidValue { field: "point", .. })
+/// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn along_track_distance_spherical(
@@ -138,13 +149,22 @@ pub fn along_track_distance_spherical(
     end: &impl LatLon,
 ) -> Result<Length> {
     validate_path(point, start, end)?;
-    let d13 = angular_distance_rad(start, point);
-    let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
-    let xt = (d13.sin() * bearing_diff.sin()).asin();
-    let at = (d13.cos() / xt.cos()).clamp(-1.0, 1.0).acos();
-    // `at` is an `acos`, so nonnegative: give it the sign of the foot's side.
-    let signed = at.copysign(bearing_diff.cos());
-    Ok(Length::from_meters(signed * MEAN_EARTH_RADIUS_M))
+    let a = n_vector(start);
+    let normal = cross(a, n_vector(end));
+    let normal = normal.map(|k| k / dot(normal, normal).sqrt());
+    // The unit direction of travel at `start`, toward `end`.
+    let heading = cross(normal, a);
+    let x = n_vector(point);
+    // `x` projected onto the path's plane has length cos(cross-track angle):
+    // zero at a pole of the great circle, which every foot is equally near.
+    if is_parallel(dot(heading, x).hypot(dot(a, x))) {
+        return Err(Error::InvalidValue {
+            field: "point",
+            detail: "a pole of the path's great circle has no along-track distance".into(),
+        });
+    }
+    let at = along_angle(a, heading, x);
+    Ok(Length::from_meters(at * MEAN_EARTH_RADIUS_M))
 }
 
 /// The outcome of [`intersection_spherical`]: where two great-circle paths
@@ -218,10 +238,9 @@ pub enum Intersection {
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range start, [`Error::CrsMismatch`]
-/// when the CRSs differ or are GCJ-02 / BD-09 (obfuscated renderings; convert
-/// them to WGS-84 first), and [`Error::InvalidValue`] (`field: "bearing"`) for
-/// a non-finite bearing.
+/// [`Error::CrsMismatch`] when the CRSs differ or are GCJ-02 / BD-09
+/// (obfuscated renderings; convert them to WGS-84 first), and
+/// [`Error::InvalidValue`] (`field: "bearing"`) for a non-finite bearing.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Error, geodesy::{Intersection, intersection_spherical}};
@@ -329,8 +348,7 @@ fn is_forward(along: f64) -> bool {
     along > -1e-12 && along < PI - 1e-12
 }
 
-/// Validates a cross/along-track path: each position in range, one shared
-/// CRS, and `start` / `end` neither coincident nor antipodal (either leaves
+/// Validates a cross/along-track path: one shared CRS, and `start` / `end` neither coincident nor antipodal (either leaves
 /// the great circle through them undefined).
 fn validate_path(point: &impl LatLon, start: &impl LatLon, end: &impl LatLon) -> Result<()> {
     validate_pair(point, start)?;

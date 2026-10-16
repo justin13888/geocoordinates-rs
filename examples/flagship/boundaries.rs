@@ -174,7 +174,9 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         .is_err()
     );
     // GCJ-02 and BD-09 are obfuscated renderings, not datums: they have no
-    // ellipsoid and so no ECEF position, and no transform can name them.
+    // ellipsoid and so no ECEF position, and no transform can name them. A
+    // coordinate carrying one is on the wrong datum; one named as an argument
+    // is an invalid value for that argument.
     assert_eq!(Ellipsoid::for_crs(Crs::Gcj02), None);
     assert!(matches!(
         Ecef::try_from_coordinate(Coordinate::gcj02(39.9, 116.4)?),
@@ -182,7 +184,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     ));
     assert!(matches!(
         Ecef::new(6_378_137.0, 0.0, 0.0).try_to_coordinate(Crs::Bd09),
-        Err(Error::CrsMismatch { .. })
+        Err(Error::InvalidValue { field: "crs", .. })
     ));
     assert!(Ellipsoid::new(Length::from_meters(-1.0), 298.257_223_563).is_err());
     assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, Helmert::IDENTITY, None).is_err());

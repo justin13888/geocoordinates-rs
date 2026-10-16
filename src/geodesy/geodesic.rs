@@ -23,7 +23,6 @@ use crate::units::Length;
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range position, and
 /// [`Error::CrsMismatch`] when the points' CRSs differ or are GCJ-02 / BD-09
 /// (obfuscated renderings with no ellipsoid; convert them to WGS-84 first).
 ///
@@ -220,7 +219,7 @@ fn geodesic_for(crs: Crs) -> Result<Geodesic> {
     ))
 }
 
-/// Validates a pair (each in range, one shared CRS) and returns the geodesic
+/// Validates a pair (one shared CRS) and returns the geodesic
 /// on that CRS's ellipsoid.
 fn geodesic_for_pair(a: &impl LatLon, b: &impl LatLon) -> Result<Geodesic> {
     validate_pair(a, b)?;
@@ -234,13 +233,9 @@ pub(super) fn finish(lat_deg: f64, lon_deg: f64, crs: Crs) -> Result<Coordinate>
     Coordinate::new(lat_deg, wrap_longitude(lon_deg), crs)
 }
 
-fn validate_position(position: &impl LatLon) -> Result<()> {
-    Coordinate::new(position.lat(), position.lon(), position.crs()).map(|_| ())
-}
-
+/// Checks that a pair shares one CRS. Each position is already valid:
+/// [`LatLon`] is sealed, and every implementor is valid by construction.
 pub(super) fn validate_pair(a: &impl LatLon, b: &impl LatLon) -> Result<()> {
-    validate_position(a)?;
-    validate_position(b)?;
     if a.crs() != b.crs() {
         return Err(Error::CrsMismatch {
             expected: a.crs(),

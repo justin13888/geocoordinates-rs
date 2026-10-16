@@ -195,6 +195,15 @@ fn wrap_longitude_is_half_open() {
 }
 
 #[test]
+fn wrap_longitude_never_returns_negative_zero() {
+    for lon in [-0.0, 0.0, -360.0, 360.0, -720.0, -1e-20] {
+        let wrapped = wrap_longitude(lon);
+        assert_eq!(wrapped, 0.0, "{lon}");
+        assert!(wrapped.is_sign_positive(), "{lon} wrapped to -0.0");
+    }
+}
+
+#[test]
 fn clamp_latitude_includes_poles() {
     assert_close(clamp_latitude(90.0), 90.0, 1e-12);
     assert_close(clamp_latitude(-90.0), -90.0, 1e-12);
