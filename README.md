@@ -184,6 +184,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
 | `mise run public-api-check` | Every public item has one path besides its prelude entry (pinned nightly rustdoc JSON) |
+| `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
 | `mise run coverage`         | Coverage report; fails under the line floor in `.coverage-baseline`  |
 | `mise run coverage-ratchet` | Fails if the floor in `.coverage-baseline` falls below `origin/master`'s |
