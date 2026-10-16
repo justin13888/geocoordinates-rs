@@ -222,6 +222,14 @@ fn rewrite_unit_letters_is_anchored() {
     // the seconds marker.
     assert_eq!(rewrite_unit_letters("10D30M00S"), "10°30'00S");
     assert_eq!(rewrite_unit_letters("10d30m15S"), "10°30'15S");
+    // ...unless an uppercase hemisphere letter follows it directly: then the
+    // `S` is the seconds marker and the next letter is the hemisphere.
+    assert_eq!(rewrite_unit_letters("10D30M15SN"), "10°30'15\"N");
+    assert_eq!(rewrite_unit_letters("10D30M15SS"), "10°30'15\"S");
+    assert_eq!(rewrite_unit_letters("20D10M5SE"), "20°10'5\"E");
+    assert_eq!(rewrite_unit_letters("20D10M5SW"), "20°10'5\"W");
+    // A non-hemisphere letter after the `S` leaves it a hemisphere.
+    assert_eq!(rewrite_unit_letters("10D30M15SX"), "10°30'15SX");
     assert_eq!(rewrite_unit_letters("-20d15.000m"), "-20°15.000'");
     // Both components of a pair are rewritten.
     assert_eq!(
@@ -284,6 +292,15 @@ fn uppercase_s_after_seconds_is_south_not_the_seconds_marker() {
     let fix = crate::parse::parse_coordinate("10d30m15s, 20d10m5sE").unwrap();
     assert_close(fix.coord.lat(), lat, 1e-9);
     assert_close(fix.coord.lon(), lon, 1e-9);
+    // All-uppercase letter DMS with an explicit hemisphere: an `S` followed
+    // by a hemisphere letter is the seconds unit.
+    let fix = crate::parse::parse_coordinate("10D30M15SN, 20D10M5SE").unwrap();
+    assert_close(fix.coord.lat(), lat, 1e-9);
+    assert_close(fix.coord.lon(), lon, 1e-9);
+    assert_close(source(&fix).confidence.value(), 1.0, 1e-12);
+    let fix = crate::parse::parse_coordinate("10D30M15SS, 20D10M5SW").unwrap();
+    assert_close(fix.coord.lat(), -lat, 1e-9);
+    assert_close(fix.coord.lon(), -lon, 1e-9);
 }
 
 #[test]
