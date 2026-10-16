@@ -9,18 +9,20 @@
 # PyPI by an unrelated project); the importable module is the UniFFI namespace
 # `geocoordinates_ffi` (`import geocoordinates_ffi as gc`).
 #
-# The version is read from Cargo.toml; the release workflow stamps it from the
-# release tag before building.
+# The version is the FFI crate's, which inherits the workspace version in the root
+# Cargo.toml (`[workspace.package] version`); the release workflow stamps that line
+# from the release tag before building. `mise run version-check` fails if a static
+# `version` appears here.
 [build-system]
 requires = ["maturin>=1.7,<2"]
 build-backend = "maturin"
 
 [project]
 name = "geocoordinates-rs"
-description = "Geospatial coordinate library: China datums (GCJ-02/BD-09) and geodetic transforms."
+description = "Low-level geospatial coordinate primitives: China datums (GCJ-02/BD-09), datum transforms, DMS/DDM angles, coordinate parsing and formatting, geodesics, local frames (ECEF/ENU/NED/AER), UTM/UPS/MGRS, grid codes (Geohash, Plus Code, Maidenhead, H3, S2), and GeoJSON/WKT/GPX/KML/NMEA ingestion."
 readme = "README.md"
 license = { text = "MIT OR Apache-2.0" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [{ name = "Justin Chung" }]
 keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
 classifiers = [

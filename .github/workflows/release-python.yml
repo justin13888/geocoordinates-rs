@@ -76,9 +76,10 @@ jobs:
           VERSION: ${{ steps.plan.outputs.version }}
         run: |
           set -euo pipefail
-          # Stamp the FFI crate version from the release tag (package line only).
-          perl -i -pe 's/^version = "[^"]*"/version = "'"$VERSION"'"/' \
-            crates/geocoordinates-ffi/Cargo.toml
+          # Stamp the workspace version, which the FFI crate (and so the wheel)
+          # inherits, from the release tag. It is the only line in the root
+          # Cargo.toml that starts with `version = "`.
+          perl -i -pe 's/^version = "[^"]*"/version = "'"$VERSION"'"/' Cargo.toml
           # maturin runs `cargo run --bin uniffi-bindgen` from the workspace root,
           # where the bin otherwise resolves to the core package. Point
           # default-members at the FFI crate so it resolves. (Ephemeral; the
@@ -86,7 +87,12 @@ jobs:
           perl -i -pe 's{^default-members = .*}{default-members = ["crates/geocoordinates-ffi"]}' \
             Cargo.toml
           echo "Building geocoordinates $VERSION"
-          grep -m1 '^version' crates/geocoordinates-ffi/Cargo.toml
+          stamped="$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '.packages[] | select(.name == "geocoordinates-ffi") | .version')"
+          if [ "$stamped" != "$VERSION" ]; then
+            echo "::error::geocoordinates-ffi resolves to version $stamped, not $VERSION"
+            exit 1
+          fi
       - uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
