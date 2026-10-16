@@ -3,8 +3,9 @@
 // It replaces the `src/index.web.ts` that `ubrn` generates, which imports the
 // `.wasm` file as a module: only a bundler with a wasm plugin resolves that, so
 // plain Node could not import the package. This entry locates the wasm with
-// `new URL(..., import.meta.url)` instead, which Node, browsers, and the common
-// bundlers (webpack 5, Vite, esbuild, Rollup) all understand.
+// `new URL(..., import.meta.url)` instead, which Node, browsers, webpack 5, and
+// Vite understand. esbuild and Rollup need a plugin for it or an explicit wasm
+// source passed to `uniffiInitAsync` (see README.md).
 export * from "./generated/web/geocoordinates_ffi.js";
 
 import * as geocoordinates_ffi from "./generated/web/geocoordinates_ffi.js";

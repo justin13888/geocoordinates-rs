@@ -45,9 +45,14 @@ const gcj = wgs84ToGcj02({ lat: 39.9, lon: 116.4 });
 
 `uniffiInitAsync()` finds the package's own `index_bg.wasm` through
 `new URL(..., import.meta.url)`: under Node it reads the file from disk, and in a
-browser it fetches it. Bundlers that understand that pattern (webpack 5, Vite, esbuild,
-Rollup) emit the wasm as an asset with no wasm plugin or configuration. To load the
-module from elsewhere, pass its bytes, a compiled `WebAssembly.Module`, or a URL:
+browser it fetches it. webpack 5 and Vite recognise that pattern and emit the wasm as
+an asset with no plugin or configuration. esbuild and Rollup do not: without a plugin
+that handles `new URL(..., import.meta.url)` assets (for Rollup, e.g.
+`@web/rollup-plugin-import-meta-assets`), the wasm is left out of the bundle and the
+default fetch fails at runtime. With those bundlers, either add such a plugin or copy
+`dist/generated/web/wasm-bindgen/index_bg.wasm` into your static assets and pass its
+location explicitly. To load the module from elsewhere, pass its bytes, a compiled
+`WebAssembly.Module`, or a URL:
 `await uniffiInitAsync(new URL("/static/geocoordinates.wasm", location.href))`.
 
 The package is ES modules only (no CommonJS build) and targets ES2021+ (the runtime uses
