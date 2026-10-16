@@ -14,8 +14,8 @@ use crate::{AxisOrder, Fix, GeoError};
 /// A document with no positions yields an empty list.
 ///
 /// # Errors
-/// `GeoError` on malformed GeoJSON, or naming the index of the first
-/// out-of-range position.
+/// `GeoError` on malformed GeoJSON, or naming the index of the first position
+/// that is out of range or has fewer than two numbers.
 #[uniffi::export]
 pub fn from_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_geojson(&input)
@@ -30,8 +30,8 @@ pub fn from_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
 /// ellipsoidal height, with a note on the fix that WKT leaves it unspecified.
 ///
 /// # Errors
-/// `GeoError` on malformed WKT, or naming the index of the first out-of-range
-/// position.
+/// `GeoError` on malformed WKT, on parentheses nested deeper than 128 levels,
+/// or naming the index of the first out-of-range position.
 #[uniffi::export]
 pub fn from_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_wkt(&input, axis_order.into())
@@ -57,8 +57,8 @@ pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
 /// orthometric (above sea level).
 ///
 /// # Errors
-/// `GeoError` on malformed KML, or naming the index of the first out-of-range
-/// position.
+/// `GeoError` on malformed KML, on elements nested deeper than 32 levels, or
+/// naming the index of the first out-of-range position.
 #[uniffi::export]
 pub fn from_kml(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_kml(&input)

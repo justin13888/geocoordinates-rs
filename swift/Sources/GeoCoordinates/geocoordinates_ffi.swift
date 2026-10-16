@@ -6328,8 +6328,8 @@ public func utmZoneFor(coord: Coordinate)throws  -> UInt8  {
  * A document with no positions yields an empty list.
  *
  * # Errors
- * `GeoError` on malformed GeoJSON, or naming the index of the first
- * out-of-range position.
+ * `GeoError` on malformed GeoJSON, or naming the index of the first position
+ * that is out of range or has fewer than two numbers.
  */
 public func fromGeojson(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6359,8 +6359,8 @@ public func fromGpx(input: String)throws  -> [Fix]  {
  * orthometric (above sea level).
  *
  * # Errors
- * `GeoError` on malformed KML, or naming the index of the first out-of-range
- * position.
+ * `GeoError` on malformed KML, on elements nested deeper than 32 levels, or
+ * naming the index of the first out-of-range position.
  */
 public func fromKml(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6398,8 +6398,8 @@ public func fromNmeaSentence(sentence: String)throws  -> Fix  {
  * ellipsoidal height, with a note on the fix that WKT leaves it unspecified.
  *
  * # Errors
- * `GeoError` on malformed WKT, or naming the index of the first out-of-range
- * position.
+ * `GeoError` on malformed WKT, on parentheses nested deeper than 128 levels,
+ * or naming the index of the first out-of-range position.
  */
 public func fromWkt(input: String, axisOrder: AxisOrder)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6903,19 +6903,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_utm_zone_for() != 21952) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 31711) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 51404) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 6636) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 18499) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 20236) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 7977) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 54808) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 19035) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 30884) {

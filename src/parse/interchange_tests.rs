@@ -154,6 +154,189 @@ fn geojson_rejections_are_parse_errors() {
     );
 }
 
+#[cfg(feature = "geojson")]
+#[test]
+fn geojson_short_positions_are_rejected_at_their_document_index() {
+    // `[5]` is position 1: it is rejected, not dropped, so nothing after it
+    // shifts down an index.
+    assert_parse_err!(
+        from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[5],[0,200]]}"#),
+        "geojson: invalid position at index 1: a position needs at least 2 numbers, got 1",
+    );
+    // An empty position in a polygon ring, inside a collection, counts every
+    // position walked before it.
+    let doc = r#"{"type":"GeometryCollection","geometries":[
+        {"type":"MultiPoint","coordinates":[[0,0],[1,1]]},
+        {"type":"Polygon","coordinates":[[[0,0],[1,0],[]]]}]}"#;
+    assert_parse_err!(
+        from_geojson(doc),
+        "geojson: invalid position at index 4: a position needs at least 2 numbers, got 0",
+    );
+    // A feature collection walks every feature's geometry, skipping null ones.
+    let doc = r#"{"type":"FeatureCollection","features":[
+        {"type":"Feature","properties":null,"geometry":{"type":"Point","coordinates":[0,0]}},
+        {"type":"Feature","properties":null,"geometry":null},
+        {"type":"Feature","properties":null,"geometry":{"type":"MultiPolygon","coordinates":[[[[0,0],[7]]]]}}]}"#;
+    assert_parse_err!(from_geojson(doc), "geojson: invalid position at index 2: ",);
+    let feature = r#"{"type":"Feature","properties":null,
+        "geometry":{"type":"MultiLineString","coordinates":[[[0,0]],[[1]]]}}"#;
+    assert_parse_err!(
+        from_geojson(feature),
+        "geojson: invalid position at index 1: ",
+    );
+    // An out-of-range position before the short one is still the first error.
+    assert_parse_err!(
+        from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[0,200],[5]]}"#),
+        "geojson: invalid position at index 1: coordinate out of valid range",
+    );
+}
+
+/// `depth` copies of `open`, then `inner`, then `depth` copies of `close`.
+#[cfg(any(feature = "wkt", feature = "kml"))]
+fn nested(open: &str, inner: &str, close: &str, depth: usize) -> String {
+    format!("{}{inner}{}", open.repeat(depth), close.repeat(depth))
+}
+
+#[cfg(feature = "wkt")]
+#[test]
+fn wkt_nesting_is_bounded_at_128_levels() {
+    // 127 collections around a point is 128 levels of parentheses: accepted,
+    // and walked without recursion.
+    let deepest = nested("GEOMETRYCOLLECTION(", "POINT(1 2)", ")", 127);
+    let fixes = from_wkt(&deepest, AxisOrder::LonLat).unwrap();
+    assert_eq!(lat_lons(&fixes), [(2.0, 1.0)]);
+    // One more level is rejected before the parser sees it.
+    let too_deep = nested("GEOMETRYCOLLECTION(", "POINT(1 2)", ")", 128);
+    assert_parse_err!(
+        from_wkt(&too_deep, AxisOrder::LonLat),
+        "wkt: nesting deeper than 128 levels",
+    );
+    // Closing parentheses close levels: many shallow siblings are fine.
+    let wide = format!("GEOMETRYCOLLECTION({})", vec!["POINT(0 0)"; 200].join(","));
+    assert_eq!(from_wkt(&wide, AxisOrder::LonLat).unwrap().len(), 200);
+}
+
+#[cfg(feature = "wkt")]
+#[test]
+fn wkt_100k_deep_nesting_errors_instead_of_overflowing() {
+    let start = std::time::Instant::now();
+    let unclosed = "GEOMETRYCOLLECTION(".repeat(100_000);
+    assert_parse_err!(from_wkt(&unclosed, AxisOrder::LonLat), "wkt: nesting");
+    let closed = nested("GEOMETRYCOLLECTION(", "POINT(1 2)", ")", 100_000);
+    assert_parse_err!(from_wkt(&closed, AxisOrder::LonLat), "wkt: nesting");
+    assert!(start.elapsed() < std::time::Duration::from_secs(5));
+}
+
+#[cfg(feature = "kml")]
+#[test]
+fn kml_nesting_is_bounded_at_32_levels() {
+    let point = "<Point><coordinates>1,2</coordinates></Point>";
+    // <kml> + 29 folders + <Point> + <coordinates> is 32 element levels,
+    // which the `kml` parser handles on a test thread's stack.
+    let deepest = format!("<kml>{}</kml>", nested("<Folder>", point, "</Folder>", 29));
+    let fixes = from_kml(&deepest).unwrap();
+    assert_eq!(fixes.len(), 1);
+    assert_eq!((fixes[0].coord.lat(), fixes[0].coord.lon()), (2.0, 1.0));
+    let too_deep = format!("<kml>{}</kml>", nested("<Folder>", point, "</Folder>", 30));
+    assert_parse_err!(from_kml(&too_deep), "kml: nesting deeper than 32 levels");
+    // An end tag inside an `<?xml …?>` declaration, which `kml` skips even
+    // inside elements, closes no level: 40 such folders are 40 levels.
+    let hidden = nested("<Folder><?xml ></Folder>?>", point, "</Folder>", 40);
+    assert_parse_err!(
+        from_kml(&format!("<kml>{hidden}</kml>")),
+        "kml: nesting deeper than 32 levels"
+    );
+    let commented = format!("<kml><!-- <Folder> -->{point}</kml>");
+    assert_eq!(from_kml(&commented).unwrap().len(), 1);
+    // End tags close levels: many shallow siblings are fine.
+    let wide = format!("<kml><Folder>{}</Folder></kml>", point.repeat(200));
+    assert_eq!(from_kml(&wide).unwrap().len(), 200);
+}
+
+#[cfg(feature = "kml")]
+#[test]
+fn xml_depth_scan_counts_only_open_elements() {
+    let ok = |inner: &str| check_xml_depth(&nested("<a>", inner, "</a>", 32)).is_ok();
+    // 32 open elements is the limit; one more start tag is too deep.
+    assert!(ok(""));
+    assert!(!ok("<b>"));
+    // Constructs that open no element, each hiding a start tag that would
+    // be counted if the scan misread it.
+    assert!(ok("<b/>"));
+    assert!(ok(r#"<b x="1>2"/>"#));
+    assert!(ok("<b x='1>2'/>"));
+    // A closed quote ends the attribute value, so the `>` after it ends the
+    // start tag.
+    assert!(!ok(r#"<b x="1>2">"#));
+    assert!(ok("<!-- > <b> -->"));
+    assert!(ok("<![CDATA[ > <b> ]]>"));
+    assert!(ok("<?pi x?>"));
+    assert!(ok("<!DOCTYPE d>"));
+    // Each construct ends where `quick-xml` ends it, so an end tag hidden
+    // inside one closes no level and the `<b>` after it is one too many.
+    assert!(!ok("<?xml ></a>?><b>"));
+    assert!(!ok("<!--></a>--><b>"));
+    assert!(!ok("<!---></a>--><b>"));
+    assert!(!ok(r#"<!DOCTYPE d [<!ENTITY e "x"></a>]><b>"#));
+    assert!(!ok(r#"</a x="></a>"><b><c>"#));
+    // `quick-xml` 0.37 balances only `<` and `>` inside a `<!DOCTYPE …>`,
+    // ignoring quotes and `[`, so a quoted `>` counts: the declaration ends
+    // after `'>'>` and the `<b>` that follows is a start tag the parser reads.
+    assert!(!ok("<!DOCTYPE d [<!ENTITY e '>'><b>]>"));
+    // The shortest closed forms: the `?` opening `<?>` also ends it.
+    assert!(ok("<?></a><b>"));
+    assert!(ok("<!----></a><b>"));
+    assert!(ok("<!DOCTYPE d></a><b>"));
+    // `kml` ignores `</kml>`, so it closes no level, whatever its prefix:
+    // under 30 levels, `<kml></kml>` leaves 31 open and two more start tags
+    // are one too many, where any other closed element leaves room for both.
+    let ok30 = |inner: &str| check_xml_depth(&nested("<a>", inner, "</a>", 30)).is_ok();
+    assert!(ok30("<kml></kml><b>"));
+    assert!(!ok30("<kml></kml><b><c>"));
+    assert!(!ok30("<k:kml></k:kml ><b><c>"));
+    assert!(ok30("<kmlx></kmlx><b><c>"));
+    assert!(ok30("<x:kmlx></x:kmlx><b><c>"));
+    // End tags close levels, so siblings never add up.
+    let siblings = nested("<a>", &"<b></b>".repeat(100), "</a>", 31);
+    assert!(check_xml_depth(&siblings).is_ok());
+    // An unterminated construct ends the scan; the parser rejects it.
+    for tail in ["<b", "<!-- <b>", "<![CDATA[ <b>", "<?pi", "<!x", "</b"] {
+        let truncated = format!("{}{tail}", "<a>".repeat(32));
+        assert!(check_xml_depth(&truncated).is_ok(), "{tail}");
+    }
+}
+
+#[cfg(feature = "kml")]
+#[test]
+fn kml_100k_deep_nesting_errors_instead_of_overflowing() {
+    let start = std::time::Instant::now();
+    let closed = nested("<Folder>", "", "</Folder>", 100_000);
+    assert_parse_err!(from_kml(&closed), "kml: nesting");
+    let geometry = nested("<MultiGeometry>", "", "</MultiGeometry>", 100_000);
+    assert_parse_err!(from_kml(&geometry), "kml: nesting");
+    // Unclosed: the depth check rejects it before the parser, which never
+    // returns on a truncated document (#135).
+    assert_parse_err!(from_kml(&"<Folder>".repeat(100_000)), "kml: nesting");
+    // End tags hidden inside constructs the parser skips close no level: an
+    // `<?xml …?>` declaration (ignored by `kml` even inside elements) ends
+    // at `?>`, and a `<!DOCTYPE …>` at its balancing `>`.
+    for hidden in [
+        "<?xml ></Folder>?>",
+        "<!DOCTYPE d [<!ENTITY e 'x'></Folder>]>",
+    ] {
+        let level = format!("<Folder>{hidden}");
+        let input = nested(&level, "", "</Folder>", 100_000);
+        assert_parse_err!(from_kml(&input), "kml: nesting");
+    }
+    // `kml` ignores `</kml>`, so each repeat nests its reader one level
+    // deeper even though the XML is flat.
+    for repeats in [40, 100_000] {
+        let flat = "<kml></kml>".repeat(repeats);
+        assert_parse_err!(from_kml(&flat), "kml: nesting");
+    }
+    assert!(start.elapsed() < std::time::Duration::from_secs(5));
+}
+
 #[cfg(feature = "wkt")]
 #[test]
 fn wkt_reads_x_y_in_the_stated_axis_order() {
