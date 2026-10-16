@@ -93,7 +93,7 @@ impl Gcj02 {
     /// 0.006° of the North Pole.
     ///
     /// ```
-    /// use geocoordinates::Gcj02;
+    /// use geocoordinates::china::Gcj02;
     ///
     /// let bd = Gcj02::new(0.0, 180.0)?.try_to_bd09()?;
     /// assert!((bd.lon() + 179.9935).abs() < 1e-3); // wrapped
@@ -132,7 +132,8 @@ impl Bd09 {
     /// the South Pole: no GCJ-02 point nudges there.
     ///
     /// ```
-    /// use geocoordinates::{Bd09, Error};
+    /// use geocoordinates::Error;
+    /// use geocoordinates::china::Bd09;
     ///
     /// let gcj = Bd09::new(39.922_700, 116.416_627)?.try_to_gcj02_fast()?;
     /// assert_eq!(gcj.max_error_m(), 0.5);
@@ -166,7 +167,7 @@ impl Bd09 {
     /// As [`try_to_gcj02_fast`](Self::try_to_gcj02_fast).
     ///
     /// ```
-    /// use geocoordinates::Bd09;
+    /// use geocoordinates::china::Bd09;
     ///
     /// let gcj = Bd09::new(0.0, -180.0)?.try_to_gcj02_refined()?;
     /// assert!((gcj.lon() - 179.9935).abs() < 1e-3); // wrapped
@@ -192,7 +193,8 @@ impl Wgs84 {
     /// As [`Gcj02::try_to_bd09`].
     ///
     /// ```
-    /// use geocoordinates::{Error, Wgs84};
+    /// use geocoordinates::Error;
+    /// use geocoordinates::china::Wgs84;
     ///
     /// let bd = Wgs84::new(39.915, 116.404)?.try_to_bd09()?;
     /// assert!((bd.lon() - 116.416_627).abs() < 1e-5);
@@ -225,7 +227,7 @@ impl Bd09 {
     /// As [`try_to_gcj02_refined`](Self::try_to_gcj02_refined).
     ///
     /// ```
-    /// use geocoordinates::Bd09;
+    /// use geocoordinates::china::Bd09;
     ///
     /// let wgs = Bd09::new(39.922_700, 116.416_627)?.try_to_wgs84_refined()?;
     /// assert_eq!(wgs.max_error_m(), 1.0); // 0.5 m per refined leg

@@ -428,7 +428,8 @@ pub(crate) mod sealed {
 /// `&impl LatLon` only ever sees one of them.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, Gcj02, LatLon, Wgs84};
+/// use geocoordinates::china::{Gcj02, Wgs84};
+/// use geocoordinates::{Coordinate, Crs, LatLon};
 ///
 /// fn describe(p: &impl LatLon) -> String {
 ///     format!("{} {:.4},{:.4}", p.crs(), p.lat(), p.lon())
@@ -454,7 +455,8 @@ pub trait LatLon: sealed::Sealed {
     /// Latitude in decimal degrees.
     ///
     /// ```
-    /// use geocoordinates::{LatLon, Wgs84};
+    /// use geocoordinates::LatLon;
+    /// use geocoordinates::china::Wgs84;
     ///
     /// assert_eq!(LatLon::lat(&Wgs84::new(10.0, 20.0)?), 10.0);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -464,7 +466,8 @@ pub trait LatLon: sealed::Sealed {
     /// Longitude in decimal degrees.
     ///
     /// ```
-    /// use geocoordinates::{LatLon, Wgs84};
+    /// use geocoordinates::LatLon;
+    /// use geocoordinates::china::Wgs84;
     ///
     /// assert_eq!(LatLon::lon(&Wgs84::new(10.0, 20.0)?), 20.0);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -474,7 +477,8 @@ pub trait LatLon: sealed::Sealed {
     /// Reference system of the position.
     ///
     /// ```
-    /// use geocoordinates::{Crs, LatLon, Wgs84};
+    /// use geocoordinates::china::Wgs84;
+    /// use geocoordinates::{Crs, LatLon};
     ///
     /// assert_eq!(LatLon::crs(&Wgs84::new(10.0, 20.0)?), Crs::Wgs84);
     /// # Ok::<(), geocoordinates::Error>(())

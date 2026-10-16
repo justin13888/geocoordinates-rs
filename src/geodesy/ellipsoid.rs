@@ -1,7 +1,7 @@
 //! Reference ellipsoid definitions.
 //!
 //! ```
-//! use geocoordinates::{Crs, geodesy::ellipsoid::Ellipsoid};
+//! use geocoordinates::{Crs, geodesy::Ellipsoid};
 //!
 //! let bessel = Ellipsoid::for_crs(Crs::Tokyo).unwrap();
 //! assert!(bessel.semi_major_m() < Ellipsoid::WGS84.semi_major_m());

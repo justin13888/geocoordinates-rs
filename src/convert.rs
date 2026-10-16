@@ -3,7 +3,7 @@
 //! This is the *runtime* path: it dispatches on a [`Crs`] tag and returns an
 //! [`Approx`] because some target systems (GCJ-02/BD-09 inverses) are only
 //! reachable approximately. When the source and target are known at compile
-//! time, prefer the typed newtype conversions (e.g. [`crate::Wgs84::to_gcj02`]),
+//! time, prefer the typed newtype conversions (e.g. [`Wgs84::to_gcj02`](crate::china::Wgs84::to_gcj02)),
 //! which return bare types where no inversion is involved.
 //!
 //! Every modeled [`Crs`] pair has a route, so there is no reachability query:
@@ -17,14 +17,14 @@ use crate::approx::Approx;
 use crate::china::{Bd09, Gcj02, Wgs84};
 use crate::coord::{Coordinate, Crs, LatLon};
 use crate::error::Result;
-use crate::geodesy::datum::{DatumTransform, HubRoute};
+use crate::geodesy::{DatumTransform, HubRoute};
 
 /// Convert `coord` from its own [`Crs`] to `to`.
 ///
 /// Routes through WGS-84 as the hub: China systems use the typed
 /// [`china`](crate::china) conversions; classic datums (NAD27, Tokyo,
 /// Pulkovo-1942) use the 7-parameter Helmert transforms from
-/// [`geodesy::datum`](crate::geodesy::datum). The full EPSG/national-grid long
+/// [`geodesy::DatumTransform`](crate::geodesy::DatumTransform). The full EPSG/national-grid long
 /// tail is delegated to the deferred `proj` feature (see
 /// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
 ///

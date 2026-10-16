@@ -14,7 +14,7 @@
 //! convert them to WGS-84 first.
 //!
 //! ```
-//! use geocoordinates::{Coordinate, Crs, geodesy::ecef::Ecef};
+//! use geocoordinates::{Coordinate, Crs, geodesy::Ecef};
 //!
 //! // The same latitude and longitude sit at different places on two datums.
 //! let wgs = Ecef::try_from_coordinate(Coordinate::new(35.0, 139.0, Crs::Wgs84)?)?;

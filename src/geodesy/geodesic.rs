@@ -1,56 +1,12 @@
-//! Distance, bearing, and geodesic problems.
-//!
-//! Ellipsoidal (Karney) [`geodesic_distance`], [`initial_bearing`] /
-//! [`final_bearing`], and the position producers ([`destination`],
-//! [`midpoint`], [`intermediate`]) delegate to
-//! [`geographiclib-rs`](https://docs.rs/geographiclib-rs), on the ellipsoid of
-//! the inputs' own [`Crs`] ([`Ellipsoid::for_crs`]): a Tokyo-datum pair is
-//! measured on Bessel 1841, a NAD27 pair on Clarke 1866. GCJ-02 and BD-09 are
-//! obfuscated renderings with no ellipsoid, so each of these rejects them with
-//! [`Error::CrsMismatch`]; convert them to WGS-84 first.
-//!
-//! The great-circle routines on the IUGG mean sphere —
-//! [`haversine_distance`], [`cross_track_distance_spherical`] /
-//! [`along_track_distance_spherical`], and [`intersection_spherical`] — are
-//! implemented directly in a sibling module and re-exported here, as are the
-//! ellipsoidal rhumb-line routines ([`rhumb_distance`] / [`rhumb_bearing`] /
-//! [`rhumb_destination`]), so every point-to-point operation stays reachable
-//! at this path. Every multi-point operation rejects mixed CRS values.
-//!
-//! Measurement functions take any [`LatLon`], so they work on `Coordinate` and
-//! the per-datum newtypes alike. The producers above take `&Coordinate` and
-//! return a coordinate in the input's CRS, with its longitude wrapped into
-//! `[-180, 180)` and no height (a surface path has no height to carry).
-//!
-//! **Bearings at a pole.** Every direction leaves a pole southward, so a
-//! bearing there is taken against the meridian of the coordinate's own
-//! longitude (GeographicLib's convention): from `(90, λ)`, bearing 180° runs
-//! down meridian `λ`, and bearing 0° down meridian `λ + 180°`.
-//!
-//! ```
-//! use geocoordinates::{Coordinate, Length, geodesy::geodesic};
-//!
-//! let a = Coordinate::wgs84(0.0, 0.0)?;
-//! let b = Coordinate::wgs84(0.0, 1.0)?;
-//! let exact = geodesic::geodesic_distance(&a, &b)?.meters(); // Karney, on WGS 84
-//! let sphere = geodesic::haversine_distance(&a, &b)?.meters(); // mean sphere
-//! assert!((exact - 111_319.491).abs() < 1e-3);
-//! assert!((exact - sphere).abs() < 200.0);
-//! let there = geodesic::destination(&a, 90.0, Length::from_meters(exact))?;
-//! assert!((there.lon() - 1.0).abs() < 1e-12);
-//! # Ok::<(), geocoordinates::Error>(())
-//! ```
+//! Ellipsoidal (Karney) distance, bearing, and geodesic position problems,
+//! re-exported flat from [`geodesy`](super); the module docs there describe
+//! the CRS, sphere, and pole conventions.
 
 use geographiclib_rs::{DirectGeodesic, Geodesic, InverseGeodesic};
 
 use super::ecef::ellipsoid_of;
 #[cfg(doc)]
 use super::ellipsoid::Ellipsoid;
-pub use super::rhumb::{rhumb_bearing, rhumb_destination, rhumb_distance};
-pub use super::spherical::{
-    Intersection, along_track_distance_spherical, cross_track_distance_spherical,
-    haversine_distance, intersection_spherical,
-};
 use crate::angle::{normalize_degrees, wrap_longitude};
 use crate::coord::{Coordinate, Crs, LatLon};
 use crate::error::{Error, Result};
@@ -72,7 +28,7 @@ use crate::units::Length;
 /// (obfuscated renderings with no ellipsoid; convert them to WGS-84 first).
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, Error, Wgs84, geodesy::geodesic_distance};
+/// use geocoordinates::{Coordinate, Crs, Error, china::Wgs84, geodesy::geodesic_distance};
 ///
 /// // Equator to north pole: a quarter meridian of WGS 84.
 /// let (equator, pole) = (Wgs84::new(0.0, 0.0)?, Wgs84::new(90.0, 0.0)?);
@@ -96,7 +52,7 @@ pub fn geodesic_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 /// degrees `[0, 360)`, on the ellipsoid of their shared [`Crs`].
 ///
 /// From a pole the bearing is taken against the meridian of `a`'s longitude
-/// (see the [module docs](self)).
+/// (see the [module docs](crate::geodesy)).
 ///
 /// # Errors
 ///
@@ -127,7 +83,7 @@ pub fn initial_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 /// [`initial_bearing`] on the ellipsoid.
 ///
 /// Arriving at a pole, the bearing is taken against the meridian of `b`'s
-/// longitude (see the [module docs](self)).
+/// longitude (see the [module docs](crate::geodesy)).
 ///
 /// # Errors
 ///

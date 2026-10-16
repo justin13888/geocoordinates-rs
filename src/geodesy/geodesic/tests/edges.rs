@@ -80,7 +80,7 @@ fn producers_cannot_receive_an_out_of_range_position() {
 /// be built, with the same error the measurements report.
 #[test]
 fn an_out_of_range_datum_newtype_cannot_reach_the_measurements() {
-    use crate::{Bd09, Gcj02, Wgs84};
+    use crate::china::{Bd09, Gcj02, Wgs84};
     for (lat, lon) in [(91.0, 0.0), (0.0, -180.5)] {
         assert_out_of_range(Wgs84::new(lat, lon), lat, lon);
         assert_out_of_range(Gcj02::new(lat, lon), lat, lon);

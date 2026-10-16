@@ -1,18 +1,20 @@
 //! Antimeridian, pole, and range boundaries, and the typed errors they raise.
 
 use geocoordinates::angle::{Axis, Ddm, Dms, Hemisphere as AngleHemisphere, wrap_longitude};
+use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 use geocoordinates::dgg::{H3Cell, S2CellId};
 use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format};
 use geocoordinates::geodesy::{
     DatumTransform, Ecef, Ellipsoid, Enu, Helmert, destination, geodesic_distance,
     rhumb_destination,
 };
-use geocoordinates::grids::utm::{central_meridian_deg, zone_for};
-use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere};
+use geocoordinates::grids::{
+    Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere, utm_central_meridian_deg,
+    utm_zone_for,
+};
 use geocoordinates::parse::sensors::from_nmea_sentence;
-use geocoordinates::parse::text::parse as parse_text;
-use geocoordinates::parse::{from_geo_uri, parse_coordinate};
-use geocoordinates::{BaiduMercator, Bd09, Coordinate, Crs, Error, Gcj02, Height, Length, Wgs84};
+use geocoordinates::parse::{from_geo_uri, parse_coordinate, parse_text};
+use geocoordinates::{Coordinate, Crs, Error, Height, Length};
 
 use crate::support::{DemoResult, new_york};
 
@@ -272,14 +274,14 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     let across = Utm::new(1, UtmHemisphere::North, 150_000.0, 0.0)?.to_coordinate();
     assert!(across.lon() > 179.8);
     assert!(matches!(
-        zone_for(&Coordinate::wgs84(84.0, 9.0)?),
+        utm_zone_for(&Coordinate::wgs84(84.0, 9.0)?),
         Err(Error::OutsideDomain {
             operation: "UTM",
             ..
         })
     ));
     assert!(matches!(
-        central_meridian_deg(0),
+        utm_central_meridian_deg(0),
         Err(Error::InvalidValue { field: "zone", .. })
     ));
     assert!(matches!(

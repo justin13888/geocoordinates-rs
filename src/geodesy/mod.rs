@@ -9,6 +9,36 @@
 //! rhumb/loxodrome, ECEF, ENU/NED/AER, datum/ellipsoid parameters tied to our
 //! [`Crs`](crate::Crs)) is implemented here directly.
 //!
+//! Every item is reached flat at `geodesy::NAME`.
+//!
+//! ## Distance, bearing, and geodesic problems
+//!
+//! Ellipsoidal (Karney) [`geodesic_distance`], [`initial_bearing`] /
+//! [`final_bearing`], and the position producers ([`destination`],
+//! [`midpoint`], [`intermediate`]) run on the ellipsoid of the inputs' own
+//! [`Crs`](crate::Crs) ([`Ellipsoid::for_crs`]): a Tokyo-datum pair is measured
+//! on Bessel 1841, a NAD27 pair on Clarke 1866. GCJ-02 and BD-09 are obfuscated
+//! renderings with no ellipsoid, so each of these rejects them with
+//! [`Error::CrsMismatch`](crate::Error::CrsMismatch); convert them to WGS-84
+//! first.
+//!
+//! The great-circle routines on the IUGG mean sphere — [`haversine_distance`],
+//! [`cross_track_distance_spherical`] / [`along_track_distance_spherical`], and
+//! [`intersection_spherical`] — sit beside the ellipsoidal rhumb-line routines
+//! ([`rhumb_distance`] / [`rhumb_bearing`] / [`rhumb_destination`]). Every
+//! multi-point operation rejects mixed CRS values.
+//!
+//! Measurement functions take any [`LatLon`](crate::LatLon), so they work on
+//! `Coordinate` and the per-datum newtypes alike. The producers take
+//! `&Coordinate` and return a coordinate in the input's CRS, with its longitude
+//! wrapped into `[-180, 180)` and no height (a surface path has no height to
+//! carry).
+//!
+//! **Bearings at a pole.** Every direction leaves a pole southward, so a
+//! bearing there is taken against the meridian of the coordinate's own
+//! longitude (GeographicLib's convention): from `(90, λ)`, bearing 180° runs
+//! down meridian `λ`, and bearing 0° down meridian `λ + 180°`.
+//!
 //! ```
 //! use geocoordinates::{Coordinate, geodesy};
 //!
@@ -24,27 +54,27 @@
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 
-pub mod geodesic; // ellipsoidal (Karney) geodesics; re-exports the two below
+// Every submodule is private: each public item is re-exported flat below, so
+// `geodesy::NAME` is its one path.
+mod datum; // Helmert / classic-datum transforms
+mod ecef; // ECEF geocentric coordinates
+mod ellipsoid; // reference ellipsoid parameters
+mod frames; // local tangent frames (ENU/NED/AER)
+mod geodesic; // ellipsoidal (Karney) geodesics
 mod rhumb; // rhumb/loxodrome on the datum ellipsoid
 pub(crate) mod series; // Krüger n-series shared by rhumb lines and UTM
 mod spherical; // haversine, cross/along-track, intersection on the mean sphere
 
-pub use geodesic::{Intersection, haversine_distance};
-
-pub mod ecef; // ECEF geocentric coordinates
-pub mod ellipsoid; // reference ellipsoid parameters
-pub mod frames; // local tangent frames (ENU/NED/AER)
-
+pub(crate) use datum::HubRoute;
+pub use datum::{DatumTransform, Helmert};
 pub use ecef::Ecef;
 pub use ellipsoid::Ellipsoid;
 pub use frames::{Aer, Enu, Ned};
-
 pub use geodesic::{
-    along_track_distance_spherical, cross_track_distance_spherical, destination, final_bearing,
-    geodesic_distance, initial_bearing, intermediate, intersection_spherical, midpoint,
-    rhumb_bearing, rhumb_destination, rhumb_distance,
+    destination, final_bearing, geodesic_distance, initial_bearing, intermediate, midpoint,
 };
-
-pub mod datum; // Helmert / classic-datum transforms
-
-pub use datum::{DatumTransform, Helmert};
+pub use rhumb::{rhumb_bearing, rhumb_destination, rhumb_distance};
+pub use spherical::{
+    Intersection, along_track_distance_spherical, cross_track_distance_spherical,
+    haversine_distance, intersection_spherical,
+};

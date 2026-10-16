@@ -33,7 +33,7 @@
 //! doing anything else, because the core `Coordinate` is valid by
 //! construction. Build one with [`coordinate_new`] to fail at construction
 //! instead. [`Confidence`] is clamped into `[0.0, 1.0]` when it crosses in (as
-//! `gc::Confidence::new` does). Every other record is **unvalidated until
+//! `gc::fix::Confidence::new` does). Every other record is **unvalidated until
 //! used**: each exported function applies the core crate's own rules to the
 //! values it consumes, exactly as the matching Rust function does.
 

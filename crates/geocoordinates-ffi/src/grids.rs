@@ -250,7 +250,7 @@ pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
 /// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
 #[uniffi::export]
 pub fn utm_zone_for(coord: Coordinate) -> Result<u8, GeoError> {
-    gc::grids::utm::zone_for(&coord.try_into()?).map_err(GeoError::from)
+    gc::grids::utm_zone_for(&coord.try_into()?).map_err(GeoError::from)
 }
 
 /// The central meridian (degrees) of a UTM zone.
@@ -259,7 +259,7 @@ pub fn utm_zone_for(coord: Coordinate) -> Result<u8, GeoError> {
 /// `GeoError::InvalidValue` (field `zone`) for a zone outside `1..=60`.
 #[uniffi::export]
 pub fn utm_central_meridian_deg(zone: u8) -> Result<f64, GeoError> {
-    gc::grids::utm::central_meridian_deg(zone).map_err(GeoError::from)
+    gc::grids::utm_central_meridian_deg(zone).map_err(GeoError::from)
 }
 
 /// Geodetic → UPS. Errors outside the polar regions (use UTM there).

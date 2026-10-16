@@ -1,8 +1,8 @@
 //! China datums (GCJ-02, BD-09) and CRS dispatch through `convert`.
 
-use geocoordinates::china::out_of_china;
+use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84, out_of_china};
 use geocoordinates::convert::convert;
-use geocoordinates::{BaiduMercator, Bd09, Coordinate, Crs, Gcj02, Height, Wgs84};
+use geocoordinates::{Coordinate, Crs, Height};
 
 use crate::support::{DemoResult, assert_close, assert_mercator_close, assert_within_meters};
 

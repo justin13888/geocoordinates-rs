@@ -165,6 +165,24 @@ fi
 echo "coverage-ratchet: floor $floor% is at or above $base's $base_floor%."
 '''
 
+# --- Public API shape ---
+
+# Every public item has exactly one path besides its prelude entry. The check
+# reads rustdoc's JSON output, which only a nightly toolchain emits; the nightly
+# is pinned so the JSON format the script reads cannot drift under it.
+[tasks.public-api-check]
+description = "Fail when a public item is reachable by more than one non-prelude path"
+env = { RUSTFLAGS = "" } # nightly-only lints are not this gate's concern
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+toolchain="nightly-2026-09-25"
+rustup toolchain install "$toolchain" --profile minimal --no-self-update
+cargo "+$toolchain" rustdoc -q -p geocoordinates --lib --all-features -- \
+    -Z unstable-options --output-format json
+python3 -I scripts/check_public_paths.py target/doc/geocoordinates.json
+'''
+
 [tasks.build]
 description = "Build the crate"
 run = "cargo build --all-features"

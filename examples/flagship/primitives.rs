@@ -6,8 +6,9 @@ use geocoordinates::angle::{
     Axis, Ddm, Dms, Hemisphere as AngleHemisphere, clamp_latitude, normalize_degrees,
     wrap_longitude,
 };
+use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 use geocoordinates::dgg::{H3Cell, S2CellId};
-use geocoordinates::fix::{AxisOrder, DatumAmbiguity};
+use geocoordinates::fix::{Accuracy, AxisOrder, Confidence, DatumAmbiguity, Fix, RawSource};
 use geocoordinates::format::{
     DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle,
 };
@@ -16,10 +17,7 @@ use geocoordinates::grids::{
     Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
 };
 use geocoordinates::parse::{GridKind, ParseOptions};
-use geocoordinates::{
-    Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Fix, Gcj02, Height, Length,
-    LengthUnit, RawSource, Wgs84,
-};
+use geocoordinates::{Approx, Coordinate, Crs, Height, Length, LengthUnit};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 

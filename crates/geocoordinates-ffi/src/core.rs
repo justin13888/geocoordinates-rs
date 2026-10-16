@@ -101,11 +101,11 @@ pub enum DatumAmbiguity {
     PossiblyGcj02,
 }
 
-/// Parse confidence on a 0.0–1.0 scale — mirror of [`gc::Confidence`].
+/// Parse confidence on a 0.0–1.0 scale — mirror of [`gc::fix::Confidence`].
 ///
 /// Unvalidated until used: a record built in foreign code keeps whatever
 /// `value` it was given. When it is passed into a function, the value is
-/// clamped into `[0.0, 1.0]` (NaN becomes `0.0`), as `gc::Confidence::new`
+/// clamped into `[0.0, 1.0]` (NaN becomes `0.0`), as `gc::fix::Confidence::new`
 /// does. Every `Confidence` this library returns is already in range.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Confidence {
@@ -114,7 +114,7 @@ pub struct Confidence {
     pub value: f64,
 }
 
-/// A positional accuracy estimate — mirror of [`gc::Accuracy`].
+/// A positional accuracy estimate — mirror of [`gc::fix::Accuracy`].
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Accuracy {
     /// Horizontal accuracy radius in meters, if reported.
@@ -123,7 +123,7 @@ pub struct Accuracy {
     pub vertical_m: Option<f64>,
 }
 
-/// The original input a coordinate was parsed from — mirror of [`gc::RawSource`].
+/// The original input a coordinate was parsed from — mirror of [`gc::fix::RawSource`].
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct RawSource {
     /// The input this coordinate came from: a single-coordinate input
@@ -142,7 +142,7 @@ pub struct RawSource {
     pub notes: Vec<String>,
 }
 
-/// A coordinate plus all known observation metadata — mirror of [`gc::Fix`].
+/// A coordinate plus all known observation metadata — mirror of [`gc::fix::Fix`].
 ///
 /// `timestamp` crosses natively via UniFFI's builtin `Timestamp`.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -288,20 +288,20 @@ impl From<DatumAmbiguity> for gc::fix::DatumAmbiguity {
     }
 }
 
-impl From<gc::Confidence> for Confidence {
-    fn from(c: gc::Confidence) -> Self {
+impl From<gc::fix::Confidence> for Confidence {
+    fn from(c: gc::fix::Confidence) -> Self {
         Confidence { value: c.value() }
     }
 }
 
-impl From<Confidence> for gc::Confidence {
+impl From<Confidence> for gc::fix::Confidence {
     fn from(c: Confidence) -> Self {
-        gc::Confidence::new(c.value)
+        gc::fix::Confidence::new(c.value)
     }
 }
 
-impl From<gc::Accuracy> for Accuracy {
-    fn from(a: gc::Accuracy) -> Self {
+impl From<gc::fix::Accuracy> for Accuracy {
+    fn from(a: gc::fix::Accuracy) -> Self {
         Accuracy {
             horizontal_m: a.horizontal_m,
             vertical_m: a.vertical_m,
@@ -309,17 +309,17 @@ impl From<gc::Accuracy> for Accuracy {
     }
 }
 
-impl From<Accuracy> for gc::Accuracy {
+impl From<Accuracy> for gc::fix::Accuracy {
     fn from(a: Accuracy) -> Self {
-        gc::Accuracy {
+        gc::fix::Accuracy {
             horizontal_m: a.horizontal_m,
             vertical_m: a.vertical_m,
         }
     }
 }
 
-impl From<gc::RawSource> for RawSource {
-    fn from(s: gc::RawSource) -> Self {
+impl From<gc::fix::RawSource> for RawSource {
+    fn from(s: gc::fix::RawSource) -> Self {
         RawSource {
             raw: s.raw,
             confidence: s.confidence.into(),
@@ -330,9 +330,9 @@ impl From<gc::RawSource> for RawSource {
     }
 }
 
-impl From<RawSource> for gc::RawSource {
+impl From<RawSource> for gc::fix::RawSource {
     fn from(s: RawSource) -> Self {
-        gc::RawSource {
+        gc::fix::RawSource {
             raw: s.raw,
             confidence: s.confidence.into(),
             axis_order: s.axis_order.map(Into::into),
@@ -342,8 +342,8 @@ impl From<RawSource> for gc::RawSource {
     }
 }
 
-impl From<gc::Fix> for Fix {
-    fn from(f: gc::Fix) -> Self {
+impl From<gc::fix::Fix> for Fix {
+    fn from(f: gc::fix::Fix) -> Self {
         Fix {
             coord: f.coord.into(),
             accuracy: f.accuracy.map(Into::into),
@@ -354,11 +354,11 @@ impl From<gc::Fix> for Fix {
 }
 
 /// Validates the embedded [`Coordinate`], as its own `TryFrom` does.
-impl TryFrom<Fix> for gc::Fix {
+impl TryFrom<Fix> for gc::fix::Fix {
     type Error = gc::Error;
 
     fn try_from(f: Fix) -> Result<Self, gc::Error> {
-        Ok(gc::Fix {
+        Ok(gc::fix::Fix {
             coord: f.coord.try_into()?,
             accuracy: f.accuracy.map(Into::into),
             timestamp: f.timestamp,
@@ -431,13 +431,13 @@ pub fn coordinate_is_null_island(coord: Coordinate) -> Result<bool, GeoError> {
 /// As [`coordinate_validate`], for an invalid record.
 #[uniffi::export]
 pub fn fix_from_coord(coord: Coordinate) -> Result<Fix, GeoError> {
-    Ok(gc::Fix::from_coord(coord.try_into()?).into())
+    Ok(gc::fix::Fix::from_coord(coord.try_into()?).into())
 }
 
 /// Construct a [`Confidence`], clamping `value` into `[0.0, 1.0]`.
 #[uniffi::export]
 pub fn confidence_new(value: f64) -> Confidence {
-    gc::Confidence::new(value).into()
+    gc::fix::Confidence::new(value).into()
 }
 
 // ===========================================================================

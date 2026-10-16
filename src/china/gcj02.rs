@@ -121,7 +121,7 @@ impl Wgs84 {
     /// moves a point by under a kilometer, so the result is always valid.
     ///
     /// ```
-    /// use geocoordinates::Wgs84;
+    /// use geocoordinates::china::Wgs84;
     ///
     /// let gcj = Wgs84::new(39.915, 116.404)?.to_gcj02();
     /// assert!((gcj.lon() - 116.410_244).abs() < 1e-6);
@@ -159,7 +159,7 @@ impl Gcj02 {
     /// that candidate plus 6 m, so it covers both preimages.
     ///
     /// ```
-    /// use geocoordinates::Gcj02;
+    /// use geocoordinates::china::Gcj02;
     ///
     /// let wgs = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_fast();
     /// assert_eq!(wgs.max_error_m(), 6.0);
@@ -208,7 +208,7 @@ impl Gcj02 {
     /// started from.
     ///
     /// ```
-    /// use geocoordinates::Gcj02;
+    /// use geocoordinates::china::Gcj02;
     ///
     /// let wgs = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined();
     /// assert_eq!(wgs.max_error_m(), 0.5);

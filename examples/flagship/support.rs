@@ -2,8 +2,9 @@
 
 use std::error::Error as StdError;
 
+use geocoordinates::china::BaiduMercator;
 use geocoordinates::geodesy::{Aer, Ellipsoid, Enu, Ned, geodesic_distance, haversine_distance};
-use geocoordinates::{BaiduMercator, Coordinate, LatLon};
+use geocoordinates::{Coordinate, LatLon};
 
 /// Result of one flagship section: its display name on success.
 pub(crate) type DemoResult = Result<&'static str, Box<dyn StdError>>;

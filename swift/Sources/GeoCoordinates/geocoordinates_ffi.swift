@@ -601,7 +601,7 @@ fileprivate struct FfiConverterTimestamp: FfiConverterRustBuffer {
 
 
 /**
- * A positional accuracy estimate — mirror of [`gc::Accuracy`].
+ * A positional accuracy estimate — mirror of [`gc::fix::Accuracy`].
  */
 public struct Accuracy: Equatable, Hashable {
     /**
@@ -1138,11 +1138,11 @@ public func FfiConverterTypeBd09_lower(_ value: Bd09) -> RustBuffer {
 
 
 /**
- * Parse confidence on a 0.0–1.0 scale — mirror of [`gc::Confidence`].
+ * Parse confidence on a 0.0–1.0 scale — mirror of [`gc::fix::Confidence`].
  *
  * Unvalidated until used: a record built in foreign code keeps whatever
  * `value` it was given. When it is passed into a function, the value is
- * clamped into `[0.0, 1.0]` (NaN becomes `0.0`), as `gc::Confidence::new`
+ * clamped into `[0.0, 1.0]` (NaN becomes `0.0`), as `gc::fix::Confidence::new`
  * does. Every `Confidence` this library returns is already in range.
  */
 public struct Confidence: Equatable, Hashable {
@@ -1808,7 +1808,7 @@ public func FfiConverterTypeEnu_lower(_ value: Enu) -> RustBuffer {
 
 
 /**
- * A coordinate plus all known observation metadata — mirror of [`gc::Fix`].
+ * A coordinate plus all known observation metadata — mirror of [`gc::fix::Fix`].
  *
  * `timestamp` crosses natively via UniFFI's builtin `Timestamp`.
  */
@@ -2392,7 +2392,7 @@ public func FfiConverterTypeParseOptions_lower(_ value: ParseOptions) -> RustBuf
 
 
 /**
- * The original input a coordinate was parsed from — mirror of [`gc::RawSource`].
+ * The original input a coordinate was parsed from — mirror of [`gc::fix::RawSource`].
  */
 public struct RawSource: Equatable, Hashable {
     /**
@@ -6519,10 +6519,12 @@ public func parseOptionsDefault() -> ParseOptions  {
 }
 /**
  * Parse a free-text coordinate (no `geo:` URI or grid detection) with
- * explicit options; `expect_grid` does not apply here.
+ * explicit options. Free text has no grid to expect, so a set `expect_grid`
+ * is rejected rather than ignored; use [`parse_coordinate_with`] for grids.
  *
  * # Errors
- * Returns a [`GeoError`] when the input cannot be interpreted.
+ * `GeoError::InvalidValue` (field `expect_grid`) when `options.expect_grid`
+ * is set; `GeoError::Parse` when the input cannot be interpreted.
  */
 public func parseTextWith(input: String, options: ParseOptions)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6923,7 +6925,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_parse_options_default() != 13976) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 13879) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 10027) {
         return InitializationResult.apiChecksumMismatch
     }
 
