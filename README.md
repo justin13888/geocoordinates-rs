@@ -51,8 +51,11 @@ extraction and polygon/line geometry operations.
 
 ## Full-surface example
 
-The flagship example is executable documentation and a self-verifying downstream
-API test. It uses embedded reference vectors and no network or external files:
+The [flagship example](https://github.com/justin13888/geocoordinates-rs/tree/master/examples/flagship)
+is executable documentation and a self-verifying downstream API test. It uses
+embedded reference vectors and no network or external files. It is not shipped in
+the published crate, so run it from a clone of the
+[repository](https://github.com/justin13888/geocoordinates-rs):
 
 ```bash
 cargo run --all-features --example flagship
@@ -229,7 +232,7 @@ Set `HK=0` to skip hooks for a single git invocation.
 
 GitHub Actions runs these workflows:
 
-- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, a check that every public item has one canonical path, and a coverage report that fails under the line-coverage floor, whose ratchet lets it only rise; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
+- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, a feature matrix that checks the library with no features and with each feature alone and then tests it with no features, the MSRV build, a rustdoc build with warnings denied, a check that every public item has one canonical path, and a coverage report that fails under the line-coverage floor, whose ratchet lets it only rise; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
 - **FFI** (pushes to `master` and pull requests): Clippy on the FFI crate, the bindings `cdylib` build, Python/Kotlin/Swift binding generation, a check that the committed Swift bindings are current, a WASM/TypeScript build with Node tests against the built wasm, the Python smoke test, JVM (Kotlin and Java) tests, and a Swift package build plus `swift test` on macOS.
 - **Full-tree mutation tests** (weekly, and on demand): mutates the whole tree and reports survivors without gating anything.
 - **Release dry runs**: each binding release workflow also runs as a non-publishing dry run on pull requests that touch its pipeline and weekly (see [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md)).
