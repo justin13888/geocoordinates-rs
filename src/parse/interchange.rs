@@ -241,9 +241,7 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
             end
         } else {
             let end = tag_end(rest);
-            if let Some(i) = end
-                && rest.as_bytes()[i - 1] != b'/'
-            {
+            if end.is_some_and(|i| rest.as_bytes()[i - 1] != b'/') {
                 depth += 1;
                 if depth > MAX_KML_DEPTH {
                     return Err(too_deep("kml", MAX_KML_DEPTH));
