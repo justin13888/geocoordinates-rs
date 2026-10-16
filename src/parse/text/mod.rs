@@ -36,6 +36,15 @@ use resolve::resolve;
 /// never reads a `geo:` URI or a grid reference. The returned [`Fix`] records
 /// the assumed axis order and parse confidence in its [`RawSource`].
 ///
+/// Accepts signed decimal (`40.7128, -74.006`), DMS with assorted symbols
+/// (`°'"`, Unicode primes `′″`, letter markers `d m s`, bare spaces), a
+/// hemisphere as prefix *or* suffix, DDM, and concatenated forms
+/// (`4042.766N`). Unlabelled pairs are ordered by range heuristics plus the
+/// default axis order, with a confidence that says how sure the reading is.
+/// Input with no single reading is rejected rather than guessed at:
+/// concatenated `DDMM.mmm` without a hemisphere letter, a fraction on any
+/// field but the last (`40.5 30`), and exponent notation (`4e1`).
+///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
 ///

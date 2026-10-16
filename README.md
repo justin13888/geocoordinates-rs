@@ -16,19 +16,25 @@ subsystem meets all five points of the stabilization bar defined in
 exactness, a compiling doctest on every item, one canonical FFI form, and tested
 antimeridian / pole / round-trip edges.
 
+Every public item has exactly one path (plus its `prelude` entry): the core
+types sit at the crate root, and every other item sits flat in the module the
+table names, e.g. `geocoordinates::china::Wgs84` or
+`geocoordinates::grids::utm_zone_for`. `mise run public-api-check` enforces it.
+
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
-| **Core types** | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Fix`, `Accuracy`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
-| **Angles & units** | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees`, `Length`, `LengthUnit` | ✅ | ✅ |
-| **China datums** | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `out_of_china` | ✅ | ✅ |
-| **Runtime dispatch** | `convert` | ✅ | ✅ |
-| **Format** | `format`, `format_fix`, `FormatOptions` (with `parse_options` for the round trip), `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ✅ | ✅ |
-| **Parse** | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `from_geo_uri`, `text::parse`, `text::parse_with` | ✅ | ✅ |
-| **Interchange & sensors** *(feature-gated)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
-| **Geodesy** | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate` (on each datum's own ellipsoid), `intersection_spherical` / `Intersection`, `cross_track_distance_spherical` / `along_track_distance_spherical`, `rhumb_distance` / `rhumb_bearing` / `rhumb_destination` (on each datum's own ellipsoid), `Helmert`, `DatumTransform` | ✅ | ✅ |
-| **Projected grids** | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `zone_for`, `central_meridian_deg` | ✅ | ✅ |
-| **Encoded grids** | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
-| **Discrete global grids** *(feature-gated)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
+| **Core types** (crate root) | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Length`, `LengthUnit` | ✅ | ✅ |
+| **Fix metadata** (`fix`) | `Fix`, `Accuracy`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
+| **Angles** (`angle`) | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees` | ✅ | ✅ |
+| **China datums** (`china`) | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `out_of_china` | ✅ | ✅ |
+| **Runtime dispatch** (`convert`) | `convert` | ✅ | ✅ |
+| **Format** (`format`) | `format`, `format_fix`, `FormatOptions` (with `parse_options` for the round trip), `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ✅ | ✅ |
+| **Parse** (`parse`) | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `from_geo_uri`, `parse_text`, `parse_text_with` | ✅ | ✅ |
+| **Interchange & sensors** *(feature-gated; `parse::interchange`, `parse::sensors`)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
+| **Geodesy** (`geodesy`) | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer`, `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate` (on each datum's own ellipsoid), `intersection_spherical` / `Intersection`, `cross_track_distance_spherical` / `along_track_distance_spherical`, `rhumb_distance` / `rhumb_bearing` / `rhumb_destination` (on each datum's own ellipsoid), `Helmert`, `DatumTransform` | ✅ | ✅ |
+| **Projected grids** (`grids`) | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `utm_zone_for`, `utm_central_meridian_deg` | ✅ | ✅ |
+| **Encoded grids** (`grids`) | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
+| **Discrete global grids** *(feature-gated; `dgg`)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
@@ -177,6 +183,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run ffi-check`        | Clippy on the FFI crate (the mirror gates every release)             |
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
+| `mise run public-api-check` | Every public item has one path besides its prelude entry (pinned nightly rustdoc JSON) |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
 | `mise run coverage`         | Coverage report; fails under the line floor in `.coverage-baseline`  |
 | `mise run coverage-ratchet` | Fails if the floor in `.coverage-baseline` falls below `origin/master`'s |
@@ -221,7 +228,7 @@ Set `HK=0` to skip hooks for a single git invocation.
 
 GitHub Actions runs these workflows:
 
-- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, and a coverage report that fails under the line-coverage floor, whose ratchet lets it only rise; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
+- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, a check that every public item has one canonical path, and a coverage report that fails under the line-coverage floor, whose ratchet lets it only rise; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
 - **FFI** (pushes to `master` and pull requests): Clippy on the FFI crate, the bindings `cdylib` build, Python/Kotlin/Swift binding generation, a check that the committed Swift bindings are current, a WASM/TypeScript build with Node tests against the built wasm, the Python smoke test, JVM (Kotlin and Java) tests, and a Swift package build plus `swift test` on macOS.
 - **Full-tree mutation tests** (weekly, and on demand): mutates the whole tree and reports survivors without gating anything.
 - **Release dry runs**: each binding release workflow also runs as a non-publishing dry run on pull requests that touch its pipeline and weekly (see [PUBLISHING.md](PUBLISHING.md)).
