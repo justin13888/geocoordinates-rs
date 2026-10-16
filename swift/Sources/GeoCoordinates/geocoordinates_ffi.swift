@@ -602,8 +602,18 @@ fileprivate struct FfiConverterTimestamp: FfiConverterRustBuffer {
 
 /**
  * A positional accuracy estimate — mirror of [`gc::fix::Accuracy`].
+ *
+ * Checked at the boundary like [`Confidence`]: every function that takes one
+ * (inside a [`Fix`]) rejects a negative, NaN or infinite magnitude, or a
+ * record with neither magnitude, with [`GeoError::InvalidValue`] (field
+ * `horizontal`, `vertical` or `accuracy`). Build one with [`accuracy_new`],
+ * or call [`accuracy_validate`] on a hand-built record.
  */
 public struct Accuracy: Equatable, Hashable {
+    /**
+     * What the magnitudes mean statistically.
+     */
+    public var kind: AccuracyKind
     /**
      * Horizontal accuracy radius in meters, if reported.
      */
@@ -617,11 +627,15 @@ public struct Accuracy: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
+         * What the magnitudes mean statistically.
+         */kind: AccuracyKind, 
+        /**
          * Horizontal accuracy radius in meters, if reported.
          */horizontalM: Double?, 
         /**
          * Vertical accuracy in meters, if reported.
          */verticalM: Double?) {
+        self.kind = kind
         self.horizontalM = horizontalM
         self.verticalM = verticalM
     }
@@ -642,12 +656,14 @@ public struct FfiConverterTypeAccuracy: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Accuracy {
         return
             try Accuracy(
+                kind: FfiConverterTypeAccuracyKind.read(from: &buf), 
                 horizontalM: FfiConverterOptionDouble.read(from: &buf), 
                 verticalM: FfiConverterOptionDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: Accuracy, into buf: inout [UInt8]) {
+        FfiConverterTypeAccuracyKind.write(value.kind, into: &buf)
         FfiConverterOptionDouble.write(value.horizontalM, into: &buf)
         FfiConverterOptionDouble.write(value.verticalM, into: &buf)
     }
@@ -1140,15 +1156,17 @@ public func FfiConverterTypeBd09_lower(_ value: Bd09) -> RustBuffer {
 /**
  * Parse confidence on a 0.0–1.0 scale — mirror of [`gc::fix::Confidence`].
  *
- * Unvalidated until used: a record built in foreign code keeps whatever
- * `value` it was given. When it is passed into a function, the value is
- * clamped into `[0.0, 1.0]` (NaN becomes `0.0`), as `gc::fix::Confidence::new`
- * does. Every `Confidence` this library returns is already in range.
+ * A record can be built field by field in foreign code, so it is checked at
+ * the boundary instead: every function that takes one (alone or inside a
+ * [`RawSource`] / [`Fix`]) rejects a NaN or out-of-range `value` with
+ * [`GeoError::InvalidValue`] (field `confidence`). Build one with
+ * [`confidence_new`] to fail at construction, or call
+ * [`confidence_validate`] on a hand-built record. Every `Confidence` this
+ * library returns is valid.
  */
 public struct Confidence: Equatable, Hashable {
     /**
-     * The confidence value. In `[0.0, 1.0]` when returned by this library;
-     * clamped into that range when passed into a function.
+     * The confidence value, in `[0.0, 1.0]`.
      */
     public var value: Double
 
@@ -1156,8 +1174,7 @@ public struct Confidence: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * The confidence value. In `[0.0, 1.0]` when returned by this library;
-         * clamped into that range when passed into a function.
+         * The confidence value, in `[0.0, 1.0]`.
          */value: Double) {
         self.value = value
     }
@@ -2416,6 +2433,11 @@ public struct RawSource: Equatable, Hashable {
      */
     public var datumAmbiguity: DatumAmbiguity?
     /**
+     * The geoid separation N the source reported (NMEA `GGA`), in meters:
+     * the ellipsoidal height is the orthometric height plus N.
+     */
+    public var geoidSeparationM: Double?
+    /**
      * Free-text notes about anything else resolved during parsing.
      */
     public var notes: [String]
@@ -2440,12 +2462,17 @@ public struct RawSource: Equatable, Hashable {
          * A flagged datum ambiguity, when the source's reference system is suspect.
          */datumAmbiguity: DatumAmbiguity?, 
         /**
+         * The geoid separation N the source reported (NMEA `GGA`), in meters:
+         * the ellipsoidal height is the orthometric height plus N.
+         */geoidSeparationM: Double?, 
+        /**
          * Free-text notes about anything else resolved during parsing.
          */notes: [String]) {
         self.raw = raw
         self.confidence = confidence
         self.axisOrder = axisOrder
         self.datumAmbiguity = datumAmbiguity
+        self.geoidSeparationM = geoidSeparationM
         self.notes = notes
     }
 
@@ -2469,6 +2496,7 @@ public struct FfiConverterTypeRawSource: FfiConverterRustBuffer {
                 confidence: FfiConverterTypeConfidence.read(from: &buf), 
                 axisOrder: FfiConverterOptionTypeAxisOrder.read(from: &buf), 
                 datumAmbiguity: FfiConverterOptionTypeDatumAmbiguity.read(from: &buf), 
+                geoidSeparationM: FfiConverterOptionDouble.read(from: &buf), 
                 notes: FfiConverterSequenceString.read(from: &buf)
         )
     }
@@ -2478,6 +2506,7 @@ public struct FfiConverterTypeRawSource: FfiConverterRustBuffer {
         FfiConverterTypeConfidence.write(value.confidence, into: &buf)
         FfiConverterOptionTypeAxisOrder.write(value.axisOrder, into: &buf)
         FfiConverterOptionTypeDatumAmbiguity.write(value.datumAmbiguity, into: &buf)
+        FfiConverterOptionDouble.write(value.geoidSeparationM, into: &buf)
         FfiConverterSequenceString.write(value.notes, into: &buf)
     }
 }
@@ -2800,6 +2829,105 @@ public func FfiConverterTypeWgs84_lift(_ buf: RustBuffer) throws -> Wgs84 {
 public func FfiConverterTypeWgs84_lower(_ value: Wgs84) -> RustBuffer {
     return FfiConverterTypeWgs84.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What an [`Accuracy`] magnitude means statistically — mirror of
+ * [`gc::fix::AccuracyKind`].
+ */
+
+public enum AccuracyKind: Equatable, Hashable {
+    
+    /**
+     * A hard maximum (e.g. a decoded grid cell's center-to-corner distance).
+     */
+    case bound
+    /**
+     * A one-sigma estimate, such as NMEA / GPX `HDOP × 5 m`.
+     */
+    case oneSigma
+    /**
+     * A circular error probable: the radius holding the position 50% of the
+     * time.
+     */
+    case cep50
+    /**
+     * A magnitude whose confidence level the source does not state (e.g. a
+     * `geo:` URI's `u=`).
+     */
+    case unspecified
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AccuracyKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAccuracyKind: FfiConverterRustBuffer {
+    typealias SwiftType = AccuracyKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccuracyKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .bound
+        
+        case 2: return .oneSigma
+        
+        case 3: return .cep50
+        
+        case 4: return .unspecified
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AccuracyKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .bound:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .oneSigma:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .cep50:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .unspecified:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccuracyKind_lift(_ buf: RustBuffer) throws -> AccuracyKind {
+    return try FfiConverterTypeAccuracyKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccuracyKind_lower(_ value: AccuracyKind) -> RustBuffer {
+    return FfiConverterTypeAccuracyKind.lower(value)
+}
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -5333,14 +5461,60 @@ public func wgs84Validate(p: Wgs84)throws   {try rustCallWithError(FfiConverterT
 }
 }
 /**
- * Construct a [`Confidence`], clamping `value` into `[0.0, 1.0]`.
+ * Construct an [`Accuracy`] of `kind` from its horizontal and vertical
+ * magnitudes in meters; either may be absent, but not both.
+ *
+ * # Errors
+ * [`GeoError::InvalidValue`] with field `horizontal` / `vertical` when that
+ * magnitude is negative, NaN or infinite, or with field `accuracy` when both
+ * are absent.
  */
-public func confidenceNew(value: Double) -> Confidence  {
-    return try!  FfiConverterTypeConfidence_lift(try! rustCall() {
+public func accuracyNew(kind: AccuracyKind, horizontalM: Double?, verticalM: Double?)throws  -> Accuracy  {
+    return try  FfiConverterTypeAccuracy_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_accuracy_new(
+        FfiConverterTypeAccuracyKind_lower(kind),
+        FfiConverterOptionDouble.lower(horizontalM),
+        FfiConverterOptionDouble.lower(verticalM),$0
+    )
+})
+}
+/**
+ * Validate a (possibly hand-built) [`Accuracy`] record.
+ *
+ * # Errors
+ * As [`accuracy_new`].
+ */
+public func accuracyValidate(accuracy: Accuracy)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_accuracy_validate(
+        FfiConverterTypeAccuracy_lower(accuracy),$0
+    )
+}
+}
+/**
+ * Construct a [`Confidence`] from a value in `[0.0, 1.0]`.
+ *
+ * # Errors
+ * [`GeoError::InvalidValue`] (field `confidence`) when `value` is NaN or
+ * outside `[0.0, 1.0]`.
+ */
+public func confidenceNew(value: Double)throws  -> Confidence  {
+    return try  FfiConverterTypeConfidence_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_confidence_new(
         FfiConverterDouble.lower(value),$0
     )
 })
+}
+/**
+ * Validate a (possibly hand-built) [`Confidence`] record.
+ *
+ * # Errors
+ * As [`confidence_new`].
+ */
+public func confidenceValidate(confidence: Confidence)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_confidence_validate(
+        FfiConverterTypeConfidence_lower(confidence),$0
+    )
+}
 }
 /**
  * Convert `coord` from its own reference system to `to`, routing through the
@@ -5441,6 +5615,22 @@ public func lengthToUnit(meters: Double, unit: LengthUnit) -> Double  {
     uniffi_geocoordinates_ffi_fn_func_length_to_unit(
         FfiConverterDouble.lower(meters),
         FfiConverterTypeLengthUnit_lower(unit),$0
+    )
+})
+}
+/**
+ * Construct a [`RawSource`] recording `raw` as interpreted with `confidence`,
+ * with no axis order, datum ambiguity, geoid separation or notes; set those
+ * fields afterwards where the source supplies them.
+ *
+ * # Errors
+ * As [`confidence_validate`], for an invalid `confidence`.
+ */
+public func rawSourceNew(raw: String, confidence: Confidence)throws  -> RawSource  {
+    return try  FfiConverterTypeRawSource_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_raw_source_new(
+        FfiConverterString.lower(raw),
+        FfiConverterTypeConfidence_lower(confidence),$0
     )
 })
 }
@@ -6704,7 +6894,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_wgs84_validate() != 7823) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_confidence_new() != 10507) {
+    if (uniffi_geocoordinates_ffi_checksum_func_accuracy_new() != 64357) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_accuracy_validate() != 12193) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_confidence_new() != 23584) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_confidence_validate() != 18179) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_convert() != 45801) {
@@ -6726,6 +6925,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_length_to_unit() != 23152) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_raw_source_new() != 30305) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 58176) {
