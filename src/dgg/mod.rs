@@ -8,29 +8,8 @@
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-
-fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
-    if coord.crs() != Crs::Wgs84 {
-        return Err(Error::CrsMismatch {
-            expected: Crs::Wgs84,
-            found: coord.crs(),
-        });
-    }
-    Ok(())
-}
-
-/// The greatest WGS-84 geodesic distance from `center` to any of `vertices`
-/// (each a `(lat, lon)` pair in degrees).
-#[cfg(any(feature = "h3", feature = "s2"))]
-fn farthest_vertex_m(center: &Coordinate, vertices: impl IntoIterator<Item = (f64, f64)>) -> f64 {
-    use geographiclib_rs::{Geodesic, InverseGeodesic};
-
-    let geodesic = Geodesic::wgs84();
-    vertices
-        .into_iter()
-        .map(|(lat, lon)| -> f64 { geodesic.inverse(center.lat(), center.lon(), lat, lon) })
-        .fold(0.0, f64::max)
-}
+use crate::geodesy::farthest_geodesic_m;
+use crate::grids::require_wgs84;
 
 /// An H3 cell index at a given resolution (0–15), valid by construction.
 ///
@@ -50,7 +29,7 @@ fn farthest_vertex_m(center: &Coordinate, vertices: impl IntoIterator<Item = (f6
 /// ```
 #[cfg(feature = "h3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "h3")))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -97,6 +76,25 @@ impl H3Cell {
         self.0
     }
 
+    /// The cell's resolution, 0 (coarsest) through 15 (finest): the
+    /// `resolution` it was encoded at.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::dgg::H3Cell;
+    ///
+    /// let cell = H3Cell::encode(Coordinate::wgs84(40.7128, -74.006)?, 9)?;
+    /// assert_eq!(cell.resolution(), 9);
+    /// assert_eq!(H3Cell::new(0x8029_fff_ffff_ffff)?.resolution(), 0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub fn resolution(self) -> u8 {
+        let cell = h3o::CellIndex::try_from(self.0)
+            .expect("H3Cell holds a validated index (checked in H3Cell::new)");
+        u8::from(cell.resolution())
+    }
+
     /// Encode (index) a WGS-84 coordinate to its H3 cell at `resolution`
     /// (0–15).
     ///
@@ -116,7 +114,7 @@ impl H3Cell {
     pub fn encode(coord: Coordinate, resolution: u8) -> Result<Self> {
         use h3o::{LatLng, Resolution};
 
-        validate_encoding_coordinate(coord)?;
+        require_wgs84(&coord)?;
         let res = Resolution::try_from(resolution).map_err(|_| Error::InvalidValue {
             field: "H3 resolution",
             detail: "must be in 0..=15".into(),
@@ -154,7 +152,7 @@ impl H3Cell {
         let center = LatLng::from(cell);
         // h3o yields latitude in [-90, 90] and longitude in [-180, 180].
         let center = Coordinate::from_valid(center.lat(), center.lng(), None, Crs::Wgs84);
-        let radius = farthest_vertex_m(
+        let radius = farthest_geodesic_m(
             &center,
             cell.boundary()
                 .iter()
@@ -200,7 +198,7 @@ impl From<H3Cell> for u64 {
 /// ```
 #[cfg(feature = "s2")]
 #[cfg_attr(docsrs, doc(cfg(feature = "s2")))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -250,6 +248,24 @@ impl S2CellId {
         self.0
     }
 
+    /// The cell's level, 0 (a whole cube face) through 30 (a leaf cell): the
+    /// `level` it was encoded at.
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::dgg::S2CellId;
+    ///
+    /// let cell = S2CellId::encode(Coordinate::wgs84(40.7128, -74.006)?, 20)?;
+    /// assert_eq!(cell.level(), 20);
+    /// assert_eq!(S2CellId::new(1 << 60)?.level(), 0); // face 0
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub fn level(self) -> u8 {
+        // A valid id's level is at most 30, so it fits a `u8`.
+        s2::cellid::CellID(self.0).level() as u8
+    }
+
     /// Encode (index) a WGS-84 coordinate to its S2 cell at `level` (0–30).
     ///
     /// ```
@@ -269,7 +285,7 @@ impl S2CellId {
         use s2::cellid::CellID;
         use s2::latlng::LatLng;
 
-        validate_encoding_coordinate(coord)?;
+        require_wgs84(&coord)?;
         if level > 30 {
             return Err(Error::InvalidValue {
                 field: "S2 level",
@@ -306,7 +322,7 @@ impl S2CellId {
         // `LatLng` from a unit vector is `atan2`-based: latitude in [-90, 90],
         // longitude in [-180, 180].
         let center = Coordinate::from_valid(center.lat.deg(), center.lng.deg(), None, Crs::Wgs84);
-        let radius = farthest_vertex_m(
+        let radius = farthest_geodesic_m(
             &center,
             Cell::from(cell).vertices().iter().map(|vertex| {
                 let vertex = LatLng::from(*vertex);
@@ -336,301 +352,4 @@ impl From<S2CellId> for u64 {
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(unused_imports)]
-    use super::*;
-    use crate::test_support::assert_within_geodesic_meters;
-
-    fn c(lat: f64, lon: f64) -> Coordinate {
-        Coordinate::wgs84(lat, lon).unwrap()
-    }
-
-    #[cfg(feature = "h3")]
-    #[test]
-    fn h3_matches_the_reference_index() {
-        // (40.7128, −74.006) at resolution 9, per the canonical H3 library
-        // (0x892a1072893ffff).
-        let cell = H3Cell::encode(c(40.7128, -74.006), 9).unwrap();
-        assert_eq!(cell.0, 617_733_151_020_810_239);
-    }
-
-    #[cfg(feature = "h3")]
-    #[test]
-    fn h3_round_trips_within_its_bound() {
-        for res in [0u8, 5, 9, 12, 15] {
-            let approx = H3Cell::encode(c(40.7128, -74.006), res).unwrap().decode();
-            assert!(approx.max_error().meters() > 0.0);
-            assert_within_geodesic_meters(
-                approx.value(),
-                &c(40.7128, -74.006),
-                approx.max_error().meters(),
-            );
-        }
-        // Finer resolutions give tighter bounds.
-        assert!(
-            H3Cell::encode(c(40.7128, -74.006), 12)
-                .unwrap()
-                .decode()
-                .max_error()
-                .meters()
-                < H3Cell::encode(c(40.7128, -74.006), 5)
-                    .unwrap()
-                    .decode()
-                    .max_error()
-                    .meters()
-        );
-        // A resolution-9 cell's farthest boundary vertex is ≈ 205 m away.
-        let bound9 = H3Cell::encode(c(40.7128, -74.006), 9)
-            .unwrap()
-            .decode()
-            .max_error()
-            .meters();
-        assert!((205.0..206.0).contains(&bound9), "res-9 bound {bound9}");
-    }
-
-    /// Asserts `bound` covers the ellipsoidal distance from `center` to every
-    /// vertex, and that a spherical measure would have fallen short of it.
-    #[cfg(any(feature = "h3", feature = "s2"))]
-    fn assert_bound_is_ellipsoidal(center: &Coordinate, vertices: &[Coordinate], bound: f64) {
-        use crate::geodesy::{geodesic_distance, haversine_distance};
-
-        let farthest = |distance: fn(&Coordinate, &Coordinate) -> Result<crate::Length>| {
-            vertices
-                .iter()
-                .map(|vertex| distance(center, vertex).unwrap().meters())
-                .fold(0.0, f64::max)
-        };
-        let ellipsoidal = farthest(geodesic_distance);
-        let spherical = farthest(haversine_distance);
-        assert!(
-            bound >= ellipsoidal,
-            "bound {bound} < geodesic {ellipsoidal}"
-        );
-        assert!(
-            spherical < ellipsoidal,
-            "spherical {spherical} does not under-state geodesic {ellipsoidal}"
-        );
-    }
-
-    #[cfg(feature = "h3")]
-    #[test]
-    fn h3_bound_covers_the_ellipsoidal_vertex_distance() {
-        // Near the pole the ellipsoid's meridional curvature radius exceeds the
-        // mean sphere's by about 0.5%, so a haversine bound falls short there.
-        let cell = H3Cell::encode(c(89.5, 10.0), 5).unwrap();
-        let approx = cell.decode();
-        let vertices: Vec<_> = h3o::CellIndex::try_from(cell.0)
-            .unwrap()
-            .boundary()
-            .iter()
-            .map(|vertex| c(vertex.lat(), vertex.lng()))
-            .collect();
-        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error().meters());
-    }
-
-    #[cfg(feature = "s2")]
-    #[test]
-    fn s2_matches_the_reference_id() {
-        // (40.7128, −74.006) at level 20, per the canonical S2 library — this
-        // also confirms the `s2` crate indexes correctly.
-        let cell = S2CellId::encode(c(40.7128, -74.006), 20).unwrap();
-        assert_eq!(cell.0, 9_926_595_630_970_437_632);
-    }
-
-    #[cfg(feature = "s2")]
-    #[test]
-    fn s2_round_trips_within_its_bound() {
-        for level in [1u8, 10, 20, 30] {
-            let approx = S2CellId::encode(c(40.7128, -74.006), level)
-                .unwrap()
-                .decode();
-            assert!(approx.max_error().meters() > 0.0);
-            assert_within_geodesic_meters(
-                approx.value(),
-                &c(40.7128, -74.006),
-                approx.max_error().meters(),
-            );
-        }
-        assert!(
-            S2CellId::encode(c(40.7128, -74.006), 25)
-                .unwrap()
-                .decode()
-                .max_error()
-                .meters()
-                < S2CellId::encode(c(40.7128, -74.006), 5)
-                    .unwrap()
-                    .decode()
-                    .max_error()
-                    .meters()
-        );
-        // A level-20 cell's farthest corner is ≈ 6–7 m away.
-        let bound20 = S2CellId::encode(c(40.7128, -74.006), 20)
-            .unwrap()
-            .decode()
-            .max_error()
-            .meters();
-        assert!((6.0..7.0).contains(&bound20), "level-20 bound {bound20}");
-    }
-
-    #[cfg(feature = "s2")]
-    #[test]
-    fn s2_bound_covers_the_ellipsoidal_vertex_distance() {
-        use s2::cell::Cell;
-        use s2::cellid::CellID;
-        use s2::latlng::LatLng;
-
-        // Near the pole the ellipsoid's meridional curvature radius exceeds the
-        // mean sphere's by about 0.5%, so a haversine bound falls short there.
-        let cell = S2CellId::encode(c(89.5, 10.0), 12).unwrap();
-        let approx = cell.decode();
-        let vertices: Vec<_> = Cell::from(CellID(cell.0))
-            .vertices()
-            .iter()
-            .map(|vertex| {
-                let vertex = LatLng::from(*vertex);
-                c(vertex.lat.deg(), vertex.lng.deg())
-            })
-            .collect();
-        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error().meters());
-    }
-
-    #[test]
-    fn invalid_ids_and_levels_are_rejected() {
-        #[cfg(feature = "h3")]
-        {
-            assert!(H3Cell::encode(c(0.0, 0.0), 16).is_err());
-            assert!(matches!(
-                H3Cell::new(0),
-                Err(Error::InvalidCellId {
-                    grid: "H3",
-                    value: 0
-                })
-            ));
-            assert!(matches!(
-                H3Cell::encode(Coordinate::gcj02(39.9, 116.4).unwrap(), 9),
-                Err(Error::CrsMismatch {
-                    expected: crate::Crs::Wgs84,
-                    found: crate::Crs::Gcj02,
-                })
-            ));
-        }
-        #[cfg(feature = "s2")]
-        {
-            assert!(S2CellId::encode(c(0.0, 0.0), 31).is_err());
-            assert!(matches!(
-                S2CellId::new(0),
-                Err(Error::InvalidCellId {
-                    grid: "S2",
-                    value: 0
-                })
-            ));
-            assert!(matches!(
-                S2CellId::encode(Coordinate::bd09(39.9, 116.4).unwrap(), 20),
-                Err(Error::CrsMismatch {
-                    expected: crate::Crs::Wgs84,
-                    found: crate::Crs::Bd09,
-                })
-            ));
-        }
-    }
-
-    #[cfg(feature = "h3")]
-    #[test]
-    fn h3_raw_ids_are_validated_and_round_trip() {
-        const NYC_RES9: u64 = 617_733_151_020_810_239;
-        let cell = H3Cell::new(NYC_RES9).unwrap();
-        assert_eq!(cell.as_u64(), NYC_RES9);
-        assert_eq!(u64::from(cell), NYC_RES9);
-        assert_eq!(H3Cell::try_from(NYC_RES9).unwrap(), cell);
-        assert_eq!(cell, H3Cell::encode(c(40.7128, -74.006), 9).unwrap());
-        assert!(matches!(
-            H3Cell::try_from(u64::MAX),
-            Err(Error::InvalidCellId {
-                grid: "H3",
-                value: u64::MAX
-            })
-        ));
-    }
-
-    #[cfg(feature = "s2")]
-    #[test]
-    fn s2_raw_ids_are_validated_and_round_trip() {
-        const NYC_LEVEL20: u64 = 9_926_595_630_970_437_632;
-        let cell = S2CellId::new(NYC_LEVEL20).unwrap();
-        assert_eq!(cell.as_u64(), NYC_LEVEL20);
-        assert_eq!(u64::from(cell), NYC_LEVEL20);
-        assert_eq!(S2CellId::try_from(NYC_LEVEL20).unwrap(), cell);
-        assert_eq!(cell, S2CellId::encode(c(40.7128, -74.006), 20).unwrap());
-        assert!(matches!(
-            S2CellId::try_from(u64::MAX),
-            Err(Error::InvalidCellId {
-                grid: "S2",
-                value: u64::MAX
-            })
-        ));
-    }
-
-    #[cfg(all(feature = "serde", feature = "h3"))]
-    #[test]
-    fn h3_serde_is_the_bare_index_and_validates() {
-        let cell = H3Cell::encode(c(40.7128, -74.006), 9).unwrap();
-        let json = serde_json::to_string(&cell).unwrap();
-        assert_eq!(json, "617733151020810239");
-        assert_eq!(serde_json::from_str::<H3Cell>(&json).unwrap(), cell);
-        assert!(serde_json::from_str::<H3Cell>("0").is_err());
-    }
-
-    #[cfg(all(feature = "serde", feature = "s2"))]
-    #[test]
-    fn s2_serde_is_the_bare_id_and_validates() {
-        let cell = S2CellId::encode(c(40.7128, -74.006), 20).unwrap();
-        let json = serde_json::to_string(&cell).unwrap();
-        assert_eq!(json, "9926595630970437632");
-        assert_eq!(serde_json::from_str::<S2CellId>(&json).unwrap(), cell);
-        assert!(serde_json::from_str::<S2CellId>("0").is_err());
-    }
-
-    /// Points on both poles and on either side of the antimeridian.
-    #[cfg(any(feature = "h3", feature = "s2"))]
-    const BOUNDARY_POINTS: [(f64, f64); 5] = [
-        (90.0, 0.0),
-        (-90.0, 0.0),
-        (0.0, 180.0),
-        (0.0, -180.0),
-        (-16.5, 179.999_9),
-    ];
-
-    /// Asserts a decoded cell holds `point` within its bound, and that the
-    /// bound is a real (positive, finite) distance.
-    #[cfg(any(feature = "h3", feature = "s2"))]
-    fn assert_decodes_around(approx: &Approx<Coordinate>, point: &Coordinate) {
-        let bound = approx.max_error().meters();
-        assert!(bound > 0.0 && bound.is_finite(), "bound {bound}");
-        assert_eq!(approx.value().crs(), Crs::Wgs84);
-        assert_within_geodesic_meters(approx.value(), point, bound);
-    }
-
-    #[cfg(feature = "h3")]
-    #[test]
-    fn h3_decodes_at_the_poles_and_antimeridian() {
-        for (lat, lon) in BOUNDARY_POINTS {
-            for res in [0u8, 7, 15] {
-                let point = c(lat, lon);
-                let approx = H3Cell::encode(point, res).unwrap().decode();
-                assert_decodes_around(&approx, &point);
-            }
-        }
-    }
-
-    #[cfg(feature = "s2")]
-    #[test]
-    fn s2_decodes_at_the_poles_and_antimeridian() {
-        for (lat, lon) in BOUNDARY_POINTS {
-            for level in [0u8, 15, 30] {
-                let point = c(lat, lon);
-                let approx = S2CellId::encode(point, level).unwrap().decode();
-                assert_decodes_around(&approx, &point);
-            }
-        }
-    }
-}
+mod tests;

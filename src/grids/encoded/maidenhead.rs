@@ -1,18 +1,19 @@
 //! Maidenhead locators (amateur-radio grid squares).
 
-use super::{cell_center, validate_encoding_coordinate};
+use super::cell_center;
 use crate::angle::{clamp_latitude, wrap_longitude};
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
+use crate::grids::require_wgs84;
 
 /// A validated Maidenhead locator (amateur radio grid square) of 1–3
 /// character pairs, e.g. `FN20` or `JN58td`.
 ///
 /// The canonical form has an uppercase field, digit square, and lowercase
 /// subsquare. It is valid by construction: obtain one from
-/// [`Maidenhead::encode`] or the validating `TryFrom<&str>` /
-/// `TryFrom<String>` / [`FromStr`](core::str::FromStr);
+/// [`Maidenhead::encode`] or the validating [`Maidenhead::parse`] (or its sugar `TryFrom<&str>` /
+/// `TryFrom<String>` / [`FromStr`](core::str::FromStr));
 /// [`Display`](core::fmt::Display) writes the canonical string back. Under the
 /// `serde` feature it (de)serializes as that bare string, and deserialization
 /// validates the same way.
@@ -25,7 +26,7 @@ use crate::error::{Error, Result};
 /// assert!(Maidenhead::try_from("SN20").is_err()); // field letters stop at R
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -53,7 +54,7 @@ impl Maidenhead {
     /// Returns [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
     /// [`Error::InvalidValue`] for `pairs` outside `1..=3`.
     pub fn encode(coord: Coordinate, pairs: u8) -> Result<Self> {
-        validate_encoding_coordinate(coord)?;
+        require_wgs84(&coord)?;
         if !(1..=3).contains(&pairs) {
             return Err(Error::InvalidValue {
                 field: "Maidenhead pairs",
@@ -148,12 +149,34 @@ impl Maidenhead {
 impl TryFrom<&str> for Maidenhead {
     type Error = crate::Error;
 
+    /// Validate as [`Maidenhead::parse`] does.
+    ///
+    /// # Errors
+    /// Returns [`crate::Error::InvalidGridRef`] for a malformed locator.
+    fn try_from(s: &str) -> Result<Self> {
+        Self::parse(s)
+    }
+}
+
+impl Maidenhead {
     /// Validate and canonicalize a 2-, 4-, or 6-character locator
     /// (case-insensitive; surrounding whitespace is trimmed).
     ///
+    /// `TryFrom<&str>`, `TryFrom<String>`, [`FromStr`](core::str::FromStr), and
+    /// serde all route through this.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::grids::Maidenhead;
+    ///
+    /// assert_eq!(Maidenhead::parse("jn58TD")?.as_str(), "JN58td");
+    /// assert!(matches!(Maidenhead::parse("JN5"), Err(Error::InvalidGridRef(_))));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
     /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for malformed locators.
-    fn try_from(s: &str) -> Result<Self> {
+    /// Returns [`Error::InvalidGridRef`] for a malformed locator.
+    pub fn parse(s: &str) -> Result<Self> {
         let t = s.trim();
         let bytes = t.as_bytes();
         let field = |b: u8| (b'A'..=b'R').contains(&b.to_ascii_uppercase());

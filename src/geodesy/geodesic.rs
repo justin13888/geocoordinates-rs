@@ -226,6 +226,21 @@ fn geodesic_for_pair(a: &impl LatLon, b: &impl LatLon) -> Result<Geodesic> {
     geodesic_for(a.crs())
 }
 
+/// The greatest WGS-84 geodesic (Karney) distance, in meters, from `center`
+/// to any of `points` (each a `(lat, lon)` pair in degrees), or `0.0` for no
+/// points: the cell-extent bound behind every grid and DGG `decode`. `center`
+/// is read as WGS-84 whatever its tag; every caller builds it on WGS-84.
+pub(crate) fn farthest_geodesic_m(
+    center: &Coordinate,
+    points: impl IntoIterator<Item = (f64, f64)>,
+) -> f64 {
+    let geodesic = Geodesic::wgs84();
+    points
+        .into_iter()
+        .map(|(lat, lon)| -> f64 { geodesic.inverse(center.lat(), center.lon(), lat, lon) })
+        .fold(0.0, f64::max)
+}
+
 /// Every geodesic and great-circle producer's exit: wraps `lon_deg` into
 /// `[-180, 180)` and validates the result, so no producer returns an
 /// out-of-range or non-finite coordinate. The result has no height.

@@ -58,14 +58,9 @@ pub(super) const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 /// ```
 pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
     validate_pair(a, b)?;
-    let lat1 = a.lat().to_radians();
-    let lat2 = b.lat().to_radians();
-    let d_lat = (b.lat() - a.lat()).to_radians();
-    let d_lon = (b.lon() - a.lon()).to_radians();
-
-    let h = (d_lat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
-    let c = 2.0 * h.sqrt().atan2((1.0 - h).max(0.0).sqrt());
-    Ok(Length::from_meters(MEAN_EARTH_RADIUS_M * c))
+    Ok(Length::from_meters(
+        MEAN_EARTH_RADIUS_M * angular_distance_rad(a, b),
+    ))
 }
 
 /// Signed perpendicular distance from `point` to the great-circle path

@@ -23,6 +23,7 @@ use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::geodesy::Ellipsoid;
 use crate::geodesy::series::KrugerSeries;
+use crate::grids::require_wgs84;
 
 mod ups;
 
@@ -169,12 +170,7 @@ fn check_zone(zone: u8) -> Result<()> {
 /// [`Error::OutsideDomain`] (operation `"UTM"`) for a latitude outside the
 /// UTM band `[-80, 84)` — 84°N itself is UPS territory.
 pub fn utm_zone_for(coord: &Coordinate) -> Result<u8> {
-    if coord.crs() != Crs::Wgs84 {
-        return Err(Error::CrsMismatch {
-            expected: Crs::Wgs84,
-            found: coord.crs(),
-        });
-    }
+    require_wgs84(coord)?;
     let (lat, lon) = (coord.lat(), coord.lon());
     if !(-80.0..84.0).contains(&lat) {
         return Err(Error::OutsideDomain {
@@ -386,13 +382,7 @@ impl Utm {
         let xi_p = t.atan2(d_lon.cos());
         let eta_p = (d_lon.sin() / (1.0 + t * t).sqrt()).atanh();
 
-        let mut xi = xi_p;
-        let mut eta = eta_p;
-        for j in 1..=4usize {
-            let jf = j as f64;
-            xi += SERIES.alpha[j - 1] * (2.0 * jf * xi_p).sin() * (2.0 * jf * eta_p).cosh();
-            eta += SERIES.alpha[j - 1] * (2.0 * jf * xi_p).cos() * (2.0 * jf * eta_p).sinh();
-        }
+        let (xi, eta) = SERIES.tm_from_conformal(xi_p, eta_p);
 
         let easting = FALSE_EASTING + K0 * RECT_A * eta;
         let mut northing = K0 * RECT_A * xi;
@@ -437,20 +427,10 @@ impl Utm {
         let xi = (self.northing - n0) / (K0 * RECT_A);
         let eta = (self.easting - FALSE_EASTING) / (K0 * RECT_A);
 
-        let mut xi_p = xi;
-        let mut eta_p = eta;
-        for j in 1..=4usize {
-            let jf = j as f64;
-            xi_p -= SERIES.beta[j - 1] * (2.0 * jf * xi).sin() * (2.0 * jf * eta).cosh();
-            eta_p -= SERIES.beta[j - 1] * (2.0 * jf * xi).cos() * (2.0 * jf * eta).sinh();
-        }
+        let (xi_p, eta_p) = SERIES.conformal_from_tm(xi, eta);
 
         let chi = (xi_p.sin() / eta_p.cosh()).asin();
-        let mut lat = chi;
-        for j in 1..=4usize {
-            let jf = j as f64;
-            lat += SERIES.delta[j - 1] * (2.0 * jf * chi).sin();
-        }
+        let lat = SERIES.geodetic_from_conformal(chi);
         let lon = lon0 + eta_p.sinh().atan2(xi_p.cos()).to_degrees();
         Coordinate::from_valid(
             clamp_latitude(lat.to_degrees()),
