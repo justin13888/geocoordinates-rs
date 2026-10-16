@@ -126,7 +126,7 @@ fn into_fixes(format: &str, positions: Vec<Position>) -> Result<Vec<Fix>> {
 ///
 /// ```
 /// use geocoordinates::{Error, Height};
-/// use geocoordinates::parse::AxisOrder;
+/// use geocoordinates::fix::AxisOrder;
 /// use geocoordinates::parse::interchange::from_geojson;
 ///
 /// let fixes = from_geojson(r#"{"type":"Point","coordinates":[-74.006,40.7128,10.0]}"#)?;
@@ -219,7 +219,7 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
 ///
 /// ```
 /// use geocoordinates::Error;
-/// use geocoordinates::parse::AxisOrder;
+/// use geocoordinates::fix::AxisOrder;
 /// use geocoordinates::parse::interchange::from_wkt;
 ///
 /// let line = "LINESTRING (-122.4194 37.7749, 2.3522 48.8566)";

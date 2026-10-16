@@ -19,9 +19,9 @@
 // test set.
 #![allow(dead_code)]
 
+use crate::china::{Bd09, Gcj02, Wgs84};
 use crate::coord::LatLon;
 use crate::geodesy::{geodesic_distance, haversine_distance};
-use crate::{Bd09, Gcj02, Wgs84};
 
 /// Assert that two positions are within `max_m` meters, measured by the
 /// library's own [`haversine_distance`](crate::geodesy::haversine_distance).

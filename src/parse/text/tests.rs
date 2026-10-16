@@ -2,7 +2,8 @@ use super::normalize::{is_isolated, rewrite_decimal_comma, rewrite_unit_letters,
 use super::*;
 use crate::test_support::assert_close;
 
-use crate::parse::AxisOrder;
+use crate::fix::AxisOrder;
+use crate::parse::GridKind;
 
 fn source(fix: &Fix) -> &RawSource {
     fix.source.as_ref().expect("text parse records a source")
@@ -16,8 +17,34 @@ fn comma_options() -> ParseOptions {
 }
 
 #[test]
+fn parse_text_with_rejects_every_expected_grid_instead_of_ignoring_it() {
+    for kind in [
+        GridKind::PlusCode,
+        GridKind::Geohash,
+        GridKind::Maidenhead,
+        GridKind::Mgrs,
+    ] {
+        let options = ParseOptions {
+            expect_grid: Some(kind),
+            ..ParseOptions::default()
+        };
+        // Valid free text is still refused: the option cannot be honoured.
+        assert!(matches!(
+            parse_text_with("40.7128, -74.006", &options),
+            Err(Error::InvalidValue {
+                field: "expect_grid",
+                ..
+            })
+        ));
+        // The internal free-text reader used by `parse_coordinate_with` leaves
+        // the option to its caller.
+        assert!(parse_free_text("40.7128, -74.006", &options).is_ok());
+    }
+}
+
+#[test]
 fn dd_comma_defaults_to_latlon() {
-    let fix = parse("40.7128, -74.006").unwrap();
+    let fix = parse_text("40.7128, -74.006").unwrap();
     assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_close(fix.coord.lon(), -74.006, 1e-9);
     let s = source(&fix);
@@ -29,7 +56,7 @@ fn dd_comma_defaults_to_latlon() {
 #[test]
 fn range_rule_forces_longitude() {
     // 151.2 exceeds the latitude range, so it must be longitude (Sydney).
-    let fix = parse("151.2, -33.9").unwrap();
+    let fix = parse_text("151.2, -33.9").unwrap();
     assert_close(fix.coord.lat(), -33.9, 1e-9);
     assert_close(fix.coord.lon(), 151.2, 1e-9);
     let s = source(&fix);
@@ -39,7 +66,7 @@ fn range_rule_forces_longitude() {
 
 #[test]
 fn dms_with_both_hemispheres() {
-    let fix = parse("40°42′46″N 74°00′22″W").unwrap();
+    let fix = parse_text("40°42′46″N 74°00′22″W").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
     assert_close(fix.coord.lon(), -(74.0 + 22.0 / 3600.0), 1e-9);
     let s = source(&fix);
@@ -49,7 +76,7 @@ fn dms_with_both_hemispheres() {
 
 #[test]
 fn hemispheres_can_be_swapped() {
-    let fix = parse("74°00′22″W 40°42′46″N").unwrap();
+    let fix = parse_text("74°00′22″W 40°42′46″N").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
     assert_close(fix.coord.lon(), -(74.0 + 22.0 / 3600.0), 1e-9);
     assert_close(source(&fix).confidence.value(), 1.0, 1e-12);
@@ -58,14 +85,14 @@ fn hemispheres_can_be_swapped() {
 #[test]
 fn ascii_symbols_and_prefix_hemispheres() {
     // ASCII quotes plus leading hemisphere letters.
-    let fix = parse("N40 42'46\" W74 00'22\"").unwrap();
+    let fix = parse_text("N40 42'46\" W74 00'22\"").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 42.0 / 60.0 + 46.0 / 3600.0, 1e-9);
     assert_close(fix.coord.lon(), -(74.0 + 22.0 / 3600.0), 1e-9);
 }
 
 #[test]
 fn nmea_concatenated() {
-    let fix = parse("4042.766N 07400.456W").unwrap();
+    let fix = parse_text("4042.766N 07400.456W").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 42.766 / 60.0, 1e-9);
     assert_close(fix.coord.lon(), -(74.0 + 0.456 / 60.0), 1e-9);
     assert_eq!(source(&fix).axis_order, None);
@@ -73,7 +100,7 @@ fn nmea_concatenated() {
 
 #[test]
 fn space_separated_ddm_with_suffix_hemispheres() {
-    let fix = parse("40 42.766 N 74 0.456 W").unwrap();
+    let fix = parse_text("40 42.766 N 74 0.456 W").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 42.766 / 60.0, 1e-9);
     assert_close(fix.coord.lon(), -(74.0 + 0.456 / 60.0), 1e-9);
 }
@@ -81,11 +108,11 @@ fn space_separated_ddm_with_suffix_hemispheres() {
 #[test]
 fn decimal_comma_option() {
     let opts = comma_options();
-    let fix = parse_with("40,7128 -74,006", &opts).unwrap();
+    let fix = parse_text_with("40,7128 -74,006", &opts).unwrap();
     assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_close(fix.coord.lon(), -74.006, 1e-9);
     // The same string without the option is a different (failing) parse.
-    assert!(parse("40,7128 -74,006").is_err());
+    assert!(parse_text("40,7128 -74,006").is_err());
 }
 
 #[test]
@@ -94,7 +121,7 @@ fn default_lonlat_swaps_assignment() {
         default_axis_order: AxisOrder::LonLat,
         ..ParseOptions::default()
     };
-    let fix = parse_with("-74.006, 40.7128", &opts).unwrap();
+    let fix = parse_text_with("-74.006, 40.7128", &opts).unwrap();
     assert_close(fix.coord.lon(), -74.006, 1e-9);
     assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_eq!(source(&fix).axis_order, Some(AxisOrder::LonLat));
@@ -102,16 +129,16 @@ fn default_lonlat_swaps_assignment() {
 
 #[test]
 fn invalid_inputs_error() {
-    assert!(parse("200, 0").is_err()); // forced longitude 200 > 180
-    assert!(parse("100, 150").is_err()); // both exceed the latitude range
-    assert!(parse("hello world").is_err()); // not numeric
-    assert!(parse("42").is_err()); // only one component
-    assert!(parse("").is_err()); // empty
-    assert!(parse("40 60 N 74 0 W").is_err()); // invalid minutes
-    assert!(parse("40 0 60 N 74 0 0 W").is_err()); // invalid seconds
-    assert!(parse("4060.0N 07400.0W").is_err()); // invalid NMEA minutes
-    assert!(parse("-40N 74W").is_err()); // sign contradicts hemisphere
-    assert!(parse("NaN, 0").is_err());
+    assert!(parse_text("200, 0").is_err()); // forced longitude 200 > 180
+    assert!(parse_text("100, 150").is_err()); // both exceed the latitude range
+    assert!(parse_text("hello world").is_err()); // not numeric
+    assert!(parse_text("42").is_err()); // only one component
+    assert!(parse_text("").is_err()); // empty
+    assert!(parse_text("40 60 N 74 0 W").is_err()); // invalid minutes
+    assert!(parse_text("40 0 60 N 74 0 0 W").is_err()); // invalid seconds
+    assert!(parse_text("4060.0N 07400.0W").is_err()); // invalid NMEA minutes
+    assert!(parse_text("-40N 74W").is_err()); // sign contradicts hemisphere
+    assert!(parse_text("NaN, 0").is_err());
 }
 
 #[test]
@@ -119,14 +146,14 @@ fn doubled_sign_leaves_a_negative_magnitude_that_is_rejected() {
     // The component parser strips one leading `-`; a second one reaches the
     // magnitude parser as a negative number, which must be rejected rather
     // than folded into the sign (`--5` is not `5`).
-    assert!(parse("--5, 10").is_err()); // decimal magnitude
-    assert!(parse("--5 30, 10").is_err()); // DDM degrees field
-    assert!(parse("--5 30 0, 10").is_err()); // DMS degrees field
+    assert!(parse_text("--5, 10").is_err()); // decimal magnitude
+    assert!(parse_text("--5 30, 10").is_err()); // DDM degrees field
+    assert!(parse_text("--5 30 0, 10").is_err()); // DMS degrees field
 }
 
 #[test]
 fn south_and_east_hemispheres() {
-    let fix = parse("33.9S 151.2E").unwrap();
+    let fix = parse_text("33.9S 151.2E").unwrap();
     assert_close(fix.coord.lat(), -33.9, 1e-9);
     assert_close(fix.coord.lon(), 151.2, 1e-9);
 }
@@ -134,7 +161,7 @@ fn south_and_east_hemispheres() {
 #[test]
 fn one_hemisphere_letter_resolves_the_pair() {
     // (lat-letter, none): N pins the first component as latitude.
-    let f = parse("40.7N 74.006").unwrap();
+    let f = parse_text("40.7N 74.006").unwrap();
     assert_close(f.coord.lat(), 40.7, 1e-9);
     assert_close(f.coord.lon(), 74.006, 1e-9);
     let s = source(&f);
@@ -142,14 +169,14 @@ fn one_hemisphere_letter_resolves_the_pair() {
     assert_eq!(s.axis_order, None);
 
     // (lon-letter, none): W pins the first as longitude → swap.
-    let f = parse("74.006W 40.7").unwrap();
+    let f = parse_text("74.006W 40.7").unwrap();
     assert_close(f.coord.lat(), 40.7, 1e-9);
     assert_close(f.coord.lon(), -74.006, 1e-9);
 
     // (none, lon-letter): W pins the second as longitude. The lat/lon
     // happen to coincide with the assumed-default path, so assert the
     // confidence and axis-order too (the letter resolves it, 0.9 / None).
-    let f = parse("40.7 74.006W").unwrap();
+    let f = parse_text("40.7 74.006W").unwrap();
     assert_close(f.coord.lat(), 40.7, 1e-9);
     assert_close(f.coord.lon(), -74.006, 1e-9);
     let s = source(&f);
@@ -157,7 +184,7 @@ fn one_hemisphere_letter_resolves_the_pair() {
     assert_eq!(s.axis_order, None);
 
     // (none, lat-letter): N pins the second as latitude → swap.
-    let f = parse("74.006 40.7N").unwrap();
+    let f = parse_text("74.006 40.7N").unwrap();
     assert_close(f.coord.lat(), 40.7, 1e-9);
     assert_close(f.coord.lon(), 74.006, 1e-9);
 }
@@ -166,12 +193,12 @@ fn one_hemisphere_letter_resolves_the_pair() {
 fn range_rule_boundary_excludes_exactly_90() {
     // Exactly 90 is a valid latitude, so the order stays *assumed* (0.7),
     // not forced by the range rule.
-    let f = parse("90, 50").unwrap();
+    let f = parse_text("90, 50").unwrap();
     assert_close(f.coord.lat(), 90.0, 1e-9);
     assert_close(f.coord.lon(), 50.0, 1e-9);
     assert_close(source(&f).confidence.value(), 0.7, 1e-12);
 
-    let f = parse("50, 90").unwrap();
+    let f = parse_text("50, 90").unwrap();
     assert_close(f.coord.lat(), 50.0, 1e-9);
     assert_close(f.coord.lon(), 90.0, 1e-9);
     assert_close(source(&f).confidence.value(), 0.7, 1e-12);
@@ -220,13 +247,13 @@ fn letter_markers_parse_like_symbols() {
         "10d30.000mN 20d15.000mW",
         "10d30.000m -20d15.000m",
     ] {
-        let fix = parse(input).unwrap_or_else(|e| panic!("{input}: {e}"));
+        let fix = parse_text(input).unwrap_or_else(|e| panic!("{input}: {e}"));
         assert_close(fix.coord.lat(), lat, 1e-9);
         assert_close(fix.coord.lon(), lon, 1e-9);
     }
     // Letter markers combine with the decimal-comma option.
     let opts = comma_options();
-    let fix = parse_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
+    let fix = parse_text_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
     assert_close(fix.coord.lat(), -lat, 1e-9);
     assert_close(fix.coord.lon(), lon, 1e-9);
 }
@@ -262,9 +289,9 @@ fn is_isolated_excludes_word_letters() {
 fn concatenated_ddmm_needs_a_hemisphere_letter() {
     // C12: four or more integer digits are DDMM only beside a hemisphere
     // letter; bare, `1234.5` is no degree value at all, not 12°34.5′.
-    assert!(parse("1234.5, 10").is_err());
-    assert!(parse("10, 01234.5").is_err());
-    let fix = parse("1234.5N, 10E").unwrap();
+    assert!(parse_text("1234.5, 10").is_err());
+    assert!(parse_text("10, 01234.5").is_err());
+    let fix = parse_text("1234.5N, 10E").unwrap();
     assert_close(fix.coord.lat(), 12.0 + 34.5 / 60.0, 1e-9);
 }
 
@@ -272,14 +299,14 @@ fn concatenated_ddmm_needs_a_hemisphere_letter() {
 fn a_fractional_field_must_be_the_last_one() {
     // C12: `40.5 30` is not 40.5° plus 30′; fractional degrees with minutes,
     // or fractional minutes with seconds, are rejected rather than summed.
-    assert!(parse("40.5 30, 10").is_err());
-    assert!(parse("40.5 30 0, 10").is_err());
-    assert!(parse("40 30.5 10, 74").is_err());
-    assert!(parse("40.5°30′N 74°W").is_err());
+    assert!(parse_text("40.5 30, 10").is_err());
+    assert!(parse_text("40.5 30 0, 10").is_err());
+    assert!(parse_text("40 30.5 10, 74").is_err());
+    assert!(parse_text("40.5°30′N 74°W").is_err());
     // The last field may carry the fraction.
-    let fix = parse("40 30.5, 10").unwrap();
+    let fix = parse_text("40 30.5, 10").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 30.5 / 60.0, 1e-9);
-    let fix = parse("40 30 10.5, 74").unwrap();
+    let fix = parse_text("40 30 10.5, 74").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 30.0 / 60.0 + 10.5 / 3600.0, 1e-9);
 }
 
@@ -288,7 +315,7 @@ fn exponent_notation_is_rejected() {
     // C12: the `e` of `4e1` is neither East nor an exponent a coordinate is
     // written with.
     for input in ["4e1 3e1", "4E1 3E1", "4e1, 3e1", "40, 7e1", "4e1N 3e1W"] {
-        let r = parse(input);
+        let r = parse_text(input);
         assert!(r.is_err(), "{input:?}: {r:?}");
     }
 }
@@ -299,7 +326,7 @@ fn decimal_comma_text_splits_on_the_remaining_list_separators() {
     // (and `;`) separate the two components.
     let opts = comma_options();
     for input in ["48,8566, 2,3522", "48,8566 , 2,3522", "48,8566; 2,3522"] {
-        let fix = parse_with(input, &opts).unwrap_or_else(|e| panic!("{input:?}: {e}"));
+        let fix = parse_text_with(input, &opts).unwrap_or_else(|e| panic!("{input:?}: {e}"));
         assert_close(fix.coord.lat(), 48.8566, 1e-9);
         assert_close(fix.coord.lon(), 2.3522, 1e-9);
     }

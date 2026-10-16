@@ -8,7 +8,7 @@ fn c(lat: f64, lon: f64) -> Coordinate {
 /// The UTM zone of a WGS-84 point inside the UTM band.
 #[track_caller]
 fn zone(lat: f64, lon: f64) -> u8 {
-    zone_for(&c(lat, lon)).unwrap()
+    utm_zone_for(&c(lat, lon)).unwrap()
 }
 
 /// A UTM coordinate known to be inside the domain.
@@ -68,25 +68,25 @@ fn zone_selection_with_exceptions() {
 
 #[test]
 fn central_meridian_of_zones() {
-    assert_close(central_meridian_deg(1).unwrap(), -177.0, 1e-12);
-    assert_close(central_meridian_deg(18).unwrap(), -75.0, 1e-12);
-    assert_close(central_meridian_deg(31).unwrap(), 3.0, 1e-12);
-    assert_close(central_meridian_deg(60).unwrap(), 177.0, 1e-12);
+    assert_close(utm_central_meridian_deg(1).unwrap(), -177.0, 1e-12);
+    assert_close(utm_central_meridian_deg(18).unwrap(), -75.0, 1e-12);
+    assert_close(utm_central_meridian_deg(31).unwrap(), 3.0, 1e-12);
+    assert_close(utm_central_meridian_deg(60).unwrap(), 177.0, 1e-12);
     // Zones 0 and 61 do not exist (zone 0 used to report −183°).
-    assert_invalid(central_meridian_deg(0), "zone");
-    assert_invalid(central_meridian_deg(61), "zone");
+    assert_invalid(utm_central_meridian_deg(0), "zone");
+    assert_invalid(utm_central_meridian_deg(61), "zone");
 }
 
 #[test]
-fn zone_for_rejects_points_outside_the_utm_band() {
+fn utm_zone_for_rejects_points_outside_the_utm_band() {
     // 84°N itself is UPS territory, as is everything south of 80°S.
-    assert_outside(zone_for(&c(84.0, 9.0)), "UTM", 84.0, 9.0);
-    assert_outside(zone_for(&c(-80.000_1, 9.0)), "UTM", -80.000_1, 9.0);
-    assert_outside(zone_for(&c(90.0, 0.0)), "UTM", 90.0, 0.0);
+    assert_outside(utm_zone_for(&c(84.0, 9.0)), "UTM", 84.0, 9.0);
+    assert_outside(utm_zone_for(&c(-80.000_1, 9.0)), "UTM", -80.000_1, 9.0);
+    assert_outside(utm_zone_for(&c(90.0, 0.0)), "UTM", 90.0, 0.0);
     assert_eq!(zone(-80.0, 9.0), 32);
     assert_eq!(zone(83.999, 9.0), 33);
     assert!(matches!(
-        zone_for(&Coordinate::gcj02(40.0, -75.0).unwrap()),
+        utm_zone_for(&Coordinate::gcj02(40.0, -75.0).unwrap()),
         Err(Error::CrsMismatch {
             expected: Crs::Wgs84,
             found: Crs::Gcj02,
@@ -491,7 +491,7 @@ fn zone_edges_of_the_norway_and_svalbard_exceptions() {
     assert_eq!(zone(72.0, 42.0), 38); // the exception ends at 42°E
     assert_eq!(zone(83.999, 9.0), 33);
     // 84°N is outside the exception and the UTM band (it is UPS).
-    assert_outside(zone_for(&c(84.0, 9.0)), "UTM", 84.0, 9.0);
+    assert_outside(utm_zone_for(&c(84.0, 9.0)), "UTM", 84.0, 9.0);
     assert_eq!(zone(71.999, 9.0), 32); // band W keeps its normal zone
     assert_eq!(zone(72.0, -0.001), 30); // west of 0°E is unaffected
     // Norway (56°–64°N, 3°–12°E) widens zone 32 westward.

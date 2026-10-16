@@ -4,6 +4,10 @@ use crate::coord::Crs;
 
 /// The result type returned across the public API.
 ///
+/// The error type defaults to [`Error`] but can be overridden, so importing
+/// this alias never breaks a signature that names its own error type. The
+/// [`prelude`](crate::prelude) does not export it.
+///
 /// ```
 /// use geocoordinates::{Coordinate, Result};
 ///
@@ -12,9 +16,13 @@ use crate::coord::Crs;
 /// }
 /// assert_eq!(origin_shift(10.0, 20.0)?.lat(), 11.0);
 /// assert!(origin_shift(89.5, 0.0).is_err());
+///
+/// // A second parameter overrides the error type.
+/// let parsed: Result<u8, std::num::ParseIntError> = "300".parse();
+/// assert!(parsed.is_err());
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub type Result<T> = core::result::Result<T, Error>;
+pub type Result<T, E = Error> = core::result::Result<T, E>;
 
 /// All errors produced by `geocoordinates`.
 ///
@@ -141,7 +149,8 @@ pub enum Error {
     /// into a datum newtype of another. Prevents silently laundering a datum.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, Error, Wgs84};
+    /// use geocoordinates::china::Wgs84;
+    /// use geocoordinates::{Coordinate, Crs, Error};
     ///
     /// let mars = Coordinate::gcj02(39.9165, 116.4102)?;
     /// assert_eq!(

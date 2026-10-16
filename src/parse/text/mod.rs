@@ -30,64 +30,95 @@ mod tests;
 use normalize::{normalize, parse_component, split_two};
 use resolve::resolve;
 
-/// Parse a free-text coordinate with default options.
+/// Parse a free-text DD / DMS / DDM coordinate with default options.
 ///
-/// The returned [`Fix`] records the assumed axis order and parse confidence in
-/// its [`RawSource`].
+/// Free text only: unlike [`parse_coordinate`](super::parse_coordinate), this
+/// never reads a `geo:` URI or a grid reference. The returned [`Fix`] records
+/// the assumed axis order and parse confidence in its [`RawSource`].
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
 ///
 /// ```
 /// use geocoordinates::Error;
-/// use geocoordinates::parse::AxisOrder;
-/// use geocoordinates::parse::text::parse;
+/// use geocoordinates::fix::AxisOrder;
+/// use geocoordinates::parse::parse_text;
 ///
-/// let fix = parse("40°42′46″N 74°00′22″W")?;
+/// let fix = parse_text("40°42′46″N 74°00′22″W")?;
 /// assert!((fix.coord.lat() - 40.712_78).abs() < 1e-5);
 /// assert!((fix.coord.lon() + 74.006_11).abs() < 1e-5);
 ///
 /// // Unlabelled numbers are read lat-first; the fix says so.
-/// let fix = parse("40.7128, -74.006")?;
+/// let fix = parse_text("40.7128, -74.006")?;
 /// assert_eq!(fix.source.and_then(|s| s.axis_order), Some(AxisOrder::LatLon));
 ///
 /// // Concatenated DDMM.mmm needs a hemisphere letter.
-/// assert!(matches!(parse("4042.768, -7400.36"), Err(Error::Parse(_))));
+/// assert!(matches!(parse_text("4042.768, -7400.36"), Err(Error::Parse(_))));
+/// // A grid reference is not free text.
+/// assert!(matches!(parse_text("87G7PX7V+4J"), Err(Error::Parse(_))));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn parse(input: &str) -> Result<Fix> {
-    parse_with(input, &ParseOptions::default())
+pub fn parse_text(input: &str) -> Result<Fix> {
+    parse_free_text(input, &ParseOptions::default())
 }
 
-/// Parse a free-text coordinate with explicit options.
+/// [`parse_text`] with explicit options.
 ///
-/// Only [`ParseOptions::default_axis_order`] and
-/// [`ParseOptions::decimal_separator`] apply here;
-/// [`ParseOptions::expect_grid`] is read by
-/// [`parse_coordinate_with`](super::parse_coordinate_with), which tries grids
-/// before falling back to this parser.
+/// [`ParseOptions::default_axis_order`] and
+/// [`ParseOptions::decimal_separator`] apply. Free text has no grid to expect,
+/// so a set [`ParseOptions::expect_grid`] is rejected rather than ignored:
+/// pass the options to [`parse_coordinate_with`](super::parse_coordinate_with)
+/// instead, which tries the grid before falling back to free text.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
+/// [`crate::Error::InvalidValue`] (field `"expect_grid"`) when
+/// `options.expect_grid` is set, and [`crate::Error::Parse`] when the input
+/// cannot be interpreted.
 ///
 /// ```
 /// use geocoordinates::Error;
 /// use geocoordinates::format::DecimalSeparator;
-/// use geocoordinates::parse::ParseOptions;
-/// use geocoordinates::parse::text::parse_with;
+/// use geocoordinates::parse::{GridKind, ParseOptions, parse_text_with};
 ///
 /// let comma = ParseOptions {
 ///     decimal_separator: DecimalSeparator::Comma,
 ///     ..ParseOptions::default()
 /// };
-/// let fix = parse_with("48,8566; 2,3522", &comma)?;
+/// let fix = parse_text_with("48,8566; 2,3522", &comma)?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
 ///
 /// // Neither reading of 100, 200 is in range.
-/// assert!(matches!(parse_with("100, 200", &comma), Err(Error::Parse(_))));
+/// assert!(matches!(parse_text_with("100, 200", &comma), Err(Error::Parse(_))));
+///
+/// // Expecting a grid reference is a request free text cannot honour.
+/// let grid = ParseOptions {
+///     expect_grid: Some(GridKind::Geohash),
+///     ..ParseOptions::default()
+/// };
+/// assert!(matches!(
+///     parse_text_with("48.8566, 2.3522", &grid),
+///     Err(Error::InvalidValue { field: "expect_grid", .. })
+/// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn parse_with(input: &str, options: &ParseOptions) -> Result<Fix> {
+pub fn parse_text_with(input: &str, options: &ParseOptions) -> Result<Fix> {
+    if let Some(kind) = options.expect_grid {
+        return Err(Error::InvalidValue {
+            field: "expect_grid",
+            detail: format!(
+                "free-text parsing reads no grid reference, but {kind:?} was expected; \
+                 use parse_coordinate_with"
+            ),
+        });
+    }
+    parse_free_text(input, options)
+}
+
+/// The free-text parser behind [`parse_text_with`] and
+/// [`parse_coordinate_with`](super::parse_coordinate_with): reads
+/// `default_axis_order` and `decimal_separator`, and leaves `expect_grid` to
+/// the caller.
+pub(super) fn parse_free_text(input: &str, options: &ParseOptions) -> Result<Fix> {
     let decimal_comma = options.decimal_separator == DecimalSeparator::Comma;
     let normalized = normalize(input, decimal_comma);
     let (first, second) = split_two(&normalized, decimal_comma)

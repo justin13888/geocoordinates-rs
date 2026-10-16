@@ -27,7 +27,7 @@
 //! [`Error::OutsideDomain`], so those conversions stay fallible.
 //!
 //! ```
-//! use geocoordinates::{Gcj02, Wgs84};
+//! use geocoordinates::china::{Gcj02, Wgs84};
 //!
 //! let wgs = Wgs84::new(39.915, 116.404)?;
 //! let gcj: Gcj02 = wgs.to_gcj02(); // exact, infallible
@@ -107,7 +107,7 @@ pub(crate) fn near_china_box(lat: f64, lon: f64, margin_deg: f64) -> bool {
 /// `[-180, 180]`, both finite.
 ///
 /// ```
-/// use geocoordinates::Wgs84;
+/// use geocoordinates::china::Wgs84;
 ///
 /// let wgs = Wgs84::new(39.915, 116.404)?;
 /// assert_eq!((wgs.lat(), wgs.lon()), (39.915, 116.404));
@@ -129,7 +129,7 @@ pub struct Wgs84 {
 /// `[-180, 180]`, both finite.
 ///
 /// ```
-/// use geocoordinates::Gcj02;
+/// use geocoordinates::china::Gcj02;
 ///
 /// let gcj = Gcj02::new(39.916_404, 116.410_244)?;
 /// assert_eq!(gcj.lat(), 39.916_404);
@@ -151,7 +151,7 @@ pub struct Gcj02 {
 /// `[-180, 180]`, both finite.
 ///
 /// ```
-/// use geocoordinates::Bd09;
+/// use geocoordinates::china::Bd09;
 ///
 /// let bd = Bd09::new(39.922_700, 116.416_627)?;
 /// assert_eq!(bd.lon(), 116.416_627);
@@ -190,7 +190,7 @@ macro_rules! impl_latlon {
             /// finite.
             ///
             /// ```
-            #[doc = concat!("use geocoordinates::", stringify!($t), ";")]
+            #[doc = concat!("use geocoordinates::china::", stringify!($t), ";")]
             ///
             #[doc = concat!("let p = ", stringify!($t), "::new(39.9, 180.0)?; // closed range")]
             /// assert_eq!(p.lon(), 180.0);
@@ -217,7 +217,7 @@ macro_rules! impl_latlon {
             /// Latitude in decimal degrees, in `[-90, 90]`.
             ///
             /// ```
-            #[doc = concat!("assert_eq!(geocoordinates::", stringify!($t), "::new(39.9, 116.4)?.lat(), 39.9);")]
+            #[doc = concat!("assert_eq!(geocoordinates::china::", stringify!($t), "::new(39.9, 116.4)?.lat(), 39.9);")]
             /// # Ok::<(), geocoordinates::Error>(())
             /// ```
             #[must_use]
@@ -228,7 +228,7 @@ macro_rules! impl_latlon {
             /// Longitude in decimal degrees, in `[-180, 180]`.
             ///
             /// ```
-            #[doc = concat!("assert_eq!(geocoordinates::", stringify!($t), "::new(39.9, 116.4)?.lon(), 116.4);")]
+            #[doc = concat!("assert_eq!(geocoordinates::china::", stringify!($t), "::new(39.9, 116.4)?.lon(), 116.4);")]
             /// # Ok::<(), geocoordinates::Error>(())
             /// ```
             #[must_use]
@@ -242,7 +242,8 @@ macro_rules! impl_latlon {
             /// Exact and infallible. Height is left unset.
             ///
             /// ```
-            #[doc = concat!("use geocoordinates::{Crs, ", stringify!($t), "};")]
+            /// use geocoordinates::Crs;
+            #[doc = concat!("use geocoordinates::china::", stringify!($t), ";")]
             ///
             #[doc = concat!("let c = ", stringify!($t), "::new(39.9, 116.4)?.to_coordinate();")]
             #[doc = concat!("assert_eq!(c.crs(), Crs::", stringify!($t), ");")]
@@ -265,7 +266,8 @@ macro_rules! impl_latlon {
             /// datum, so a datum is never silently laundered.
             ///
             /// ```
-            #[doc = concat!("use geocoordinates::{Coordinate, Crs, Error, ", stringify!($t), "};")]
+            /// use geocoordinates::{Coordinate, Crs, Error};
+            #[doc = concat!("use geocoordinates::china::", stringify!($t), ";")]
             ///
             #[doc = concat!("let c = Coordinate::new(39.9, 116.4, Crs::", stringify!($t), ")?;")]
             #[doc = concat!("assert_eq!(", stringify!($t), "::try_from_coordinate(c)?.lat(), 39.9);")]

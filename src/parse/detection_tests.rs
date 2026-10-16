@@ -243,7 +243,7 @@ proptest! {
             expect_grid: grid,
         };
         let _ = parse_coordinate_with(&input, &options);
-        let _ = text::parse_with(&input, &options);
+        let _ = text::parse_free_text(&input, &options);
         let _ = from_geo_uri(&input);
         #[cfg(feature = "nmea")]
         let _ = sensors::from_nmea_sentence(&input);

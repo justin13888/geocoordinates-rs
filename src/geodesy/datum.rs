@@ -37,7 +37,7 @@
 //! not a goal here.
 //!
 //! ```
-//! use geocoordinates::{Coordinate, Crs, geodesy::datum::DatumTransform};
+//! use geocoordinates::{Coordinate, Crs, geodesy::DatumTransform};
 //!
 //! let tokyo_to_wgs84 = DatumTransform::catalog_to_wgs84(Crs::Tokyo).unwrap();
 //! let tokyo = Coordinate::new(35.68, 139.77, Crs::Tokyo)?;

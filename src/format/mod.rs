@@ -28,9 +28,9 @@
 
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::fix::Fix;
+use crate::fix::{AxisOrder, Fix};
 use crate::grids::{Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode};
-use crate::parse::{AxisOrder, GridKind, ParseOptions};
+use crate::parse::{GridKind, ParseOptions};
 
 mod render;
 mod separator;
@@ -359,7 +359,8 @@ pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
 /// As [`format()`].
 ///
 /// ```
-/// use geocoordinates::{Accuracy, Coordinate, Error, Fix};
+/// use geocoordinates::fix::{Accuracy, Fix};
+/// use geocoordinates::{Coordinate, Error};
 /// use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format_fix};
 ///
 /// let mut fix = Fix::from_coord(Coordinate::wgs84(40.7128, -74.006)?);

@@ -1,16 +1,16 @@
 //! Coordinate formatting and the strict, geo-URI, and free-text parsers.
 
-use geocoordinates::fix::AxisOrder;
+use geocoordinates::fix::{Accuracy, AxisOrder, Fix};
 use geocoordinates::format::{
     DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
     format_fix,
 };
 use geocoordinates::grids::MgrsPrecision;
-use geocoordinates::parse::text::{parse as parse_text, parse_with};
 use geocoordinates::parse::{
-    GridKind, ParseOptions, from_geo_uri, parse_coordinate, parse_coordinate_with,
+    GridKind, ParseOptions, from_geo_uri, parse_coordinate, parse_coordinate_with, parse_text,
+    parse_text_with,
 };
-use geocoordinates::{Accuracy, Coordinate, Crs, Fix, Height};
+use geocoordinates::{Coordinate, Crs, Error, Height};
 
 use crate::support::{DemoResult, assert_close, assert_within_meters, new_york};
 
@@ -173,7 +173,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     assert_close(ddm.coord.lat(), 40.0 + 42.766 / 60.0, 1e-9);
     assert_close(ddm.coord.lon(), -(74.0 + 0.456 / 60.0), 1e-9);
 
-    let lon_lat = parse_with(
+    let lon_lat = parse_text_with(
         "-74.006, 40.7128",
         &ParseOptions {
             default_axis_order: AxisOrder::LonLat,
@@ -189,10 +189,22 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         decimal_separator: DecimalSeparator::Comma,
         ..ParseOptions::default()
     };
-    let decimal_comma = parse_with("40,7128 -74,006", &comma_options)?;
+    let decimal_comma = parse_text_with("40,7128 -74,006", &comma_options)?;
     assert_within_meters(&decimal_comma.coord, &new_york, 0.01);
     // With a decimal comma, a remaining `,` (or `;`) separates the pair.
-    let listed = parse_with("40,7128, -74,006", &comma_options)?;
+    let listed = parse_text_with("40,7128, -74,006", &comma_options)?;
+    // Free text cannot honour an expected grid, so it refuses the option.
+    let expecting_grid = ParseOptions {
+        expect_grid: Some(GridKind::Maidenhead),
+        ..ParseOptions::default()
+    };
+    assert!(matches!(
+        parse_text_with("40.7128, -74.006", &expecting_grid),
+        Err(Error::InvalidValue {
+            field: "expect_grid",
+            ..
+        })
+    ));
     assert_within_meters(&listed.coord, &new_york, 0.01);
     // Input with no single reading is rejected, not guessed at: bare DDMM
     // without a hemisphere letter, a fraction before the last field, and

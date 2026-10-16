@@ -21,7 +21,8 @@ use core::ops::Deref;
 /// deserialized `Approx<T>` is only as trustworthy as its source.
 ///
 /// ```
-/// use geocoordinates::{Approx, Gcj02, Wgs84};
+/// use geocoordinates::Approx;
+/// use geocoordinates::china::{Gcj02, Wgs84};
 ///
 /// let wgs: Approx<Wgs84> = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined();
 /// // Accessors of the wrapped value work through `Deref`...
@@ -80,7 +81,7 @@ impl<T> Approx<T> {
     /// compares the bounds:
     ///
     /// ```
-    /// use geocoordinates::Gcj02;
+    /// use geocoordinates::china::Gcj02;
     ///
     /// let gcj = Gcj02::new(39.916_404, 116.410_244)?;
     /// let (fast, refined) = (gcj.to_wgs84_fast(), gcj.to_wgs84_refined());
@@ -96,7 +97,7 @@ impl<T> Approx<T> {
     /// Consume the wrapper, discarding the error estimate.
     ///
     /// ```
-    /// use geocoordinates::{Gcj02, Wgs84};
+    /// use geocoordinates::china::{Gcj02, Wgs84};
     ///
     /// let wgs: Wgs84 = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined().into_inner();
     /// assert!((wgs.lon() - 116.404).abs() < 1e-5);
@@ -112,7 +113,7 @@ impl<T> Approx<T> {
     /// `f64::INFINITY` means no bound is known.
     ///
     /// ```
-    /// use geocoordinates::Gcj02;
+    /// use geocoordinates::china::Gcj02;
     ///
     /// // The single-step inverse is coarser than the refined one.
     /// let gcj = Gcj02::new(39.916_404, 116.410_244)?;
@@ -128,7 +129,8 @@ impl<T> Approx<T> {
     /// Map the inner value while preserving the error estimate.
     ///
     /// ```
-    /// use geocoordinates::{Approx, Coordinate, Gcj02};
+    /// use geocoordinates::china::Gcj02;
+    /// use geocoordinates::{Approx, Coordinate};
     ///
     /// let wgs = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined();
     /// let coord: Approx<Coordinate> = wgs.map(|w| w.to_coordinate());

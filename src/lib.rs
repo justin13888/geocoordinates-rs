@@ -11,20 +11,23 @@
 //! The guarantee of every conversion is visible at the call site, without
 //! reading docs:
 //!
-//! - **Deterministic but fallible** (bad range / unparseable input) use
-//!   [`TryFrom`]/[`TryInto`] and `try_to_x()`, returning [`Result`]. These are
-//!   exact, or carry a fixed error their docs state (a truncated projection
-//!   series, Baidu's published Mercator fits).
+//! - **Fallible construction from primitives** (bad range / unparseable input)
+//!   is `new`, a `from_*` named constructor, or `parse`, returning [`Result`]
+//!   (`Coordinate::new`, `Dms::from_degrees`, `"…".parse::<Geohash>()`).
+//! - **Deterministic but fallible conversions between crate types** are
+//!   `try_to_x()` / `try_from_x()`, with [`TryFrom`] as sugar, returning
+//!   [`Result`]. These are exact, or carry a fixed error their docs state (a
+//!   truncated projection series, Baidu's published Mercator fits).
 //! - **Approximate** (lossy/iterative inverse, secret-algorithm inverse, or
 //!   cell decode) never implement [`From`]. They return [`Approx<T>`], which
 //!   carries the error bound, and their names carry a `_fast`/`_refined`
 //!   suffix where multiple precisions exist.
-//!
 //! - **Exact and infallible** conversions between valid-by-construction types
 //!   are plain `to_x()` methods, with [`From`] as sugar.
 //!
 //! ```
-//! use geocoordinates::{Approx, Bd09, Gcj02, Wgs84};
+//! use geocoordinates::Approx;
+//! use geocoordinates::china::{Bd09, Gcj02, Wgs84};
 //!
 //! let wgs = Wgs84::new(39.915, 116.404)?; // validated once, here
 //! let gcj: Gcj02 = wgs.to_gcj02(); // exact forward offset, infallible
@@ -34,6 +37,17 @@
 //! # let _ = bd;
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
+//!
+//! ## One path per item
+//!
+//! Every public item has exactly one path, plus its [`prelude`] entry. The
+//! crate root holds the core types ([`Coordinate`], [`Crs`], [`Height`],
+//! [`LatLon`], [`Approx`], [`Length`], [`LengthUnit`], [`Error`], [`Result`]);
+//! every other item lives flat in its subsystem module: [`angle`], [`china`],
+//! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
+//! [`parse`], and `dgg` (behind the `h3` / `s2` features). Implementation
+//! submodules are private, so a type is never reachable at both
+//! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
 //!
 //! See [AGENTS.md](https://github.com/justin13888/geocoordinates-rs/blob/master/AGENTS.md)
 //! for design constraints, and
@@ -56,17 +70,17 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub mod angle;
-pub mod approx;
-pub mod china;
-pub mod coord;
-pub mod error;
-pub mod fix;
-pub mod geodesy;
-pub mod units;
+mod approx;
+mod coord;
+mod error;
+mod units;
 
+pub mod angle;
+pub mod china;
 pub mod convert; // runtime CRS dispatch (China typed + classic-datum Helmert)
+pub mod fix;
 pub mod format; // DD/DMS/DDM and grid-string presentation
+pub mod geodesy;
 pub mod grids; // Plus Code, Geohash, Maidenhead, UTM/UPS, MGRS
 pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 
@@ -99,43 +113,45 @@ pub mod dgg;
 #[cfg(test)]
 pub(crate) mod test_support;
 
-// Crate root re-exports: the central types you cannot do much without. The
-// broader common working set is in [`prelude`]; everything else is by path.
+// The crate root holds the core types, each re-exported from its private
+// implementation module; it is their only path. The broader common working
+// set is in [`prelude`]; every other item lives in its subsystem module.
 pub use approx::Approx;
-pub use china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 pub use coord::{Coordinate, Crs, Height, LatLon};
 pub use error::{Error, Result};
-pub use fix::{Accuracy, Confidence, Fix, RawSource};
 pub use units::{Length, LengthUnit};
 
 /// Common imports for typical use: `use geocoordinates::prelude::*;`.
 ///
-/// Brings in the canonical types, the China datums, the angle encodings, the
+/// Brings in the core types, the China datums, the angle encodings, the
 /// `Fix` metadata, and the geodesy, grid, formatting, parsing, and conversion
 /// items. Anything outside this working set is reached by its module path.
+///
+/// The prelude deliberately leaves out the crate's [`Result`] alias, so a
+/// glob import never shadows the standard library's `Result`:
 ///
 /// ```
 /// use geocoordinates::prelude::*;
 ///
-/// let a = Coordinate::wgs84(51.5074, -0.1278)?;
-/// let b = Coordinate::wgs84(48.8566, 2.3522)?;
-/// let km = geodesic_distance(&a, &b)?.to_unit(LengthUnit::Kilometer);
-/// assert!((km - 343.9).abs() < 1.0);
-/// let lat = Dms::from_degrees(a.lat(), Axis::Latitude)?;
-/// assert_eq!((lat.degrees(), lat.hemisphere()), (51, Hemisphere::North));
-/// // The glob import brings the crate's `Result<T>` alias, which shadows std's.
-/// let bad: Result<Coordinate> = Coordinate::wgs84(0.0, 200.0);
-/// assert!(bad.is_err());
-/// # Ok::<(), geocoordinates::Error>(())
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let a = Coordinate::wgs84(51.5074, -0.1278)?;
+///     let b = Coordinate::wgs84(48.8566, 2.3522)?;
+///     let km = geodesic_distance(&a, &b)?.to_unit(LengthUnit::Kilometer);
+///     assert!((km - 343.9).abs() < 1.0);
+///     let lat = Dms::from_degrees(a.lat(), Axis::Latitude)?;
+///     assert_eq!((lat.degrees(), lat.hemisphere()), (51, Hemisphere::North));
+///     // Errors stay typed: an out-of-range longitude is `Error::OutOfRange`.
+///     let bad: Result<Coordinate, Error> = Coordinate::wgs84(0.0, 200.0);
+///     assert!(matches!(bad, Err(Error::OutOfRange { .. })));
+///     Ok(())
+/// }
 /// ```
 pub mod prelude {
-    pub use crate::{
-        Accuracy, Approx, BaiduMercator, Bd09, Confidence, Coordinate, Crs, Error, Fix, Gcj02,
-        Height, LatLon, Length, LengthUnit, RawSource, Result, Wgs84,
-    };
+    pub use crate::{Approx, Coordinate, Crs, Error, Height, LatLon, Length, LengthUnit};
 
     pub use crate::angle::{Axis, Ddm, Dms, Hemisphere};
-    pub use crate::fix::{AxisOrder, DatumAmbiguity};
+    pub use crate::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
+    pub use crate::fix::{Accuracy, AxisOrder, Confidence, DatumAmbiguity, Fix, RawSource};
     pub use crate::geodesy::haversine_distance;
 
     pub use crate::convert::convert;
@@ -153,5 +169,5 @@ pub mod prelude {
     pub use crate::grids::{
         Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
     };
-    pub use crate::parse::parse_coordinate;
+    pub use crate::parse::{GridKind, ParseOptions, parse_coordinate, parse_coordinate_with};
 }

@@ -19,7 +19,8 @@ use crate::coord::Coordinate;
 /// ```
 /// use std::time::{Duration, SystemTime};
 ///
-/// use geocoordinates::{Accuracy, Coordinate, Fix};
+/// use geocoordinates::Coordinate;
+/// use geocoordinates::fix::{Accuracy, Fix};
 ///
 /// let fix = Fix {
 ///     coord: Coordinate::wgs84(37.7749, -122.4194)?,
@@ -49,7 +50,8 @@ impl Fix {
     /// Wrap a bare coordinate with no metadata.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Fix};
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::fix::Fix;
     ///
     /// let coord = Coordinate::wgs84(48.8584, 2.2945)?;
     /// let fix = Fix::from_coord(coord);
@@ -74,7 +76,7 @@ impl Fix {
 /// the presentation layer avoid printing spurious precision.
 ///
 /// ```
-/// use geocoordinates::Accuracy;
+/// use geocoordinates::fix::Accuracy;
 ///
 /// let a = Accuracy { horizontal_m: Some(3.0), vertical_m: Some(8.0) };
 /// assert_eq!((a.horizontal_m, a.vertical_m), (Some(3.0), Some(8.0)));
@@ -195,7 +197,7 @@ pub enum DatumAmbiguity {
 /// number.
 ///
 /// ```
-/// use geocoordinates::Confidence;
+/// use geocoordinates::fix::Confidence;
 ///
 /// let c = Confidence::from(0.75);
 /// assert_eq!(f64::from(c), 0.75);
@@ -226,7 +228,7 @@ impl Confidence {
     /// Infallible: an out-of-range value is clamped and `NaN` becomes `0.0`.
     ///
     /// ```
-    /// use geocoordinates::Confidence;
+    /// use geocoordinates::fix::Confidence;
     ///
     /// assert_eq!(Confidence::new(0.4).value(), 0.4);
     /// assert_eq!(Confidence::new(1.5).value(), 1.0);
@@ -244,7 +246,7 @@ impl Confidence {
     /// The confidence value, in `0.0–1.0`.
     ///
     /// ```
-    /// use geocoordinates::Confidence;
+    /// use geocoordinates::fix::Confidence;
     ///
     /// assert_eq!(Confidence::new(-3.0).value(), 0.0);
     /// ```

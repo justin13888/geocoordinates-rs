@@ -1,6 +1,9 @@
 //! Ingestion: turning real-world input into a [`Fix`].
 //!
-//! - [`text`] — tolerant free-text / DMS / DDM parsing (always available).
+//! - [`parse_text`] / [`parse_text_with`] — tolerant free-text / DMS / DDM
+//!   parsing (always available).
+//! - [`parse_coordinate`] / [`parse_coordinate_with`] — best-effort detection
+//!   across `geo:` URIs, grid references, and free text.
 //! - [`from_geo_uri`] — `geo:` URIs per RFC 5870 (always available).
 //! - `interchange` — GeoJSON, WKT, GPX, KML (each behind a cargo feature).
 //! - `sensors` — NMEA 0183 (feature-gated). EXIF is out of scope — a
@@ -22,7 +25,7 @@
 //! limited to the text formats above plus `geo:` URIs.
 
 mod options;
-pub mod text;
+mod text;
 
 #[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml"))]
 pub mod interchange;
@@ -53,21 +56,17 @@ const NOMINAL_UERE_M: f64 = 5.0;
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
-use crate::fix::{Accuracy, Confidence, Fix, RawSource};
+use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
 use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode};
 
 pub use options::{GridKind, ParseOptions};
-
-/// Axis ordering of a textual/structured coordinate. Re-exported from
-/// [`fix`](crate::fix), where it lives so parsers can record it on a [`Fix`]'s
-/// [`RawSource`].
-pub use crate::fix::AxisOrder;
+pub use text::{parse_text, parse_text_with};
 
 /// Best-effort parse of a single coordinate from arbitrary input, with the
 /// default [`ParseOptions`] (lat-first, `.` decimals, no expected grid).
 ///
 /// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]), a Plus Code, an
-/// MGRS reference, and then free-text DD/DMS/DDM (see [`text`]). A grid
+/// MGRS reference, and then free-text DD/DMS/DDM (see [`parse_text`]). A grid
 /// reference decodes to its cell's center, with the cell's error bound as the
 /// horizontal accuracy. Geohash and Maidenhead strings are **not** detected,
 /// because short ones are indistinguishable from other input (`"42"` and
@@ -152,7 +151,7 @@ pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix>
     if let Ok(area) = decoded {
         return Ok(grid_fix(area, input));
     }
-    text::parse_with(input, options).map_err(|text_error| match (expected, text_error) {
+    text::parse_free_text(input, options).map_err(|text_error| match (expected, text_error) {
         (Some(Err((kind, grid_error))), Error::Parse(detail)) => {
             Error::Parse(format!("not a {kind:?} reference ({grid_error}); {detail}"))
         }

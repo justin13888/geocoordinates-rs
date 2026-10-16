@@ -590,6 +590,21 @@ fn parse_coordinate_with_and_parse_text_with_read_a_decimal_comma() {
 }
 
 #[test]
+fn parse_text_with_rejects_an_expected_grid_instead_of_ignoring_it() {
+    let options = ParseOptions {
+        expect_grid: Some(GridKind::Geohash),
+        ..parse_options_default()
+    };
+    assert!(matches!(
+        parse_text_with("40.7128, -74.006".to_string(), options),
+        Err(GeoError::InvalidValue { ref field, .. }) if field == "expect_grid"
+    ));
+    // The same options still read the text through `parse_coordinate_with`.
+    let fix = parse_coordinate_with("40.7128, -74.006".to_string(), options).unwrap();
+    assert_eq!(fix.coord, wgs84(40.7128, -74.006));
+}
+
+#[test]
 fn parse_coordinate_detects_mgrs_and_decodes_an_expected_geohash() {
     let mgrs = parse_coordinate("18TWK0000027757".to_string()).unwrap();
     assert!(mgrs.accuracy.unwrap().horizontal_m.unwrap() < 1.0);

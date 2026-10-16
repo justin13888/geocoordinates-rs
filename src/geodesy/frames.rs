@@ -10,7 +10,7 @@
 //! ellipsoidal heights.
 //!
 //! ```
-//! use geocoordinates::{Coordinate, geodesy::frames::{Aer, Enu, Ned}};
+//! use geocoordinates::{Coordinate, geodesy::{Aer, Enu, Ned}};
 //!
 //! let origin = Coordinate::wgs84(40.0, -75.0)?;
 //! let target = Coordinate::wgs84(40.01, -75.0)?; // ~1.1 km due north

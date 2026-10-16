@@ -1,7 +1,7 @@
 //! Options for [`parse_coordinate_with`](super::parse_coordinate_with) and the
 //! free-text parser, and the grid kinds a caller can ask it to expect.
 
-use super::AxisOrder;
+use crate::fix::AxisOrder;
 use crate::format::DecimalSeparator;
 
 /// A grid reference system whose strings
@@ -44,16 +44,20 @@ pub enum GridKind {
 }
 
 /// Options controlling [`parse_coordinate_with`](super::parse_coordinate_with)
-/// and [`text::parse_with`](super::text::parse_with).
+/// and [`parse_text_with`](super::parse_text_with).
 ///
 /// The default reads lat-first, `.`-decimal text and expects no particular
 /// grid. To read back what [`format`](crate::format::format) rendered, take
 /// these from [`FormatOptions::parse_options`](crate::format::FormatOptions::parse_options)
-/// rather than building them by hand.
+/// rather than building them by hand. The field types live with the module
+/// that owns them: [`AxisOrder`] in [`fix`](crate::fix) and
+/// [`DecimalSeparator`] in [`format`](crate::format); the
+/// [`prelude`](crate::prelude) brings all three.
 ///
 /// ```
+/// use geocoordinates::fix::AxisOrder;
 /// use geocoordinates::format::DecimalSeparator;
-/// use geocoordinates::parse::{AxisOrder, ParseOptions, parse_coordinate_with};
+/// use geocoordinates::parse::{ParseOptions, parse_coordinate_with};
 ///
 /// // `2,3522 48,8566` with decimal commas, longitude first.
 /// let options = ParseOptions {

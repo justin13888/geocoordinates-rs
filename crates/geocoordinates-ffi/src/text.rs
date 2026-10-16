@@ -375,7 +375,7 @@ pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<St
 /// As [`format_coordinate`].
 #[uniffi::export]
 pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> {
-    let fix: gc::Fix = fix.try_into()?;
+    let fix: gc::fix::Fix = fix.try_into()?;
     let options: gc::format::FormatOptions = options.into();
     gc::format::format_fix(&fix, &options).map_err(GeoError::from)
 }
@@ -439,14 +439,16 @@ pub fn from_geo_uri(input: String) -> Result<Fix, GeoError> {
 }
 
 /// Parse a free-text coordinate (no `geo:` URI or grid detection) with
-/// explicit options; `expect_grid` does not apply here.
+/// explicit options. Free text has no grid to expect, so a set `expect_grid`
+/// is rejected rather than ignored; use [`parse_coordinate_with`] for grids.
 ///
 /// # Errors
-/// Returns a [`GeoError`] when the input cannot be interpreted.
+/// `GeoError::InvalidValue` (field `expect_grid`) when `options.expect_grid`
+/// is set; `GeoError::Parse` when the input cannot be interpreted.
 #[uniffi::export]
 pub fn parse_text_with(input: String, options: ParseOptions) -> Result<Fix, GeoError> {
     let options: gc::parse::ParseOptions = options.into();
-    gc::parse::text::parse_with(&input, &options)
+    gc::parse::parse_text_with(&input, &options)
         .map(Into::into)
         .map_err(GeoError::from)
 }
