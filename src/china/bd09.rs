@@ -221,6 +221,49 @@ impl TryFrom<Wgs84> for Bd09 {
 }
 
 impl Bd09 {
+    /// BD-09 → WGS-84, fast composition through GCJ-02 (**approximate**).
+    ///
+    /// Chains [`try_to_gcj02_fast`](Self::try_to_gcj02_fast) and
+    /// [`Gcj02::to_wgs84_fast`] and sums their `max_error` bounds: 6.5 m in
+    /// the China box away from its edge, where each leg's bound is a sweep's
+    /// measured worst case with room to spare, and the GCJ-02 leg's measured
+    /// residual on top wherever its step crosses the box edge. Within about
+    /// 0.011° past the box edge an inside WGS-84 point may also map onto the
+    /// GCJ-02 intermediate, and the GCJ-02 leg's bound widens to cover that
+    /// preimage: hundreds of meters (about 520 m for GCJ-02 points at lat
+    /// 40.0, lon 137.835–137.840, just past the east edge). Farther out the
+    /// GCJ-02 leg is the identity and only the BD-09 leg's 0.5 m (125 m
+    /// within 0.02° of the antimeridian) remains. Use
+    /// [`try_to_wgs84_refined`](Self::try_to_wgs84_refined) for a sub-meter
+    /// result.
+    ///
+    /// # Errors
+    ///
+    /// As [`try_to_gcj02_fast`](Self::try_to_gcj02_fast).
+    ///
+    /// ```
+    /// use geocoordinates::china::Bd09;
+    ///
+    /// let wgs = Bd09::new(39.922_700, 116.416_627)?.try_to_wgs84_fast()?;
+    /// assert_eq!(wgs.max_error().meters(), 6.5); // 0.5 m + 6 m
+    /// assert!((wgs.value().lat() - 39.915).abs() < 1e-4);
+    ///
+    /// // Just past the box's east edge the GCJ-02 leg covers an inside
+    /// // preimage too, so the bound is hundreds of meters, not 0.5 m.
+    /// let edge = Bd09::new(40.005_762, 137.844_587)?.try_to_wgs84_fast()?;
+    /// assert!(edge.max_error().meters() > 500.0);
+    /// assert!(Bd09::new(-90.0, 0.0)?.try_to_wgs84_fast().is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    pub fn try_to_wgs84_fast(self) -> Result<Approx<Wgs84>> {
+        let gcj = self.try_to_gcj02_fast()?;
+        let wgs = gcj.value().to_wgs84_fast();
+        Ok(Approx::from_valid(
+            *wgs.value(),
+            gcj.max_error().meters() + wgs.max_error().meters(),
+        ))
+    }
+
     /// BD-09 → WGS-84, refined composition through GCJ-02 (**approximate**).
     ///
     /// Chains the two refined inverses and sums their `max_error` bounds.
@@ -251,7 +294,7 @@ impl Bd09 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::china::REFINED_BOUND_M;
+    use crate::china::{REFINED_BOUND_M, near_china_box};
     use crate::geodesy::haversine_distance;
     use crate::test_support::{DATUM_VECTORS, assert_within_meters, china_box_grid};
 
@@ -388,6 +431,79 @@ mod tests {
             assert_within_meters(back.value(), &v.wgs84(), 0.01);
             assert_eq!(back.max_error().meters(), 2.0 * REFINED_BOUND_M);
         }
+    }
+
+    /// The fast composition sums its legs' bounds and lands within them of
+    /// the reference WGS-84 points.
+    #[test]
+    fn bd09_to_wgs84_fast_round_trip() {
+        for v in DATUM_VECTORS {
+            let back = v
+                .wgs84()
+                .try_to_bd09()
+                .unwrap()
+                .try_to_wgs84_fast()
+                .unwrap();
+            assert_eq!(
+                back.max_error().meters(),
+                FAST_BOUND_M + crate::china::gcj02::FAST_BOUND_M
+            );
+            assert_within_meters(back.value(), &v.wgs84(), back.max_error().meters());
+        }
+        assert!(bd(-90.0, 0.0).try_to_wgs84_fast().is_err());
+    }
+
+    /// #172: where the GCJ-02 leg's step crosses the box edge, the composed
+    /// bound carries that leg's measured residual.
+    #[test]
+    fn bd09_to_wgs84_fast_carries_the_edge_residual() {
+        let b = gcj(40.0, 72.006).try_to_bd09().unwrap();
+        let got = b.try_to_wgs84_fast().unwrap();
+        let image = got.value().try_to_bd09().unwrap();
+        let residual = haversine_distance(&image, &b).unwrap().meters();
+        assert!(residual > 300.0, "{residual} m");
+        assert!(
+            residual <= got.max_error().meters(),
+            "residual {residual} m exceeds {} m",
+            got.max_error().meters()
+        );
+    }
+
+    /// Honest-bound sweep of the fast composition: from every WGS-84 point on
+    /// a 1° worldwide grid, a fine antimeridian band, the 0.5° box grid, and
+    /// points just inside each box edge, the BD-09 image comes back within the
+    /// reported bound of the origin.
+    #[test]
+    fn bd09_to_wgs84_fast_bound_holds_worldwide() {
+        let (s, n, w, e) = (0.8293, 55.8271, 72.004, 137.8347);
+        let band = (0..=200).flat_map(|k| {
+            let d = f64::from(k) * 1e-4;
+            [180.0 - d, -180.0 + d]
+        });
+        let lons: Vec<f64> = (-180..=180).map(f64::from).chain(band).collect();
+        let world = (-89..=89).flat_map(|i| lons.iter().map(move |&lon| (f64::from(i), lon)));
+        let edges = (0..=400_u32).flat_map(|k| {
+            let t = f64::from(k) / 400.0;
+            let (lat, lon) = (s + t * (n - s), w + t * (e - w));
+            [1e-4, 5e-3]
+                .into_iter()
+                .flat_map(move |d| [(n - d, lon), (s + d, lon), (lat, w + d), (lat, e - d)])
+        });
+        let mut worst_inside = 0.0_f64;
+        for (lat, lon) in world.chain(china_box_grid()).chain(edges) {
+            let origin = Wgs84::new(lat, lon).unwrap();
+            let got = origin.try_to_bd09().unwrap().try_to_wgs84_fast().unwrap();
+            assert_within_meters(got.value(), &origin, got.max_error().meters());
+            if near_china_box(lat, lon, -0.1) {
+                assert_eq!(got.max_error().meters(), 6.5, "({lat}, {lon})");
+                let off = haversine_distance(got.value(), &origin).unwrap().meters();
+                worst_inside = worst_inside.max(off);
+            }
+        }
+        assert!(
+            worst_inside > 4.0,
+            "the fast bound is loose: {worst_inside} m"
+        );
     }
 
     /// Honest-bound sweep: every 0.5° inside the box, the fast and refined

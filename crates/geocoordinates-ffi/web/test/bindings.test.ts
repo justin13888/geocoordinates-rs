@@ -19,11 +19,13 @@ import geocoordinatesFfi, {
   MgrsPrecision,
   baiduMercatorFromBd09,
   baiduMercatorFromCoordinate,
+  bd09ToWgs84Fast,
   convert,
   coordinateNew,
   datumTransformCatalogToWgs84,
   fromNmeaSentence,
   gcj02ToBd09,
+  gcj02ToWgs84Fast,
   gcj02ToWgs84Refined,
   geodesicDistanceM,
   h3Decode,
@@ -84,6 +86,15 @@ describe("China datum conversions", () => {
     near(back.lat, WGS.lat, 1e-5, "refined lat");
     near(back.lon, WGS.lon, 1e-5, "refined lon");
     assert.ok(back.maxErrorM > 0 && back.maxErrorM <= 0.5, `bound ${back.maxErrorM}`);
+  });
+
+  it("measures the fast inverses' bounds", () => {
+    const fast = bd09ToWgs84Fast(BD);
+    near(fast.lat, WGS.lat, 1e-4, "fast lat");
+    near(fast.lon, WGS.lon, 1e-4, "fast lon");
+    assert.equal(fast.maxErrorM, 6.5);
+    const edge = gcj02ToWgs84Fast({ lat: 40.0, lon: 72.006 });
+    assert.ok(edge.maxErrorM > 300, `bound ${edge.maxErrorM}`);
   });
 
   it("gates on the China bounding area", () => {

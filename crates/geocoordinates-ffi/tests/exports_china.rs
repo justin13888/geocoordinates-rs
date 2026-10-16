@@ -168,6 +168,44 @@ fn refined_gcj02_inverse_reports_an_unconverged_residual() {
 }
 
 #[test]
+fn fast_gcj02_inverse_measures_its_residual_at_the_box_edge() {
+    let edge = Gcj02 {
+        lat: 40.0,
+        lon: 72.006,
+    };
+    let r = gcj02_to_wgs84_fast(edge).unwrap();
+    assert!(r.max_error_m > 300.0, "{}", r.max_error_m);
+    let fast = bd09_to_wgs84_fast(gcj02_to_bd09(edge).unwrap()).unwrap();
+    assert!(fast.max_error_m > 300.0, "{}", fast.max_error_m);
+}
+
+#[test]
+fn bd09_fast_wgs84_inverse_sums_its_legs() {
+    let r = bd09_to_wgs84_fast(Bd09 {
+        lat: 39.922_700,
+        lon: 116.416_627,
+    })
+    .unwrap();
+    assert_eq!(r.max_error_m, 6.5);
+    close(r.lat, 39.915, 1e-4);
+    close(r.lon, 116.404, 1e-4);
+    assert!(matches!(
+        bd09_to_wgs84_fast(Bd09 {
+            lat: -90.0,
+            lon: 0.0
+        }),
+        Err(GeoError::OutsideDomain { .. })
+    ));
+    assert!(matches!(
+        bd09_to_wgs84_fast(Bd09 {
+            lat: 91.0,
+            lon: 0.0
+        }),
+        Err(GeoError::OutOfRange { .. })
+    ));
+}
+
+#[test]
 fn baidu_mercator_is_defined_only_within_74_degrees() {
     assert!(matches!(
         baidu_mercator_from_bd09(Bd09 {

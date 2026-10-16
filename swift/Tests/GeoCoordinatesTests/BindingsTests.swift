@@ -51,6 +51,15 @@ final class ConversionTests: XCTestCase {
         XCTAssertLessThanOrEqual(back.maxErrorM, 0.5)
     }
 
+    func testFastInversesMeasureTheirBounds() throws {
+        let fast = try bd09ToWgs84Fast(p: bd)
+        XCTAssertEqual(fast.lat, wgs.lat, accuracy: 1e-4)
+        XCTAssertEqual(fast.lon, wgs.lon, accuracy: 1e-4)
+        XCTAssertEqual(fast.maxErrorM, 6.5)
+        let edge = try gcj02ToWgs84Fast(p: Gcj02(lat: 40.0, lon: 72.006))
+        XCTAssertGreaterThan(edge.maxErrorM, 300.0)
+    }
+
     func testConvertReportsExactAndApproximateLegs() throws {
         let fwd = try convert(coord: wgs84(wgs.lat, wgs.lon), to: .gcj02)
         XCTAssertEqual(fwd.maxErrorM, 0.0)
