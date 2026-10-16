@@ -6661,10 +6661,14 @@ public func formatCoordinate(coord: Coordinate, options: FormatOptions)throws  -
 }
 /**
  * Render a [`Fix`] to a string, deriving the decimal count from its accuracy
- * where the representation leaves it unset.
+ * where the representation leaves it unset. Only the accuracy's magnitude is
+ * read; every [`AccuracyKind`](crate::AccuracyKind) is treated alike.
  *
  * # Errors
- * As [`format_coordinate`].
+ * As [`format_coordinate`]; also [`GeoError::InvalidValue`] for a hand-built
+ * record whose accuracy ([`accuracy_validate`](crate::accuracy_validate)) or
+ * source confidence ([`confidence_validate`](crate::confidence_validate)) is
+ * invalid.
  */
 public func formatFix(fix: Fix, options: FormatOptions)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -7155,7 +7159,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 57575) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 30151) {
+    if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 38020) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_format_options_default() != 44227) {
