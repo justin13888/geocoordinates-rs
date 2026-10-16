@@ -1,16 +1,27 @@
 # release-plz configuration.
 #
-# The repo became a Cargo workspace to host the `geocoordinates-ffi` bindings
-# crate. release-plz manages every workspace member by default, so we explicitly
-# exclude the FFI crate: it is `publish = false` (not a crates.io artifact — its
-# value ships as Python/Kotlin/Swift/TypeScript bindings (and a JVM artifact for
-# Java), not a Rust crate)
-# and must not get version bumps, changelog entries, tags, or release PRs.
+# The repo is a Cargo workspace hosting the `geocoordinates-ffi` bindings crate
+# next to the published `geocoordinates` crate. Both inherit the one workspace
+# version (`[workspace.package] version` in Cargo.toml), so when release-plz bumps
+# `geocoordinates` it rewrites that line and the FFI crate - and every binding
+# artifact built from it - moves with it. The release PR workflow then stamps the
+# npm manifest from it (`mise run version-sync`, see release-plz.yml).
 #
 # The `geocoordinates` crate keeps its existing Trusted-Publishing flow untouched.
 
+[workspace]
+# No semver-checks verdict in the release PR. release-plz checks the API against
+# the version it has already chosen, so a breaking change under a 0.x minor bump
+# reads "API compatible changes" - a header that misstates the release. Breaking
+# changes are disclosed by the changelog's `[**breaking**]` entries, which come
+# from the Conventional Commit `!` markers.
+semver_check = false
+
 [[package]]
 name = "geocoordinates-ffi"
+# Not a crates.io artifact: its value ships as the Python/Kotlin/Swift/TypeScript
+# bindings (and a JVM artifact for Java). It gets no changelog, tag, or release of
+# its own; its version still moves with the workspace version above.
 release = false
 # Match the crate's `publish = false`; release-plz errors on a mismatch between
 # Cargo.toml and its own config.
