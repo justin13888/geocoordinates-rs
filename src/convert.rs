@@ -27,6 +27,10 @@ use crate::geodesy::{DatumTransform, HubRoute};
 /// [`geodesy::DatumTransform`](crate::geodesy::DatumTransform). The full EPSG/national-grid long
 /// tail is delegated to the deferred `proj` feature (see
 /// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
+/// GCJ-02 ↔ BD-09 skips the hub: GCJ-02 → BD-09 is the exact forward nudge,
+/// and BD-09 → GCJ-02 the refined inverse
+/// [`Bd09::try_to_gcj02_refined`](crate::china::Bd09::try_to_gcj02_refined)
+/// alone, so neither carries a GCJ-02 inverse's error.
 ///
 /// The result is wrapped in [`Approx`] because several legs are approximate.
 /// [`Approx::max_error`] is the sum of the legs' error estimates:
@@ -85,6 +89,16 @@ pub fn convert(coord: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
         let b = Gcj02::from_valid(coord.lat(), coord.lon()).try_to_bd09()?;
         return Ok(Approx::from_valid(carry(coord, b), 0.0));
     }
+    // BD-09 → GCJ-02 likewise has a direct refined inverse. The hub would chain
+    // two refined inverses and an exact forward offset, doubling the bound, and
+    // near the GCJ-02 box edge would carry the GCJ-02 inverse's residual in.
+    if coord.crs() == Crs::Bd09 && to == Crs::Gcj02 {
+        let g = Bd09::from_valid(coord.lat(), coord.lon()).try_to_gcj02_refined()?;
+        return Ok(Approx::from_valid(
+            carry(coord, *g.value()),
+            g.max_error().meters(),
+        ));
+    }
     // Everything else routes through WGS-84, accumulating the per-leg bounds.
     let hub = to_wgs84(coord)?;
     let hub_error = hub.max_error().meters();
@@ -141,6 +155,7 @@ fn carry(orig: Coordinate, p: impl LatLon) -> Coordinate {
 mod tests {
     use super::*;
     use crate::Error;
+    use crate::china::REFINED_BOUND_M;
     use crate::coord::Height;
     use crate::geodesy::haversine_distance;
     use crate::test_support::assert_close;
@@ -200,6 +215,29 @@ mod tests {
         assert_close(r.value().lat(), b.lat(), 1e-12);
         assert_close(r.value().lon(), b.lon(), 1e-12);
         assert_close(r.value().lat(), BD.0, 1e-9);
+    }
+
+    /// #172: BD-09 → GCJ-02 takes the direct refined inverse, so its bound is
+    /// that inverse's 0.5 m rather than the hub's 1.0 m, and a point near the
+    /// GCJ-02 box edge comes back where it started instead of hundreds of
+    /// meters away.
+    #[test]
+    fn bd09_to_gcj02_takes_the_direct_refined_inverse() {
+        for (lat, lon) in [GCJ, (40.0, 72.006)] {
+            let g = Gcj02::new(lat, lon).unwrap();
+            let b = g.try_to_bd09().unwrap();
+            let from = Coordinate::bd09(b.lat(), b.lon()).unwrap();
+            let r = convert(from, Crs::Gcj02).unwrap();
+            let direct = b.try_to_gcj02_refined().unwrap();
+            assert_eq!(r.value().crs(), Crs::Gcj02);
+            assert_eq!(r.max_error().meters(), REFINED_BOUND_M);
+            assert_eq!(
+                (r.value().lat(), r.value().lon()),
+                (direct.value().lat(), direct.value().lon())
+            );
+            let back = Gcj02::new(r.value().lat(), r.value().lon()).unwrap();
+            crate::test_support::assert_within_meters(&back, &g, REFINED_BOUND_M);
+        }
     }
 
     #[test]
