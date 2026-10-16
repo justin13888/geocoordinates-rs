@@ -39,11 +39,9 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
 
-**Known open defects**, tracked in the ledger:
+**Known open defect**, tracked in the ledger:
 `from_kml` does not return on some truncated documents
-([#135](https://github.com/justin13888/geocoordinates-rs/issues/135), G17), and
-decoding an MGRS square that its grid zone truncates can land in the
-neighbouring zone ([#149](https://github.com/justin13888/geocoordinates-rs/issues/149), G18).
+([#135](https://github.com/justin13888/geocoordinates-rs/issues/135), G17).
 
 **Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
 a system library or multi-megabyte external data. **Out of scope:** EXIF
