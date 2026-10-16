@@ -328,6 +328,33 @@ fn from_kml_reads_a_placemark() {
     );
 }
 
+/// The detail of a `GeoError::Parse`, panicking on anything else.
+fn parse_detail(r: Result<Vec<Fix>, GeoError>) -> String {
+    match r {
+        Err(GeoError::Parse { detail }) => detail,
+        other => panic!("expected a parse error, got {other:?}"),
+    }
+}
+
+#[test]
+fn interchange_parsers_reject_short_positions_and_deep_nesting() {
+    // A one-number GeoJSON position is rejected at its own document index.
+    let detail = parse_detail(from_geojson(
+        r#"{"type":"LineString","coordinates":[[0,0],[5],[0,200]]}"#.to_string(),
+    ));
+    assert!(
+        detail.starts_with("geojson: invalid position at index 1: "),
+        "{detail}"
+    );
+    // 100 000 levels of nesting is an error, not a stack overflow.
+    let wkt = "GEOMETRYCOLLECTION(".repeat(100_000);
+    let detail = parse_detail(from_wkt(wkt, AxisOrder::LonLat));
+    assert_eq!(detail, "wkt: nesting deeper than 128 levels");
+    let kml = "<Folder>".repeat(100_000) + &"</Folder>".repeat(100_000);
+    let detail = parse_detail(from_kml(kml));
+    assert_eq!(detail, "kml: nesting deeper than 32 levels");
+}
+
 // --- NMEA 0183 ---
 
 #[test]
