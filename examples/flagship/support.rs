@@ -49,19 +49,19 @@ pub(crate) fn assert_mercator_close(
 }
 
 pub(crate) fn assert_enu_close(actual: Enu, expected: Enu) {
-    assert_close(actual.east_m, expected.east_m, 1e-9);
-    assert_close(actual.north_m, expected.north_m, 1e-9);
-    assert_close(actual.up_m, expected.up_m, 1e-9);
+    assert_close(actual.east_m(), expected.east_m(), 1e-9);
+    assert_close(actual.north_m(), expected.north_m(), 1e-9);
+    assert_close(actual.up_m(), expected.up_m(), 1e-9);
 }
 
 pub(crate) fn assert_ned_close(actual: Ned, expected: Ned) {
-    assert_close(actual.north_m, expected.north_m, 1e-9);
-    assert_close(actual.east_m, expected.east_m, 1e-9);
-    assert_close(actual.down_m, expected.down_m, 1e-9);
+    assert_close(actual.north_m(), expected.north_m(), 1e-9);
+    assert_close(actual.east_m(), expected.east_m(), 1e-9);
+    assert_close(actual.down_m(), expected.down_m(), 1e-9);
 }
 
 pub(crate) fn assert_aer_close(actual: Aer, expected: Aer) {
-    assert_close(actual.azimuth_deg, expected.azimuth_deg, 1e-9);
-    assert_close(actual.elevation_deg, expected.elevation_deg, 1e-9);
-    assert_close(actual.range.meters(), expected.range.meters(), 1e-9);
+    assert_close(actual.azimuth_deg(), expected.azimuth_deg(), 1e-9);
+    assert_close(actual.elevation_deg(), expected.elevation_deg(), 1e-9);
+    assert_close(actual.range().meters(), expected.range().meters(), 1e-9);
 }

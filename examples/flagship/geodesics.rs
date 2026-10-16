@@ -164,6 +164,18 @@ pub(crate) fn geodesics_and_local_frames() -> DemoResult {
     assert_eq!(via_from_ned, ned);
     assert_aer_close(via_from_aer, aer);
     assert_eq!(via_from_enu, enu);
+    // Frames work on any classic datum both points share, and are valid by
+    // construction.
+    let nad27_origin = Coordinate::new(origin.lat(), origin.lon(), Crs::Nad27)?;
+    let nad27_target = Coordinate::new(target.lat(), target.lon(), Crs::Nad27)?;
+    let nad27_enu = Enu::try_from_coordinate(nad27_target, nad27_origin)?;
+    assert_within_meters(
+        &nad27_enu.try_to_coordinate(nad27_origin)?,
+        &nad27_target,
+        0.001,
+    );
+    assert_eq!(Enu::new(enu.east_m(), enu.north_m(), enu.up_m())?, enu);
+    assert!(Aer::new(0.0, 90.5, aer.range()).is_err());
 
     Ok("geodesics and local frames")
 }
