@@ -547,6 +547,14 @@ fn gpx_rejections_are_parse_errors() {
         from_gpx(&infinite_hdop),
         "gpx: invalid position at index 0: ",
     );
+    // A negative or non-finite HDOP is named as such, not as an overflow.
+    for bad in [&negative_hdop, &infinite_hdop] {
+        let r = from_gpx(bad);
+        assert!(
+            matches!(&r, Err(Error::Parse(m)) if m.contains("hdop must be finite and nonnegative")),
+            "{r:?}"
+        );
+    }
     // A finite HDOP whose `× 5 m` accuracy overflows names the scaled range.
     let huge_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>1e308</hdop></wpt></gpx>"#);
     let r = from_gpx(&huge_hdop);
