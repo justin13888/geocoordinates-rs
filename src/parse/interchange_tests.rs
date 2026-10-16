@@ -265,6 +265,17 @@ fn xml_depth_scan_counts_only_open_elements() {
     assert!(ok("<![CDATA[ > <b> ]]>"));
     assert!(ok("<?pi x?>"));
     assert!(ok("<!DOCTYPE d>"));
+    // Each construct ends where `quick-xml` ends it, so an end tag hidden
+    // inside one closes no level and the `<b>` after it is one too many.
+    assert!(!ok("<?xml ></a>?><b>"));
+    assert!(!ok("<!--></a>--><b>"));
+    assert!(!ok("<!---></a>--><b>"));
+    assert!(!ok(r#"<!DOCTYPE d [<!ENTITY e "x"></a>]><b>"#));
+    assert!(!ok(r#"</a x="></a>"><b><c>"#));
+    // The shortest closed forms: the `?` opening `<?>` also ends it.
+    assert!(ok("<?></a><b>"));
+    assert!(ok("<!----></a><b>"));
+    assert!(ok("<!DOCTYPE d></a><b>"));
     // End tags close levels, so siblings never add up.
     let siblings = nested("<a>", &"<b></b>".repeat(100), "</a>", 31);
     assert!(check_xml_depth(&siblings).is_ok());
@@ -286,6 +297,17 @@ fn kml_100k_deep_nesting_errors_instead_of_overflowing() {
     // Unclosed: the depth check rejects it before the parser, which never
     // returns on a truncated document (#135).
     assert_parse_err!(from_kml(&"<Folder>".repeat(100_000)), "kml: nesting");
+    // End tags hidden inside constructs the parser skips close no level: an
+    // `<?xml …?>` declaration (ignored by `kml` even inside elements) ends
+    // at `?>`, and a `<!DOCTYPE …>` at its balancing `>`.
+    for hidden in [
+        "<?xml ></Folder>?>",
+        "<!DOCTYPE d [<!ENTITY e 'x'></Folder>]>",
+    ] {
+        let level = format!("<Folder>{hidden}");
+        let input = nested(&level, "", "</Folder>", 100_000);
+        assert_parse_err!(from_kml(&input), "kml: nesting");
+    }
     assert!(start.elapsed() < std::time::Duration::from_secs(5));
 }
 

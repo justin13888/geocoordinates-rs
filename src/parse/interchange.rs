@@ -164,9 +164,14 @@ fn check_wkt_depth(input: &str) -> Result<()> {
 ///
 /// A start tag opens a level and an end tag closes one; self-closing tags,
 /// comments, CDATA sections, processing instructions, and declarations open
-/// none, and a `>` inside a quoted attribute value does not end its tag. The
-/// scan stops at the first unterminated construct, leaving the malformed
-/// remainder to the parser.
+/// none. Every construct ends exactly where `quick-xml` (the `kml` parser's
+/// tokenizer) ends it, so no tag the parser reads is skipped or invented:
+/// a `>` inside a quoted attribute value ends neither a start nor an end tag,
+/// a comment ends at the first `-->` after `<!--` (so `<!-->` and `<!--->`
+/// do not end one), a processing instruction or `<?xml …?>` declaration ends
+/// at `?>`, and a `<!DOCTYPE …>` ends at the `>` that balances every `<`
+/// inside it. The scan stops at the first unterminated construct, leaving the
+/// malformed remainder to the parser.
 #[cfg(feature = "kml")]
 pub(super) fn check_xml_depth(input: &str) -> Result<()> {
     /// The offset of the `>` ending the tag `tag` starts, skipping quotes.
@@ -182,6 +187,24 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
         }
         None
     }
+    /// The offset of the `>` ending the `<!DOCTYPE` that `decl` starts: the
+    /// first `>` not balanced by a `<` inside it.
+    fn doctype_end(decl: &str) -> Option<usize> {
+        let mut open = 0usize;
+        for (i, b) in decl.bytes().enumerate().skip(1) {
+            match b {
+                b'<' => open += 1,
+                b'>' if open == 0 => return Some(i),
+                b'>' => open -= 1,
+                _ => {}
+            }
+        }
+        None
+    }
+    /// The offset of `needle` in `s` at or after `from`.
+    fn find_from(s: &str, from: usize, needle: &str) -> Option<usize> {
+        s.get(from..)?.find(needle).map(|i| i + from)
+    }
 
     let mut depth = 0usize;
     let mut rest = input;
@@ -190,14 +213,19 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
         // Resume at the construct's terminator, which holds no `<`, so the
         // next search starts past it.
         let end = if rest.starts_with("<!--") {
-            rest.find("-->")
+            find_from(rest, 4, "-->")
         } else if rest.starts_with("<![CDATA[") {
             rest.find("]]>")
-        } else if rest.starts_with("<!") || rest.starts_with("<?") {
+        } else if rest.starts_with("<!D") || rest.starts_with("<!d") {
+            doctype_end(rest)
+        } else if rest.starts_with("<?") {
+            find_from(rest, 1, "?>")
+        } else if rest.starts_with("<!") {
+            // Any other `<!` construct is a parse error at this point.
             rest.find('>')
         } else if rest.starts_with("</") {
             depth = depth.saturating_sub(1);
-            rest.find('>')
+            tag_end(rest)
         } else {
             let end = tag_end(rest);
             if let Some(i) = end
@@ -211,7 +239,9 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
             end
         };
         let Some(end) = end else { break };
-        rest = &rest[end..];
+        // Every terminator lies past the `<` at offset 0; stepping at least
+        // one byte keeps the scan advancing whatever a helper returns.
+        rest = &rest[end.max(1)..];
     }
     Ok(())
 }
