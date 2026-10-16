@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import uniffi.geocoordinates_ffi.Accuracy
+import uniffi.geocoordinates_ffi.AccuracyKind
 import uniffi.geocoordinates_ffi.Bd09
 import uniffi.geocoordinates_ffi.Crs
 import uniffi.geocoordinates_ffi.Gcj02
@@ -16,12 +18,17 @@ import uniffi.geocoordinates_ffi.H3Cell
 import uniffi.geocoordinates_ffi.MgrsPrecision
 import uniffi.geocoordinates_ffi.UtmHemisphere
 import uniffi.geocoordinates_ffi.Wgs84
+import uniffi.geocoordinates_ffi.accuracyNew
 import uniffi.geocoordinates_ffi.baiduMercatorFromBd09
 import uniffi.geocoordinates_ffi.bd09ToWgs84Fast
 import uniffi.geocoordinates_ffi.baiduMercatorFromCoordinate
+import uniffi.geocoordinates_ffi.confidenceNew
 import uniffi.geocoordinates_ffi.convert
 import uniffi.geocoordinates_ffi.coordinateNew
 import uniffi.geocoordinates_ffi.datumTransformCatalogToWgs84
+import uniffi.geocoordinates_ffi.fixFromCoord
+import uniffi.geocoordinates_ffi.formatFix
+import uniffi.geocoordinates_ffi.formatOptionsDefault
 import uniffi.geocoordinates_ffi.fromNmeaSentence
 import uniffi.geocoordinates_ffi.gcj02ToBd09
 import uniffi.geocoordinates_ffi.gcj02ToWgs84Fast
@@ -142,6 +149,22 @@ class BindingsTest {
     fun nmeaRmcCarriesItsInstant() {
         val rmc = fromNmeaSentence("\$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
         assertEquals(Instant.parse("1994-03-23T12:35:19Z"), rmc.timestamp)
+    }
+
+    @Test
+    fun fixAccuracyIsTaggedAndValidated() {
+        val gga = fromNmeaSentence("\$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
+        assertEquals(AccuracyKind.ONE_SIGMA, gga.accuracy?.kind)
+        assertEquals(46.9, gga.source!!.geoidSeparationM!!, 1e-12)
+        assertEquals(AccuracyKind.BOUND, parseCoordinate("18TWK0000027757").accuracy?.kind)
+        assertEquals(Accuracy(AccuracyKind.CEP50, 3.0, null), accuracyNew(AccuracyKind.CEP50, 3.0, null))
+        val negative = throwsVariant<GeoException.InvalidValue> { accuracyNew(AccuracyKind.BOUND, -1.0, null) }
+        assertEquals("horizontal", negative.field)
+        val unsure = throwsVariant<GeoException.InvalidValue> { confidenceNew(Double.NaN) }
+        assertEquals("confidence", unsure.field)
+        val handBuilt = fixFromCoord(wgs84(40.7128, -74.006))
+        handBuilt.accuracy = Accuracy(AccuracyKind.ONE_SIGMA, -1.0, null)
+        throwsVariant<GeoException.InvalidValue> { formatFix(handBuilt, formatOptionsDefault()) }
     }
 
     @Test

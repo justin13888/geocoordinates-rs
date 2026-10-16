@@ -19,7 +19,7 @@
 use super::ParseOptions;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::fix::{Confidence, Fix, RawSource};
+use crate::fix::{Fix, RawSource};
 use crate::format::DecimalSeparator;
 
 mod normalize;
@@ -145,16 +145,10 @@ pub(super) fn parse_free_text(input: &str, options: &ParseOptions) -> Result<Fix
         ))
     })?;
 
-    Ok(Fix {
-        coord,
-        accuracy: None,
-        timestamp: None,
-        source: Some(RawSource {
-            raw: input.to_string(),
-            confidence: Confidence::new(resolved.confidence),
-            axis_order: resolved.axis_order,
-            datum_ambiguity: None,
-            notes: resolved.notes,
-        }),
-    })
+    let mut source = RawSource::new(input, resolved.confidence);
+    source.axis_order = resolved.axis_order;
+    source.notes = resolved.notes;
+    let mut fix = Fix::from_coord(coord);
+    fix.source = Some(source);
+    Ok(fix)
 }

@@ -14,15 +14,21 @@ import { before, describe, it } from "node:test";
 
 import initAsync from "../src/generated/web/wasm-bindgen/index.js";
 import geocoordinatesFfi, {
+  AccuracyKind,
   Crs,
   GeoError,
   MgrsPrecision,
+  accuracyNew,
   baiduMercatorFromBd09,
   baiduMercatorFromCoordinate,
   bd09ToWgs84Fast,
+  confidenceNew,
   convert,
   coordinateNew,
   datumTransformCatalogToWgs84,
+  fixFromCoord,
+  formatFix,
+  formatOptionsDefault,
   fromNmeaSentence,
   gcj02ToBd09,
   gcj02ToWgs84Fast,
@@ -153,6 +159,18 @@ describe("grids and geodesics", () => {
     );
     assert.equal(rmc.timestamp?.toISOString(), "1994-03-23T12:35:19.000Z");
   });
+
+  it("tags each accuracy with its kind and types the geoid separation", () => {
+    const gga = fromNmeaSentence(
+      "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
+    );
+    assert.equal(gga.accuracy?.kind, AccuracyKind.OneSigma);
+    assert.equal(gga.source?.geoidSeparationM, 46.9);
+    assert.equal(parseCoordinate("18TWK0000027757").accuracy?.kind, AccuracyKind.Bound);
+    const cep = accuracyNew(AccuracyKind.Cep50, 3.0, undefined);
+    assert.equal(cep.kind, AccuracyKind.Cep50);
+    assert.equal(cep.horizontalM, 3.0);
+  });
 });
 
 describe("typed GeoError variants", () => {
@@ -182,6 +200,21 @@ describe("typed GeoError variants", () => {
     const e = thrown(() => utmCentralMeridianDeg(0));
     assert.ok(GeoError.InvalidValue.instanceOf(e), String(e));
     assert.equal(e.inner.field, "zone");
+  });
+
+  it("InvalidValue rejects an invalid Accuracy or Confidence, also inside a Fix", () => {
+    const negative = thrown(() => accuracyNew(AccuracyKind.Bound, -1.0, undefined));
+    assert.ok(GeoError.InvalidValue.instanceOf(negative), String(negative));
+    assert.equal(negative.inner.field, "horizontal");
+    const unsure = thrown(() => confidenceNew(1.5));
+    assert.ok(GeoError.InvalidValue.instanceOf(unsure), String(unsure));
+    assert.equal(unsure.inner.field, "confidence");
+    const handBuilt = {
+      ...fixFromCoord(coordinateNew(40.7128, -74.006, Crs.Wgs84)),
+      accuracy: { kind: AccuracyKind.OneSigma, horizontalM: -1.0, verticalM: undefined },
+    };
+    const crossing = thrown(() => formatFix(handBuilt, formatOptionsDefault()));
+    assert.ok(GeoError.InvalidValue.instanceOf(crossing), String(crossing));
   });
 
   it("InvalidCellId names the grid and value", () => {

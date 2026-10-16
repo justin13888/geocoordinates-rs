@@ -1,6 +1,6 @@
 //! Coordinate formatting and the strict, geo-URI, and free-text parsers.
 
-use geocoordinates::fix::{Accuracy, AxisOrder, Fix};
+use geocoordinates::fix::{Accuracy, AccuracyKind, AxisOrder, Fix};
 use geocoordinates::format::{
     DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
     format_fix,
@@ -135,15 +135,12 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     );
     // The default options leave the decimal count unset, so `format_fix`
     // derives it from the fix's accuracy.
-    let low_accuracy = Fix {
-        coord: new_york,
-        accuracy: Some(Accuracy {
-            horizontal: Some(Length::from_meters(1_000.0)),
-            vertical: None,
-        }),
-        timestamp: None,
-        source: None,
-    };
+    let mut low_accuracy = Fix::from_coord(new_york);
+    low_accuracy.accuracy = Some(Accuracy::new(
+        AccuracyKind::OneSigma,
+        Some(Length::from_meters(1_000.0)),
+        None,
+    )?);
     assert_eq!(
         format_fix(&low_accuracy, &FormatOptions::default())?,
         "40.71, -74.01"
@@ -216,7 +213,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     let uri = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
     assert_eq!(uri.coord.height(), Some(Height::Ellipsoidal(183.0)));
     assert_eq!(
-        uri.accuracy.and_then(|accuracy| accuracy.horizontal),
+        uri.accuracy.and_then(|accuracy| accuracy.horizontal()),
         Some(Length::from_meters(40.0))
     );
     let plus = parse_coordinate("8FVC2222+22")?;
@@ -225,7 +222,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         (5.0..15.0).contains(
             &plus
                 .accuracy
-                .and_then(|accuracy| accuracy.horizontal)
+                .and_then(|accuracy| accuracy.horizontal())
                 .expect("Plus Code reports its cell bound")
                 .meters()
         )
@@ -285,7 +282,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     let cell = parse_coordinate_with(&locator, &maidenhead.parse_options())?;
     let bound = cell
         .accuracy
-        .and_then(|accuracy| accuracy.horizontal)
+        .and_then(|accuracy| accuracy.horizontal())
         .expect("a grid cell reports its bound")
         .meters();
     assert_within_meters(&cell.coord, &new_york, bound);

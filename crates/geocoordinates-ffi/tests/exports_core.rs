@@ -433,14 +433,6 @@ fn fix_from_coord_carries_no_metadata() {
     );
 }
 
-#[test]
-fn confidence_new_clamps_into_the_unit_interval() {
-    assert_eq!(confidence_new(2.0).value, 1.0);
-    assert_eq!(confidence_new(-0.5).value, 0.0);
-    assert_eq!(confidence_new(f64::NAN).value, 0.0);
-    assert_eq!(confidence_new(0.25).value, 0.25);
-}
-
 // --- Formatting ---
 
 #[test]
@@ -527,6 +519,7 @@ fn format_fix_derives_precision_from_accuracy() {
     let fix = Fix {
         coord: wgs84(40.7128, -74.006),
         accuracy: Some(Accuracy {
+            kind: AccuracyKind::OneSigma,
             horizontal_m: Some(1000.0),
             vertical_m: None,
         }),
@@ -609,7 +602,9 @@ fn parse_text_with_rejects_an_expected_grid_instead_of_ignoring_it() {
 #[test]
 fn parse_coordinate_detects_mgrs_and_decodes_an_expected_geohash() {
     let mgrs = parse_coordinate("18TWK0000027757".to_string()).unwrap();
-    assert!(mgrs.accuracy.unwrap().horizontal_m.unwrap() < 1.0);
+    let accuracy = mgrs.accuracy.unwrap();
+    assert_eq!(accuracy.kind, AccuracyKind::Bound);
+    assert!(accuracy.horizontal_m.unwrap() < 1.0);
     assert!(parse_coordinate("ezs42".to_string()).is_err());
     let geohash = FormatOptions {
         representation: Representation::Geohash { length: 5 },
@@ -636,6 +631,7 @@ fn from_geo_uri_reads_altitude_and_uncertainty() {
     assert_eq!(
         fix.accuracy,
         Some(Accuracy {
+            kind: AccuracyKind::Unspecified,
             horizontal_m: Some(40.0),
             vertical_m: None,
         })

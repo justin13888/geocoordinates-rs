@@ -4,15 +4,16 @@
 use super::super::AxisOrder;
 use crate::angle::Axis;
 use crate::error::{Error, Result};
+use crate::fix::Confidence;
 
 /// Confidence when both hemisphere letters are present (axis order is certain).
-const CONFIDENCE_EXPLICIT: f64 = 1.0;
+const CONFIDENCE_EXPLICIT: Confidence = Confidence::CERTAIN;
 /// Confidence when one hemisphere letter, or the `|v| > 90` range rule,
 /// determines the axis order.
-const CONFIDENCE_RESOLVED: f64 = 0.9;
+const CONFIDENCE_RESOLVED: Confidence = Confidence::from_constant(0.9);
 /// Confidence when both values are in latitude range and the order was assumed
 /// from `default_axis_order`.
-const CONFIDENCE_ASSUMED: f64 = 0.7;
+const CONFIDENCE_ASSUMED: Confidence = Confidence::from_constant(0.7);
 
 /// One parsed component: an unsigned magnitude in degrees, its sign, and the
 /// axis a hemisphere letter pinned it to (if any).
@@ -37,7 +38,7 @@ pub(super) struct Resolved {
     pub(super) lat: f64,
     pub(super) lon: f64,
     pub(super) axis_order: Option<AxisOrder>,
-    pub(super) confidence: f64,
+    pub(super) confidence: Confidence,
     pub(super) notes: Vec<String>,
 }
 

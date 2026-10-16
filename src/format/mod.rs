@@ -352,22 +352,27 @@ pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
 /// The derived count is in the representation's last rendered unit: decimals
 /// of degrees for DD, of arcseconds for DMS (1″ ≈ 30.9 m), and of arcminutes
 /// for DDM (1′ ≈ 1.85 km) — e.g. a 1 m fix renders as 5 DD decimals, 1 DMS
-/// decimal, or 3 DDM decimals. A fix without a usable horizontal accuracy
-/// falls back to the representation's default.
+/// decimal, or 3 DDM decimals. A fix without a horizontal accuracy, or with a
+/// zero one, falls back to the representation's default.
+///
+/// Only the magnitude is read; every [`AccuracyKind`](crate::fix::AccuracyKind)
+/// is treated alike. The count is a display resolution rounded to a power of
+/// ten, and the factors between the kinds (a one-sigma radius against a 50% or
+/// a hard bound) are around two, so reading them differently would move the
+/// count by at most one digit while making two equally accurate fixes render
+/// differently.
 ///
 /// # Errors
 /// As [`format()`].
 ///
 /// ```
-/// use geocoordinates::fix::{Accuracy, Fix};
+/// use geocoordinates::fix::{Accuracy, AccuracyKind, Fix};
 /// use geocoordinates::{Coordinate, Error, Length};
 /// use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format_fix};
 ///
 /// let mut fix = Fix::from_coord(Coordinate::wgs84(40.7128, -74.006)?);
-/// fix.accuracy = Some(Accuracy {
-///     horizontal: Some(Length::from_meters(1000.0)),
-///     vertical: None,
-/// });
+/// let km = Some(Length::from_meters(1000.0));
+/// fix.accuracy = Some(Accuracy::new(AccuracyKind::OneSigma, km, None)?);
 /// // A 1 km fix earns 2 decimals of degrees, not the default 6.
 /// assert_eq!(format_fix(&fix, &FormatOptions::default())?, "40.71, -74.01");
 ///
@@ -382,7 +387,10 @@ pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
-    let horizontal_m = fix.accuracy.and_then(|a| a.horizontal).map(|h| h.meters());
+    let horizontal_m = fix
+        .accuracy
+        .and_then(|a| a.horizontal())
+        .map(|h| h.meters());
     let representation = match horizontal_m {
         Some(m) => with_derived_decimals(options.representation, m),
         None => options.representation,
@@ -452,10 +460,11 @@ const MEAN_METERS_PER_DEGREE: f64 = 111_195.0;
 /// Decimal places implied by a horizontal accuracy, so digits finer than the
 /// fix's resolution are not printed. The places count the representation's
 /// last rendered unit: degrees for DD, arcseconds for DMS, arcminutes for DDM.
-/// `None` (unusable accuracy, or a grid representation, which has no decimal
-/// count) → the caller's default.
+/// `None` (a zero accuracy, or a grid representation, which has no decimal
+/// count) → the caller's default. `horizontal_m` comes from a valid
+/// [`Accuracy`](crate::fix::Accuracy), so it is finite and nonnegative.
 fn precision_for_accuracy(horizontal_m: f64, representation: Representation) -> Option<u8> {
-    if !horizontal_m.is_finite() || horizontal_m <= 0.0 {
+    if horizontal_m <= 0.0 {
         return None;
     }
     let meters_per_unit = match representation {

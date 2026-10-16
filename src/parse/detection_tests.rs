@@ -15,8 +15,13 @@ fn expecting(kind: GridKind) -> ParseOptions {
     }
 }
 
+/// A decoded grid's horizontal accuracy in meters, checked to be the cell's
+/// hard bound.
 fn accuracy_m(fix: &Fix) -> f64 {
-    fix.accuracy.and_then(|a| a.horizontal).unwrap().meters()
+    let accuracy = fix.accuracy.unwrap();
+    assert_eq!(accuracy.kind(), AccuracyKind::Bound);
+    assert_eq!(accuracy.vertical(), None);
+    accuracy.horizontal().unwrap().meters()
 }
 
 #[test]

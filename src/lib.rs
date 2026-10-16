@@ -151,7 +151,9 @@ pub mod prelude {
 
     pub use crate::angle::{Axis, Ddm, Dms, Hemisphere};
     pub use crate::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
-    pub use crate::fix::{Accuracy, AxisOrder, Confidence, DatumAmbiguity, Fix, RawSource};
+    pub use crate::fix::{
+        Accuracy, AccuracyKind, AxisOrder, Confidence, DatumAmbiguity, Fix, RawSource,
+    };
     pub use crate::geodesy::haversine_distance;
 
     pub use crate::convert::convert;

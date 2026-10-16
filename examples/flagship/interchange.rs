@@ -49,7 +49,7 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
     assert_close(
         gpx[0]
             .accuracy
-            .and_then(|accuracy| accuracy.horizontal)
+            .and_then(|accuracy| accuracy.horizontal())
             .expect("GPX HDOP provides horizontal accuracy")
             .meters(),
         7.5,
@@ -79,7 +79,7 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
     assert_eq!(nmea.coord.height(), Some(Height::Orthometric(545.4)));
     assert_close(
         nmea.accuracy
-            .and_then(|accuracy| accuracy.horizontal)
+            .and_then(|accuracy| accuracy.horizontal())
             .expect("GGA HDOP provides horizontal accuracy")
             .meters(),
         4.5,

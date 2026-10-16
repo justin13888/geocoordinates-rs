@@ -483,10 +483,11 @@ fn gpx_keeps_time_and_hdop() {
     assert_eq!(fixes[0].timestamp, Some(expected));
     // An offset is honoured: 14:00:05+02:00 is the same instant.
     assert_eq!(fixes[1].timestamp, Some(expected));
-    // HDOP × 5 m nominal UERE, the NMEA GGA scaling.
+    // HDOP × 5 m nominal UERE, the NMEA GGA scaling: a one-sigma estimate.
     let accuracy = fixes[0].accuracy.unwrap();
-    assert_close(accuracy.horizontal.unwrap().meters(), 7.5, 1e-12);
-    assert_eq!(accuracy.vertical, None);
+    assert_eq!(accuracy.kind(), crate::fix::AccuracyKind::OneSigma);
+    assert_close(accuracy.horizontal().unwrap().meters(), 7.5, 1e-12);
+    assert_eq!(accuracy.vertical(), None);
     assert_eq!(fixes[1].accuracy, None);
 }
 
@@ -537,19 +538,26 @@ fn gpx_rejections_are_parse_errors() {
     let negative_hdop = format!(
         r#"{GPX_HEAD}<wpt lat="1" lon="2"/><wpt lat="1" lon="2"><hdop>-1</hdop></wpt></gpx>"#
     );
-    assert_parse_err!(
-        from_gpx(&negative_hdop),
-        "gpx: invalid position at index 1: ",
-    );
     let infinite_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>inf</hdop></wpt></gpx>"#);
-    assert_parse_err!(
-        from_gpx(&infinite_hdop),
-        "gpx: invalid position at index 0: ",
-    );
+    // A negative or non-finite HDOP is named as such; a finite one whose
+    // `× 5 m` accuracy overflows names the scaled range instead.
+    let huge_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>1e308</hdop></wpt></gpx>"#);
+    let finite_msg = "hdop must be finite and nonnegative";
+    for (doc, index, bad_hdop) in [
+        (&negative_hdop, 1, true),
+        (&infinite_hdop, 0, true),
+        (&huge_hdop, 0, false),
+    ] {
+        let r = from_gpx(doc);
+        let prefix = format!("gpx: invalid position at index {index}: ");
+        let ok = matches!(&r, Err(Error::Parse(m)) if m.starts_with(&prefix)
+            && m.contains(finite_msg) == bad_hdop && m.contains("out of range") != bad_hdop);
+        assert!(ok, "{r:?}");
+    }
     // A zero HDOP is valid, and scales to a zero radius.
     let zero_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>0</hdop></wpt></gpx>"#);
     let accuracy = from_gpx(&zero_hdop).unwrap()[0].accuracy.unwrap();
-    assert_eq!(accuracy.horizontal, Some(crate::Length::ZERO));
+    assert_eq!(accuracy.horizontal(), Some(crate::Length::ZERO));
     // The gpx reader range-checks attributes itself, before any index exists.
     let off_globe = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"/><wpt lat="1" lon="200"/></gpx>"#);
     assert_parse_err!(from_gpx(&off_globe), "gpx: ");

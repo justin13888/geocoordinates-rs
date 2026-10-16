@@ -139,6 +139,31 @@ final class TypedErrorTests: XCTestCase {
         XCTAssertEqual(field, "zone")
     }
 
+    func testFixAccuracyIsTaggedAndValidated() throws {
+        let gga = try fromNmeaSentence(
+            sentence: "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
+        XCTAssertEqual(gga.accuracy?.kind, .oneSigma)
+        XCTAssertEqual(gga.source?.geoidSeparationM, 46.9)
+        XCTAssertEqual(try parseCoordinate(input: "18TWK0000027757").accuracy?.kind, .bound)
+        XCTAssertEqual(
+            try accuracyNew(kind: .cep50, horizontalM: 3.0, verticalM: nil),
+            Accuracy(kind: .cep50, horizontalM: 3.0, verticalM: nil))
+        guard case let .InvalidValue(horizontal, _)? = geoError({
+            try accuracyNew(kind: .bound, horizontalM: -1.0, verticalM: nil)
+        }) else { return XCTFail("expected InvalidValue for a negative accuracy") }
+        XCTAssertEqual(horizontal, "horizontal")
+        guard case let .InvalidValue(confidence, _)? = geoError({
+            try confidenceNew(value: 1.5)
+        }) else { return XCTFail("expected InvalidValue for confidence 1.5") }
+        XCTAssertEqual(confidence, "confidence")
+        var handBuilt = try fixFromCoord(coord: wgs84(40.7128, -74.006))
+        handBuilt.accuracy = Accuracy(kind: .oneSigma, horizontalM: -1.0, verticalM: nil)
+        let fix = handBuilt
+        guard case .InvalidValue? = geoError({
+            try formatFix(fix: fix, options: formatOptionsDefault())
+        }) else { return XCTFail("expected a hand-built Fix to be validated") }
+    }
+
     func testInvalidCellIdNamesTheGridAndValue() {
         guard case let .InvalidCellId(grid, value)? = geoError({
             try h3Decode(cell: H3Cell(value: 0))

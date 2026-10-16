@@ -369,10 +369,14 @@ pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<St
 }
 
 /// Render a [`Fix`] to a string, deriving the decimal count from its accuracy
-/// where the representation leaves it unset.
+/// where the representation leaves it unset. Only the accuracy's magnitude is
+/// read; every [`AccuracyKind`](crate::AccuracyKind) is treated alike.
 ///
 /// # Errors
-/// As [`format_coordinate`].
+/// As [`format_coordinate`]; also [`GeoError::InvalidValue`] for a hand-built
+/// record whose accuracy ([`accuracy_validate`](crate::accuracy_validate)) or
+/// source confidence ([`confidence_validate`](crate::confidence_validate)) is
+/// invalid.
 #[uniffi::export]
 pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> {
     let fix: gc::fix::Fix = fix.try_into()?;
