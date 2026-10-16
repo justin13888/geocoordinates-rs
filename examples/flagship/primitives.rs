@@ -8,7 +8,9 @@ use geocoordinates::angle::{
 };
 use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 use geocoordinates::dgg::{H3Cell, S2CellId};
-use geocoordinates::fix::{Accuracy, AxisOrder, Confidence, DatumAmbiguity, Fix, RawSource};
+use geocoordinates::fix::{
+    Accuracy, AccuracyKind, AxisOrder, Confidence, DatumAmbiguity, Fix, RawSource,
+};
 use geocoordinates::format::{
     DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle,
 };
@@ -43,6 +45,7 @@ fn all_public_value_types_are_serde() {
     assert_serde::<Crs>();
     assert_serde::<Height>();
     assert_serde::<Accuracy>();
+    assert_serde::<AccuracyKind>();
     assert_serde::<Confidence>();
     assert_serde::<Fix>();
     assert_serde::<RawSource>();
@@ -150,32 +153,31 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
         (Length::from_meters(10.0) + Length::from_meters(5.0) - Length::from_meters(3.0)) * 2.0;
     assert_eq!(arithmetic.meters(), 24.0);
 
-    assert_eq!(Confidence::new(-1.0).value(), 0.0);
-    assert_eq!(Confidence::new(2.0).value(), 1.0);
-    let fix = Fix {
-        coord: coordinate,
-        accuracy: Some(Accuracy {
-            horizontal: Some(Length::from_meters(3.0)),
-            vertical: Some(Length::from_unit(5.0, LengthUnit::Yard)),
-        }),
-        timestamp: Some(UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
-        source: Some(RawSource {
-            raw: "40.7128, -74.006".to_owned(),
-            confidence: Confidence::new(0.9),
-            axis_order: Some(AxisOrder::LatLon),
-            datum_ambiguity: Some(DatumAmbiguity::PossiblyGcj02),
-            notes: vec!["flagship fixture".to_owned()],
-        }),
-    };
+    // Confidence and accuracy are valid by construction.
+    assert!(Confidence::new(-1.0).is_err() && Confidence::new(f64::NAN).is_err());
+    assert!(Accuracy::new(AccuracyKind::Bound, Some(Length::from_meters(-1.0)), None).is_err());
+    let mut source = RawSource::new("40.7128, -74.006", Confidence::new(0.9)?);
+    source.axis_order = Some(AxisOrder::LatLon);
+    source.datum_ambiguity = Some(DatumAmbiguity::PossiblyGcj02);
+    source.geoid_separation = Some(Length::from_meters(-34.2));
+    source.notes.push("flagship fixture".to_owned());
+    let mut fix = Fix::from_coord(coordinate);
+    fix.accuracy = Some(Accuracy::new(
+        AccuracyKind::Cep50,
+        Some(Length::from_meters(3.0)),
+        Some(Length::from_unit(5.0, LengthUnit::Yard)),
+    )?);
+    fix.timestamp = Some(UNIX_EPOCH + Duration::from_secs(1_700_000_000));
+    fix.source = Some(source);
     assert_eq!(Fix::from_coord(coordinate).coord, coordinate);
 
     all_public_value_types_are_serde();
     let json = serde_json::to_string(&fix)?;
     let decoded: Fix = serde_json::from_str(&json)?;
     assert_eq!(decoded, fix);
-    // `Confidence` is a bare number on the wire and deserializes through its clamp.
-    assert_eq!(serde_json::to_string(&Confidence::new(0.5))?, "0.5");
-    assert_eq!(serde_json::from_str::<Confidence>("2.0")?.value(), 1.0);
+    // `Confidence` is a bare number on the wire, validated on its way in.
+    assert_eq!(serde_json::to_string(&Confidence::new(0.5)?)?, "0.5");
+    assert!(serde_json::from_str::<Confidence>("2.0").is_err());
     let axis_json = serde_json::to_string(&Axis::Longitude)?;
     assert_eq!(serde_json::from_str::<Axis>(&axis_json)?, Axis::Longitude);
 

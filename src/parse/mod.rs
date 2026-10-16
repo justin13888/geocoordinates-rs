@@ -53,10 +53,25 @@ mod interchange_tests;
 ))]
 const NOMINAL_UERE_M: f64 = 5.0;
 
+/// `HDOP × UERE` as a one-sigma horizontal accuracy, for NMEA `GGA` and GPX
+/// `<hdop>` alike.
+#[cfg(any(
+    feature = "nmea",
+    feature = "geojson",
+    feature = "wkt",
+    feature = "gpx",
+    feature = "kml"
+))]
+fn hdop_accuracy(hdop: f64) -> Result<Accuracy> {
+    let horizontal = Length::from_meters(hdop * NOMINAL_UERE_M);
+    Accuracy::new(AccuracyKind::OneSigma, Some(horizontal), None)
+        .map_err(|_| Error::Parse(format!("hdop must be finite and nonnegative, got {hdop}")))
+}
+
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
-use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
+use crate::fix::{Accuracy, AccuracyKind, AxisOrder, Confidence, Fix, RawSource};
 use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode};
 use crate::units::Length;
 
@@ -89,7 +104,7 @@ pub use text::{parse_text, parse_text_with};
 /// // A Plus Code decodes to its cell center, with the cell as the accuracy.
 /// let fix = parse_coordinate("87G7PX7V+4J")?;
 /// assert!((fix.coord.lat() - 40.7128).abs() < 1e-3);
-/// assert!(fix.accuracy.and_then(|a| a.horizontal).is_some());
+/// assert!(fix.accuracy.and_then(|a| a.horizontal()).is_some());
 ///
 /// assert!(matches!(parse_coordinate("somewhere"), Err(Error::Parse(_))));
 /// # Ok::<(), geocoordinates::Error>(())
@@ -150,7 +165,7 @@ pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix>
             .or_else(|_| decode_grid(GridKind::Mgrs, trimmed)),
     };
     if let Ok(area) = decoded {
-        return Ok(grid_fix(area, input));
+        return grid_fix(area, input);
     }
     text::parse_free_text(input, options).map_err(|text_error| match (expected, text_error) {
         (Some(Err((kind, grid_error))), Error::Parse(detail)) => {
@@ -172,25 +187,14 @@ fn decode_grid(kind: GridKind, trimmed: &str) -> Result<Approx<Coordinate>> {
 }
 
 /// Build a [`Fix`] from a decoded grid cell: the cell center, with the cell's
-/// error bound recorded as horizontal accuracy. A grid reference lists no axis
-/// pair, so it records no axis order.
-fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Fix {
+/// error bound recorded as an [`AccuracyKind::Bound`] horizontal accuracy. A
+/// grid reference lists no axis pair, so it records no axis order.
+fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
     let bound = area.max_error();
-    Fix {
-        coord: area.into_inner(),
-        accuracy: Some(Accuracy {
-            horizontal: Some(bound),
-            vertical: None,
-        }),
-        timestamp: None,
-        source: Some(RawSource {
-            raw: raw.to_string(),
-            confidence: Confidence::new(1.0),
-            axis_order: None,
-            datum_ambiguity: None,
-            notes: Vec::new(),
-        }),
-    }
+    let mut fix = Fix::from_coord(area.into_inner());
+    fix.accuracy = Some(Accuracy::new(AccuracyKind::Bound, Some(bound), None)?);
+    fix.source = Some(RawSource::new(raw, Confidence::CERTAIN));
+    Ok(fix)
 }
 
 /// Parse a `geo:` URI per [RFC 5870](https://www.rfc-editor.org/rfc/rfc5870),
@@ -199,21 +203,24 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Fix {
 /// Latitude comes first (the RFC fixes the axis order), an optional third
 /// number is the altitude in meters, and the `crs`/`u` parameters set the
 /// reference system and the horizontal accuracy (meters) on the returned
-/// [`Fix`].
+/// [`Fix`]. The RFC states no confidence level for `u=`, so that accuracy is
+/// [`AccuracyKind::Unspecified`].
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when the input is not a well-formed `geo:`
 /// URI.
 ///
 /// ```
+/// use geocoordinates::fix::AccuracyKind;
 /// use geocoordinates::{Error, Height};
 /// use geocoordinates::parse::from_geo_uri;
 ///
 /// let fix = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.2, 16.3));
 /// assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(183.0)));
-/// let horizontal = fix.accuracy.and_then(|a| a.horizontal).map(|h| h.meters());
-/// assert_eq!(horizontal, Some(40.0));
+/// let accuracy = fix.accuracy.expect("u= sets the accuracy");
+/// assert_eq!(accuracy.horizontal().map(|h| h.meters()), Some(40.0));
+/// assert_eq!(accuracy.kind(), AccuracyKind::Unspecified);
 ///
 /// assert!(matches!(from_geo_uri("geo:48.2"), Err(Error::Parse(_))));
 /// # Ok::<(), geocoordinates::Error>(())
@@ -293,21 +300,22 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
             .map_err(out_of_range)?;
     }
 
-    Ok(Fix {
-        coord,
-        accuracy: horizontal_m.map(|h| Accuracy {
-            horizontal: Some(Length::from_meters(h)),
-            vertical: None,
-        }),
-        timestamp: None,
-        source: Some(RawSource {
-            raw: input.to_string(),
-            confidence: Confidence::new(1.0), // geo: is unambiguous
-            axis_order: Some(AxisOrder::LatLon), // RFC 5870 lists lat first
-            datum_ambiguity: None,
-            notes,
-        }),
-    })
+    let mut fix = Fix::from_coord(coord);
+    // RFC 5870 states no confidence level for `u=`.
+    fix.accuracy = horizontal_m
+        .map(|h| {
+            Accuracy::new(
+                AccuracyKind::Unspecified,
+                Some(Length::from_meters(h)),
+                None,
+            )
+        })
+        .transpose()?;
+    let mut source = RawSource::new(input, Confidence::CERTAIN); // geo: is unambiguous
+    source.axis_order = Some(AxisOrder::LatLon); // RFC 5870 lists lat first
+    source.notes = notes;
+    fix.source = Some(source);
+    Ok(fix)
 }
 
 /// Parse a required `f64` field of a `geo:` URI, erroring with context.
@@ -352,12 +360,17 @@ mod tests {
         assert_close(fix.coord.lat(), 48.2, 1e-9);
         assert_close(fix.coord.lon(), 16.3, 1e-9);
         assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(183.0)));
+        // RFC 5870 states no confidence level for `u=`.
         assert_eq!(
             fix.accuracy,
-            Some(Accuracy {
-                horizontal: Some(Length::from_meters(40.0)),
-                vertical: None,
-            })
+            Some(
+                Accuracy::new(
+                    AccuracyKind::Unspecified,
+                    Some(Length::from_meters(40.0)),
+                    None
+                )
+                .unwrap()
+            )
         );
     }
 
@@ -394,7 +407,7 @@ mod tests {
     #[test]
     fn geo_uri_accepts_zero_uncertainty() {
         let fix = from_geo_uri("geo:1,2;u=0").unwrap();
-        assert_eq!(fix.accuracy.unwrap().horizontal, Some(Length::ZERO));
+        assert_eq!(fix.accuracy.unwrap().horizontal(), Some(Length::ZERO));
     }
 
     #[test]
@@ -523,8 +536,11 @@ mod tests {
         let s = fix.source.as_ref().unwrap();
         assert_eq!(s.axis_order, None); // a Plus Code fixes the axis order
         assert_close(s.confidence.value(), 1.0, 1e-12);
-        // The cell error bound (~8.4 m for a length-10 code) is the accuracy.
-        let acc = fix.accuracy.unwrap().horizontal.unwrap().meters();
+        // The cell error bound (~8.4 m for a length-10 code) is the accuracy,
+        // tagged as a hard bound.
+        let accuracy = fix.accuracy.unwrap();
+        assert_eq!(accuracy.kind(), AccuracyKind::Bound);
+        let acc = accuracy.horizontal().unwrap().meters();
         assert!((5.0..15.0).contains(&acc), "{acc}");
     }
 
@@ -539,7 +555,7 @@ mod tests {
         let code = format(&c, &options).unwrap();
         let fix = parse_coordinate(&code).unwrap();
         // The original lies within the decoded cell's reported bound.
-        let bound = fix.accuracy.unwrap().horizontal.unwrap().meters();
+        let bound = fix.accuracy.unwrap().horizontal().unwrap().meters();
         assert_within_meters(&fix.coord, &c, bound);
     }
 

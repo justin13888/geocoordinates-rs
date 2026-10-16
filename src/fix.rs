@@ -9,6 +9,7 @@ use std::time::SystemTime;
 
 use crate::coord::Coordinate;
 use crate::units::Length;
+use crate::{Error, Result};
 
 /// A coordinate plus all known observation metadata.
 ///
@@ -17,23 +18,29 @@ use crate::units::Length;
 /// `GPSImgDirection`, NMEA course and speed) is intentionally excluded to keep
 /// the type lean.
 ///
+/// `#[non_exhaustive]`, so a field can be added without a breaking release:
+/// outside this crate a `Fix` is built with [`from_coord`](Self::from_coord)
+/// and its public fields are then set one by one.
+///
 /// ```
 /// use std::time::{Duration, SystemTime};
 ///
-/// use geocoordinates::fix::{Accuracy, Fix};
+/// use geocoordinates::fix::{Accuracy, AccuracyKind, Fix};
 /// use geocoordinates::{Coordinate, Length};
 ///
-/// let fix = Fix {
-///     coord: Coordinate::wgs84(37.7749, -122.4194)?,
-///     accuracy: Some(Accuracy { horizontal: Some(Length::from_meters(4.5)), vertical: None }),
-///     timestamp: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
-///     source: None,
-/// };
-/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal), Some(Length::from_meters(4.5)));
+/// let mut fix = Fix::from_coord(Coordinate::wgs84(37.7749, -122.4194)?);
+/// fix.accuracy = Some(Accuracy::new(
+///     AccuracyKind::OneSigma,
+///     Some(Length::from_meters(4.5)),
+///     None,
+/// )?);
+/// fix.timestamp = Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000));
+/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal()), Some(Length::from_meters(4.5)));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct Fix {
     /// The observed position.
     pub coord: Coordinate,
@@ -71,36 +78,214 @@ impl Fix {
     }
 }
 
-/// A positional accuracy estimate.
+/// What an [`Accuracy`] magnitude means statistically.
 ///
-/// Real fixes usually carry an error estimate; carrying and propagating it lets
-/// the presentation layer avoid printing spurious precision.
+/// Sources report error in incompatible ways — a hard cell bound, a one-sigma
+/// estimate, a 50% radius, or a bare number with no stated confidence — so
+/// every [`Accuracy`] carries the kind its producer reported, and two fixes'
+/// magnitudes are comparable only when their kinds agree. Each parser in this
+/// crate documents the kind it emits:
+///
+/// | Producer | Kind |
+/// |---|---|
+/// | A decoded grid reference (Plus Code, Geohash, Maidenhead, MGRS) | [`Bound`](Self::Bound) |
+/// | NMEA `GGA` HDOP, GPX `<hdop>` (both `HDOP × 5 m`) | [`OneSigma`](Self::OneSigma) |
+/// | A `geo:` URI's `u=` parameter | [`Unspecified`](Self::Unspecified) |
+///
+/// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every
+/// variant, so adding one here is a deliberate, compile-forcing change on both
+/// sides.
 ///
 /// ```
-/// use geocoordinates::fix::Accuracy;
+/// use geocoordinates::fix::AccuracyKind;
+/// use geocoordinates::parse::parse_coordinate;
+///
+/// // A Plus Code decodes to its cell center; the cell bounds the error.
+/// let fix = parse_coordinate("87G7PX7V+4J")?;
+/// assert_eq!(fix.accuracy.map(|a| a.kind()), Some(AccuracyKind::Bound));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AccuracyKind {
+    /// A hard maximum: the true position is never farther than the magnitude
+    /// (e.g. the distance from a decoded grid cell's center to its farthest
+    /// corner).
+    Bound,
+    /// A one-sigma (about 68% in one dimension, about 39% for a horizontal
+    /// circle) estimate, such as `HDOP × UERE`.
+    OneSigma,
+    /// A circular error probable: the radius holding the true position 50% of
+    /// the time.
+    Cep50,
+    /// A reported magnitude whose confidence level the source does not state
+    /// (e.g. RFC 5870's `u=` uncertainty).
+    Unspecified,
+}
+
+/// A positional accuracy estimate: a horizontal and / or vertical magnitude,
+/// tagged with what those magnitudes mean.
+///
+/// Real fixes usually carry an error estimate; carrying and propagating it lets
+/// the presentation layer avoid printing spurious precision. Full uncertainty
+/// propagation (covariance matrices, DOP) is out of scope: accuracy stays a
+/// scalar magnitude per axis, and its [`AccuracyKind`] says how to read it.
+///
+/// Valid by construction: [`new`](Self::new) (and, under the `serde` feature,
+/// deserialization) rejects a negative, NaN or infinite magnitude, and an
+/// estimate with neither magnitude — "no accuracy" is `Fix::accuracy = None`.
+/// The JSON shape is `{"kind":"OneSigma","horizontal":{"meters":4.5},"vertical":null}`.
+///
+/// ```
+/// use geocoordinates::fix::{Accuracy, AccuracyKind};
 /// use geocoordinates::{Length, LengthUnit};
 ///
-/// let a = Accuracy {
-///     horizontal: Some(Length::from_meters(3.0)),
-///     vertical: Some(Length::from_unit(10.0, LengthUnit::Foot)),
-/// };
-/// assert_eq!(a.horizontal.map(|h| h.meters()), Some(3.0));
-/// assert_eq!(a.vertical.map(|v| v.meters()), Some(3.048));
+/// let a = Accuracy::new(
+///     AccuracyKind::Cep50,
+///     Some(Length::from_meters(3.0)),
+///     Some(Length::from_unit(10.0, LengthUnit::Foot)),
+/// )?;
+/// assert_eq!(a.kind(), AccuracyKind::Cep50);
+/// assert_eq!(a.horizontal().map(|h| h.meters()), Some(3.0));
+/// assert_eq!(a.vertical().map(|v| v.meters()), Some(3.048));
+/// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "AccuracyRepr"))]
 pub struct Accuracy {
-    /// Horizontal accuracy radius (e.g. CEP or reported radius).
-    pub horizontal: Option<Length>,
-    /// Vertical accuracy.
-    pub vertical: Option<Length>,
-    // Full uncertainty propagation (covariance matrix, CEP, DOP) is out of
-    // scope: accuracy stays a simple scalar radius. Revisit only if sub-meter
-    // error modeling proves necessary.
+    kind: AccuracyKind,
+    horizontal: Option<Length>,
+    vertical: Option<Length>,
+}
+
+/// The unchecked wire shape of an [`Accuracy`], validated on its way in.
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct AccuracyRepr {
+    kind: AccuracyKind,
+    horizontal: Option<Length>,
+    vertical: Option<Length>,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<AccuracyRepr> for Accuracy {
+    type Error = Error;
+
+    fn try_from(repr: AccuracyRepr) -> Result<Self> {
+        Self::new(repr.kind, repr.horizontal, repr.vertical)
+    }
+}
+
+impl Accuracy {
+    /// Build an accuracy estimate of `kind` from its horizontal and vertical
+    /// magnitudes; either may be absent, but not both.
+    ///
+    /// # Errors
+    /// Returns [`Error::InvalidValue`] with field `horizontal` / `vertical`
+    /// when that magnitude is negative, NaN or infinite, or with field
+    /// `accuracy` when both are `None`.
+    ///
+    /// ```
+    /// use geocoordinates::fix::{Accuracy, AccuracyKind};
+    /// use geocoordinates::{Error, Length};
+    ///
+    /// let bound = Accuracy::new(AccuracyKind::Bound, Some(Length::from_meters(12.0)), None)?;
+    /// assert_eq!(bound.vertical(), None);
+    ///
+    /// let negative = Accuracy::new(AccuracyKind::OneSigma, Some(Length::from_meters(-1.0)), None);
+    /// assert!(matches!(negative, Err(Error::InvalidValue { field: "horizontal", .. })));
+    /// let nan = Accuracy::new(AccuracyKind::OneSigma, None, Some(Length::from_meters(f64::NAN)));
+    /// assert!(matches!(nan, Err(Error::InvalidValue { field: "vertical", .. })));
+    /// let empty = Accuracy::new(AccuracyKind::Unspecified, None, None);
+    /// assert!(matches!(empty, Err(Error::InvalidValue { field: "accuracy", .. })));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn new(
+        kind: AccuracyKind,
+        horizontal: Option<Length>,
+        vertical: Option<Length>,
+    ) -> Result<Self> {
+        check_magnitude(horizontal, "horizontal")?;
+        check_magnitude(vertical, "vertical")?;
+        if horizontal.is_none() && vertical.is_none() {
+            return Err(Error::InvalidValue {
+                field: "accuracy",
+                detail: "needs a horizontal or a vertical magnitude".to_string(),
+            });
+        }
+        Ok(Self {
+            kind,
+            horizontal,
+            vertical,
+        })
+    }
+
+    /// What the magnitudes mean statistically.
+    ///
+    /// ```
+    /// use geocoordinates::fix::{Accuracy, AccuracyKind};
+    /// use geocoordinates::Length;
+    ///
+    /// let a = Accuracy::new(AccuracyKind::Unspecified, Some(Length::from_meters(40.0)), None)?;
+    /// assert_eq!(a.kind(), AccuracyKind::Unspecified);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn kind(&self) -> AccuracyKind {
+        self.kind
+    }
+
+    /// The horizontal magnitude: a radius around the position, read as
+    /// [`kind`](Self::kind) says. Finite and nonnegative.
+    ///
+    /// ```
+    /// use geocoordinates::fix::{Accuracy, AccuracyKind};
+    /// use geocoordinates::Length;
+    ///
+    /// let a = Accuracy::new(AccuracyKind::OneSigma, Some(Length::from_meters(4.5)), None)?;
+    /// assert_eq!(a.horizontal(), Some(Length::from_meters(4.5)));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn horizontal(&self) -> Option<Length> {
+        self.horizontal
+    }
+
+    /// The vertical magnitude, read as [`kind`](Self::kind) says. Finite and
+    /// nonnegative.
+    ///
+    /// ```
+    /// use geocoordinates::fix::{Accuracy, AccuracyKind};
+    /// use geocoordinates::Length;
+    ///
+    /// let a = Accuracy::new(AccuracyKind::OneSigma, None, Some(Length::from_meters(8.0)))?;
+    /// assert_eq!(a.vertical(), Some(Length::from_meters(8.0)));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn vertical(&self) -> Option<Length> {
+        self.vertical
+    }
+}
+
+/// Reject a present magnitude that is negative, NaN or infinite.
+fn check_magnitude(magnitude: Option<Length>, field: &'static str) -> Result<()> {
+    match magnitude {
+        Some(m) if !(m.meters().is_finite() && m.meters() >= 0.0) => Err(Error::InvalidValue {
+            field,
+            detail: format!("must be finite and nonnegative, got {} m", m.meters()),
+        }),
+        _ => Ok(()),
+    }
 }
 
 /// The original input a coordinate was parsed from, with parse confidence and
 /// the ambiguities that were resolved.
+///
+/// `#[non_exhaustive]`, so a field can be added without a breaking release:
+/// outside this crate a `RawSource` is built with [`new`](Self::new) and its
+/// remaining public fields are then set one by one.
 ///
 /// Parsers fill it in; read it off the [`Fix`] they return:
 ///
@@ -117,6 +302,7 @@ pub struct Accuracy {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub struct RawSource {
     /// The input this coordinate came from. For a single-coordinate input
     /// (free text, a `geo:` URI, a grid reference, an NMEA sentence) it is
@@ -136,8 +322,41 @@ pub struct RawSource {
     /// A flagged datum ambiguity (e.g. China-EXIF possibly GCJ-02), when the
     /// source's reference system cannot be trusted as stated.
     pub datum_ambiguity: Option<DatumAmbiguity>,
+    /// The geoid separation N the source reported: the height of the geoid
+    /// above the WGS-84 ellipsoid at this position (negative where the geoid
+    /// lies below it), filled from an NMEA `GGA` sentence. With the
+    /// orthometric height H the source also reported, the ellipsoidal height
+    /// is `h = H + N`.
+    pub geoid_separation: Option<Length>,
     /// Free-text notes about anything else resolved during parsing.
     pub notes: Vec<String>,
+}
+
+impl RawSource {
+    /// Record `raw` as interpreted with `confidence`, with no axis order,
+    /// datum ambiguity, geoid separation or notes; set those fields afterwards
+    /// where the source supplies them.
+    ///
+    /// ```
+    /// use geocoordinates::fix::{AxisOrder, Confidence, RawSource};
+    ///
+    /// let mut source = RawSource::new("51.5, -0.12", Confidence::new(0.9)?);
+    /// source.axis_order = Some(AxisOrder::LatLon);
+    /// assert_eq!(source.raw, "51.5, -0.12");
+    /// assert!(source.notes.is_empty() && source.geoid_separation.is_none());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub fn new(raw: impl Into<String>, confidence: Confidence) -> Self {
+        Self {
+            raw: raw.into(),
+            confidence,
+            axis_order: None,
+            datum_ambiguity: None,
+            geoid_separation: None,
+            notes: Vec::new(),
+        }
+    }
 }
 
 /// The order latitude and longitude are listed in a textual/structured
@@ -177,14 +396,11 @@ pub enum AxisOrder {
 /// ```
 /// use geocoordinates::fix::{Confidence, DatumAmbiguity, RawSource};
 ///
-/// let source = RawSource {
-///     raw: "39.915, 116.404".to_string(),
-///     confidence: Confidence::new(0.6),
-///     axis_order: None,
-///     datum_ambiguity: Some(DatumAmbiguity::PossiblyGcj02),
-///     notes: vec!["camera sold in mainland China".to_string()],
-/// };
+/// let mut source = RawSource::new("39.915, 116.404", Confidence::new(0.6)?);
+/// source.datum_ambiguity = Some(DatumAmbiguity::PossiblyGcj02);
+/// source.notes.push("camera sold in mainland China".to_string());
 /// assert_eq!(source.datum_ambiguity, Some(DatumAmbiguity::PossiblyGcj02));
+/// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -198,25 +414,30 @@ pub enum DatumAmbiguity {
 /// The free-text parser must report this so the application can decide whether
 /// to prompt the user (e.g. when axis order or locale was ambiguous).
 ///
-/// Always in range: [`new`](Self::new) clamps, and under the `serde` feature
-/// deserialization goes through the same clamp. The JSON shape is a bare
+/// Valid by construction: [`new`](Self::new) (and its [`TryFrom<f64>`] sugar)
+/// rejects NaN and anything outside `[0.0, 1.0]`, and under the `serde` feature
+/// deserialization goes through the same check. The JSON shape is a bare
 /// number.
 ///
 /// ```
 /// use geocoordinates::fix::Confidence;
 ///
-/// let c = Confidence::from(0.75);
+/// let c = Confidence::try_from(0.75)?;
 /// assert_eq!(f64::from(c), 0.75);
-/// assert!(Confidence::new(0.9) > c);
+/// assert!(Confidence::new(0.9)? > c);
+/// assert!(Confidence::try_from(1.5).is_err());
+/// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(from = "f64", into = "f64"))]
+#[cfg_attr(feature = "serde", serde(try_from = "f64", into = "f64"))]
 pub struct Confidence(f64);
 
-/// Thin sugar over [`Confidence::new`], clamping into `0.0–1.0`.
-impl From<f64> for Confidence {
-    fn from(value: f64) -> Self {
+/// Thin sugar over [`Confidence::new`].
+impl TryFrom<f64> for Confidence {
+    type Error = Error;
+
+    fn try_from(value: f64) -> Result<Self> {
         Self::new(value)
     }
 }
@@ -229,24 +450,41 @@ impl From<Confidence> for f64 {
 }
 
 impl Confidence {
-    /// Construct a confidence, clamping into the valid `0.0–1.0` range.
+    /// Full confidence: the input admits exactly one reading.
+    pub(crate) const CERTAIN: Self = Self(1.0);
+
+    /// A confidence from a crate constant already known to lie in `[0, 1]`.
+    pub(crate) const fn from_constant(value: f64) -> Self {
+        Self(value)
+    }
+
+    /// Construct a confidence from a value in `[0.0, 1.0]`.
     ///
-    /// Infallible: an out-of-range value is clamped and `NaN` becomes `0.0`.
+    /// # Errors
+    /// Returns [`Error::InvalidValue`] (field `confidence`) when `value` is
+    /// NaN or outside `[0.0, 1.0]`.
     ///
     /// ```
+    /// use geocoordinates::Error;
     /// use geocoordinates::fix::Confidence;
     ///
-    /// assert_eq!(Confidence::new(0.4).value(), 0.4);
-    /// assert_eq!(Confidence::new(1.5).value(), 1.0);
-    /// assert_eq!(Confidence::new(f64::NAN).value(), 0.0);
+    /// assert_eq!(Confidence::new(0.4)?.value(), 0.4);
+    /// assert!(matches!(
+    ///     Confidence::new(1.5),
+    ///     Err(Error::InvalidValue { field: "confidence", .. })
+    /// ));
+    /// assert!(Confidence::new(f64::NAN).is_err());
+    /// # Ok::<(), Error>(())
     /// ```
-    #[must_use]
-    pub fn new(value: f64) -> Self {
-        Self(if value.is_nan() {
-            0.0
+    pub fn new(value: f64) -> Result<Self> {
+        if (0.0..=1.0).contains(&value) {
+            Ok(Self(value))
         } else {
-            value.clamp(0.0, 1.0)
-        })
+            Err(Error::InvalidValue {
+                field: "confidence",
+                detail: format!("must be in [0, 1], got {value}"),
+            })
+        }
     }
 
     /// The confidence value, in `0.0–1.0`.
@@ -254,35 +492,117 @@ impl Confidence {
     /// ```
     /// use geocoordinates::fix::Confidence;
     ///
-    /// assert_eq!(Confidence::new(-3.0).value(), 0.0);
+    /// assert_eq!(Confidence::new(0.25)?.value(), 0.25);
+    /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn value(self) -> f64 {
+    pub const fn value(self) -> f64 {
         self.0
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Confidence;
+    use super::{Accuracy, AccuracyKind, Confidence};
+    use crate::{Error, Length};
 
     #[test]
-    fn confidence_is_always_in_range() {
-        assert_eq!(Confidence::new(f64::NAN).value(), 0.0);
-        assert_eq!(Confidence::new(f64::NEG_INFINITY).value(), 0.0);
-        assert_eq!(Confidence::new(f64::INFINITY).value(), 1.0);
-        assert_eq!(Confidence::from(0.25).value(), 0.25);
-        assert_eq!(f64::from(Confidence::new(2.0)), 1.0);
+    fn confidence_rejects_nan_and_out_of_range() {
+        for bad in [f64::NAN, f64::NEG_INFINITY, f64::INFINITY, -0.01, 1.01, 2.0] {
+            assert!(
+                matches!(
+                    Confidence::new(bad),
+                    Err(Error::InvalidValue {
+                        field: "confidence",
+                        ..
+                    })
+                ),
+                "{bad}"
+            );
+            assert!(Confidence::try_from(bad).is_err(), "{bad}");
+        }
+        assert_eq!(Confidence::new(0.0).unwrap().value(), 0.0);
+        assert_eq!(Confidence::new(1.0).unwrap(), Confidence::CERTAIN);
+        assert_eq!(f64::from(Confidence::try_from(0.25).unwrap()), 0.25);
     }
 
-    /// Deserialization clamps like `new`, and the wire shape is a bare number.
+    #[test]
+    fn accuracy_rejects_invalid_magnitudes() {
+        let m = |v| Some(Length::from_meters(v));
+        for bad in [-1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(
+                matches!(
+                    Accuracy::new(AccuracyKind::Bound, m(bad), None),
+                    Err(Error::InvalidValue {
+                        field: "horizontal",
+                        ..
+                    })
+                ),
+                "{bad}"
+            );
+            assert!(
+                matches!(
+                    Accuracy::new(AccuracyKind::Bound, m(1.0), m(bad)),
+                    Err(Error::InvalidValue {
+                        field: "vertical",
+                        ..
+                    })
+                ),
+                "{bad}"
+            );
+        }
+        assert!(matches!(
+            Accuracy::new(AccuracyKind::Cep50, None, None),
+            Err(Error::InvalidValue {
+                field: "accuracy",
+                ..
+            })
+        ));
+        let zero = Accuracy::new(AccuracyKind::Unspecified, Some(Length::ZERO), None).unwrap();
+        assert_eq!(zero.horizontal(), Some(Length::ZERO));
+        let vertical_only = Accuracy::new(AccuracyKind::OneSigma, None, m(2.0)).unwrap();
+        assert_eq!(
+            (
+                vertical_only.kind(),
+                vertical_only.horizontal(),
+                vertical_only.vertical()
+            ),
+            (AccuracyKind::OneSigma, None, m(2.0))
+        );
+    }
+
+    /// Deserialization validates like `new`, and the wire shape is a bare number.
     #[cfg(feature = "serde")]
     #[test]
-    fn confidence_serde_clamps_and_keeps_its_shape() {
-        let high: Confidence = serde_json::from_str("1.5").unwrap();
-        assert_eq!(high.value(), 1.0);
-        let low: Confidence = serde_json::from_str("-0.5").unwrap();
-        assert_eq!(low.value(), 0.0);
-        assert_eq!(serde_json::to_string(&Confidence::new(0.5)).unwrap(), "0.5");
+    fn confidence_serde_validates_and_keeps_its_shape() {
+        for bad in ["1.5", "-0.5"] {
+            assert!(serde_json::from_str::<Confidence>(bad).is_err(), "{bad}");
+        }
+        let c: Confidence = serde_json::from_str("0.5").unwrap();
+        assert_eq!(c.value(), 0.5);
+        assert_eq!(serde_json::to_string(&c).unwrap(), "0.5");
+    }
+
+    /// Deserialization validates like `new`, and the kind travels with the
+    /// magnitudes.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn accuracy_serde_validates_and_round_trips() {
+        let a =
+            Accuracy::new(AccuracyKind::OneSigma, Some(Length::from_meters(4.5)), None).unwrap();
+        let json = serde_json::to_string(&a).unwrap();
+        assert_eq!(
+            json,
+            r#"{"kind":"OneSigma","horizontal":{"meters":4.5},"vertical":null}"#
+        );
+        assert_eq!(serde_json::from_str::<Accuracy>(&json).unwrap(), a);
+        for bad in [
+            r#"{"kind":"Bound","horizontal":{"meters":-1.0},"vertical":null}"#,
+            r#"{"kind":"Bound","horizontal":null,"vertical":{"meters":-0.5}}"#,
+            r#"{"kind":"Bound","horizontal":null,"vertical":null}"#,
+            r#"{"kind":"Sometimes","horizontal":{"meters":1.0},"vertical":null}"#,
+        ] {
+            assert!(serde_json::from_str::<Accuracy>(bad).is_err(), "{bad}");
+        }
     }
 }

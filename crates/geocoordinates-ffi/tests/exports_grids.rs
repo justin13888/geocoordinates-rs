@@ -369,11 +369,15 @@ fn from_nmea_sentence_reads_a_gga_fix() {
         fix.coord.height,
         Some(Height::Orthometric { meters: 545.4 })
     );
-    // Horizontal accuracy is HDOP times a nominal 5 m UERE.
-    close(fix.accuracy.unwrap().horizontal_m.unwrap(), 4.5, 1e-12);
+    // Horizontal accuracy is HDOP times a nominal 5 m UERE, a one-sigma estimate.
+    let accuracy = fix.accuracy.unwrap();
+    assert_eq!(accuracy.kind, AccuracyKind::OneSigma);
+    close(accuracy.horizontal_m.unwrap(), 4.5, 1e-12);
     let source = fix.source.unwrap();
     assert_eq!(source.axis_order, Some(AxisOrder::LatLon));
-    assert_eq!(source.notes, vec!["geoid separation 46.9 m"]);
+    // The geoid separation N is typed: h = H + N.
+    assert_eq!(source.geoid_separation_m, Some(46.9));
+    assert!(source.notes.is_empty());
     assert!(matches!(
         from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E".to_string()),
         Err(GeoError::Parse { .. })

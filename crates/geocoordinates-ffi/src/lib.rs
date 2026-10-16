@@ -21,7 +21,7 @@
 //! The angle encodings (`Dms` / `Ddm`), their conversions and the
 //! normalization helpers, the `Length` / `LengthUnit` unit helpers, coordinate
 //! validation, and the `Fix` observation family (`Fix` / `Accuracy` /
-//! `RawSource` / `Confidence`, with `SystemTime` mapped natively to UniFFI's
+//! `AccuracyKind` / `RawSource` / `Confidence`, with `SystemTime` mapped natively to UniFFI's
 //! builtin `Timestamp`) all cross the boundary as flat records / enums and free
 //! functions.
 //!
@@ -32,8 +32,10 @@
 //! one rejects an out-of-range or non-finite record with a `GeoError` before
 //! doing anything else, because the core `Coordinate` is valid by
 //! construction. Build one with [`coordinate_new`] to fail at construction
-//! instead. [`Confidence`] is clamped into `[0.0, 1.0]` when it crosses in (as
-//! `gc::fix::Confidence::new` does). Every other record is **unvalidated until
+//! instead. [`Accuracy`] and [`Confidence`] records are validated the same way
+//! (alone or inside a [`Fix`] / [`RawSource`]): build them with
+//! [`accuracy_new`] / [`confidence_new`], or check a hand-built one with
+//! [`accuracy_validate`] / [`confidence_validate`]. Every other record is **unvalidated until
 //! used**: each exported function applies the core crate's own rules to the
 //! values it consumes, exactly as the matching Rust function does.
 

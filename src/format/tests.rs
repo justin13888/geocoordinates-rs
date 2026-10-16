@@ -1,5 +1,5 @@
 use super::*;
-use crate::fix::{Accuracy, Fix};
+use crate::fix::{Accuracy, AccuracyKind, Fix};
 use crate::{Coordinate, Crs};
 
 /// Property tests of the `format → parse → format` round trip.
@@ -52,16 +52,20 @@ fn fmt(coord: &Coordinate, options: &FormatOptions) -> String {
     format(coord, options).expect("formatting succeeds")
 }
 
+/// A fix whose one-sigma accuracy has this horizontal magnitude; with `None`,
+/// the accuracy carries only a vertical magnitude.
 fn fix_with_accuracy(coord: Coordinate, horizontal_m: Option<f64>) -> Fix {
-    Fix {
-        coord,
-        accuracy: Some(Accuracy {
-            horizontal: horizontal_m.map(crate::Length::from_meters),
-            vertical: None,
-        }),
-        timestamp: None,
-        source: None,
-    }
+    fix_with_kind(coord, horizontal_m, AccuracyKind::OneSigma)
+}
+
+fn fix_with_kind(coord: Coordinate, horizontal_m: Option<f64>, kind: AccuracyKind) -> Fix {
+    let vertical = horizontal_m
+        .is_none()
+        .then_some(crate::Length::from_meters(5.0));
+    let horizontal = horizontal_m.map(crate::Length::from_meters);
+    let mut fix = Fix::from_coord(coord);
+    fix.accuracy = Some(Accuracy::new(kind, horizontal, vertical).unwrap());
+    fix
 }
 
 #[test]
@@ -192,9 +196,9 @@ fn format_fix_derives_precision_from_accuracy() {
         format_fix(&fix(Some(1.0)), &dd_default).unwrap(),
         "40.71280, -74.00600"
     );
-    // Unusable accuracy (none / zero / negative) falls back to the
-    // representation default (6).
-    for unusable in [None, Some(0.0), Some(-5.0)] {
+    // An accuracy with no horizontal magnitude, or a zero one, falls back to
+    // the representation default (6).
+    for unusable in [None, Some(0.0)] {
         assert_eq!(
             format_fix(&fix(unusable), &dd_default).unwrap(),
             "40.712800, -74.006000"
@@ -207,14 +211,30 @@ fn format_fix_derives_precision_from_accuracy() {
         "40.713, -74.006"
     );
     // A fix without any accuracy record renders as `format` does.
-    let bare = Fix {
-        accuracy: None,
-        ..fix(None)
-    };
+    let bare = Fix::from_coord(coord);
     assert_eq!(
         format_fix(&bare, &dd_default).unwrap(),
         fmt(&coord, &dd_default)
     );
+}
+
+/// Only the magnitude sets the precision: every accuracy kind renders alike.
+#[test]
+fn format_fix_treats_every_accuracy_kind_alike() {
+    let coord = wgs(40.7128, -74.006);
+    for kind in [
+        AccuracyKind::Bound,
+        AccuracyKind::OneSigma,
+        AccuracyKind::Cep50,
+        AccuracyKind::Unspecified,
+    ] {
+        let fix = fix_with_kind(coord, Some(1000.0), kind);
+        assert_eq!(
+            format_fix(&fix, &FormatOptions::default()).unwrap(),
+            "40.71, -74.01",
+            "{kind:?}"
+        );
+    }
 }
 
 /// C10: the default options leave precision unset, so `format_fix` derives
@@ -313,7 +333,6 @@ fn precision_for_accuracy_uses_the_representations_unit() {
         ),
         None
     );
-    assert_eq!(precision_for_accuracy(f64::NAN, dms), None);
     assert_eq!(precision_for_accuracy(0.0, ddm), None);
 }
 

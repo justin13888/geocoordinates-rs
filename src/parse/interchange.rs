@@ -28,11 +28,10 @@
 //! elements nested deeper than 32 are rejected before they are parsed; and the
 //! walks over the parsed geometry are iterative.
 
-use super::NOMINAL_UERE_M;
+use super::hdop_accuracy;
 use crate::coord::{Coordinate, Crs, Height};
 use crate::error::{Error, Result};
-use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
-use crate::units::Length;
+use crate::fix::{AxisOrder, Confidence, Fix, RawSource};
 
 /// One position read from a document, not yet validated.
 struct Position {
@@ -75,33 +74,15 @@ impl Position {
         if let Some(height) = self.height {
             coord = coord.with_height(height)?;
         }
-        let accuracy = self.hdop.map(hdop_accuracy).transpose()?;
-        Ok(Fix {
-            coord,
-            accuracy,
-            timestamp: self.timestamp,
-            source: Some(RawSource {
-                raw: self.raw,
-                confidence: Confidence::new(1.0),
-                axis_order: self.axis_order,
-                datum_ambiguity: None,
-                notes: self.notes,
-            }),
-        })
+        let mut fix = Fix::from_coord(coord);
+        fix.accuracy = self.hdop.map(hdop_accuracy).transpose()?;
+        fix.timestamp = self.timestamp;
+        let mut source = RawSource::new(self.raw, Confidence::CERTAIN);
+        source.axis_order = self.axis_order;
+        source.notes = self.notes;
+        fix.source = Some(source);
+        Ok(fix)
     }
-}
-
-/// `HDOP × UERE` as a horizontal accuracy radius, the scaling NMEA `GGA` uses.
-fn hdop_accuracy(hdop: f64) -> Result<Accuracy> {
-    if !(hdop.is_finite() && hdop >= 0.0) {
-        return Err(Error::Parse(format!(
-            "hdop must be finite and nonnegative, got {hdop}"
-        )));
-    }
-    Ok(Accuracy {
-        horizontal: Some(Length::from_meters(hdop * NOMINAL_UERE_M)),
-        vertical: None,
-    })
 }
 
 /// Validate every position in document order, failing on the first invalid
@@ -475,7 +456,7 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// practice and becomes [`Height::Orthometric`]; `<time>` becomes
 /// [`Fix::timestamp`]; `<hdop>` becomes a horizontal accuracy of `HDOP × 5 m`
 /// (a nominal GPS user-equivalent range error, the scaling the NMEA parser
-/// applies to `GGA`). A document
+/// applies to `GGA`), tagged [`AccuracyKind::OneSigma`](crate::fix::AccuracyKind::OneSigma). A document
 /// with no points yields `Ok(vec![])`. Each fix's raw source is its point
 /// element (`<wpt>`, `<trkpt>`, or `<rtept>`) with its `<ele>`.
 ///
@@ -495,7 +476,7 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// let fix = &from_gpx(gpx)?[0];
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
 /// assert_eq!(fix.coord.height(), Some(Height::Orthometric(10.0)));
-/// let horizontal = fix.accuracy.and_then(|a| a.horizontal).map(|h| h.meters());
+/// let horizontal = fix.accuracy.and_then(|a| a.horizontal()).map(|h| h.meters());
 /// assert_eq!(horizontal, Some(10.0)); // HDOP 2 × 5 m
 ///
 /// assert!(matches!(from_gpx("<gpx>"), Err(Error::Parse(_))));
