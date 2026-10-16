@@ -162,9 +162,11 @@ fn check_wkt_depth(input: &str) -> Result<()> {
 
 /// Reject XML whose elements nest deeper than [`MAX_KML_DEPTH`].
 ///
-/// A start tag opens a level and an end tag closes one; self-closing tags,
-/// comments, CDATA sections, processing instructions, and declarations open
-/// none. Every construct ends exactly where `quick-xml` (the `kml` parser's
+/// A start tag opens a level and an end tag closes one, except `</kml>` (any
+/// prefix): `kml` 0.13 ignores it and keeps the `<kml>` reader on its stack,
+/// so `<kml></kml>` repeated nests the parser one level per repeat and each
+/// one counts as a level here. Self-closing tags, comments, CDATA sections,
+/// processing instructions, and declarations open none. Every construct ends exactly where `quick-xml` (the `kml` parser's
 /// tokenizer) ends it, so no tag the parser reads is skipped or invented:
 /// a `>` inside a quoted attribute value ends neither a start nor an end tag,
 /// a comment ends at the first `-->` after `<!--` (so `<!-->` and `<!--->`
@@ -226,8 +228,17 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
             // Any other `<!` construct is a parse error at this point.
             rest.find('>')
         } else if rest.starts_with("</") {
-            depth = depth.saturating_sub(1);
-            tag_end(rest)
+            let end = tag_end(rest);
+            // `kml`'s element-list reader returns only at `</Folder>`,
+            // `</Document>`, or the end of input, so it ignores `</kml>`
+            // and the reader the `<kml>` opened stays on the stack: that
+            // level never closes.
+            let name = end.map_or("", |i| rest[2..i].trim());
+            let local = name.split_once(':').map_or(name, |(_, local)| local);
+            if local != "kml" {
+                depth = depth.saturating_sub(1);
+            }
+            end
         } else {
             let end = tag_end(rest);
             if let Some(i) = end

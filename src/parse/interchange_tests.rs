@@ -287,6 +287,15 @@ fn xml_depth_scan_counts_only_open_elements() {
     assert!(ok("<?></a><b>"));
     assert!(ok("<!----></a><b>"));
     assert!(ok("<!DOCTYPE d></a><b>"));
+    // `kml` ignores `</kml>`, so it closes no level, whatever its prefix:
+    // under 30 levels, `<kml></kml>` leaves 31 open and two more start tags
+    // are one too many, where any other closed element leaves room for both.
+    let ok30 = |inner: &str| check_xml_depth(&nested("<a>", inner, "</a>", 30)).is_ok();
+    assert!(ok30("<kml></kml><b>"));
+    assert!(!ok30("<kml></kml><b><c>"));
+    assert!(!ok30("<k:kml></k:kml ><b><c>"));
+    assert!(ok30("<kmlx></kmlx><b><c>"));
+    assert!(ok30("<x:kmlx></x:kmlx><b><c>"));
     // End tags close levels, so siblings never add up.
     let siblings = nested("<a>", &"<b></b>".repeat(100), "</a>", 31);
     assert!(check_xml_depth(&siblings).is_ok());
@@ -318,6 +327,12 @@ fn kml_100k_deep_nesting_errors_instead_of_overflowing() {
         let level = format!("<Folder>{hidden}");
         let input = nested(&level, "", "</Folder>", 100_000);
         assert_parse_err!(from_kml(&input), "kml: nesting");
+    }
+    // `kml` ignores `</kml>`, so each repeat nests its reader one level
+    // deeper even though the XML is flat.
+    for repeats in [40, 100_000] {
+        let flat = "<kml></kml>".repeat(repeats);
+        assert_parse_err!(from_kml(&flat), "kml: nesting");
     }
     assert!(start.elapsed() < std::time::Duration::from_secs(5));
 }
