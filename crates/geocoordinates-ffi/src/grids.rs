@@ -187,8 +187,8 @@ impl From<gc::grids::Utm> for Utm {
         Utm {
             zone: u.zone(),
             hemisphere: u.hemisphere().into(),
-            easting: u.easting(),
-            northing: u.northing(),
+            easting: u.easting_m(),
+            northing: u.northing_m(),
         }
     }
 }
@@ -204,8 +204,8 @@ impl From<gc::grids::Ups> for Ups {
     fn from(u: gc::grids::Ups) -> Self {
         Ups {
             hemisphere: u.hemisphere().into(),
-            easting: u.easting(),
-            northing: u.northing(),
+            easting: u.easting_m(),
+            northing: u.northing_m(),
         }
     }
 }
@@ -332,7 +332,9 @@ impl From<MgrsPrecision> for gc::grids::MgrsPrecision {
 /// The square's side in meters: 100 000, 10 000, 1 000, 100, 10, or 1.
 #[uniffi::export]
 pub fn mgrs_precision_meters(precision: MgrsPrecision) -> u32 {
-    gc::grids::MgrsPrecision::from(precision).meters()
+    // The side is an exact power of ten from 1 m to 100 km, so the cast is
+    // lossless.
+    gc::grids::MgrsPrecision::from(precision).side().meters() as u32
 }
 
 /// Encode a coordinate to the canonical string of the MGRS square of the given

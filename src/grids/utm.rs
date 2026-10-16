@@ -38,7 +38,7 @@ const FALSE_EASTING: f64 = 500_000.0;
 const FALSE_NORTHING_SOUTH: f64 = 10_000_000.0;
 
 // --- WGS-84 transverse Mercator (Karney–Krüger n-series) constants ---
-const A_AXIS: f64 = Ellipsoid::WGS84.semi_major_m();
+const A_AXIS: f64 = Ellipsoid::WGS84.semi_major().meters();
 const F: f64 = Ellipsoid::WGS84.flattening();
 /// The WGS-84 Krüger series (α, β, δ, rectifying radius), shared with the
 /// ellipsoidal rhumb lines.
@@ -304,11 +304,11 @@ impl Utm {
     ///
     /// // A point on zone 18's central meridian (75°W) sits at the false easting.
     /// let utm = Utm::try_from_coordinate(Coordinate::wgs84(40.0, -75.0)?)?;
-    /// assert!((utm.easting() - 500_000.0).abs() < 1e-6);
+    /// assert!((utm.easting_m() - 500_000.0).abs() < 1e-6);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn easting(&self) -> f64 {
+    pub fn easting_m(&self) -> f64 {
         self.easting
     }
 
@@ -320,11 +320,11 @@ impl Utm {
     ///
     /// // Just south of the equator, the false northing keeps it positive.
     /// let utm = Utm::try_from_coordinate(Coordinate::wgs84(-0.001, -75.0)?)?;
-    /// assert!((9_999_800.0..10_000_000.0).contains(&utm.northing()));
+    /// assert!((9_999_800.0..10_000_000.0).contains(&utm.northing_m()));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn northing(&self) -> f64 {
+    pub fn northing_m(&self) -> f64 {
         self.northing
     }
 
@@ -338,8 +338,8 @@ impl Utm {
     ///
     /// let utm = Utm::try_from_coordinate(Coordinate::wgs84(40.7128, -74.006)?)?;
     /// assert_eq!((utm.zone(), utm.hemisphere()), (18, UtmHemisphere::North));
-    /// assert!((utm.easting() - 583_959.372).abs() < 1e-3);
-    /// assert!((utm.northing() - 4_507_350.998).abs() < 1e-3);
+    /// assert!((utm.easting_m() - 583_959.372).abs() < 1e-3);
+    /// assert!((utm.northing_m() - 4_507_350.998).abs() < 1e-3);
     /// let pole = Utm::try_from_coordinate(Coordinate::wgs84(84.0, 0.0)?);
     /// assert!(matches!(pole, Err(Error::OutsideDomain { operation: "UTM", .. })));
     /// # Ok::<(), geocoordinates::Error>(())

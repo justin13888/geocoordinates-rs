@@ -79,6 +79,10 @@ pub enum LengthUnit {
     UsSurveyFoot,
     /// Nautical mile (1852 m).
     NauticalMile,
+    /// International statute mile (1609.344 m).
+    Mile,
+    /// International yard (0.9144 m).
+    Yard,
 }
 
 // --- Fix observation family (mirror of `gc::fix`) ---
@@ -238,6 +242,8 @@ impl From<gc::LengthUnit> for LengthUnit {
             gc::LengthUnit::Foot => LengthUnit::Foot,
             gc::LengthUnit::UsSurveyFoot => LengthUnit::UsSurveyFoot,
             gc::LengthUnit::NauticalMile => LengthUnit::NauticalMile,
+            gc::LengthUnit::Mile => LengthUnit::Mile,
+            gc::LengthUnit::Yard => LengthUnit::Yard,
         }
     }
 }
@@ -250,6 +256,8 @@ impl From<LengthUnit> for gc::LengthUnit {
             LengthUnit::Foot => gc::LengthUnit::Foot,
             LengthUnit::UsSurveyFoot => gc::LengthUnit::UsSurveyFoot,
             LengthUnit::NauticalMile => gc::LengthUnit::NauticalMile,
+            LengthUnit::Mile => gc::LengthUnit::Mile,
+            LengthUnit::Yard => gc::LengthUnit::Yard,
         }
     }
 }
@@ -303,8 +311,8 @@ impl From<Confidence> for gc::fix::Confidence {
 impl From<gc::fix::Accuracy> for Accuracy {
     fn from(a: gc::fix::Accuracy) -> Self {
         Accuracy {
-            horizontal_m: a.horizontal_m,
-            vertical_m: a.vertical_m,
+            horizontal_m: a.horizontal.map(|h| h.meters()),
+            vertical_m: a.vertical.map(|v| v.meters()),
         }
     }
 }
@@ -312,8 +320,8 @@ impl From<gc::fix::Accuracy> for Accuracy {
 impl From<Accuracy> for gc::fix::Accuracy {
     fn from(a: Accuracy) -> Self {
         gc::fix::Accuracy {
-            horizontal_m: a.horizontal_m,
-            vertical_m: a.vertical_m,
+            horizontal: a.horizontal_m.map(gc::Length::from_meters),
+            vertical: a.vertical_m.map(gc::Length::from_meters),
         }
     }
 }
@@ -472,7 +480,7 @@ pub struct ApproxCoordinate {
 
 /// Flatten an `Approx<Coordinate>` into its [`ApproxCoordinate`] record.
 pub(crate) fn approx_coordinate(approx: gc::Approx<gc::Coordinate>) -> ApproxCoordinate {
-    let max_error_m = approx.max_error_m();
+    let max_error_m = approx.max_error().meters();
     ApproxCoordinate {
         coord: approx.into_inner().into(),
         max_error_m,

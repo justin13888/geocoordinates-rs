@@ -30,8 +30,8 @@ fn mercator_round_trip_sub_meter() {
     let m = merc(REF_XY.0, REF_XY.1);
     let back = BaiduMercator::try_from_bd09(m.try_to_bd09().unwrap()).unwrap();
     // Independent forward/inverse fits: stable to well under a meter.
-    assert_close(back.x(), m.x(), 0.5);
-    assert_close(back.y(), m.y(), 0.5);
+    assert_close(back.x_m(), m.x_m(), 0.5);
+    assert_close(back.y_m(), m.y_m(), 0.5);
     assert_eq!(
         BaiduMercator::try_from(m.try_to_bd09().unwrap()).unwrap(),
         back
@@ -96,7 +96,7 @@ fn latitudes_beyond_74_degrees_are_outside_the_domain() {
     }
     // 74° itself is inside, and lands exactly on the northing limit.
     let edge = BaiduMercator::try_from_bd09(bd(-74.0, 10.0)).unwrap();
-    assert_close(edge.y(), -MAX_NORTHING_M, 1e-6);
+    assert_close(edge.y_m(), -MAX_NORTHING_M, 1e-6);
     assert!(edge.try_to_bd09().is_ok());
 }
 
@@ -149,8 +149,8 @@ fn lookup_selects_the_band_by_its_lower_edge() {
 fn forward_matches_the_pinned_value() {
     let m =
         BaiduMercator::try_from_bd09(bd(39.922_699_552_216_216, 116.416_627_243_787_33)).unwrap();
-    assert_close(m.x(), 12_959_580.673_891_693, 1e-6);
-    assert_close(m.y(), 4_827_036.867_073_46, 1e-6);
+    assert_close(m.x_m(), 12_959_580.673_891_693, 1e-6);
+    assert_close(m.y_m(), 4_827_036.867_073_46, 1e-6);
 }
 
 /// An easting that maps exactly onto 180° of longitude is still inside.
@@ -184,7 +184,7 @@ fn easting_mapping_exactly_to_180_degrees_is_inside() {
 #[test]
 fn northing_limit_is_the_image_of_74_degrees() {
     let m = BaiduMercator::try_from_bd09(bd(MAX_LAT_DEG, 0.0)).unwrap();
-    assert_close(m.y(), MAX_NORTHING_M, 1e-6);
+    assert_close(m.y_m(), MAX_NORTHING_M, 1e-6);
 }
 
 #[cfg(feature = "serde")]
@@ -219,8 +219,8 @@ fn every_band_matches_its_pinned_value_in_both_directions() {
     ];
     for (lat, y, x) in forward {
         let m = BaiduMercator::try_from_bd09(bd(lat, 100.25)).unwrap();
-        assert_close(m.x(), x, 1e-6);
-        assert_close(m.y(), y, 1e-6);
+        assert_close(m.x_m(), x, 1e-6);
+        assert_close(m.y_m(), y, 1e-6);
     }
     let inverse = [
         (9_000_000.0, 62.746_456_182_055_98, 98.813_606_067_552_77),

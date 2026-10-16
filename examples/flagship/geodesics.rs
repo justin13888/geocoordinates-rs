@@ -123,11 +123,11 @@ pub(crate) fn geodesics_and_local_frames() -> DemoResult {
         Ellipsoid::CLARKE_1866,
     ] {
         assert!(ellipsoid.flattening() > 0.0);
-        assert!(ellipsoid.semi_minor_m() < ellipsoid.semi_major_m());
+        assert!(ellipsoid.semi_minor() < ellipsoid.semi_major());
         assert!((0.0..1.0).contains(&ellipsoid.eccentricity_sq()));
         // Valid by construction: rebuilding from the parameters round-trips.
         assert_eq!(
-            Ellipsoid::new(ellipsoid.semi_major_m(), ellipsoid.inverse_flattening())?,
+            Ellipsoid::new(ellipsoid.semi_major(), ellipsoid.inverse_flattening())?,
             ellipsoid
         );
     }
@@ -143,7 +143,7 @@ pub(crate) fn geodesics_and_local_frames() -> DemoResult {
     let gnss = Coordinate::wgs84(45.0, 10.0)?.with_height(Height::Ellipsoidal(20_200_000.0))?;
     let gnss_back = Ecef::try_from_coordinate(gnss)?.try_to_coordinate(Crs::Wgs84)?;
     assert_close(gnss_back.lat(), 45.0, 1e-12);
-    let rebuilt = Ecef::new(ecef.x, ecef.y, ecef.z);
+    let rebuilt = Ecef::new(ecef.x_m, ecef.y_m, ecef.z_m);
     assert_eq!(rebuilt, ecef);
 
     let enu = Enu::try_from_coordinate(target, origin)?;

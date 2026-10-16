@@ -8,6 +8,7 @@
 use std::time::SystemTime;
 
 use crate::coord::Coordinate;
+use crate::units::Length;
 
 /// A coordinate plus all known observation metadata.
 ///
@@ -19,16 +20,16 @@ use crate::coord::Coordinate;
 /// ```
 /// use std::time::{Duration, SystemTime};
 ///
-/// use geocoordinates::Coordinate;
 /// use geocoordinates::fix::{Accuracy, Fix};
+/// use geocoordinates::{Coordinate, Length};
 ///
 /// let fix = Fix {
 ///     coord: Coordinate::wgs84(37.7749, -122.4194)?,
-///     accuracy: Some(Accuracy { horizontal_m: Some(4.5), vertical_m: None }),
+///     accuracy: Some(Accuracy { horizontal: Some(Length::from_meters(4.5)), vertical: None }),
 ///     timestamp: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
 ///     source: None,
 /// };
-/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(4.5));
+/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal), Some(Length::from_meters(4.5)));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -77,17 +78,22 @@ impl Fix {
 ///
 /// ```
 /// use geocoordinates::fix::Accuracy;
+/// use geocoordinates::{Length, LengthUnit};
 ///
-/// let a = Accuracy { horizontal_m: Some(3.0), vertical_m: Some(8.0) };
-/// assert_eq!((a.horizontal_m, a.vertical_m), (Some(3.0), Some(8.0)));
+/// let a = Accuracy {
+///     horizontal: Some(Length::from_meters(3.0)),
+///     vertical: Some(Length::from_unit(10.0, LengthUnit::Foot)),
+/// };
+/// assert_eq!(a.horizontal.map(|h| h.meters()), Some(3.0));
+/// assert_eq!(a.vertical.map(|v| v.meters()), Some(3.048));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Accuracy {
-    /// Horizontal accuracy radius in meters (e.g. CEP or reported radius).
-    pub horizontal_m: Option<f64>,
-    /// Vertical accuracy in meters.
-    pub vertical_m: Option<f64>,
+    /// Horizontal accuracy radius (e.g. CEP or reported radius).
+    pub horizontal: Option<Length>,
+    /// Vertical accuracy.
+    pub vertical: Option<Length>,
     // Full uncertainty propagation (covariance matrix, CEP, DOP) is out of
     // scope: accuracy stays a simple scalar radius. Revisit only if sub-meter
     // error modeling proves necessary.

@@ -26,6 +26,7 @@ use super::NOMINAL_UERE_M;
 use crate::coord::{Coordinate, Crs, Height};
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
+use crate::units::Length;
 
 /// One position read from a document, not yet validated.
 struct Position {
@@ -92,8 +93,8 @@ fn hdop_accuracy(hdop: f64) -> Result<Accuracy> {
         )));
     }
     Ok(Accuracy {
-        horizontal_m: Some(hdop * NOMINAL_UERE_M),
-        vertical_m: None,
+        horizontal: Some(Length::from_meters(hdop * NOMINAL_UERE_M)),
+        vertical: None,
     })
 }
 
@@ -328,7 +329,8 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// let fix = &from_gpx(gpx)?[0];
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
 /// assert_eq!(fix.coord.height(), Some(Height::Orthometric(10.0)));
-/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(10.0)); // HDOP 2 × 5 m
+/// let horizontal = fix.accuracy.and_then(|a| a.horizontal).map(|h| h.meters());
+/// assert_eq!(horizontal, Some(10.0)); // HDOP 2 × 5 m
 ///
 /// assert!(matches!(from_gpx("<gpx>"), Err(Error::Parse(_))));
 /// # Ok::<(), geocoordinates::Error>(())

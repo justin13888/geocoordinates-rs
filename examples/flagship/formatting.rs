@@ -10,7 +10,7 @@ use geocoordinates::parse::{
     GridKind, ParseOptions, from_geo_uri, parse_coordinate, parse_coordinate_with, parse_text,
     parse_text_with,
 };
-use geocoordinates::{Coordinate, Crs, Error, Height};
+use geocoordinates::{Coordinate, Crs, Error, Height, Length};
 
 use crate::support::{DemoResult, assert_close, assert_within_meters, new_york};
 
@@ -138,8 +138,8 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     let low_accuracy = Fix {
         coord: new_york,
         accuracy: Some(Accuracy {
-            horizontal_m: Some(1_000.0),
-            vertical_m: None,
+            horizontal: Some(Length::from_meters(1_000.0)),
+            vertical: None,
         }),
         timestamp: None,
         source: None,
@@ -216,8 +216,8 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     let uri = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
     assert_eq!(uri.coord.height(), Some(Height::Ellipsoidal(183.0)));
     assert_eq!(
-        uri.accuracy.and_then(|accuracy| accuracy.horizontal_m),
-        Some(40.0)
+        uri.accuracy.and_then(|accuracy| accuracy.horizontal),
+        Some(Length::from_meters(40.0))
     );
     let plus = parse_coordinate("8FVC2222+22")?;
     assert_eq!(plus.source.as_ref().and_then(|s| s.axis_order), None);
@@ -225,8 +225,9 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         (5.0..15.0).contains(
             &plus
                 .accuracy
-                .and_then(|accuracy| accuracy.horizontal_m)
+                .and_then(|accuracy| accuracy.horizontal)
                 .expect("Plus Code reports its cell bound")
+                .meters()
         )
     );
 
@@ -284,8 +285,9 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     let cell = parse_coordinate_with(&locator, &maidenhead.parse_options())?;
     let bound = cell
         .accuracy
-        .and_then(|accuracy| accuracy.horizontal_m)
-        .expect("a grid cell reports its bound");
+        .and_then(|accuracy| accuracy.horizontal)
+        .expect("a grid cell reports its bound")
+        .meters();
     assert_within_meters(&cell.coord, &new_york, bound);
 
     Ok("formatting and parsing")

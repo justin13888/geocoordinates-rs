@@ -33,7 +33,7 @@
 //! let gcj: Gcj02 = wgs.to_gcj02(); // exact forward offset, infallible
 //! let bd: Bd09 = wgs.try_to_bd09()?; // exact composition, fallible near a pole
 //! let w: Approx<Wgs84> = gcj.to_wgs84_refined(); // approximate inverse
-//! println!("{} ± {} m", w.lat(), w.max_error_m());
+//! println!("{} ± {} m", w.value().lat(), w.max_error().meters());
 //! # let _ = bd;
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
@@ -100,7 +100,7 @@ pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 ///
 /// let cell = H3Cell::encode(Coordinate::wgs84(40.7128, -74.006)?, 9)?;
 /// let center = cell.decode(); // a cell covers an area: the center is approximate
-/// assert!((center.lat() - 40.7128).abs() < 0.01 && center.max_error_m() > 0.0);
+/// assert!((center.value().lat() - 40.7128).abs() < 0.01 && center.max_error().meters() > 0.0);
 /// // Encoding needs a WGS-84 position.
 /// assert!(H3Cell::encode(Coordinate::gcj02(40.7128, -74.006)?, 9).is_err());
 /// # }

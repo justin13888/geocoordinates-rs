@@ -44,20 +44,20 @@ pub(crate) fn assert_mercator_close(
     expected: BaiduMercator,
     tolerance_m: f64,
 ) {
-    assert_close(actual.x(), expected.x(), tolerance_m);
-    assert_close(actual.y(), expected.y(), tolerance_m);
+    assert_close(actual.x_m(), expected.x_m(), tolerance_m);
+    assert_close(actual.y_m(), expected.y_m(), tolerance_m);
 }
 
 pub(crate) fn assert_enu_close(actual: Enu, expected: Enu) {
-    assert_close(actual.east, expected.east, 1e-9);
-    assert_close(actual.north, expected.north, 1e-9);
-    assert_close(actual.up, expected.up, 1e-9);
+    assert_close(actual.east_m, expected.east_m, 1e-9);
+    assert_close(actual.north_m, expected.north_m, 1e-9);
+    assert_close(actual.up_m, expected.up_m, 1e-9);
 }
 
 pub(crate) fn assert_ned_close(actual: Ned, expected: Ned) {
-    assert_close(actual.north, expected.north, 1e-9);
-    assert_close(actual.east, expected.east, 1e-9);
-    assert_close(actual.down, expected.down, 1e-9);
+    assert_close(actual.north_m, expected.north_m, 1e-9);
+    assert_close(actual.east_m, expected.east_m, 1e-9);
+    assert_close(actual.down_m, expected.down_m, 1e-9);
 }
 
 pub(crate) fn assert_aer_close(actual: Aer, expected: Aer) {

@@ -438,7 +438,7 @@ fn meridian_scale_is_continuous_at_the_east_west_limit() {
     let phi = f64::to_radians(40.0);
     let e2 = Ellipsoid::WGS84.eccentricity_sq();
     let parallel =
-        Ellipsoid::WGS84.semi_major_m() * phi.cos() / (1.0 - e2 * phi.sin().powi(2)).sqrt();
+        Ellipsoid::WGS84.semi_major().meters() * phi.cos() / (1.0 - e2 * phi.sin().powi(2)).sqrt();
     assert_close(limit, parallel, 1e-6);
     // Off the limit the scale is the mean over the interval, so it moves by
     // about q′/q · Δψ / 2 (≈ 0.32 Δψ here) — never by more than Δψ, however

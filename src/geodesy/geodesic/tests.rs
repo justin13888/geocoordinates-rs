@@ -39,8 +39,8 @@ fn geodesic_distance_measures_each_datum_on_its_own_ellipsoid() {
     .unwrap()
     .meters();
     let on_wgs84: f64 = Geodesic::wgs84().inverse(a.0, a.1, b.0, b.1);
-    let on_bessel: f64 =
-        Geodesic::new(bessel.semi_major_m(), bessel.flattening()).inverse(a.0, a.1, b.0, b.1);
+    let on_bessel: f64 = Geodesic::new(bessel.semi_major().meters(), bessel.flattening())
+        .inverse(a.0, a.1, b.0, b.1);
     assert_eq!(tokyo, on_bessel);
     let rel = ((on_wgs84 - on_bessel) / on_bessel).abs();
     assert!((1e-5..1.3e-4).contains(&rel), "relative error {rel}");
@@ -234,7 +234,7 @@ fn ellipsoidal_functions_reject_obfuscated_datums() {
 fn producers_keep_a_classic_datum_and_its_ellipsoid() {
     // A Tokyo-datum destination is computed on Bessel 1841 and stays Tokyo.
     let bessel = crate::geodesy::Ellipsoid::BESSEL_1841;
-    let g = Geodesic::new(bessel.semi_major_m(), bessel.flattening());
+    let g = Geodesic::new(bessel.semi_major().meters(), bessel.flattening());
     let start = Coordinate::new(35.0, 139.0, Crs::Tokyo).unwrap();
     let d = destination(&start, 30.0, Length::from_meters(100_000.0)).unwrap();
     let (lat, lon): (f64, f64) = g.direct(35.0, 139.0, 30.0, 100_000.0);
@@ -242,7 +242,7 @@ fn producers_keep_a_classic_datum_and_its_ellipsoid() {
     assert_close(d.lon(), lon, 1e-12);
     // …and a NAD27 midpoint on Clarke 1866 stays NAD27.
     let clarke = crate::geodesy::Ellipsoid::CLARKE_1866;
-    let g = Geodesic::new(clarke.semi_major_m(), clarke.flattening());
+    let g = Geodesic::new(clarke.semi_major().meters(), clarke.flattening());
     let (a, b) = (
         Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap(),
         Coordinate::new(45.0, -90.0, Crs::Nad27).unwrap(),

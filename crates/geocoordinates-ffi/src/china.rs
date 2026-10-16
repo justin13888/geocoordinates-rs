@@ -100,7 +100,10 @@ datum_mirror!(Wgs84, Gcj02, Bd09);
 
 impl From<gc::china::BaiduMercator> for BaiduMercator {
     fn from(m: gc::china::BaiduMercator) -> Self {
-        BaiduMercator { x: m.x(), y: m.y() }
+        BaiduMercator {
+            x: m.x_m(),
+            y: m.y_m(),
+        }
     }
 }
 
@@ -115,9 +118,9 @@ impl TryFrom<BaiduMercator> for gc::china::BaiduMercator {
 impl From<gc::Approx<gc::china::Wgs84>> for ApproxWgs84 {
     fn from(a: gc::Approx<gc::china::Wgs84>) -> Self {
         ApproxWgs84 {
-            lat: a.lat(),
-            lon: a.lon(),
-            max_error_m: a.max_error_m(),
+            lat: a.value().lat(),
+            lon: a.value().lon(),
+            max_error_m: a.max_error().meters(),
         }
     }
 }
@@ -125,9 +128,9 @@ impl From<gc::Approx<gc::china::Wgs84>> for ApproxWgs84 {
 impl From<gc::Approx<gc::china::Gcj02>> for ApproxGcj02 {
     fn from(a: gc::Approx<gc::china::Gcj02>) -> Self {
         ApproxGcj02 {
-            lat: a.lat(),
-            lon: a.lon(),
-            max_error_m: a.max_error_m(),
+            lat: a.value().lat(),
+            lon: a.value().lon(),
+            max_error_m: a.max_error().meters(),
         }
     }
 }

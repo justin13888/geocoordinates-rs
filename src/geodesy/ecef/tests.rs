@@ -19,14 +19,14 @@ fn ellipsoidal_height(c: Coordinate) -> f64 {
 }
 
 fn distance_m(a: Ecef, b: Ecef) -> f64 {
-    (a.x - b.x).hypot(a.y - b.y).hypot(a.z - b.z)
+    (a.x_m - b.x_m).hypot(a.y_m - b.y_m).hypot(a.z_m - b.z_m)
 }
 
 /// ECEF → geodetic → ECEF must return to `p` to round-off: a few ulps of the
 /// largest magnitude involved, which near the center is the semi-major axis.
 fn assert_ecef_round_trip(p: Ecef, crs: Crs) {
     let back = Ecef::try_from_coordinate(p.try_to_coordinate(crs).unwrap()).unwrap();
-    let scale = p.x.abs().max(p.y.abs()).max(p.z.abs()).max(WGS84_A);
+    let scale = p.x_m.abs().max(p.y_m.abs()).max(p.z_m.abs()).max(WGS84_A);
     let err = distance_m(back, p);
     assert!(err <= 8.0 * f64::EPSILON * scale, "{p:?}: {err} m");
 }
@@ -35,15 +35,15 @@ fn assert_ecef_round_trip(p: Ecef, crs: Crs) {
 fn forward_reference_points() {
     let at = |lat, lon| Ecef::try_from_coordinate(Coordinate::wgs84(lat, lon).unwrap()).unwrap();
     let p = at(0.0, 0.0);
-    assert_close(p.x, WGS84_A, 1e-3);
-    assert_close(p.y, 0.0, 1e-3);
-    assert_close(p.z, 0.0, 1e-3);
+    assert_close(p.x_m, WGS84_A, 1e-3);
+    assert_close(p.y_m, 0.0, 1e-3);
+    assert_close(p.z_m, 0.0, 1e-3);
     let p = at(0.0, 90.0);
-    assert_close(p.x, 0.0, 1e-3);
-    assert_close(p.y, WGS84_A, 1e-3);
+    assert_close(p.x_m, 0.0, 1e-3);
+    assert_close(p.y_m, WGS84_A, 1e-3);
     let p = at(90.0, 0.0);
-    assert_close(p.x, 0.0, 1e-3);
-    assert_close(p.z, WGS84_B, 1e-3);
+    assert_close(p.x_m, 0.0, 1e-3);
+    assert_close(p.z_m, WGS84_B, 1e-3);
 }
 
 /// C15: each datum is placed on its own ellipsoid, so a NAD27 position is on
@@ -58,9 +58,13 @@ fn each_datum_is_placed_on_its_own_ellipsoid() {
         (Crs::Pulkovo42, Ellipsoid::KRASOVSKY_1940),
     ] {
         let equator = Ecef::try_from_coordinate(Coordinate::new(0.0, 0.0, crs).unwrap()).unwrap();
-        assert_eq!(equator, Ecef::new(e.semi_major_m(), 0.0, 0.0), "{crs:?}");
+        assert_eq!(
+            equator,
+            Ecef::new(e.semi_major().meters(), 0.0, 0.0),
+            "{crs:?}"
+        );
         let pole = Ecef::try_from_coordinate(Coordinate::new(90.0, 0.0, crs).unwrap()).unwrap();
-        assert_close(pole.z, e.semi_minor_m(), 1e-6);
+        assert_close(pole.z_m, e.semi_minor().meters(), 1e-6);
         let p = Ecef::try_from_coordinate(at(40.0, -100.0, 250.0, crs)).unwrap();
         let back = p.try_to_coordinate(crs).unwrap();
         assert_eq!(back.crs(), crs);

@@ -154,6 +154,8 @@ assert gc.normalize_degrees(-1e-20) == 0.0  # never the excluded bound 360
 # --- Length unit conversions (flattened to meters) ---
 assert approx(gc.length_from_unit(1.0, gc.LengthUnit.KILOMETER), 1000.0, 1e-9)
 assert approx(gc.length_to_unit(1852.0, gc.LengthUnit.NAUTICAL_MILE), 1.0, 1e-9)
+assert gc.length_from_unit(1.0, gc.LengthUnit.MILE) == 1609.344
+assert gc.length_from_unit(1.0, gc.LengthUnit.YARD) == 0.9144
 
 # --- Coordinate validation + Null Island ---
 gc.coordinate_validate(wgs84_coord(40.0, -74.0))  # in range -> no raise

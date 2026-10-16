@@ -58,6 +58,7 @@ use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
 use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode};
+use crate::units::Length;
 
 pub use options::{GridKind, ParseOptions};
 pub use text::{parse_text, parse_text_with};
@@ -88,7 +89,7 @@ pub use text::{parse_text, parse_text_with};
 /// // A Plus Code decodes to its cell center, with the cell as the accuracy.
 /// let fix = parse_coordinate("87G7PX7V+4J")?;
 /// assert!((fix.coord.lat() - 40.7128).abs() < 1e-3);
-/// assert!(fix.accuracy.and_then(|a| a.horizontal_m).is_some());
+/// assert!(fix.accuracy.and_then(|a| a.horizontal).is_some());
 ///
 /// assert!(matches!(parse_coordinate("somewhere"), Err(Error::Parse(_))));
 /// # Ok::<(), geocoordinates::Error>(())
@@ -174,12 +175,12 @@ fn decode_grid(kind: GridKind, trimmed: &str) -> Result<Approx<Coordinate>> {
 /// error bound recorded as horizontal accuracy. A grid reference lists no axis
 /// pair, so it records no axis order.
 fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Fix {
-    let bound = area.max_error_m();
+    let bound = area.max_error();
     Fix {
         coord: area.into_inner(),
         accuracy: Some(Accuracy {
-            horizontal_m: Some(bound),
-            vertical_m: None,
+            horizontal: Some(bound),
+            vertical: None,
         }),
         timestamp: None,
         source: Some(RawSource {
@@ -211,7 +212,8 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Fix {
 /// let fix = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.2, 16.3));
 /// assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(183.0)));
-/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(40.0));
+/// let horizontal = fix.accuracy.and_then(|a| a.horizontal).map(|h| h.meters());
+/// assert_eq!(horizontal, Some(40.0));
 ///
 /// assert!(matches!(from_geo_uri("geo:48.2"), Err(Error::Parse(_))));
 /// # Ok::<(), geocoordinates::Error>(())
@@ -294,8 +296,8 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
     Ok(Fix {
         coord,
         accuracy: horizontal_m.map(|h| Accuracy {
-            horizontal_m: Some(h),
-            vertical_m: None,
+            horizontal: Some(Length::from_meters(h)),
+            vertical: None,
         }),
         timestamp: None,
         source: Some(RawSource {
@@ -353,8 +355,8 @@ mod tests {
         assert_eq!(
             fix.accuracy,
             Some(Accuracy {
-                horizontal_m: Some(40.0),
-                vertical_m: None,
+                horizontal: Some(Length::from_meters(40.0)),
+                vertical: None,
             })
         );
     }
@@ -392,7 +394,7 @@ mod tests {
     #[test]
     fn geo_uri_accepts_zero_uncertainty() {
         let fix = from_geo_uri("geo:1,2;u=0").unwrap();
-        assert_eq!(fix.accuracy.unwrap().horizontal_m, Some(0.0));
+        assert_eq!(fix.accuracy.unwrap().horizontal, Some(Length::ZERO));
     }
 
     #[test]
@@ -522,7 +524,7 @@ mod tests {
         assert_eq!(s.axis_order, None); // a Plus Code fixes the axis order
         assert_close(s.confidence.value(), 1.0, 1e-12);
         // The cell error bound (~8.4 m for a length-10 code) is the accuracy.
-        let acc = fix.accuracy.unwrap().horizontal_m.unwrap();
+        let acc = fix.accuracy.unwrap().horizontal.unwrap().meters();
         assert!((5.0..15.0).contains(&acc), "{acc}");
     }
 
@@ -537,7 +539,7 @@ mod tests {
         let code = format(&c, &options).unwrap();
         let fix = parse_coordinate(&code).unwrap();
         // The original lies within the decoded cell's reported bound.
-        let bound = fix.accuracy.unwrap().horizontal_m.unwrap();
+        let bound = fix.accuracy.unwrap().horizontal.unwrap().meters();
         assert_within_meters(&fix.coord, &c, bound);
     }
 

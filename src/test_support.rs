@@ -8,7 +8,7 @@
 //! [`assert_within_geodesic_meters`] measures on the inputs' own CRS ellipsoid
 //! (Karney), and panics on GCJ-02 / BD-09 inputs, which the geodesic rejects.
 //! Use the geodesic one wherever the bound under test is an ellipsoidal ground
-//! distance (UTM / UPS / MGRS decodes and their `max_error_m`), because the
+//! distance (UTM / UPS / MGRS decodes and their `max_error`), because the
 //! spherical oracle can disagree with it by a few tenths of a percent and so hide a bound
 //! that is too tight on the ellipsoid. The reference
 //! vectors are transcribed from the permissively-licensed China-datum libraries

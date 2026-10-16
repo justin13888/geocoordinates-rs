@@ -86,7 +86,7 @@ impl From<gc::geodesy::DatumTransform> for DatumTransform {
             from_crs: d.from_crs().into(),
             to_crs: d.to_crs().into(),
             helmert: d.helmert().into(),
-            accuracy_m: d.accuracy_m(),
+            accuracy_m: d.accuracy().map(|a| a.meters()),
         }
     }
 }
@@ -98,7 +98,7 @@ impl TryFrom<DatumTransform> for gc::geodesy::DatumTransform {
             d.from_crs.into(),
             d.to_crs.into(),
             d.helmert.into(),
-            d.accuracy_m,
+            d.accuracy_m.map(gc::Length::from_meters),
         )
         .map_err(GeoError::from)
     }
@@ -134,7 +134,7 @@ pub fn helmert_inverse_first_order(helmert: Helmert) -> Helmert {
 /// # Errors
 /// `GeoError::CrsMismatch` (expecting WGS-84) when either system is GCJ-02 or
 /// BD-09; `GeoError::InvalidValue` (field `helmert`) for a non-finite
-/// parameter, and (field `accuracy_m`) for a negative or non-finite accuracy.
+/// parameter, and (field `accuracy`) for a negative or non-finite accuracy.
 #[uniffi::export]
 pub fn datum_transform_new(
     from_crs: Crs,

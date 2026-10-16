@@ -16,7 +16,7 @@ fn expecting(kind: GridKind) -> ParseOptions {
 }
 
 fn accuracy_m(fix: &Fix) -> f64 {
-    fix.accuracy.and_then(|a| a.horizontal_m).unwrap()
+    fix.accuracy.and_then(|a| a.horizontal).unwrap().meters()
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn mgrs_is_always_detected() {
         let fix = parse_coordinate(input).unwrap_or_else(|e| panic!("{input:?}: {e}"));
         let expected = Mgrs::try_from(input).unwrap().to_coordinate();
         assert_eq!(fix.coord, expected.into_inner(), "{input:?}");
-        assert_close(accuracy_m(&fix), expected.max_error_m(), 1e-9);
+        assert_close(accuracy_m(&fix), expected.max_error().meters(), 1e-9);
         let source = fix.source.unwrap();
         assert_eq!(source.raw, input);
         assert_eq!(source.axis_order, None);
@@ -78,7 +78,7 @@ fn expect_grid_decodes_the_ambiguous_grids() {
     for (kind, input, expected) in cases {
         let fix = parse_coordinate_with(input, &expecting(kind)).unwrap();
         assert_eq!(fix.coord, expected.into_inner(), "{input:?}");
-        assert_close(accuracy_m(&fix), expected.max_error_m(), 1e-9);
+        assert_close(accuracy_m(&fix), expected.max_error().meters(), 1e-9);
         assert_eq!(fix.source.unwrap().axis_order, None);
     }
 }

@@ -99,24 +99,24 @@ fn utm_forward_reference_points() {
     // References from the `utm` Python library (sub-mm agreement).
     let u = Utm::try_from_coordinate(c(40.0, -75.0)).unwrap();
     assert_eq!((u.zone(), u.hemisphere()), (18, UtmHemisphere::North));
-    assert_close(u.easting(), 500_000.0, 1e-3); // on the central meridian
-    assert_close(u.northing(), 4_427_757.218_844_7, 1e-3);
+    assert_close(u.easting_m(), 500_000.0, 1e-3); // on the central meridian
+    assert_close(u.northing_m(), 4_427_757.218_844_7, 1e-3);
 
     let u = Utm::try_from_coordinate(c(48.8584, 2.2945)).unwrap();
     assert_eq!((u.zone(), u.hemisphere()), (31, UtmHemisphere::North));
-    assert_close(u.easting(), 448_252.001_375_2, 1e-3);
-    assert_close(u.northing(), 5_411_954.910_279_2, 1e-3);
+    assert_close(u.easting_m(), 448_252.001_375_2, 1e-3);
+    assert_close(u.northing_m(), 5_411_954.910_279_2, 1e-3);
 
     let u = Utm::try_from_coordinate(c(-33.8568, 151.2153)).unwrap();
     assert_eq!((u.zone(), u.hemisphere()), (56, UtmHemisphere::South));
-    assert_close(u.easting(), 334_900.569_650_6, 1e-3);
-    assert_close(u.northing(), 6_252_288.752_863_7, 1e-3);
+    assert_close(u.easting_m(), 334_900.569_650_6, 1e-3);
+    assert_close(u.northing_m(), 6_252_288.752_863_7, 1e-3);
 
     // The equator is northern (lat == 0 is not "< 0"), so no 10 000 km false
     // northing is applied.
     let eq = Utm::try_from_coordinate(c(0.0, 3.0)).unwrap();
     assert_eq!(eq.hemisphere(), UtmHemisphere::North);
-    assert_close(eq.northing(), 0.0, 1e-3);
+    assert_close(eq.northing_m(), 0.0, 1e-3);
 }
 
 #[test]
@@ -181,24 +181,24 @@ fn ups_forward_reference_points() {
     // References from pyproj (EPSG:5041 north / 5042 south).
     let u = Ups::try_from_coordinate(c(85.0, 0.0)).unwrap();
     assert_eq!(u.hemisphere(), UtmHemisphere::North);
-    assert_close(u.easting(), 2_000_000.0, 1e-3);
-    assert_close(u.northing(), 1_444_542.608_6, 1e-3);
+    assert_close(u.easting_m(), 2_000_000.0, 1e-3);
+    assert_close(u.northing_m(), 1_444_542.608_6, 1e-3);
 
     let u = Ups::try_from_coordinate(c(87.0, 45.0)).unwrap();
-    assert_close(u.easting(), 2_235_568.724_8, 1e-3);
-    assert_close(u.northing(), 1_764_431.275_2, 1e-3);
+    assert_close(u.easting_m(), 2_235_568.724_8, 1e-3);
+    assert_close(u.northing_m(), 1_764_431.275_2, 1e-3);
 
     let u = Ups::try_from_coordinate(c(-85.0, 30.0)).unwrap();
     assert_eq!(u.hemisphere(), UtmHemisphere::South);
-    assert_close(u.easting(), 2_277_728.695_7, 1e-3);
-    assert_close(u.northing(), 2_481_040.211_7, 1e-3);
+    assert_close(u.easting_m(), 2_277_728.695_7, 1e-3);
+    assert_close(u.northing_m(), 2_481_040.211_7, 1e-3);
 }
 
 #[test]
 fn ups_pole_is_the_false_origin() {
     let np = Ups::try_from_coordinate(c(90.0, 0.0)).unwrap();
-    assert_close(np.easting(), 2_000_000.0, 1e-6);
-    assert_close(np.northing(), 2_000_000.0, 1e-6);
+    assert_close(np.easting_m(), 2_000_000.0, 1e-6);
+    assert_close(np.northing_m(), 2_000_000.0, 1e-6);
 }
 
 #[test]
@@ -314,7 +314,7 @@ fn utm_new_guards_each_field() {
     // The getters return exactly the validated parts.
     let u = utm(31, South, 123_456.0, 7_654_321.0);
     assert_eq!(
-        (u.zone(), u.hemisphere(), u.easting(), u.northing()),
+        (u.zone(), u.hemisphere(), u.easting_m(), u.northing_m()),
         (31, South, 123_456.0, 7_654_321.0)
     );
     // The domain bounds themselves are accepted.
@@ -336,7 +336,7 @@ fn ups_new_guards_each_field() {
     assert_invalid(Ups::new(North, 2_000_000.0, f64::NAN), "northing");
     let u = ups(South, 1_234_567.0, 3_456_789.0);
     assert_eq!(
-        (u.hemisphere(), u.easting(), u.northing()),
+        (u.hemisphere(), u.easting_m(), u.northing_m()),
         (South, 1_234_567.0, 3_456_789.0)
     );
     // The origin corner is accepted too.
@@ -428,14 +428,14 @@ fn every_forward_result_is_inside_the_constructor_domain() {
             -180.0, -177.0, 0.0, 2.999, 3.0, 8.999, 41.999, 179.999, 180.0,
         ] {
             let u = Utm::try_from_coordinate(c(lat, lon)).unwrap();
-            let rebuilt = Utm::new(u.zone(), u.hemisphere(), u.easting(), u.northing());
+            let rebuilt = Utm::new(u.zone(), u.hemisphere(), u.easting_m(), u.northing_m());
             assert_eq!(rebuilt, Ok(u), "lat={lat}, lon={lon}");
         }
     }
     for lat in [84.0, 87.0, 90.0, -80.000_1, -85.0, -90.0] {
         for lon in [-180.0, -135.0, -45.0, 0.0, 45.0, 135.0, 180.0] {
             let u = Ups::try_from_coordinate(c(lat, lon)).unwrap();
-            let rebuilt = Ups::new(u.hemisphere(), u.easting(), u.northing());
+            let rebuilt = Ups::new(u.hemisphere(), u.easting_m(), u.northing_m());
             assert_eq!(rebuilt, Ok(u), "lat={lat}, lon={lon}");
         }
     }

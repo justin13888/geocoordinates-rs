@@ -135,6 +135,8 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
         LengthUnit::Foot,
         LengthUnit::UsSurveyFoot,
         LengthUnit::NauticalMile,
+        LengthUnit::Mile,
+        LengthUnit::Yard,
     ] {
         let one = Length::from_unit(1.0, unit);
         assert_close(one.to_unit(unit), 1.0, 1e-12);
@@ -153,8 +155,8 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
     let fix = Fix {
         coord: coordinate,
         accuracy: Some(Accuracy {
-            horizontal_m: Some(3.0),
-            vertical_m: Some(5.0),
+            horizontal: Some(Length::from_meters(3.0)),
+            vertical: Some(Length::from_unit(5.0, LengthUnit::Yard)),
         }),
         timestamp: Some(UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
         source: Some(RawSource {

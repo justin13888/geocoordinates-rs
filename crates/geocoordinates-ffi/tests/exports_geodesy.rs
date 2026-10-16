@@ -581,7 +581,7 @@ fn datum_transform_new_validates_hand_built_records() {
         assert!(datum_transform_apply(bad, tokyo).is_err(), "{bad:?}");
         assert!(datum_transform_inverse_first_order(bad).is_err(), "{bad:?}");
     }
-    for (bad, field) in [(bad_helmert, "helmert"), (bad_accuracy, "accuracy_m")] {
+    for (bad, field) in [(bad_helmert, "helmert"), (bad_accuracy, "accuracy")] {
         match datum_transform_new(bad.from_crs, bad.to_crs, bad.helmert, bad.accuracy_m) {
             Err(GeoError::InvalidValue { field: f, .. }) => assert_eq!(f, field),
             other => panic!("expected InvalidValue, got {other:?}"),

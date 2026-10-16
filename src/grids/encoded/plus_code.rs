@@ -146,8 +146,8 @@ impl PlusCode {
     /// use geocoordinates::grids::PlusCode;
     ///
     /// let area = PlusCode::try_from("8FVC2222+22")?.decode();
-    /// assert!((area.lat() - 47.000_062_5).abs() < 1e-9);
-    /// assert!(area.max_error_m() < 10.0);
+    /// assert!((area.value().lat() - 47.000_062_5).abs() < 1e-9);
+    /// assert!(area.max_error().meters() < 10.0);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]

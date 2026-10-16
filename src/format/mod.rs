@@ -360,13 +360,13 @@ pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
 ///
 /// ```
 /// use geocoordinates::fix::{Accuracy, Fix};
-/// use geocoordinates::{Coordinate, Error};
+/// use geocoordinates::{Coordinate, Error, Length};
 /// use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format_fix};
 ///
 /// let mut fix = Fix::from_coord(Coordinate::wgs84(40.7128, -74.006)?);
 /// fix.accuracy = Some(Accuracy {
-///     horizontal_m: Some(1000.0),
-///     vertical_m: None,
+///     horizontal: Some(Length::from_meters(1000.0)),
+///     vertical: None,
 /// });
 /// // A 1 km fix earns 2 decimals of degrees, not the default 6.
 /// assert_eq!(format_fix(&fix, &FormatOptions::default())?, "40.71, -74.01");
@@ -382,7 +382,7 @@ pub fn format(coord: &Coordinate, options: &FormatOptions) -> Result<String> {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
-    let horizontal_m = fix.accuracy.and_then(|a| a.horizontal_m);
+    let horizontal_m = fix.accuracy.and_then(|a| a.horizontal).map(|h| h.meters());
     let representation = match horizontal_m {
         Some(m) => with_derived_decimals(options.representation, m),
         None => options.representation,

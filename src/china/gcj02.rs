@@ -17,7 +17,7 @@
 //! inside the box is offset by up to about 0.011°, which can carry it just
 //! outside, where an outside WGS-84 point maps to itself. A GCJ-02 point in
 //! that band therefore has two preimages. Both inverses return the outside one
-//! (the input unchanged) and widen `max_error_m` to cover the inside one, so
+//! (the input unchanged) and widen `max_error` to cover the inside one, so
 //! the bound holds whichever point the caller started from.
 
 use super::{EE, GCJ_A, Gcj02, Refined, Wgs84, near_china_box, out_of_china, refine, residual_m};
@@ -153,16 +153,16 @@ impl Gcj02 {
     /// [`to_wgs84_refined`](Self::to_wgs84_refined) reports an honest bound.
     ///
     /// Outside the box the input is returned unchanged. Far from the box that
-    /// is exact (`max_error_m` 0). Within about 0.011° past its edge an inside
+    /// is exact (`max_error` 0). Within about 0.011° past its edge an inside
     /// WGS-84 point may also land on the input; when the single-step
-    /// candidate for it falls inside the box, `max_error_m` is the distance to
+    /// candidate for it falls inside the box, `max_error` is the distance to
     /// that candidate plus 6 m, so it covers both preimages.
     ///
     /// ```
     /// use geocoordinates::china::Gcj02;
     ///
     /// let wgs = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_fast();
-    /// assert_eq!(wgs.max_error_m(), 6.0);
+    /// assert_eq!(wgs.max_error().meters(), 6.0);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
@@ -171,7 +171,7 @@ impl Gcj02 {
         if out_of_china(lat, lon) {
             let identity = Wgs84::from_valid(lat, lon);
             if !near_china_box(lat, lon, EDGE_BAND_DEG) {
-                return Approx::new(identity, 0.0);
+                return Approx::from_valid(identity, 0.0);
             }
             let (c_lat, c_lon) = {
                 let (d_lat, d_lon) = delta(lat, lon);
@@ -182,10 +182,10 @@ impl Gcj02 {
             } else {
                 0.0
             };
-            return Approx::new(identity, bound);
+            return Approx::from_valid(identity, bound);
         }
         let (d_lat, d_lon) = delta(self.lat(), self.lon());
-        Approx::new(
+        Approx::from_valid(
             Wgs84::from_valid(self.lat() - d_lat, self.lon() - d_lon),
             FAST_BOUND_M,
         )
@@ -195,15 +195,15 @@ impl Gcj02 {
     ///
     /// Inside the box, iterates `wgs += target − wgs.to_gcj02()` until the
     /// forward image of the estimate matches `self`. A converged run reports
-    /// `max_error_m` of 0.5 m. An input with no exact preimage (a point in the
+    /// `max_error` of 0.5 m. An input with no exact preimage (a point in the
     /// gap the discontinuous box edge leaves) never converges; it reports
     /// 0.5 m plus the distance between its result's forward image and `self`,
     /// so the bound is never one it did not reach.
     ///
     /// Outside the box the input is its own preimage and is returned
-    /// unchanged. Far from the box that is exact (`max_error_m` 0). Within
+    /// unchanged. Far from the box that is exact (`max_error` 0). Within
     /// about 0.011° past its edge, an inside WGS-84 point may also land on the
-    /// input; when one does, `max_error_m` is the distance to it plus its own
+    /// input; when one does, `max_error` is the distance to it plus its own
     /// refined bound, so it covers whichever of the two points the caller
     /// started from.
     ///
@@ -211,8 +211,8 @@ impl Gcj02 {
     /// use geocoordinates::china::Gcj02;
     ///
     /// let wgs = Gcj02::new(39.916_404, 116.410_244)?.to_wgs84_refined();
-    /// assert_eq!(wgs.max_error_m(), 0.5);
-    /// assert!((wgs.lon() - 116.404).abs() < 1e-5);
+    /// assert_eq!(wgs.max_error().meters(), 0.5);
+    /// assert!((wgs.value().lon() - 116.404).abs() < 1e-5);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
@@ -221,11 +221,11 @@ impl Gcj02 {
         if out_of_china(lat, lon) {
             let bound = inside_preimage(lat, lon)
                 .map_or(0.0, |r| gap_m(lat, lon, r.lat, r.lon) + r.max_error_m);
-            return Approx::new(Wgs84::from_valid(lat, lon), bound);
+            return Approx::from_valid(Wgs84::from_valid(lat, lon), bound);
         }
         let target = (self.lat(), self.lon());
         let r = refine(target, target, wgs_to_gcj);
-        Approx::new(Wgs84::from_valid(r.lat, r.lon), r.max_error_m)
+        Approx::from_valid(Wgs84::from_valid(r.lat, r.lon), r.max_error_m)
     }
 }
 
@@ -253,8 +253,8 @@ mod tests {
     fn gcj02_to_wgs84_fast_within_its_bound() {
         for v in DATUM_VECTORS {
             let got = v.gcj02().to_wgs84_fast();
-            assert_eq!(got.max_error_m(), FAST_BOUND_M);
-            assert_within_meters(got.value(), &v.wgs84(), got.max_error_m());
+            assert_eq!(got.max_error().meters(), FAST_BOUND_M);
+            assert_within_meters(got.value(), &v.wgs84(), got.max_error().meters());
         }
     }
 
@@ -262,7 +262,7 @@ mod tests {
     fn gcj02_to_wgs84_refined_within_half_meter() {
         for v in DATUM_VECTORS {
             let got = v.gcj02().to_wgs84_refined();
-            assert_eq!(got.max_error_m(), REFINED_BOUND_M);
+            assert_eq!(got.max_error().meters(), REFINED_BOUND_M);
             assert_within_meters(got.value(), &v.wgs84(), 0.01);
         }
     }
@@ -288,14 +288,17 @@ mod tests {
 
         let gcj = Gcj02::new(london.lat(), london.lon()).unwrap();
         for back in [gcj.to_wgs84_refined(), gcj.to_wgs84_fast()] {
-            assert_eq!((back.lat(), back.lon()), (london.lat(), london.lon()));
-            assert_eq!(back.max_error_m(), 0.0);
+            assert_eq!(
+                (back.value().lat(), back.value().lon()),
+                (london.lat(), london.lon())
+            );
+            assert_eq!(back.max_error().meters(), 0.0);
         }
     }
 
     /// C3: at the box edge the fixed point does not converge, and the refined
     /// inverse must not claim a bound it did not reach. Its result's forward
-    /// image must land within the reported `max_error_m` of the input, and the
+    /// image must land within the reported `max_error` of the input, and the
     /// reported excess over the converged bound must be that residual (to the
     /// spread between the haversine sphere and the conservative radius).
     #[test]
@@ -306,11 +309,11 @@ mod tests {
         let residual = haversine_distance(&image, &target).unwrap().meters();
         assert!(residual > 100.0, "the edge must not converge: {residual} m");
         assert!(
-            residual <= got.max_error_m(),
+            residual <= got.max_error().meters(),
             "residual {residual} m exceeds the claimed {} m",
-            got.max_error_m()
+            got.max_error().meters()
         );
-        let excess = got.max_error_m() - REFINED_BOUND_M;
+        let excess = got.max_error().meters() - REFINED_BOUND_M;
         assert!(
             excess <= residual * 1.01,
             "excess {excess} m overstates the residual {residual} m"
@@ -327,13 +330,16 @@ mod tests {
         let gcj = origin.to_gcj02();
         assert!(out_of_china(gcj.lat(), gcj.lon()), "{gcj:?}");
         for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-            assert_eq!((got.lat(), got.lon()), (gcj.lat(), gcj.lon()));
+            assert_eq!(
+                (got.value().lat(), got.value().lon()),
+                (gcj.lat(), gcj.lon())
+            );
             let off = haversine_distance(got.value(), &origin).unwrap().meters();
             assert!(off > 600.0, "{off} m");
             assert!(
-                off <= got.max_error_m(),
+                off <= got.max_error().meters(),
                 "{off} m from the origin exceeds the claimed {} m",
-                got.max_error_m()
+                got.max_error().meters()
             );
         }
         // The widening is the gap to the inside preimage plus that inverse's
@@ -344,12 +350,12 @@ mod tests {
             origin.lat() - gcj.lat(),
             origin.lon() - gcj.lon(),
         );
-        let refined = gcj.to_wgs84_refined().max_error_m();
+        let refined = gcj.to_wgs84_refined().max_error().meters();
         assert!(
             (refined - (gap + REFINED_BOUND_M)).abs() < 0.01,
             "refined {refined} m vs gap {gap} m"
         );
-        let fast = gcj.to_wgs84_fast().max_error_m();
+        let fast = gcj.to_wgs84_fast().max_error().meters();
         assert!(
             (fast - (gap + FAST_BOUND_M)).abs() <= FAST_BOUND_M,
             "fast {fast} m vs gap {gap} m"
@@ -380,7 +386,7 @@ mod tests {
                 }
                 carried += 1;
                 for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-                    assert_within_meters(got.value(), &wgs, got.max_error_m());
+                    assert_within_meters(got.value(), &wgs, got.max_error().meters());
                 }
             }
             let far = [
@@ -392,7 +398,7 @@ mod tests {
             for (la, lo) in far {
                 let gcj = Gcj02::new(la, lo).unwrap();
                 for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-                    assert_eq!(got.max_error_m(), 0.0, "({la}, {lo})");
+                    assert_eq!(got.max_error().meters(), 0.0, "({la}, {lo})");
                 }
             }
         }
@@ -400,7 +406,7 @@ mod tests {
     }
 
     /// Honest-bound sweep: every 0.5° inside the box, the fast and refined
-    /// inverses land within their own `max_error_m` of the true WGS-84 point.
+    /// inverses land within their own `max_error` of the true WGS-84 point.
     #[test]
     fn inverse_bounds_hold_across_the_box() {
         let mut worst_fast = 0.0_f64;
@@ -408,11 +414,11 @@ mod tests {
             let wgs = Wgs84::new(lat, lon).unwrap();
             let gcj = wgs.to_gcj02();
             for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-                assert_within_meters(got.value(), &wgs, got.max_error_m());
+                assert_within_meters(got.value(), &wgs, got.max_error().meters());
             }
             let fast = haversine_distance(gcj.to_wgs84_fast().value(), &wgs).unwrap();
             worst_fast = worst_fast.max(fast.meters());
-            assert_eq!(gcj.to_wgs84_refined().max_error_m(), REFINED_BOUND_M);
+            assert_eq!(gcj.to_wgs84_refined().max_error().meters(), REFINED_BOUND_M);
         }
         assert!(
             worst_fast > 0.5 * FAST_BOUND_M,

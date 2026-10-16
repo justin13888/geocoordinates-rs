@@ -215,7 +215,7 @@ fn azimuths(a: &impl LatLon, b: &impl LatLon) -> Result<(f64, f64)> {
 fn geodesic_for(crs: Crs) -> Result<Geodesic> {
     let ellipsoid = ellipsoid_of(crs)?;
     Ok(Geodesic::new(
-        ellipsoid.semi_major_m(),
+        ellipsoid.semi_major().meters(),
         ellipsoid.flattening(),
     ))
 }
