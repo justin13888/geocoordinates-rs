@@ -253,6 +253,15 @@ fn validators_name_the_invalid_field() {
         ..aer
     };
     assert_eq!(invalid_field(aer_validate(range)), "range");
+
+    // `aer_new` returns the normalized record `Aer::new` builds.
+    let built = aer_new(-90.0, 10.0, -0.0).unwrap();
+    assert_eq!(built.azimuth_deg, 270.0);
+    assert_eq!(built.elevation_deg, 10.0);
+    assert!(built.range_m == 0.0 && built.range_m.is_sign_positive());
+    assert_eq!(aer_new(370.0, 0.0, 1.0).unwrap().azimuth_deg, 10.0);
+    assert_eq!(invalid_field(aer_new(0.0, 90.5, 1.0)), "elevation");
+    assert_eq!(invalid_field(aer_new(0.0, 0.0, -1.0)), "range");
 }
 
 /// Every export taking a frame record validates it, and an azimuth outside

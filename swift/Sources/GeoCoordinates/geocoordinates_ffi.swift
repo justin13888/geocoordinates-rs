@@ -692,7 +692,7 @@ public func FfiConverterTypeAccuracy_lower(_ value: Accuracy) -> RustBuffer {
  * Unvalidated until used: every export that takes one validates it as the
  * core `Aer::new` does (azimuth finite, elevation in `[-90, 90]`, range
  * finite and non-negative). An azimuth outside `[0, 360)` is accepted and
- * normalized. Call [`aer_validate`] to check a hand-built record up front.
+ * normalized. [`aer_validate`] checks a hand-built record; [`aer_new`] builds one.
  */
 public struct Aer: Equatable, Hashable {
     /**
@@ -5810,6 +5810,22 @@ public func aerFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> 
 })
 }
 /**
+ * Construct an AER record as `Aer::new` does: azimuth normalized to
+ * `[0, 360)`, a `-0.0` range made `+0.0`.
+ *
+ * # Errors
+ * As [`aer_validate`].
+ */
+public func aerNew(azimuthDeg: Double, elevationDeg: Double, rangeM: Double)throws  -> Aer  {
+    return try  FfiConverterTypeAer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_aer_new(
+        FfiConverterDouble.lower(azimuthDeg),
+        FfiConverterDouble.lower(elevationDeg),
+        FfiConverterDouble.lower(rangeM),$0
+    )
+})
+}
+/**
  * Recover the absolute coordinate of an AER offset about `origin` (exact; see
  * [`enu_to_coordinate`]).
  *
@@ -7051,6 +7067,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 9329) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_new() != 17511) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 39634) {

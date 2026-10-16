@@ -82,7 +82,7 @@ pub struct Ned {
 /// Unvalidated until used: every export that takes one validates it as the
 /// core `Aer::new` does (azimuth finite, elevation in `[-90, 90]`, range
 /// finite and non-negative). An azimuth outside `[0, 360)` is accepted and
-/// normalized. Call [`aer_validate`] to check a hand-built record up front.
+/// normalized. [`aer_validate`] checks a hand-built record; [`aer_new`] builds one.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Aer {
     /// Azimuth (degrees clockwise from north).
@@ -319,6 +319,16 @@ pub fn ned_validate(ned: Ned) -> Result<(), GeoError> {
 #[uniffi::export]
 pub fn aer_validate(aer: Aer) -> Result<(), GeoError> {
     gc::geodesy::Aer::try_from(aer).map(drop)
+}
+/// Construct an AER record as `Aer::new` does: azimuth normalized to
+/// `[0, 360)`, a `-0.0` range made `+0.0`.
+///
+/// # Errors
+/// As [`aer_validate`].
+#[uniffi::export]
+pub fn aer_new(azimuth_deg: f64, elevation_deg: f64, range_m: f64) -> Result<Aer, GeoError> {
+    let range = gc::Length::from_meters(range_m);
+    Ok(gc::geodesy::Aer::new(azimuth_deg, elevation_deg, range)?.into())
 }
 
 /// The ENU offset of `target` relative to `origin`, on the ellipsoid of the
