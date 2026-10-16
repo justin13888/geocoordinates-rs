@@ -13,7 +13,7 @@
 //! | WGS-84 → BD-09 | exact composition | [`Wgs84::try_to_bd09`] / [`TryFrom`] |
 //! | GCJ-02 → WGS-84 | **approximate** inverse, infallible | [`Gcj02::to_wgs84_fast`] / [`Gcj02::to_wgs84_refined`] → [`Approx`](crate::Approx) |
 //! | BD-09 → GCJ-02 | **approximate** inverse | [`Bd09::try_to_gcj02_fast`] / [`Bd09::try_to_gcj02_refined`] → [`Approx`](crate::Approx) |
-//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::try_to_wgs84_refined`] → [`Approx`](crate::Approx) |
+//! | BD-09 → WGS-84 | **approximate** composition | [`Bd09::try_to_wgs84_fast`] / [`Bd09::try_to_wgs84_refined`] → [`Approx`](crate::Approx) |
 //!
 //! Every type here is valid by construction: [`Wgs84::new`], [`Gcj02::new`],
 //! and [`Bd09::new`] reject a non-finite or out-of-range position, so the
