@@ -231,6 +231,9 @@ fn rewrite_unit_letters_is_anchored() {
     // An `S` with no seconds number before it is a hemisphere, not a marker.
     assert_eq!(rewrite_unit_letters("10d30.000mS"), "10°30.000'S");
     assert_eq!(rewrite_unit_letters("10d30mS"), "10°30'S");
+    // Nor is a lowercase `s` with no seconds number before it a marker.
+    assert_eq!(rewrite_unit_letters("10d30ms"), "10°30's");
+    assert_eq!(rewrite_unit_letters("10d30.000ms"), "10°30.000's");
     // A degree `d` needs a digit on both sides.
     assert_eq!(rewrite_unit_letters("d5"), "d5");
     assert_eq!(rewrite_unit_letters("40dN"), "40dN");
