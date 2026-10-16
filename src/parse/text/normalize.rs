@@ -27,15 +27,21 @@ pub(super) fn normalize(input: &str, decimal_comma: bool) -> String {
     rewrite_unit_letters(&decimals)
 }
 
-/// Rewrite letter unit markers (`d`, `m`, `s`, either case) into `°`, `'`, `"`,
-/// so letter-style DMS / DDM (`10d30m00.00sN`, `-20d15.000m`) parses like the
-/// symbol forms.
+/// Rewrite letter unit markers (`d` / `D`, `m` / `M`, and lowercase `s`) into
+/// `°`, `'`, `"`, so letter-style DMS / DDM (`10d30m00.00sN`, `-20d15.000m`)
+/// parses like the symbol forms.
 ///
 /// Only the anchored sequence `<digits>d<number>[m[<number>s]]` is rewritten: a
 /// degree `d` must sit between two digits, a minute `m` must directly follow
 /// the minutes number, and a second `s` must directly follow a seconds number.
 /// That anchoring keeps a hemisphere suffix intact — `S` in `10d30mS` (no
 /// seconds number) or in `33.9s` (no degree marker) stays a hemisphere letter.
+///
+/// The seconds marker is lowercase `s`. An uppercase `S` after a seconds number
+/// is the marker only when an uppercase hemisphere letter follows it directly
+/// (`10D30M15SN`, `10D30M15SS`); otherwise (`10d30m15S`) it is the South
+/// hemisphere, never a unit. Reading a trailing `S` as a unit would drop the
+/// hemisphere and silently resolve the value as North.
 pub(super) fn rewrite_unit_letters(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
     let mut out = chars.clone();
@@ -53,7 +59,12 @@ pub(super) fn rewrite_unit_letters(s: &str) -> String {
         }
         out[minutes_end] = '\'';
         let seconds_end = number_end(&chars, minutes_end + 1);
-        if seconds_end > minutes_end + 1 && matches!(chars.get(seconds_end), Some('s' | 'S')) {
+        let seconds_marker = match chars.get(seconds_end) {
+            Some('s') => true,
+            Some('S') => matches!(chars.get(seconds_end + 1), Some('N' | 'S' | 'E' | 'W')),
+            _ => false,
+        };
+        if seconds_end > minutes_end + 1 && seconds_marker {
             out[seconds_end] = '"';
         }
     }
