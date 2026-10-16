@@ -48,6 +48,10 @@ pub struct Ecef {
 }
 
 /// East-North-Up offset (meters) — mirror of [`gc::Enu`](gc::geodesy::Enu).
+///
+/// Unvalidated until used: every export that takes one validates it as the
+/// core `Enu::new` does (each component finite, and the offset's length
+/// finite). Call [`enu_validate`] to check a hand-built record up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Enu {
     /// East offset (meters).
@@ -59,6 +63,9 @@ pub struct Enu {
 }
 
 /// North-East-Down offset (meters) — mirror of [`gc::Ned`](gc::geodesy::Ned).
+///
+/// Unvalidated until used, as [`Enu`]; call [`ned_validate`] to check a
+/// hand-built record up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ned {
     /// North offset (meters).
@@ -71,6 +78,11 @@ pub struct Ned {
 
 /// Azimuth-Elevation-Range — mirror of [`gc::Aer`](gc::geodesy::Aer), with the
 /// slant range flattened to meters.
+///
+/// Unvalidated until used: every export that takes one validates it as the
+/// core `Aer::new` does (azimuth finite, elevation in `[-90, 90]`, range
+/// finite and non-negative). An azimuth outside `[0, 360)` is accepted and
+/// normalized. Call [`aer_validate`] to check a hand-built record up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Aer {
     /// Azimuth (degrees clockwise from north).
@@ -117,55 +129,54 @@ impl From<Ecef> for gc::geodesy::Ecef {
 impl From<gc::geodesy::Enu> for Enu {
     fn from(e: gc::geodesy::Enu) -> Self {
         Enu {
-            east: e.east_m,
-            north: e.north_m,
-            up: e.up_m,
+            east: e.east_m(),
+            north: e.north_m(),
+            up: e.up_m(),
         }
     }
 }
-impl From<Enu> for gc::geodesy::Enu {
-    fn from(e: Enu) -> Self {
-        gc::geodesy::Enu {
-            east_m: e.east,
-            north_m: e.north,
-            up_m: e.up,
-        }
+impl TryFrom<Enu> for gc::geodesy::Enu {
+    type Error = GeoError;
+
+    fn try_from(e: Enu) -> Result<Self, GeoError> {
+        gc::geodesy::Enu::new(e.east, e.north, e.up).map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Ned> for Ned {
     fn from(n: gc::geodesy::Ned) -> Self {
         Ned {
-            north: n.north_m,
-            east: n.east_m,
-            down: n.down_m,
+            north: n.north_m(),
+            east: n.east_m(),
+            down: n.down_m(),
         }
     }
 }
-impl From<Ned> for gc::geodesy::Ned {
-    fn from(n: Ned) -> Self {
-        gc::geodesy::Ned {
-            north_m: n.north,
-            east_m: n.east,
-            down_m: n.down,
-        }
+impl TryFrom<Ned> for gc::geodesy::Ned {
+    type Error = GeoError;
+
+    fn try_from(n: Ned) -> Result<Self, GeoError> {
+        gc::geodesy::Ned::new(n.north, n.east, n.down).map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Aer> for Aer {
     fn from(a: gc::geodesy::Aer) -> Self {
         Aer {
-            azimuth_deg: a.azimuth_deg,
-            elevation_deg: a.elevation_deg,
-            range_m: a.range.meters(),
+            azimuth_deg: a.azimuth_deg(),
+            elevation_deg: a.elevation_deg(),
+            range_m: a.range().meters(),
         }
     }
 }
-impl From<Aer> for gc::geodesy::Aer {
-    fn from(a: Aer) -> Self {
-        gc::geodesy::Aer {
-            azimuth_deg: a.azimuth_deg,
-            elevation_deg: a.elevation_deg,
-            range: gc::Length::from_meters(a.range_m),
-        }
+impl TryFrom<Aer> for gc::geodesy::Aer {
+    type Error = GeoError;
+
+    fn try_from(a: Aer) -> Result<Self, GeoError> {
+        gc::geodesy::Aer::new(
+            a.azimuth_deg,
+            a.elevation_deg,
+            gc::Length::from_meters(a.range_m),
+        )
+        .map_err(GeoError::from)
     }
 }
 
@@ -278,7 +289,45 @@ pub fn ecef_to_coordinate(ecef: Ecef, crs: Crs) -> Result<Coordinate, GeoError> 
         .map_err(Into::into)
 }
 
-/// The ENU offset of `target` relative to `origin` (WGS-84).
+/// Validate a (possibly hand-built) ENU record — the FFI form of `Enu::new`.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming `east`, `north`, or `up` when that
+/// component is not finite, and `magnitude` when the offset's length
+/// overflows.
+#[uniffi::export]
+pub fn enu_validate(enu: Enu) -> Result<(), GeoError> {
+    gc::geodesy::Enu::try_from(enu).map(drop)
+}
+/// Validate a (possibly hand-built) NED record — the FFI form of `Ned::new`.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming `north`, `east`, or `down` when that
+/// component is not finite, and `magnitude` when the offset's length
+/// overflows.
+#[uniffi::export]
+pub fn ned_validate(ned: Ned) -> Result<(), GeoError> {
+    gc::geodesy::Ned::try_from(ned).map(drop)
+}
+/// Validate a (possibly hand-built) AER record — the FFI form of `Aer::new`.
+/// An azimuth outside `[0, 360)` is valid; the conversions normalize it.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming `azimuth` when it is not finite,
+/// `elevation` when it is not finite or outside `[-90, 90]`, and `range` when
+/// it is not finite or negative.
+#[uniffi::export]
+pub fn aer_validate(aer: Aer) -> Result<(), GeoError> {
+    gc::geodesy::Aer::try_from(aer).map(drop)
+}
+
+/// The ENU offset of `target` relative to `origin`, on the ellipsoid of the
+/// classic datum (WGS-84, NAD27, Tokyo, Pulkovo-1942) they share.
+///
+/// # Errors
+/// `GeoError::CrsMismatch` when either coordinate is GCJ-02 or BD-09, or the
+/// two are on different datums; `GeoError::InvalidValue` (field `height`) for
+/// an orthometric height or an offset that overflows.
 #[uniffi::export]
 pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Enu, GeoError> {
     gc::geodesy::Enu::try_from_coordinate(target.try_into()?, origin.try_into()?)
@@ -286,26 +335,34 @@ pub fn enu_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Enu
         .map_err(Into::into)
 }
 /// Recover the absolute coordinate of an ENU offset about `origin` (exact,
-/// through the closed-form inverse of [`ecef_to_coordinate`]).
+/// through the closed-form inverse of [`ecef_to_coordinate`]), tagged with the
+/// origin's datum.
+///
+/// # Errors
+/// As [`enu_validate`] for an invalid record; as [`enu_from_coordinate`] for
+/// an `origin` it would reject.
 #[uniffi::export]
 pub fn enu_to_coordinate(enu: Enu, origin: Coordinate) -> Result<Coordinate, GeoError> {
-    gc::geodesy::Enu::from(enu)
+    gc::geodesy::Enu::try_from(enu)?
         .try_to_coordinate(origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
-/// ENU → NED.
+/// ENU → NED (exact); an invalid record fails as [`enu_validate`].
 #[uniffi::export]
-pub fn enu_to_ned(enu: Enu) -> Ned {
-    gc::geodesy::Enu::from(enu).to_ned().into()
+pub fn enu_to_ned(enu: Enu) -> Result<Ned, GeoError> {
+    Ok(gc::geodesy::Enu::try_from(enu)?.to_ned().into())
 }
-/// ENU → azimuth/elevation/range.
+/// ENU → azimuth/elevation/range (exact); an invalid record fails as [`enu_validate`].
 #[uniffi::export]
-pub fn enu_to_aer(enu: Enu) -> Aer {
-    gc::geodesy::Enu::from(enu).to_aer().into()
+pub fn enu_to_aer(enu: Enu) -> Result<Aer, GeoError> {
+    Ok(gc::geodesy::Enu::try_from(enu)?.to_aer().into())
 }
 
-/// The NED offset of `target` relative to `origin` (WGS-84).
+/// The NED offset of `target` relative to `origin` (as [`enu_from_coordinate`]).
+///
+/// # Errors
+/// As [`enu_from_coordinate`].
 #[uniffi::export]
 pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Ned, GeoError> {
     gc::geodesy::Ned::try_from_coordinate(target.try_into()?, origin.try_into()?)
@@ -314,25 +371,33 @@ pub fn ned_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Ned
 }
 /// Recover the absolute coordinate of a NED offset about `origin` (exact; see
 /// [`enu_to_coordinate`]).
+///
+/// # Errors
+/// As [`ned_validate`] for an invalid record; as [`enu_from_coordinate`] for
+/// an `origin` it would reject.
 #[uniffi::export]
 pub fn ned_to_coordinate(ned: Ned, origin: Coordinate) -> Result<Coordinate, GeoError> {
-    gc::geodesy::Ned::from(ned)
+    gc::geodesy::Ned::try_from(ned)?
         .try_to_coordinate(origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
-/// NED → ENU.
+/// NED → ENU (exact); an invalid record fails as [`ned_validate`].
 #[uniffi::export]
-pub fn ned_to_enu(ned: Ned) -> Enu {
-    gc::geodesy::Ned::from(ned).to_enu().into()
+pub fn ned_to_enu(ned: Ned) -> Result<Enu, GeoError> {
+    Ok(gc::geodesy::Ned::try_from(ned)?.to_enu().into())
 }
-/// NED → azimuth/elevation/range.
+/// NED → azimuth/elevation/range (exact); an invalid record fails as [`ned_validate`].
 #[uniffi::export]
-pub fn ned_to_aer(ned: Ned) -> Aer {
-    gc::geodesy::Ned::from(ned).to_aer().into()
+pub fn ned_to_aer(ned: Ned) -> Result<Aer, GeoError> {
+    Ok(gc::geodesy::Ned::try_from(ned)?.to_aer().into())
 }
 
-/// The azimuth/elevation/range of `target` relative to `origin` (WGS-84).
+/// The azimuth/elevation/range of `target` relative to `origin` (as
+/// [`enu_from_coordinate`]).
+///
+/// # Errors
+/// As [`enu_from_coordinate`].
 #[uniffi::export]
 pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Aer, GeoError> {
     gc::geodesy::Aer::try_from_coordinate(target.try_into()?, origin.try_into()?)
@@ -341,22 +406,26 @@ pub fn aer_from_coordinate(target: Coordinate, origin: Coordinate) -> Result<Aer
 }
 /// Recover the absolute coordinate of an AER offset about `origin` (exact; see
 /// [`enu_to_coordinate`]).
+///
+/// # Errors
+/// As [`aer_validate`] for an invalid record; as [`enu_from_coordinate`] for
+/// an `origin` it would reject.
 #[uniffi::export]
 pub fn aer_to_coordinate(aer: Aer, origin: Coordinate) -> Result<Coordinate, GeoError> {
-    gc::geodesy::Aer::from(aer)
+    gc::geodesy::Aer::try_from(aer)?
         .try_to_coordinate(origin.try_into()?)
         .map(Into::into)
         .map_err(Into::into)
 }
-/// AER → ENU.
+/// AER → ENU (exact); an invalid record fails as [`aer_validate`].
 #[uniffi::export]
-pub fn aer_to_enu(aer: Aer) -> Enu {
-    gc::geodesy::Aer::from(aer).to_enu().into()
+pub fn aer_to_enu(aer: Aer) -> Result<Enu, GeoError> {
+    Ok(gc::geodesy::Aer::try_from(aer)?.to_enu().into())
 }
-/// AER → NED.
+/// AER → NED (exact); an invalid record fails as [`aer_validate`].
 #[uniffi::export]
-pub fn aer_to_ned(aer: Aer) -> Ned {
-    gc::geodesy::Aer::from(aer).to_ned().into()
+pub fn aer_to_ned(aer: Aer) -> Result<Ned, GeoError> {
+    Ok(gc::geodesy::Aer::try_from(aer)?.to_ned().into())
 }
 
 // ===========================================================================
