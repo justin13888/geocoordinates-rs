@@ -239,6 +239,13 @@ fn kml_nesting_is_bounded_at_32_levels() {
     assert_eq!((fixes[0].coord.lat(), fixes[0].coord.lon()), (2.0, 1.0));
     let too_deep = format!("<kml>{}</kml>", nested("<Folder>", point, "</Folder>", 30));
     assert_parse_err!(from_kml(&too_deep), "kml: nesting deeper than 32 levels");
+    // An end tag inside an `<?xml …?>` declaration, which `kml` skips even
+    // inside elements, closes no level: 40 such folders are 40 levels.
+    let hidden = nested("<Folder><?xml ></Folder>?>", point, "</Folder>", 40);
+    assert_parse_err!(
+        from_kml(&format!("<kml>{hidden}</kml>")),
+        "kml: nesting deeper than 32 levels"
+    );
     let commented = format!("<kml><!-- <Folder> -->{point}</kml>");
     assert_eq!(from_kml(&commented).unwrap().len(), 1);
     // End tags close levels: many shallow siblings are fine.
@@ -272,6 +279,10 @@ fn xml_depth_scan_counts_only_open_elements() {
     assert!(!ok("<!---></a>--><b>"));
     assert!(!ok(r#"<!DOCTYPE d [<!ENTITY e "x"></a>]><b>"#));
     assert!(!ok(r#"</a x="></a>"><b><c>"#));
+    // `quick-xml` 0.37 balances only `<` and `>` inside a `<!DOCTYPE …>`,
+    // ignoring quotes and `[`, so a quoted `>` counts: the declaration ends
+    // after `'>'>` and the `<b>` that follows is a start tag the parser reads.
+    assert!(!ok("<!DOCTYPE d [<!ENTITY e '>'><b>]>"));
     // The shortest closed forms: the `?` opening `<?>` also ends it.
     assert!(ok("<?></a><b>"));
     assert!(ok("<!----></a><b>"));

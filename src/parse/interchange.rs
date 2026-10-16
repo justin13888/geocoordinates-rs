@@ -188,7 +188,9 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
         None
     }
     /// The offset of the `>` ending the `<!DOCTYPE` that `decl` starts: the
-    /// first `>` not balanced by a `<` inside it.
+    /// first `>` not balanced by a `<` inside it. Like `quick-xml` 0.37, it
+    /// tracks neither quotes nor `[`: skipping a quoted `>` the parser counts
+    /// would hide the start tags after it.
     fn doctype_end(decl: &str) -> Option<usize> {
         let mut open = 0usize;
         for (i, b) in decl.bytes().enumerate().skip(1) {
