@@ -215,9 +215,13 @@ fn rewrite_decimal_comma_only_between_digits() {
 
 #[test]
 fn rewrite_unit_letters_is_anchored() {
-    // DMS and DDM markers, either case.
+    // DMS and DDM markers; degree and minute markers in either case.
     assert_eq!(rewrite_unit_letters("10d30m00.00sN"), "10°30'00.00\"N");
-    assert_eq!(rewrite_unit_letters("10D30M00S"), "10°30'00\"");
+    assert_eq!(rewrite_unit_letters("10D30M00s"), "10°30'00\"");
+    // An uppercase `S` after a seconds number is the South hemisphere, not
+    // the seconds marker.
+    assert_eq!(rewrite_unit_letters("10D30M00S"), "10°30'00S");
+    assert_eq!(rewrite_unit_letters("10d30m15S"), "10°30'15S");
     assert_eq!(rewrite_unit_letters("-20d15.000m"), "-20°15.000'");
     // Both components of a pair are rewritten.
     assert_eq!(
@@ -255,6 +259,27 @@ fn letter_markers_parse_like_symbols() {
     let opts = comma_options();
     let fix = parse_text_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
     assert_close(fix.coord.lat(), -lat, 1e-9);
+    assert_close(fix.coord.lon(), lon, 1e-9);
+}
+
+#[test]
+fn uppercase_s_after_seconds_is_south_not_the_seconds_marker() {
+    let lat = 10.0 + 30.0 / 60.0 + 15.0 / 3600.0;
+    let lon = 20.0 + 10.0 / 60.0 + 5.0 / 3600.0;
+    // Uppercase `S` is the hemisphere: the pair is fully lettered, so the
+    // result is South with explicit confidence, never a silent North.
+    let fix = crate::parse::parse_coordinate("10d30m15S, 20d10m5E").unwrap();
+    assert_close(fix.coord.lat(), -lat, 1e-9);
+    assert_close(fix.coord.lon(), lon, 1e-9);
+    assert_close(source(&fix).confidence.value(), 1.0, 1e-12);
+    // Lowercase `s` is the seconds marker; the hemisphere follows it.
+    let fix = crate::parse::parse_coordinate("10d30m15sS, 20d10m5sE").unwrap();
+    assert_close(fix.coord.lat(), -lat, 1e-9);
+    assert_close(fix.coord.lon(), lon, 1e-9);
+    // Lowercase `s` alone is the unit, so the latitude carries no hemisphere
+    // and the `E` on the other component resolves it as the positive axis.
+    let fix = crate::parse::parse_coordinate("10d30m15s, 20d10m5sE").unwrap();
+    assert_close(fix.coord.lat(), lat, 1e-9);
     assert_close(fix.coord.lon(), lon, 1e-9);
 }
 
