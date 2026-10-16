@@ -24,7 +24,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
 | **Core types** (crate root) | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Length`, `LengthUnit` | ✅ | ✅ |
-| **Fix metadata** (`fix`) | `Fix`, `Accuracy`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
+| **Fix metadata** (`fix`) | `Fix`, `Accuracy`, `AccuracyKind`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
 | **Angles** (`angle`) | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees` | ✅ | ✅ |
 | **China datums** (`china`) | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `out_of_china` | ✅ | ✅ |
 | **Runtime dispatch** (`convert`) | `convert` | ✅ | ✅ |
