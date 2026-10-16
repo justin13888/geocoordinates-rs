@@ -10,9 +10,19 @@ repository = "https://github.com/justin13888/geocoordinates-rs"
 readme = "README.md"
 keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]
 categories = ["science::geo", "mathematics", "parser-implementations"]
-# Contributor-facing files and the Swift package (which lives at the repo root for
-# SwiftPM) are not part of the published crate.
-exclude = ["AGENTS.md", "CLAUDE.md", "STABILIZATION.md", "PUBLISHING.md", "Package.swift", "swift"]
+# An allow-list, so a new contributor file (CI, tool config, baselines, the Swift
+# package at the repo root) stays out of the published crate without anyone having
+# to remember an exclude entry. Cargo adds Cargo.toml and Cargo.lock itself. The
+# flagship example is left out too: it needs every feature and is CI's concern, so
+# `cargo package` drops its target with a warning.
+include = ["/src/**/*.rs", "/LICENSE-APACHE", "/LICENSE-MIT", "/README.md", "/CHANGELOG.md"]
+
+# docs.rs builds with every feature, so each feature-gated item is documented, and
+# sets `--cfg docsrs`, which turns on the `doc(cfg(...))` badges naming the feature
+# each gated item needs (see `src/lib.rs`).
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 # Per-feature MSRV exceptions. `rust-version` above covers the core crate and every
 # feature not listed here; each listed feature needs the newer rustc its upstream

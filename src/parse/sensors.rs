@@ -77,6 +77,7 @@ use super::hdop_accuracy;
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "nmea")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nmea")))]
 pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
     let body = sentence.trim().strip_prefix('$').unwrap_or(sentence.trim());
     let (data, checksum) = match body.split_once('*') {

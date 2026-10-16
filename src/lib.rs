@@ -107,6 +107,7 @@ pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(any(feature = "h3", feature = "s2"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "h3", feature = "s2"))))]
 pub mod dgg;
 
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).

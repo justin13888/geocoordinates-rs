@@ -8,8 +8,8 @@ the 1.0 freeze.
 This file is the single contributor-facing record of that effort — what
 "stabilized" means, what the audit found, which issue and pull request closed
 each finding, and what remains open. `README.md` carries
-the user-facing surface table. This file is excluded from the published crate
-(`exclude` in `Cargo.toml`); it is a contributor plan, not API docs.
+the user-facing surface table. This file is not in the published crate
+(the `include` allow-list in `Cargo.toml` leaves it out); it is a contributor plan, not API docs.
 
 ## What "stabilized" means
 

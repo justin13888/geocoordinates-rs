@@ -274,6 +274,7 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "geojson")]
+#[cfg_attr(docsrs, doc(cfg(feature = "geojson")))]
 pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
     use geojson::{GeoJson, Geometry, GeometryValue, Position as GeoJsonPosition};
 
@@ -378,6 +379,7 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "wkt")]
+#[cfg_attr(docsrs, doc(cfg(feature = "wkt")))]
 pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
     use core::str::FromStr;
 
@@ -483,6 +485,7 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "gpx")]
+#[cfg_attr(docsrs, doc(cfg(feature = "gpx")))]
 pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
     fn push(tag: &str, wp: &gpx::Waypoint, out: &mut Vec<Position>) {
         let p = wp.point(); // geo-types Point: x = lon, y = lat
@@ -550,6 +553,7 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "kml")]
+#[cfg_attr(docsrs, doc(cfg(feature = "kml")))]
 pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
     use core::str::FromStr;
 
