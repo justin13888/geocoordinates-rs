@@ -688,6 +688,11 @@ public func FfiConverterTypeAccuracy_lower(_ value: Accuracy) -> RustBuffer {
 /**
  * Azimuth-Elevation-Range — mirror of [`gc::Aer`](gc::geodesy::Aer), with the
  * slant range flattened to meters.
+ *
+ * Unvalidated until used: every export that takes one validates it as the
+ * core `Aer::new` does (azimuth finite, elevation in `[-90, 90]`, range
+ * finite and non-negative). An azimuth outside `[0, 360)` is accepted and
+ * normalized. [`aer_validate`] checks a hand-built record; [`aer_new`] builds one.
  */
 public struct Aer: Equatable, Hashable {
     /**
@@ -1747,6 +1752,10 @@ public func FfiConverterTypeEllipsoid_lower(_ value: Ellipsoid) -> RustBuffer {
 
 /**
  * East-North-Up offset (meters) — mirror of [`gc::Enu`](gc::geodesy::Enu).
+ *
+ * Unvalidated until used: every export that takes one validates it as the
+ * core `Enu::new` does (each component finite, and the offset's length
+ * finite). Call [`enu_validate`] to check a hand-built record up front.
  */
 public struct Enu: Equatable, Hashable {
     /**
@@ -2242,6 +2251,9 @@ public func FfiConverterTypeHelmert_lower(_ value: Helmert) -> RustBuffer {
 
 /**
  * North-East-Down offset (meters) — mirror of [`gc::Ned`](gc::geodesy::Ned).
+ *
+ * Unvalidated until used, as [`Enu`]; call [`ned_validate`] to check a
+ * hand-built record up front.
  */
 public struct Ned: Equatable, Hashable {
     /**
@@ -5783,7 +5795,11 @@ public func s2Encode(coord: Coordinate, level: UInt8)throws  -> S2CellId  {
 })
 }
 /**
- * The azimuth/elevation/range of `target` relative to `origin` (WGS-84).
+ * The azimuth/elevation/range of `target` relative to `origin` (as
+ * [`enu_from_coordinate`]).
+ *
+ * # Errors
+ * As [`enu_from_coordinate`].
  */
 public func aerFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> Aer  {
     return try  FfiConverterTypeAer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5794,8 +5810,28 @@ public func aerFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> 
 })
 }
 /**
+ * Construct an AER record as `Aer::new` does: azimuth normalized to
+ * `[0, 360)`, a `-0.0` range made `+0.0`.
+ *
+ * # Errors
+ * As [`aer_validate`].
+ */
+public func aerNew(azimuthDeg: Double, elevationDeg: Double, rangeM: Double)throws  -> Aer  {
+    return try  FfiConverterTypeAer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_aer_new(
+        FfiConverterDouble.lower(azimuthDeg),
+        FfiConverterDouble.lower(elevationDeg),
+        FfiConverterDouble.lower(rangeM),$0
+    )
+})
+}
+/**
  * Recover the absolute coordinate of an AER offset about `origin` (exact; see
  * [`enu_to_coordinate`]).
+ *
+ * # Errors
+ * As [`aer_validate`] for an invalid record; as [`enu_from_coordinate`] for
+ * an `origin` it would reject.
  */
 public func aerToCoordinate(aer: Aer, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -5806,24 +5842,39 @@ public func aerToCoordinate(aer: Aer, origin: Coordinate)throws  -> Coordinate  
 })
 }
 /**
- * AER → ENU.
+ * AER → ENU (exact); an invalid record fails as [`aer_validate`].
  */
-public func aerToEnu(aer: Aer) -> Enu  {
-    return try!  FfiConverterTypeEnu_lift(try! rustCall() {
+public func aerToEnu(aer: Aer)throws  -> Enu  {
+    return try  FfiConverterTypeEnu_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_aer_to_enu(
         FfiConverterTypeAer_lower(aer),$0
     )
 })
 }
 /**
- * AER → NED.
+ * AER → NED (exact); an invalid record fails as [`aer_validate`].
  */
-public func aerToNed(aer: Aer) -> Ned  {
-    return try!  FfiConverterTypeNed_lift(try! rustCall() {
+public func aerToNed(aer: Aer)throws  -> Ned  {
+    return try  FfiConverterTypeNed_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_aer_to_ned(
         FfiConverterTypeAer_lower(aer),$0
     )
 })
+}
+/**
+ * Validate a (possibly hand-built) AER record — the FFI form of `Aer::new`.
+ * An azimuth outside `[0, 360)` is valid; the conversions normalize it.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `azimuth` when it is not finite,
+ * `elevation` when it is not finite or outside `[-90, 90]`, and `range` when
+ * it is not finite or negative.
+ */
+public func aerValidate(aer: Aer)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_aer_validate(
+        FfiConverterTypeAer_lower(aer),$0
+    )
+}
 }
 /**
  * Along-track distance (meters) from `start` to the foot of the perpendicular
@@ -6030,7 +6081,13 @@ public func ellipsoidWgs84() -> Ellipsoid  {
 })
 }
 /**
- * The ENU offset of `target` relative to `origin` (WGS-84).
+ * The ENU offset of `target` relative to `origin`, on the ellipsoid of the
+ * classic datum (WGS-84, NAD27, Tokyo, Pulkovo-1942) they share.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when either coordinate is GCJ-02 or BD-09, or the
+ * two are on different datums; `GeoError::InvalidValue` (field `height`) for
+ * an orthometric height or an offset that overflows.
  */
 public func enuFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> Enu  {
     return try  FfiConverterTypeEnu_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6041,10 +6098,10 @@ public func enuFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> 
 })
 }
 /**
- * ENU → azimuth/elevation/range.
+ * ENU → azimuth/elevation/range (exact); an invalid record fails as [`enu_validate`].
  */
-public func enuToAer(enu: Enu) -> Aer  {
-    return try!  FfiConverterTypeAer_lift(try! rustCall() {
+public func enuToAer(enu: Enu)throws  -> Aer  {
+    return try  FfiConverterTypeAer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_enu_to_aer(
         FfiConverterTypeEnu_lower(enu),$0
     )
@@ -6052,7 +6109,12 @@ public func enuToAer(enu: Enu) -> Aer  {
 }
 /**
  * Recover the absolute coordinate of an ENU offset about `origin` (exact,
- * through the closed-form inverse of [`ecef_to_coordinate`]).
+ * through the closed-form inverse of [`ecef_to_coordinate`]), tagged with the
+ * origin's datum.
+ *
+ * # Errors
+ * As [`enu_validate`] for an invalid record; as [`enu_from_coordinate`] for
+ * an `origin` it would reject.
  */
 public func enuToCoordinate(enu: Enu, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6063,14 +6125,28 @@ public func enuToCoordinate(enu: Enu, origin: Coordinate)throws  -> Coordinate  
 })
 }
 /**
- * ENU → NED.
+ * ENU → NED (exact); an invalid record fails as [`enu_validate`].
  */
-public func enuToNed(enu: Enu) -> Ned  {
-    return try!  FfiConverterTypeNed_lift(try! rustCall() {
+public func enuToNed(enu: Enu)throws  -> Ned  {
+    return try  FfiConverterTypeNed_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_enu_to_ned(
         FfiConverterTypeEnu_lower(enu),$0
     )
 })
+}
+/**
+ * Validate a (possibly hand-built) ENU record — the FFI form of `Enu::new`.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `east`, `north`, or `up` when that
+ * component is not finite, and `magnitude` when the offset's length
+ * overflows.
+ */
+public func enuValidate(enu: Enu)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_enu_validate(
+        FfiConverterTypeEnu_lower(enu),$0
+    )
+}
 }
 /**
  * Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`,
@@ -6173,7 +6249,10 @@ public func midpoint(a: Coordinate, b: Coordinate)throws  -> Coordinate  {
 })
 }
 /**
- * The NED offset of `target` relative to `origin` (WGS-84).
+ * The NED offset of `target` relative to `origin` (as [`enu_from_coordinate`]).
+ *
+ * # Errors
+ * As [`enu_from_coordinate`].
  */
 public func nedFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> Ned  {
     return try  FfiConverterTypeNed_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6184,10 +6263,10 @@ public func nedFromCoordinate(target: Coordinate, origin: Coordinate)throws  -> 
 })
 }
 /**
- * NED → azimuth/elevation/range.
+ * NED → azimuth/elevation/range (exact); an invalid record fails as [`ned_validate`].
  */
-public func nedToAer(ned: Ned) -> Aer  {
-    return try!  FfiConverterTypeAer_lift(try! rustCall() {
+public func nedToAer(ned: Ned)throws  -> Aer  {
+    return try  FfiConverterTypeAer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ned_to_aer(
         FfiConverterTypeNed_lower(ned),$0
     )
@@ -6196,6 +6275,10 @@ public func nedToAer(ned: Ned) -> Aer  {
 /**
  * Recover the absolute coordinate of a NED offset about `origin` (exact; see
  * [`enu_to_coordinate`]).
+ *
+ * # Errors
+ * As [`ned_validate`] for an invalid record; as [`enu_from_coordinate`] for
+ * an `origin` it would reject.
  */
 public func nedToCoordinate(ned: Ned, origin: Coordinate)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6206,14 +6289,28 @@ public func nedToCoordinate(ned: Ned, origin: Coordinate)throws  -> Coordinate  
 })
 }
 /**
- * NED → ENU.
+ * NED → ENU (exact); an invalid record fails as [`ned_validate`].
  */
-public func nedToEnu(ned: Ned) -> Enu  {
-    return try!  FfiConverterTypeEnu_lift(try! rustCall() {
+public func nedToEnu(ned: Ned)throws  -> Enu  {
+    return try  FfiConverterTypeEnu_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ned_to_enu(
         FfiConverterTypeNed_lower(ned),$0
     )
 })
+}
+/**
+ * Validate a (possibly hand-built) NED record — the FFI form of `Ned::new`.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `north`, `east`, or `down` when that
+ * component is not finite, and `magnitude` when the offset's length
+ * overflows.
+ */
+public func nedValidate(ned: Ned)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ned_validate(
+        FfiConverterTypeNed_lower(ned),$0
+    )
+}
 }
 /**
  * Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`, on
@@ -6974,16 +7071,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_s2_encode() != 10687) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 3027) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 9329) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 16735) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_new() != 17511) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_enu() != 573) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_coordinate() != 39634) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_ned() != 57003) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_enu() != 55044) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_to_ned() != 13642) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_validate() != 22020) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_spherical_m() != 41447) {
@@ -7034,16 +7137,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_wgs84() != 31681) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_from_coordinate() != 18626) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_from_coordinate() != 56137) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_aer() != 55640) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_aer() != 28696) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 50296) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_coordinate() != 55354) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 44436) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 4775) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_validate() != 32923) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_final_bearing() != 8531) {
@@ -7067,16 +7173,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_midpoint() != 4329) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_from_coordinate() != 13238) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_from_coordinate() != 4610) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_aer() != 43200) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_aer() != 60973) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 4551) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_coordinate() != 20124) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 5658) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 50220) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_validate() != 10459) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_rhumb_bearing() != 17626) {

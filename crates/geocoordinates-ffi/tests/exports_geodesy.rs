@@ -1,6 +1,6 @@
-//! Calls every geodesy FFI export (ellipsoids, ECEF, local frames, geodesics,
-//! rhumb lines, Helmert / datum transforms, conversion dispatch) at least once
-//! with an asserted value.
+//! Calls every geodesy FFI export (ellipsoids, ECEF, geodesics, rhumb lines,
+//! Helmert / datum transforms, conversion dispatch) at least once with an
+//! asserted value. The local frames are in `exports_frames.rs`.
 //!
 //! Values are pinned to what the core crate produces today: the Karney
 //! geodesic is reference-grade (`geographiclib-rs`), the spherical and rhumb
@@ -167,124 +167,6 @@ fn ecef_from_coordinate_uses_the_ellipsoid_of_the_crs() {
         Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "crs"),
         other => panic!("expected InvalidValue for `crs`, got {other:?}"),
     }
-}
-
-// --- Local tangent frames ---
-
-#[test]
-fn enu_ned_and_aer_from_coordinate_agree() {
-    let origin = wgs84(40.0, -75.0);
-    let target = wgs84(40.1, -74.9);
-    let enu = enu_from_coordinate(target, origin).unwrap();
-    close(enu.east, 8_526.911_601_003_281, 1e-6);
-    close(enu.north, 11_108.336_797_369_358, 1e-6);
-    close(enu.up, -15.389_949_872_675_06, 1e-6);
-    let ned = ned_from_coordinate(target, origin).unwrap();
-    assert_eq!(
-        (ned.north, ned.east, ned.down),
-        (enu.north, enu.east, -enu.up)
-    );
-    let aer = aer_from_coordinate(target, origin).unwrap();
-    close(aer.azimuth_deg, 37.510_338_419_019_85, 1e-9);
-    close(aer.elevation_deg, -0.062_967_599_443_068_47, 1e-9);
-    close(aer.range_m, 14_003.699_679_215_903, 1e-6);
-}
-
-#[test]
-fn frame_offsets_recover_the_absolute_coordinate() {
-    let origin = wgs84(40.0, -75.0);
-    let target = wgs84(40.1, -74.9);
-    let enu = enu_from_coordinate(target, origin).unwrap();
-    let from_enu = enu_to_coordinate(enu, origin).unwrap();
-    close(from_enu.lat, 40.1, 1e-9);
-    close(from_enu.lon, -74.9, 1e-9);
-    assert_eq!(from_enu.crs, Crs::Wgs84);
-
-    let north = ned_to_coordinate(
-        Ned {
-            north: 1000.0,
-            east: 0.0,
-            down: 0.0,
-        },
-        origin,
-    )
-    .unwrap();
-    close(north.lat, 40.009_006_191_934_64, 1e-12);
-    close(north.lon, -75.0, 1e-12);
-
-    let east = aer_to_coordinate(
-        Aer {
-            azimuth_deg: 90.0,
-            elevation_deg: 0.0,
-            range_m: 1000.0,
-        },
-        origin,
-    )
-    .unwrap();
-    close(east.lat, 39.999_999_408_397_81, 1e-12);
-    close(east.lon, -74.988_289_555_927_2, 1e-12);
-}
-
-#[test]
-fn frame_conversions_swap_axes_and_signs() {
-    let enu = Enu {
-        east: 1.0,
-        north: 2.0,
-        up: 3.0,
-    };
-    assert_eq!(
-        enu_to_ned(enu),
-        Ned {
-            north: 2.0,
-            east: 1.0,
-            down: -3.0,
-        }
-    );
-    assert_eq!(
-        ned_to_enu(Ned {
-            north: 2.0,
-            east: 1.0,
-            down: -3.0,
-        }),
-        enu
-    );
-    let north = enu_to_aer(Enu {
-        east: 0.0,
-        north: 100.0,
-        up: 0.0,
-    });
-    assert_eq!(
-        (north.azimuth_deg, north.elevation_deg, north.range_m),
-        (0.0, 0.0, 100.0)
-    );
-    let up_east = ned_to_aer(Ned {
-        north: 0.0,
-        east: 100.0,
-        down: -100.0,
-    });
-    close(up_east.azimuth_deg, 90.0, 1e-12);
-    close(up_east.elevation_deg, 45.0, 1e-12);
-    close(up_east.range_m, 100.0 * 2f64.sqrt(), 1e-9);
-}
-
-#[test]
-fn aer_converts_to_enu_and_ned() {
-    let enu = aer_to_enu(Aer {
-        azimuth_deg: 90.0,
-        elevation_deg: 0.0,
-        range_m: 100.0,
-    });
-    close(enu.east, 100.0, 1e-9);
-    close(enu.north, 0.0, 1e-9);
-    close(enu.up, 0.0, 1e-9);
-    let ned = aer_to_ned(Aer {
-        azimuth_deg: 0.0,
-        elevation_deg: 90.0,
-        range_m: 100.0,
-    });
-    close(ned.north, 0.0, 1e-9);
-    close(ned.east, 0.0, 1e-9);
-    close(ned.down, -100.0, 1e-9);
 }
 
 // --- Geodesics ---

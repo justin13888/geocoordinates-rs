@@ -195,6 +195,20 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         )
         .is_err()
     );
+    assert!(matches!(
+        Enu::try_from_coordinate(
+            Coordinate::new(40.0, -75.0, Crs::Nad27)?,
+            Coordinate::wgs84(40.0, -75.0)?
+        ),
+        Err(Error::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: Crs::Nad27
+        })
+    ));
+    assert!(matches!(
+        Enu::new(f64::NAN, 0.0, 0.0),
+        Err(Error::InvalidValue { field: "east", .. })
+    ));
     let nad27_transform = DatumTransform::catalog_to_wgs84(Crs::Nad27).expect("catalogued");
     assert!(
         nad27_transform

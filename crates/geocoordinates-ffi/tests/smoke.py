@@ -419,6 +419,12 @@ assert approx(enu.north, 11_103.553_727, 1e-5), enu.north
 assert approx(enu.east, 0.0, 1e-6) and approx(enu.up, -9.689_709, 1e-5), (enu.east, enu.up)
 aer = gc.enu_to_aer(gc.Enu(east=0.0, north=100.0, up=0.0))
 assert approx(aer.azimuth_deg, 0.0, 1e-9) and approx(aer.range_m, 100.0, 1e-9)
+# A hand-built frame record is validated on use, naming the invalid field.
+try:
+    gc.aer_to_enu(gc.Aer(azimuth_deg=0.0, elevation_deg=91.0, range_m=1.0))
+    raise AssertionError("expected GeoError.InvalidValue for a 91 degree elevation")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "elevation", e.field
 
 # --- Geodesics ---
 ny_london = gc.geodesic_distance_m(
