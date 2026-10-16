@@ -387,6 +387,52 @@ fn cross_and_along_track_reject_a_degenerate_path() {
 }
 
 #[test]
+fn along_track_rejects_a_pole_of_the_path() {
+    // Each path's great circle has the two listed points as its poles.
+    for (start, end, poles) in [
+        (c(0.0, 0.0), c(0.0, 10.0), [c(90.0, 0.0), c(-90.0, 123.0)]),
+        (c(0.0, 0.0), c(10.0, 0.0), [c(0.0, -90.0), c(0.0, 90.0)]),
+        (
+            c(0.0, 170.0),
+            c(0.0, -170.0),
+            [c(90.0, 45.0), c(-90.0, 0.0)],
+        ),
+    ] {
+        for pole in poles {
+            let r = along_track_distance_spherical(&pole, &start, &end);
+            assert!(
+                matches!(&r, Err(Error::InvalidValue { field: "point", .. })),
+                "{pole:?} on {start:?} → {end:?}: {r:?}"
+            );
+            // The cross-track distance there is still defined: a quarter circle.
+            let xt = cross_track_distance_spherical(&pole, &start, &end).unwrap();
+            assert_close(xt.meters().abs(), MEAN_EARTH_RADIUS_M * FRAC_PI_2, 1e-3);
+        }
+    }
+    // A point 1 m from the pole still has an answer.
+    let near = c(90.0 - 1.0 / 111_195.0, 30.0);
+    let at = along_track_distance_spherical(&near, &c(0.0, 0.0), &c(0.0, 10.0)).unwrap();
+    assert_close(
+        at.meters(),
+        30.0_f64.to_radians() * MEAN_EARTH_RADIUS_M,
+        1.0,
+    );
+}
+
+#[test]
+fn along_track_matches_the_foot_all_round_the_circle() {
+    // On the equator the foot of (1, λ) is (0, λ): along-track is λ·R, wrapped
+    // into [-180°, 180°] and signed by the side of `start` it lies on.
+    let (start, end) = (c(0.0, 0.0), c(0.0, 10.0));
+    for lon in [
+        -179.0, -135.0, -91.0, -45.0, -1.0, 1.0, 45.0, 91.0, 135.0, 179.0,
+    ] {
+        let at = along_track_distance_spherical(&c(1.0, lon), &start, &end).unwrap();
+        assert_close(at.meters(), lon.to_radians() * MEAN_EARTH_RADIUS_M, 1e-6);
+    }
+}
+
+#[test]
 fn intersection_across_the_antimeridian() {
     // The equator east from 170°E meets the 175°W meridian north from 10°S.
     let x = intersection_spherical(&c(0.0, 170.0), 90.0, &c(-10.0, -175.0), 0.0)

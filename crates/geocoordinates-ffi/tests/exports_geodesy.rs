@@ -385,6 +385,11 @@ fn cross_and_along_track_distances_are_pinned() {
     // A path from a point to itself fixes no great circle.
     assert!(cross_track_distance_spherical_m(point, start, start).is_err());
     assert!(along_track_distance_spherical_m(point, start, start).is_err());
+    // A pole of the path's great circle has no along-track distance.
+    match along_track_distance_spherical_m(wgs84(90.0, 0.0), start, end) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "point"),
+        other => panic!("expected InvalidValue for `point`, got {other:?}"),
+    }
 }
 
 #[test]

@@ -502,7 +502,9 @@ pub fn cross_track_distance_spherical_m(
 
 /// Along-track distance (meters) from `start` to the foot of the perpendicular
 /// from `point` onto the great-circle path `start` → `end` on the mean sphere.
-/// Approximate; errors as [`cross_track_distance_spherical_m`] does.
+/// Approximate; errors as [`cross_track_distance_spherical_m`] does, and with
+/// `GeoError::InvalidValue` (field `point`) when `point` is a pole of the
+/// path's great circle, where no along-track distance is defined.
 #[uniffi::export]
 pub fn along_track_distance_spherical_m(
     point: Coordinate,
