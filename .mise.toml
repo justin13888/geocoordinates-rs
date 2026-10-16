@@ -107,6 +107,21 @@ while read -r feature version; do
 done <<< "$exceptions"
 '''
 
+# Every other task enables `--all-features`, so a feature that only builds next
+# to another (a missing `dep:` entry, an import or cfg that leans on a sibling
+# feature) would go unnoticed there. This builds the library once with no
+# features and once with each feature alone, then runs the test suite with no
+# features, the configuration a default `cargo add geocoordinates` gets.
+# cargo-hack ships prebuilt binaries, so the pin downloads one rather than
+# compiling from source.
+[tasks.features]
+description = "Check the library with no features and each feature alone; test with none"
+tools = { "github:taiki-e/cargo-hack" = "0.6.45" }
+run = [
+    "cargo hack --each-feature --no-dev-deps check",
+    "cargo test --no-default-features",
+]
+
 # Both coverage tasks fail when total line coverage falls under the floor in
 # `.coverage-baseline`; `coverage-ratchet` keeps that floor from falling.
 [tasks.coverage]

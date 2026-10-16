@@ -49,6 +49,7 @@ fn farthest_vertex_m(center: &Coordinate, vertices: impl IntoIterator<Item = (f6
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "h3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "h3")))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
@@ -198,6 +199,7 @@ impl From<H3Cell> for u64 {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "s2")]
+#[cfg_attr(docsrs, doc(cfg(feature = "s2")))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",

@@ -88,6 +88,7 @@ impl<T> TryFrom<ApproxRepr<T>> for Approx<T> {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<T: serde::Serialize> serde::Serialize for Approx<T> {
     fn serialize<S: serde::Serializer>(&self, s: S) -> core::result::Result<S::Ok, S::Error> {
         ApproxRef {

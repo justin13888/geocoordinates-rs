@@ -6,13 +6,13 @@ Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-
 > **0.15.0 is the stabilization release**: every subsystem below was audited
 > against the five-point bar and reshaped where it fell short, so this is the
 > surface to dogfood before the 1.0 freeze. See
-> [STABILIZATION.md](STABILIZATION.md) for the ledger.
+> [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md) for the ledger.
 
 ## API surface
 
 The whole public surface, by subsystem. A ✅ in **Rust** or **FFI** means the
 subsystem meets all five points of the stabilization bar defined in
-[STABILIZATION.md](STABILIZATION.md) on that side: conversion naming, honest
+[STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md) on that side: conversion naming, honest
 exactness, a compiling doctest on every item, one canonical FFI form, and tested
 antimeridian / pole / round-trip edges.
 
@@ -51,8 +51,11 @@ extraction and polygon/line geometry operations.
 
 ## Full-surface example
 
-The flagship example is executable documentation and a self-verifying downstream
-API test. It uses embedded reference vectors and no network or external files:
+The [flagship example](https://github.com/justin13888/geocoordinates-rs/tree/master/examples/flagship)
+is executable documentation and a self-verifying downstream API test. It uses
+embedded reference vectors and no network or external files. It is not shipped in
+the published crate, so run it from a clone of the
+[repository](https://github.com/justin13888/geocoordinates-rs):
 
 ```bash
 cargo run --all-features --example flagship
@@ -67,7 +70,7 @@ projected/encoded grids, serde round trips, and typed failures.
 ## Minimum supported Rust version
 
 The core crate and most features build on **Rust 1.85** (`rust-version` in
-[`Cargo.toml`](Cargo.toml)). Two features need a newer toolchain, because their
+[`Cargo.toml`](https://github.com/justin13888/geocoordinates-rs/blob/master/Cargo.toml)). Two features need a newer toolchain, because their
 upstream dependencies do:
 
 | Feature | Needs | Why |
@@ -92,7 +95,7 @@ canonical FFI form, including both H3 and S2 discrete global grids, and the FFI
 column of the surface table above records it subsystem by subsystem.
 
 The FFI surface is deliberately flatter than the idiomatic Rust API; the
-[bindings README](crates/geocoordinates-ffi/README.md) states how each Rust idiom
+[bindings README](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md) states how each Rust idiom
 is re-expressed. The published `geocoordinates` crate is unaffected — the
 bindings build from their own `cdylib`/`staticlib` crate.
 
@@ -100,7 +103,7 @@ bindings build from their own `cdylib`/`staticlib` crate.
 > has no separate generated surface. TypeScript targets WebAssembly (browser /
 > bundler) via [`ubrn`](https://github.com/jhugman/uniffi-bindgen-react-native);
 > initialize it with `await uniffiInitAsync()` before use (see
-> [`crates/geocoordinates-ffi/web/`](crates/geocoordinates-ffi/web/)).
+> [`crates/geocoordinates-ffi/web/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web/)).
 
 Generate the bindings (needs the [Rust toolchain](https://rustup.rs) and
 [mise](https://mise.jdx.dev)):
@@ -123,7 +126,7 @@ print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
 ### Published packages
 
 Each language's bindings are uploaded to its registry on every `v*` release, using
-that ecosystem's native tooling; Maven Central does not list them yet (see † below). See [PUBLISHING.md](PUBLISHING.md) for the release
+that ecosystem's native tooling; Maven Central does not list them yet (see † below). See [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md) for the release
 workflows and registry setup.
 
 | Language | Registry | Package | Install |
@@ -136,7 +139,7 @@ workflows and registry setup.
 > † **Maven Central:** the JVM workflow uploads each release to the Central Portal with the
 > configured token and GPG key, but no version has appeared on Maven Central yet — most
 > likely because the build does not request automatic release, so each uploaded deployment
-> waits in the portal for a manual release (see [PUBLISHING.md](PUBLISHING.md)).
+> waits in the portal for a manual release (see [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md)).
 > Until it is, build the JAR locally as PUBLISHING.md describes.
 
 > The Swift requirement pins the minor version on purpose: while the API is `0.x`, a minor
@@ -151,7 +154,7 @@ workflows and registry setup.
 - [mise](https://mise.jdx.dev) — tool manager and task runner
 - [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov) — code coverage
 
-Everything else is pinned in [`.mise.toml`](.mise.toml) and provisioned for you:
+Everything else is pinned in [`.mise.toml`](https://github.com/justin13888/geocoordinates-rs/blob/master/.mise.toml) and provisioned for you:
 
 ```bash
 mise install
@@ -184,6 +187,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
 | `mise run public-api-check` | Every public item has one path besides its prelude entry (pinned nightly rustdoc JSON) |
+| `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
 | `mise run coverage`         | Coverage report; fails under the line floor in `.coverage-baseline`  |
 | `mise run coverage-ratchet` | Fails if the floor in `.coverage-baseline` falls below `origin/master`'s |
@@ -197,7 +201,7 @@ Other common tasks:
 | `mise run check`        | Core gates: fmt-check + lint + test   |
 | `mise run bindings`     | Generate FFI bindings (all languages) |
 
-Each gate is defined once, in [`.mise.toml`](.mise.toml), and CI and the git hooks
+Each gate is defined once, in [`.mise.toml`](https://github.com/justin13888/geocoordinates-rs/blob/master/.mise.toml), and CI and the git hooks
 both invoke these same tasks, so no gate definition needs syncing by hand. Tool
 version pins are the exception: the mise version is repeated in every workflow that
 installs it, and the hk version in both `.mise.toml` and `hk.pkl`, so bump each set
@@ -205,7 +209,7 @@ together.
 
 ### Git Hooks
 
-This project uses [hk](https://hk.jdx.dev), configured in [`hk.pkl`](hk.pkl). `mise install`
+This project uses [hk](https://hk.jdx.dev), configured in [`hk.pkl`](https://github.com/justin13888/geocoordinates-rs/blob/master/hk.pkl). `mise install`
 installs the hooks; `hk install` re-runs that step on its own.
 
 Pre-commit auto-fixes formatting and linting on staged Rust files. The commit-msg hook
@@ -228,10 +232,10 @@ Set `HK=0` to skip hooks for a single git invocation.
 
 GitHub Actions runs these workflows:
 
-- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, the MSRV build, a rustdoc build with warnings denied, a check that every public item has one canonical path, and a coverage report that fails under the line-coverage floor, whose ratchet lets it only rise; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
+- **CI** (pushes to `master` and pull requests): format check, file-length check, Clippy, tests, a feature matrix that checks the library with no features and with each feature alone and then tests it with no features, the MSRV build, a rustdoc build with warnings denied, a check that every public item has one canonical path, and a coverage report that fails under the line-coverage floor, whose ratchet lets it only rise; on pull requests only, mutation tests on the changed lines and a lint of the commit messages against [Conventional Commits](https://www.conventionalcommits.org) (via `convco`).
 - **FFI** (pushes to `master` and pull requests): Clippy on the FFI crate, the bindings `cdylib` build, Python/Kotlin/Swift binding generation, a check that the committed Swift bindings are current, a WASM/TypeScript build with Node tests against the built wasm, the Python smoke test, JVM (Kotlin and Java) tests, and a Swift package build plus `swift test` on macOS.
 - **Full-tree mutation tests** (weekly, and on demand): mutates the whole tree and reports survivors without gating anything.
-- **Release dry runs**: each binding release workflow also runs as a non-publishing dry run on pull requests that touch its pipeline and weekly (see [PUBLISHING.md](PUBLISHING.md)).
+- **Release dry runs**: each binding release workflow also runs as a non-publishing dry run on pull requests that touch its pipeline and weekly (see [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md)).
 
 CI and FFI cancel superseded in-flight runs when a PR is updated.
 
@@ -240,10 +244,10 @@ CI and FFI cancel superseded in-flight runs when a PR is updated.
 Releases are automated with [release-plz](https://release-plz.dev) and driven by
 [Conventional Commits](https://www.conventionalcommits.org). As commits land on `master`,
 release-plz maintains a **release PR** that bumps the version and updates
-[`CHANGELOG.md`](CHANGELOG.md). Merging that PR cuts the release: it tags `vX.Y.Z`, creates
+[`CHANGELOG.md`](https://github.com/justin13888/geocoordinates-rs/blob/master/CHANGELOG.md). Merging that PR cuts the release: it tags `vX.Y.Z`, creates
 a GitHub release, and publishes to [crates.io](https://crates.io/crates/geocoordinates).
 
-To honor the staged [stabilization plan](STABILIZATION.md), the release PR is merged at milestone boundaries
+To honor the staged [stabilization plan](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md), the release PR is merged at milestone boundaries
 rather than on every commit. Publishing uses crates.io
 [Trusted Publishing](https://crates.io/docs/trusted-publishing) (OIDC) — no API token is
 stored in the repository.
@@ -251,7 +255,7 @@ stored in the repository.
 ### Code Coverage
 
 This project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for LLVM-based code coverage. Total line coverage of the core crate must stay at or above the
-floor recorded in [`.coverage-baseline`](.coverage-baseline), in whole percent; `mise run coverage`
+floor recorded in [`.coverage-baseline`](https://github.com/justin13888/geocoordinates-rs/blob/master/.coverage-baseline), in whole percent; `mise run coverage`
 and CI fail below it. The floor may only rise: `mise run coverage-ratchet` fails when it is lower
 than the floor on the base ref, so lost coverage is restored with tests rather than by lowering the
 number. When coverage passes the next whole percent, raise the floor to the measured value rounded
@@ -264,4 +268,4 @@ mise run coverage-ratchet
 
 ## License
 
-Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) at your option.
+Licensed under either of [MIT](https://github.com/justin13888/geocoordinates-rs/blob/master/LICENSE-MIT) or [Apache-2.0](https://github.com/justin13888/geocoordinates-rs/blob/master/LICENSE-APACHE) at your option.

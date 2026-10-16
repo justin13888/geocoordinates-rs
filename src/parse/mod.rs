@@ -28,9 +28,14 @@ mod options;
 mod text;
 
 #[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml")))
+)]
 pub mod interchange;
 
 #[cfg(feature = "nmea")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nmea")))]
 pub mod sensors;
 
 #[cfg(test)]
