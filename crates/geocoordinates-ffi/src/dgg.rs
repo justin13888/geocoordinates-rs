@@ -37,6 +37,17 @@ pub fn h3_decode(cell: H3Cell) -> Result<ApproxCoordinate, GeoError> {
         .map_err(GeoError::from)
 }
 
+/// The resolution (0–15) of an H3 cell.
+///
+/// The record carries an unvalidated `u64`, so it is validated here first:
+/// an index H3 does not define fails with `InvalidCellId`.
+#[uniffi::export]
+pub fn h3_resolution(cell: H3Cell) -> Result<u8, GeoError> {
+    gc::dgg::H3Cell::new(cell.value)
+        .map(gc::dgg::H3Cell::resolution)
+        .map_err(GeoError::from)
+}
+
 /// An S2 cell id — mirror of [`gc::S2CellId`](gc::dgg::S2CellId).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
 pub struct S2CellId {
@@ -62,5 +73,16 @@ pub fn s2_encode(coord: Coordinate, level: u8) -> Result<S2CellId, GeoError> {
 pub fn s2_decode(cell: S2CellId) -> Result<ApproxCoordinate, GeoError> {
     gc::dgg::S2CellId::new(cell.value)
         .map(|cell| approx_coordinate(cell.decode()))
+        .map_err(GeoError::from)
+}
+
+/// The level (0–30) of an S2 cell.
+///
+/// The record carries an unvalidated `u64`, so it is validated here first:
+/// an id S2 does not define fails with `InvalidCellId`.
+#[uniffi::export]
+pub fn s2_level(cell: S2CellId) -> Result<u8, GeoError> {
+    gc::dgg::S2CellId::new(cell.value)
+        .map(gc::dgg::S2CellId::level)
         .map_err(GeoError::from)
 }
