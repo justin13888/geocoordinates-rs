@@ -186,6 +186,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run file-length-check`| Files over 654 lines fail unless in `.file-length-baseline` (shrink-only) |
 | `mise run ffi-check`        | Clippy on the FFI crate (the mirror gates every release)             |
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
+| `mise run version-check`    | Every crate and binding manifest ships the workspace version (`mise run version-sync` fixes npm) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
 | `mise run public-api-check` | Every public item has one path besides its prelude entry (pinned nightly rustdoc JSON) |
 | `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
