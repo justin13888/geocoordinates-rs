@@ -446,9 +446,12 @@ pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 }
 
 /// Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`, on
-/// the ellipsoid of their shared CRS (0° or 180° when either is a pole).
-/// Errors as for `rhumb_distance_m`, and `InvalidValue` for coincident points,
-/// which have no bearing.
+/// the ellipsoid of their shared CRS. To a pole it is 0° (north) or 180°
+/// (south). From a pole it is taken against the meridian of `a`'s longitude
+/// and names the meridian reaching `b`: `180° − (b.lon − a.lon)` from the
+/// north pole, `b.lon − a.lon` from the south pole, so `rhumb_destination`
+/// inverts it. Errors as for `rhumb_distance_m`, and `InvalidValue` for
+/// coincident points, which have no bearing.
 #[uniffi::export]
 pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
@@ -458,8 +461,11 @@ pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 /// The point reached from `start` along a constant `bearing_deg` rhumb line for
 /// `distance_m` meters, on the ellipsoid of its CRS (kept, with no height). A
 /// meridional line (0° or 180°) passes over a pole onto the far meridian; any
-/// other bearing errors (`InvalidValue`) when it would reach a pole or starts
-/// at one. Errors for GCJ-02 / BD-09 inputs.
+/// other bearing errors (`InvalidValue`) when it would reach a pole. From a
+/// pole every bearing is accepted, read against the meridian of
+/// `start.lon`: from the north pole bearing `β` runs down meridian
+/// `start.lon + 180° − β`, from the south pole up `start.lon + β`. Errors for
+/// GCJ-02 / BD-09 inputs.
 #[uniffi::export]
 pub fn rhumb_destination(
     start: Coordinate,

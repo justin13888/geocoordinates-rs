@@ -37,7 +37,10 @@
 //! **Bearings at a pole.** Every direction leaves a pole southward, so a
 //! bearing there is taken against the meridian of the coordinate's own
 //! longitude (GeographicLib's convention): from `(90, λ)`, bearing 180° runs
-//! down meridian `λ`, and bearing 0° down meridian `λ + 180°`.
+//! down meridian `λ`, bearing 0° down meridian `λ + 180°`, and bearing `β` down
+//! meridian `λ + 180° − β`; from `(−90, λ)`, bearing `β` runs up meridian
+//! `λ + β`. The geodesic and rhumb-line functions share it, so each bearing
+//! function's answer from a pole is the one its destination function inverts.
 //!
 //! ```
 //! use geocoordinates::{Coordinate, geodesy};

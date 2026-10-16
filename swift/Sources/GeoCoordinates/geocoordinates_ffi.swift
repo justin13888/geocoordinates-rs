@@ -6005,9 +6005,12 @@ public func nedToEnu(ned: Ned) -> Enu  {
 }
 /**
  * Rhumb-line (constant) bearing from `a` to `b`, in degrees `[0, 360)`, on
- * the ellipsoid of their shared CRS (0° or 180° when either is a pole).
- * Errors as for `rhumb_distance_m`, and `InvalidValue` for coincident points,
- * which have no bearing.
+ * the ellipsoid of their shared CRS. To a pole it is 0° (north) or 180°
+ * (south). From a pole it is taken against the meridian of `a`'s longitude
+ * and names the meridian reaching `b`: `180° − (b.lon − a.lon)` from the
+ * north pole, `b.lon − a.lon` from the south pole, so `rhumb_destination`
+ * inverts it. Errors as for `rhumb_distance_m`, and `InvalidValue` for
+ * coincident points, which have no bearing.
  */
 public func rhumbBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6021,8 +6024,11 @@ public func rhumbBearing(a: Coordinate, b: Coordinate)throws  -> Double  {
  * The point reached from `start` along a constant `bearing_deg` rhumb line for
  * `distance_m` meters, on the ellipsoid of its CRS (kept, with no height). A
  * meridional line (0° or 180°) passes over a pole onto the far meridian; any
- * other bearing errors (`InvalidValue`) when it would reach a pole or starts
- * at one. Errors for GCJ-02 / BD-09 inputs.
+ * other bearing errors (`InvalidValue`) when it would reach a pole. From a
+ * pole every bearing is accepted, read against the meridian of
+ * `start.lon`: from the north pole bearing `β` runs down meridian
+ * `start.lon + 180° − β`, from the south pole up `start.lon + β`. Errors for
+ * GCJ-02 / BD-09 inputs.
  */
 public func rhumbDestination(start: Coordinate, bearingDeg: Double, distanceM: Double)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6837,10 +6843,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 5658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_bearing() != 43422) {
+    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_bearing() != 17626) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_destination() != 52987) {
+    if (uniffi_geocoordinates_ffi_checksum_func_rhumb_destination() != 53035) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_rhumb_distance_m() != 825) {

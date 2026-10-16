@@ -17,17 +17,26 @@
 //! clear of the poles. They are not exact.
 //!
 //! **Poles.** A rhumb line of any bearing other than due north or south
-//! spirals into a pole without ever reaching it, so:
+//! spirals into a pole without ever reaching it, so a rhumb line to or from a
+//! pole is a meridian, and [`rhumb_distance`] is the meridian arc:
 //!
-//! - measured to or from a pole, a rhumb line is the meridian:
-//!   [`rhumb_distance`] is the meridian arc, and [`rhumb_bearing`] is 0°
-//!   (heading for a pole north of the start) or 180°, whatever the longitudes;
+//! - **to a pole** from anywhere else, [`rhumb_bearing`] is 0° (the north
+//!   pole) or 180° (the south pole), whatever the longitudes;
+//! - **from a pole**, every direction is a meridian, so a bearing there names
+//!   which one, taken against the meridian of the start's own longitude `λ`
+//!   (the [module](crate::geodesy) convention, shared with the geodesic
+//!   functions): from the north pole, bearing `β` runs down meridian
+//!   `λ + 180° − β`, and from the south pole up meridian `λ + β`. Every bearing
+//!   is accepted there, and [`rhumb_bearing`] returns the one that reaches the
+//!   target's meridian, so [`rhumb_destination`] inverts it from a pole too;
 //! - [`rhumb_destination`] rejects a non-meridional bearing whose `distance`
-//!   would carry it to or past a pole (to within about 6 µm), and any
-//!   non-meridional bearing from a pole, with [`Error::InvalidValue`];
-//! - a meridional (0° or 180°) [`rhumb_destination`] passes over a pole and
-//!   carries on down the far meridian, `start.lon() + 180°`, as many times as
-//!   its `distance` reaches.
+//!   would carry it to or past a pole (to within about 6 µm) with
+//!   [`Error::InvalidValue`];
+//! - a meridional [`rhumb_destination`] passes over a pole and carries on down
+//!   the far meridian, `λ + 180°`, as many times as its `distance` reaches.
+//!
+//! GeographicLib's `Rhumb` leaves the longitude undefined (NaN) at a pole, so
+//! the pole-start bearings here follow its geodesic convention instead.
 
 use core::f64::consts::{FRAC_PI_2, PI};
 
@@ -97,9 +106,14 @@ pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 /// Rhumb-line (loxodrome / constant) bearing from `a` to `b`, in degrees
 /// `[0, 360)`, on the ellipsoid of their shared [`Crs`].
 ///
-/// To a pole the bearing is 0° (north pole) or 180° (south pole); from a pole
-/// it is 180° (north pole) or 0° (south pole), whatever the longitudes,
-/// because only a meridian reaches a pole.
+/// Only a meridian reaches or leaves a pole. To a pole the bearing is 0°
+/// (north pole) or 180° (south pole), whatever the longitudes. From a pole it
+/// is taken against the meridian of `a`'s own longitude (see the
+/// [module docs](crate::geodesy)) and names the meridian that reaches `b`:
+/// `180° − (b.lon − a.lon)` from the north pole and `b.lon − a.lon` from the
+/// south pole, wrapped into `[0, 360)`. So 180° from `(90, 0)` heads down the
+/// prime meridian, and 90° heads down meridian 90° E. [`rhumb_destination`]
+/// reads a bearing at a pole the same way, so it inverts this one.
 ///
 /// # Errors
 ///
@@ -115,6 +129,9 @@ pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 /// assert!((rhumb_bearing(&a, &Coordinate::wgs84(60.0, 30.0)?)? - 90.0).abs() < 1e-9);
 /// // Toward the north pole it is 0° from any longitude.
 /// assert_eq!(rhumb_bearing(&a, &Coordinate::wgs84(90.0, 123.0)?)?, 0.0);
+/// // From the north pole at longitude 0°, meridian 90° E is bearing 90°.
+/// let pole = Coordinate::wgs84(90.0, 0.0)?;
+/// assert_eq!(rhumb_bearing(&pole, &Coordinate::wgs84(0.0, 90.0)?)?, 90.0);
 /// // One pole named at two longitudes is still one place.
 /// let (p1, p2) = (Coordinate::wgs84(90.0, 0.0)?, Coordinate::wgs84(90.0, 45.0)?);
 /// assert!(matches!(
@@ -131,13 +148,17 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
             detail: "coincident points have no bearing".into(),
         });
     }
-    if touches_a_pole(a, b) {
-        // Not coincident, so north to the north pole or from the south pole.
-        return Ok(if b.lat() == 90.0 || a.lat() == -90.0 {
-            0.0
+    if a.lat().abs() == 90.0 {
+        // Against `a`'s meridian: the one reaching `b`'s longitude.
+        let d_lon = b.lon() - a.lon();
+        return Ok(normalize_degrees(if a.lat() == 90.0 {
+            180.0 - d_lon
         } else {
-            180.0
-        });
+            d_lon
+        }));
+    }
+    if b.lat().abs() == 90.0 {
+        return Ok(if b.lat() == 90.0 { 0.0 } else { 180.0 });
     }
     let d_psi = series.isometric_latitude(b.lat().to_radians())
         - series.isometric_latitude(a.lat().to_radians());
@@ -152,17 +173,23 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 ///
 /// Not exact: the meridian arc and its inverse use the 4th-order Krüger
 /// `n`-series, which agrees with GeographicLib's `Rhumb` (Karney 2014) to well
-/// under a millimeter for any line that stays clear of the poles. A meridional line (bearing 0° or 180°) passes over a
-/// pole onto the far meridian, `start.lon() + 180°`.
+/// under a millimeter for any line that stays clear of the poles. A meridional
+/// line (bearing 0° or 180°) passes over a pole onto the far meridian,
+/// `start.lon() + 180°`.
+///
+/// From a pole every bearing is accepted, taken against the meridian of
+/// `start.lon()` (see the [module docs](crate::geodesy)): from the north pole
+/// bearing `β` runs down meridian `start.lon() + 180° − β`, and from the south
+/// pole up meridian `start.lon() + β`, as [`rhumb_bearing`] reports it. A zero
+/// `distance` returns `start` unchanged.
 ///
 /// # Errors
 ///
 /// [`Error::CrsMismatch`] when `start` is GCJ-02 or BD-09;
 /// [`Error::InvalidValue`] for a non-finite bearing or a non-finite or
-/// negative distance; [`Error::InvalidValue`] (`field: "bearing"`) for a
-/// bearing other than 0° or 180° from a pole; and [`Error::InvalidValue`]
-/// (`field: "distance"`) when a bearing other than 0° or 180° would carry the
-/// line to or past a pole, which it only approaches in the limit.
+/// negative distance; and [`Error::InvalidValue`] (`field: "distance"`) when a
+/// line that does not start at a pole, on a bearing other than 0° or 180°,
+/// would be carried to or past a pole, which it only approaches in the limit.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Error, Length, geodesy::rhumb_destination};
@@ -171,6 +198,10 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 /// let start = Coordinate::wgs84(45.0, 7.0)?;
 /// let east = rhumb_destination(&start, 90.0, Length::from_meters(100_000.0))?;
 /// assert!((east.lat() - 45.0).abs() < 1e-9 && east.lon() > 7.0);
+/// // From the north pole at longitude 0°, bearing 90° heads down meridian 90° E.
+/// let pole = Coordinate::wgs84(90.0, 0.0)?;
+/// let down = rhumb_destination(&pole, 90.0, Length::from_meters(1_000_000.0))?;
+/// assert!((down.lon() - 90.0).abs() < 1e-9 && down.lat() < 90.0);
 /// // A north-east heading spirals into the pole and never reaches it.
 /// assert!(matches!(
 ///     rhumb_destination(&start, 45.0, Length::from_meters(20_000_000.0)),
@@ -185,8 +216,20 @@ pub fn rhumb_destination(
 ) -> Result<Coordinate> {
     let series = series_for(start.crs())?;
     validate_bearing_and_distance(bearing_deg, distance)?;
-    let bearing = normalize_degrees(bearing_deg);
     let meters = distance.meters();
+    if meters == 0.0 {
+        return finish(start.lat(), start.lon(), start.crs());
+    }
+    let bearing = normalize_degrees(bearing_deg);
+    // From a pole every bearing is a meridian, read against the start's own:
+    // turn it into the meridian it names and head along it.
+    let (lon1, bearing) = if start.lat() == 90.0 {
+        (start.lon() + (180.0 - bearing), 180.0)
+    } else if start.lat() == -90.0 {
+        (start.lon() + bearing, 0.0)
+    } else {
+        (start.lon(), bearing)
+    };
     let phi1 = start.lat().to_radians();
     let mu1 = rectifying_latitude(&series, phi1);
 
@@ -197,17 +240,7 @@ pub fn rhumb_destination(
         let (mu2, over_a_pole) = travel_north(from + meters / series.rect_a);
         let mu2 = if north { mu2 } else { -mu2 };
         let half_turn = if over_a_pole { 180.0 } else { 0.0 };
-        return finish(
-            latitude_deg_of(&series, mu2),
-            start.lon() + half_turn,
-            start.crs(),
-        );
-    }
-    if start.lat().abs() == 90.0 {
-        return Err(Error::InvalidValue {
-            field: "bearing",
-            detail: "only a meridional (0° or 180°) rhumb line leaves a pole".into(),
-        });
+        return finish(latitude_deg_of(&series, mu2), lon1 + half_turn, start.crs());
     }
     let (sin_a, cos_a) = bearing.to_radians().sin_cos();
     let mu2 = mu1 + meters * cos_a / series.rect_a;
