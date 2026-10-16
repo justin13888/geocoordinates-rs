@@ -131,6 +131,19 @@ jobs:
       - name: Build docs (warnings denied)
         run: mise run doc
 
+  public-api:
+    name: Public API paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The task installs the pinned nightly it needs for rustdoc's JSON output.
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      - name: Check every public item has one canonical path
+        run: mise run public-api-check
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
