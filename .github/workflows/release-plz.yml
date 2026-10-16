@@ -111,11 +111,18 @@ jobs:
       # `version-check` passes there and the release ships one version. The push
       # uses the default token, so it starts no workflow of its own; the dispatch
       # below runs everything at the new head.
+      #
+      # mise-action installs the hk git hooks (`hk install --mise`), so a plain
+      # commit and push here would run commit-msg and the full pre-push gate set
+      # inside this job, and a failure would skip the dispatch below. The
+      # dispatched CI runs those gates; `HK=0` and `--no-verify` keep them out of
+      # this step.
       - name: Stamp binding versions on the release PR branch
         if: ${{ steps.release-pr.outputs.branch }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ steps.release-pr.outputs.branch }}
+          HK: "0"
         run: |
           set -euo pipefail
           git fetch --quiet origin "refs/heads/$BRANCH"
@@ -127,8 +134,8 @@ jobs:
           fi
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit --quiet --all -m "chore(release): stamp the npm manifest with the workspace version"
-          git push --quiet "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
+              commit --quiet --no-verify --all -m "chore(release): stamp the npm manifest with the workspace version"
+          git push --quiet --no-verify "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
           echo "pushed $(git rev-parse HEAD) to $BRANCH"
       # Run CI, FFI, and the four binding release dry runs on the release PR's head.
       #
