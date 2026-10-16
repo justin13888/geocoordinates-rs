@@ -355,6 +355,15 @@ fn rhumb_line_distance_bearing_and_destination_are_pinned() {
         rhumb_bearing(new_york(), new_york()),
         Err(GeoError::InvalidValue { .. })
     ));
+    // From a pole the bearing is read against the start's own meridian, so
+    // destination inverts it: (90, 0) → (0, 90) is bearing 90°.
+    let (pole, target) = (wgs84(90.0, 0.0), wgs84(0.0, 90.0));
+    let bearing = rhumb_bearing(pole, target).unwrap();
+    close(bearing, 90.0, 1e-9);
+    let reached =
+        rhumb_destination(pole, bearing, rhumb_distance_m(pole, target).unwrap()).unwrap();
+    close(reached.lat, 0.0, 1e-9);
+    close(reached.lon, 90.0, 1e-9);
 }
 
 #[test]
