@@ -29,13 +29,13 @@ use crate::geodesy::{DatumTransform, HubRoute};
 /// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
 ///
 /// The result is wrapped in [`Approx`] because several legs are approximate.
-/// [`Approx::max_error_m`] is the sum of the legs' error estimates:
+/// [`Approx::max_error`] is the sum of the legs' error estimates:
 ///
 /// - the iterative GCJ-02 / BD-09 inverses report their own bound;
 /// - the forward China offsets are exact and report `0.0`;
 /// - each Helmert datum shift (NAD27, Tokyo, Pulkovo-1942, in either
 ///   direction) reports its parameters' published accuracy,
-///   [`DatumTransform::accuracy_m`](crate::geodesy::DatumTransform::accuracy_m):
+///   [`DatumTransform::accuracy`](crate::geodesy::DatumTransform::accuracy):
 ///   about 9.27 m for NAD27 and 28.72 m for Tokyo (the root-sum-square of
 ///   NIMA TR8350.2's per-axis figures, a statistical estimate rather than a
 ///   hard maximum), and `f64::INFINITY` for Pulkovo-1942, for which no
@@ -63,8 +63,8 @@ use crate::geodesy::{DatumTransform, HubRoute};
 ///
 /// let gcj = Coordinate::gcj02(39.916_404, 116.410_244)?;
 /// let wgs = convert(gcj, Crs::Wgs84)?;
-/// assert_eq!(wgs.crs(), Crs::Wgs84);
-/// assert_eq!(wgs.max_error_m(), 0.5); // the refined GCJ-02 inverse
+/// assert_eq!(wgs.value().crs(), Crs::Wgs84);
+/// assert_eq!(wgs.max_error().meters(), 0.5); // the refined GCJ-02 inverse
 ///
 /// // The BD-09 nudge would carry a point at the North Pole past it.
 /// let pole = Coordinate::gcj02(90.0, 0.0)?;
@@ -76,38 +76,38 @@ use crate::geodesy::{DatumTransform, HubRoute};
 /// ```
 pub fn convert(coord: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
     if coord.crs() == to {
-        return Ok(Approx::new(coord, 0.0));
+        return Ok(Approx::from_valid(coord, 0.0));
     }
     // GCJ-02 → BD-09 is an exact direct transform. Routing it through the WGS-84
     // hub would taint the result with the GCJ-02 inverse error, so take the
     // direct path and keep it exact.
     if coord.crs() == Crs::Gcj02 && to == Crs::Bd09 {
         let b = Gcj02::from_valid(coord.lat(), coord.lon()).try_to_bd09()?;
-        return Ok(Approx::new(carry(coord, b), 0.0));
+        return Ok(Approx::from_valid(carry(coord, b), 0.0));
     }
     // Everything else routes through WGS-84, accumulating the per-leg bounds.
     let hub = to_wgs84(coord)?;
-    let hub_error = hub.max_error_m();
+    let hub_error = hub.max_error().meters();
     let target = from_wgs84(hub.into_inner(), to)?;
-    Ok(Approx::new(
+    Ok(Approx::from_valid(
         target.into_inner(),
-        hub_error + target.max_error_m(),
+        hub_error + target.max_error().meters(),
     ))
 }
 
 /// Convert `coord` to a WGS-84 [`Coordinate`], carrying the per-leg error bound.
 fn to_wgs84(coord: Coordinate) -> Result<Approx<Coordinate>> {
     Ok(match HubRoute::of(coord.crs()) {
-        HubRoute::Wgs84 => Approx::new(coord, 0.0),
+        HubRoute::Wgs84 => Approx::from_valid(coord, 0.0),
         HubRoute::Gcj02 => {
             let w = Gcj02::from_valid(coord.lat(), coord.lon()).to_wgs84_refined();
-            Approx::new(carry(coord, *w.value()), w.max_error_m())
+            Approx::from_valid(carry(coord, *w.value()), w.max_error().meters())
         }
         HubRoute::Bd09 => {
             let w = Bd09::from_valid(coord.lat(), coord.lon()).try_to_wgs84_refined()?;
-            Approx::new(carry(coord, *w.value()), w.max_error_m())
+            Approx::from_valid(carry(coord, *w.value()), w.max_error().meters())
         }
-        HubRoute::Helmert(dt) => Approx::new(dt.apply(coord)?, helmert_bound_m(dt)),
+        HubRoute::Helmert(dt) => Approx::from_valid(dt.apply(coord)?, helmert_bound_m(dt)),
     })
 }
 
@@ -115,11 +115,11 @@ fn to_wgs84(coord: Coordinate) -> Result<Approx<Coordinate>> {
 fn from_wgs84(wgs: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
     let w = Wgs84::from_valid(wgs.lat(), wgs.lon());
     Ok(match HubRoute::of(to) {
-        HubRoute::Wgs84 => Approx::new(wgs, 0.0),
-        HubRoute::Gcj02 => Approx::new(carry(wgs, w.to_gcj02()), 0.0),
-        HubRoute::Bd09 => Approx::new(carry(wgs, w.try_to_bd09()?), 0.0),
+        HubRoute::Wgs84 => Approx::from_valid(wgs, 0.0),
+        HubRoute::Gcj02 => Approx::from_valid(carry(wgs, w.to_gcj02()), 0.0),
+        HubRoute::Bd09 => Approx::from_valid(carry(wgs, w.try_to_bd09()?), 0.0),
         HubRoute::Helmert(dt) => {
-            Approx::new(dt.inverse_first_order().apply(wgs)?, helmert_bound_m(dt))
+            Approx::from_valid(dt.inverse_first_order().apply(wgs)?, helmert_bound_m(dt))
         }
     })
 }
@@ -127,7 +127,7 @@ fn from_wgs84(wgs: Coordinate, to: Crs) -> Result<Approx<Coordinate>> {
 /// A Helmert leg's error estimate: its parameters' published accuracy, or
 /// infinity when none is published.
 fn helmert_bound_m(dt: DatumTransform) -> f64 {
-    dt.accuracy_m().unwrap_or(f64::INFINITY)
+    dt.accuracy().map_or(f64::INFINITY, |a| a.meters())
 }
 
 /// Rebuild `orig` at the datum position `p`, tagged with `p`'s CRS and
@@ -155,22 +155,22 @@ mod tests {
     fn same_crs_is_exact_identity() {
         let c = Coordinate::wgs84(WGS.0, WGS.1).unwrap();
         let r = convert(c, Crs::Wgs84).unwrap();
-        assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs(), Crs::Wgs84);
-        assert_close(r.lat(), WGS.0, 1e-12);
-        assert_close(r.lon(), WGS.1, 1e-12);
+        assert_eq!(r.max_error().meters(), 0.0);
+        assert_eq!(r.value().crs(), Crs::Wgs84);
+        assert_close(r.value().lat(), WGS.0, 1e-12);
+        assert_close(r.value().lon(), WGS.1, 1e-12);
     }
 
     #[test]
     fn wgs84_to_gcj02_is_exact() {
         let r = convert(Coordinate::wgs84(WGS.0, WGS.1).unwrap(), Crs::Gcj02).unwrap();
-        assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs(), Crs::Gcj02);
+        assert_eq!(r.max_error().meters(), 0.0);
+        assert_eq!(r.value().crs(), Crs::Gcj02);
         // Exactly the typed forward conversion.
         let g = Wgs84::new(WGS.0, WGS.1).unwrap().to_gcj02();
-        assert_close(r.lat(), g.lat(), 1e-12);
-        assert_close(r.lon(), g.lon(), 1e-12);
-        assert_close(r.lat(), GCJ.0, 1e-9);
+        assert_close(r.value().lat(), g.lat(), 1e-12);
+        assert_close(r.value().lon(), g.lon(), 1e-12);
+        assert_close(r.value().lat(), GCJ.0, 1e-9);
     }
 
     #[test]
@@ -178,11 +178,11 @@ mod tests {
         let r = convert(Coordinate::gcj02(GCJ.0, GCJ.1).unwrap(), Crs::Wgs84).unwrap();
         // Bound is exactly the delegated refined-inverse bound (not re-derived).
         let direct = Gcj02::new(GCJ.0, GCJ.1).unwrap().to_wgs84_refined();
-        assert!(r.max_error_m() > 0.0);
-        assert_close(r.max_error_m(), direct.max_error_m(), 1e-12);
-        assert_close(r.lat(), direct.lat(), 1e-12);
+        assert!(r.max_error().meters() > 0.0);
+        assert_close(r.max_error().meters(), direct.max_error().meters(), 1e-12);
+        assert_close(r.value().lat(), direct.value().lat(), 1e-12);
         // Recovers the original WGS-84 within the stated bound.
-        let bound = r.max_error_m();
+        let bound = r.max_error().meters();
         crate::test_support::assert_within_meters(
             &r.into_inner(),
             &Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
@@ -194,19 +194,19 @@ mod tests {
     fn gcj02_to_bd09_stays_exact_via_direct_path() {
         let r = convert(Coordinate::gcj02(GCJ.0, GCJ.1).unwrap(), Crs::Bd09).unwrap();
         // The direct GCJ→BD path keeps it exact — no WGS-84 inverse error leaks in.
-        assert_eq!(r.max_error_m(), 0.0);
-        assert_eq!(r.crs(), Crs::Bd09);
+        assert_eq!(r.max_error().meters(), 0.0);
+        assert_eq!(r.value().crs(), Crs::Bd09);
         let b = Gcj02::new(GCJ.0, GCJ.1).unwrap().try_to_bd09().unwrap();
-        assert_close(r.lat(), b.lat(), 1e-12);
-        assert_close(r.lon(), b.lon(), 1e-12);
-        assert_close(r.lat(), BD.0, 1e-9);
+        assert_close(r.value().lat(), b.lat(), 1e-12);
+        assert_close(r.value().lon(), b.lon(), 1e-12);
+        assert_close(r.value().lat(), BD.0, 1e-9);
     }
 
     #[test]
     fn bd09_to_wgs84_is_approximate() {
         let r = convert(Coordinate::bd09(BD.0, BD.1).unwrap(), Crs::Wgs84).unwrap();
-        assert!(r.max_error_m() > 0.0);
-        let bound = r.max_error_m();
+        assert!(r.max_error().meters() > 0.0);
+        let bound = r.max_error().meters();
         crate::test_support::assert_within_meters(
             &r.into_inner(),
             &Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
@@ -233,10 +233,10 @@ mod tests {
         // parameters' published accuracy, not zero.
         let nad27 = nad27_point();
         let r = convert(nad27, Crs::Wgs84).unwrap();
-        assert_eq!(r.max_error_m(), NAD27_ACCURACY_M);
-        assert_eq!(r.crs(), Crs::Wgs84);
-        assert_close(r.lat(), 40.000_009_482_759, 1e-8);
-        assert_close(r.lon(), -100.000_417_622_218_8, 1e-8);
+        assert_eq!(r.max_error().meters(), NAD27_ACCURACY_M);
+        assert_eq!(r.value().crs(), Crs::Wgs84);
+        assert_close(r.value().lat(), 40.000_009_482_759, 1e-8);
+        assert_close(r.value().lon(), -100.000_417_622_218_8, 1e-8);
     }
 
     #[test]
@@ -247,17 +247,17 @@ mod tests {
         let nad27 = nad27_point();
         let w = convert(nad27, Crs::Wgs84).unwrap().into_inner();
         let back = convert(w, Crs::Nad27).unwrap();
-        assert_eq!(back.max_error_m(), NAD27_ACCURACY_M);
-        assert_eq!(back.crs(), Crs::Nad27);
-        assert_close(back.lat(), 40.0, 1e-12);
-        assert_close(back.lon(), -100.0, 1e-12);
+        assert_eq!(back.max_error().meters(), NAD27_ACCURACY_M);
+        assert_eq!(back.value().crs(), Crs::Nad27);
+        assert_close(back.value().lat(), 40.0, 1e-12);
+        assert_close(back.value().lon(), -100.0, 1e-12);
     }
 
     #[test]
     fn datum_to_datum_sums_both_helmert_legs() {
         let r = convert(nad27_point(), Crs::Tokyo).unwrap();
-        assert_eq!(r.crs(), Crs::Tokyo);
-        assert_eq!(r.max_error_m(), NAD27_ACCURACY_M + TOKYO_ACCURACY_M);
+        assert_eq!(r.value().crs(), Crs::Tokyo);
+        assert_eq!(r.max_error().meters(), NAD27_ACCURACY_M + TOKYO_ACCURACY_M);
     }
 
     /// TR8350.2 publishes no error estimate for the Pulkovo-1942 (Russia)
@@ -266,12 +266,12 @@ mod tests {
     fn pulkovo_legs_have_no_finite_bound() {
         let pulkovo = Coordinate::new(55.75, 37.62, Crs::Pulkovo42).unwrap();
         assert_eq!(
-            convert(pulkovo, Crs::Wgs84).unwrap().max_error_m(),
+            convert(pulkovo, Crs::Wgs84).unwrap().max_error().meters(),
             f64::INFINITY
         );
         let wgs = Coordinate::wgs84(55.75, 37.62).unwrap();
         assert_eq!(
-            convert(wgs, Crs::Pulkovo42).unwrap().max_error_m(),
+            convert(wgs, Crs::Pulkovo42).unwrap().max_error().meters(),
             f64::INFINITY
         );
     }
@@ -286,7 +286,7 @@ mod tests {
         let json = serde_json::to_string(&r).unwrap();
         let back: Approx<Coordinate> = serde_json::from_str(&json).unwrap();
         assert_eq!(back, r);
-        assert_eq!(back.max_error_m(), f64::INFINITY);
+        assert_eq!(back.max_error().meters(), f64::INFINITY);
     }
 
     #[test]
@@ -295,14 +295,14 @@ mod tests {
         // composed bound is the Helmert leg's published accuracy alone.
         let nad27 = Coordinate::new(40.0, -100.0, Crs::Nad27).unwrap();
         let r = convert(nad27, Crs::Gcj02).unwrap();
-        assert_eq!(r.max_error_m(), NAD27_ACCURACY_M);
-        assert_eq!(r.crs(), Crs::Gcj02);
+        assert_eq!(r.max_error().meters(), NAD27_ACCURACY_M);
+        assert_eq!(r.value().crs(), Crs::Gcj02);
         // Equals the explicit two-step route.
         let dt = DatumTransform::catalog_to_wgs84(Crs::Nad27).unwrap();
         let w = dt.apply(nad27).unwrap();
         let g = Wgs84::new(w.lat(), w.lon()).unwrap().to_gcj02();
-        assert_close(r.lat(), g.lat(), 1e-12);
-        assert_close(r.lon(), g.lon(), 1e-12);
+        assert_close(r.value().lat(), g.lat(), 1e-12);
+        assert_close(r.value().lon(), g.lon(), 1e-12);
     }
 
     #[test]
@@ -319,10 +319,14 @@ mod tests {
             .inverse_first_order()
             .apply(w.value().to_coordinate())
             .unwrap();
-        assert_eq!(r.crs(), Crs::Tokyo);
-        assert_close(r.max_error_m(), w.max_error_m() + TOKYO_ACCURACY_M, 1e-12);
-        assert_close(r.lat(), tokyo.lat(), 1e-9);
-        assert_close(r.lon(), tokyo.lon(), 1e-9);
+        assert_eq!(r.value().crs(), Crs::Tokyo);
+        assert_close(
+            r.max_error().meters(),
+            w.max_error().meters() + TOKYO_ACCURACY_M,
+            1e-12,
+        );
+        assert_close(r.value().lat(), tokyo.lat(), 1e-9);
+        assert_close(r.value().lon(), tokyo.lon(), 1e-9);
     }
 
     #[test]
@@ -334,14 +338,14 @@ mod tests {
             .unwrap();
         for to in [Crs::Bd09, Crs::Wgs84] {
             let r = convert(g, to).unwrap();
-            assert_eq!(r.height(), Some(Height::Orthometric(123.0)));
+            assert_eq!(r.value().height(), Some(Height::Orthometric(123.0)));
         }
         let b = Coordinate::bd09(BD.0, BD.1)
             .unwrap()
             .with_height(Height::Orthometric(7.0))
             .unwrap();
         let r = convert(b, Crs::Gcj02).unwrap();
-        assert_eq!(r.height(), Some(Height::Orthometric(7.0)));
+        assert_eq!(r.value().height(), Some(Height::Orthometric(7.0)));
     }
 
     const ALL: [Crs; 6] = [
@@ -361,7 +365,7 @@ mod tests {
             let c = Coordinate::new(WGS.0, WGS.1, from).unwrap();
             for to in ALL {
                 let r = convert(c, to).unwrap_or_else(|e| panic!("{from:?} -> {to:?}: {e}"));
-                assert_eq!(r.crs(), to);
+                assert_eq!(r.value().crs(), to);
             }
         }
     }
@@ -416,8 +420,8 @@ mod tests {
         let edge = Coordinate::gcj02(40.0, 72.006).unwrap();
         let r = convert(edge, Crs::Wgs84).unwrap();
         let direct = Gcj02::new(40.0, 72.006).unwrap().to_wgs84_refined();
-        assert!(r.max_error_m() > 100.0, "{}", r.max_error_m());
-        assert_eq!(r.max_error_m(), direct.max_error_m());
+        assert!(r.max_error().meters() > 100.0, "{}", r.max_error().meters());
+        assert_eq!(r.max_error().meters(), direct.max_error().meters());
     }
 
     /// A GCJ-02 point just outside the box that an inside WGS-84 point also
@@ -427,14 +431,17 @@ mod tests {
         let origin = Wgs84::new(55.824_77, 130.0).unwrap();
         let gcj = origin.to_gcj02();
         let r = convert(Coordinate::gcj02(gcj.lat(), gcj.lon()).unwrap(), Crs::Wgs84).unwrap();
-        assert_eq!((r.lat(), r.lon()), (gcj.lat(), gcj.lon()));
-        let off = haversine_distance(&Wgs84::new(r.lat(), r.lon()).unwrap(), &origin)
-            .unwrap()
-            .meters();
+        assert_eq!((r.value().lat(), r.value().lon()), (gcj.lat(), gcj.lon()));
+        let off = haversine_distance(
+            &Wgs84::new(r.value().lat(), r.value().lon()).unwrap(),
+            &origin,
+        )
+        .unwrap()
+        .meters();
         assert!(
-            off > 600.0 && off <= r.max_error_m(),
+            off > 600.0 && off <= r.max_error().meters(),
             "{off} m vs {}",
-            r.max_error_m()
+            r.max_error().meters()
         );
     }
 }

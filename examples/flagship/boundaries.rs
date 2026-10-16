@@ -52,11 +52,11 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     ));
 
     for polar in [north_pole_east, south_pole_west] {
-        let plus = PlusCode::encode(polar, 10)?.decode();
+        let plus = PlusCode::encode(polar, 10)?.decode().into_inner();
         assert!(plus.lat().is_finite() && plus.lon().is_finite());
-        let h3 = H3Cell::encode(polar, 9)?.decode();
+        let h3 = H3Cell::encode(polar, 9)?.decode().into_inner();
         assert!(h3.lat().is_finite() && h3.lon().is_finite());
-        let s2 = S2CellId::encode(polar, 20)?.decode();
+        let s2 = S2CellId::encode(polar, 20)?.decode().into_inner();
         assert!(s2.lat().is_finite() && s2.lon().is_finite());
     }
 
@@ -184,7 +184,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         Ecef::new(6_378_137.0, 0.0, 0.0).try_to_coordinate(Crs::Bd09),
         Err(Error::CrsMismatch { .. })
     ));
-    assert!(Ellipsoid::new(-1.0, 298.257_223_563).is_err());
+    assert!(Ellipsoid::new(Length::from_meters(-1.0), 298.257_223_563).is_err());
     assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, Helmert::IDENTITY, None).is_err());
     assert!(
         Enu::try_from_coordinate(

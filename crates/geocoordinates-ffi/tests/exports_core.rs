@@ -370,6 +370,8 @@ fn length_unit_conversions_are_exact() {
     );
     assert_eq!(length_from_unit(2.0, LengthUnit::Meter), 2.0);
     close(length_to_unit(1852.0, LengthUnit::NauticalMile), 1.0, 1e-12);
+    assert_eq!(length_from_unit(1.0, LengthUnit::Mile), 1609.344);
+    assert_eq!(length_from_unit(1.0, LengthUnit::Yard), 0.9144);
 }
 
 // --- Validation and Fix ---

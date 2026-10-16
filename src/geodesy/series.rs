@@ -48,7 +48,7 @@ impl KrugerSeries {
         let n4 = n3 * n;
         KrugerSeries {
             n,
-            rect_a: (ellipsoid.semi_major_m() / (1.0 + n)) * (1.0 + n2 / 4.0 + n4 / 64.0),
+            rect_a: (ellipsoid.semi_major().meters() / (1.0 + n)) * (1.0 + n2 / 4.0 + n4 / 64.0),
             alpha: [
                 0.5 * n - 2.0 / 3.0 * n2 + 5.0 / 16.0 * n3 + 41.0 / 180.0 * n4,
                 13.0 / 48.0 * n2 - 3.0 / 5.0 * n3 + 557.0 / 1440.0 * n4,

@@ -122,8 +122,8 @@ impl Geohash {
     /// use geocoordinates::grids::Geohash;
     ///
     /// let area = Geohash::try_from("ezs42")?.decode();
-    /// assert!((area.lat() - 42.605).abs() < 0.03);
-    /// assert!(area.max_error_m() < 3_100.0);
+    /// assert!((area.value().lat() - 42.605).abs() < 0.03);
+    /// assert!(area.max_error().meters() < 3_100.0);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]

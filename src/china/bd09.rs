@@ -136,8 +136,8 @@ impl Bd09 {
     /// use geocoordinates::china::Bd09;
     ///
     /// let gcj = Bd09::new(39.922_700, 116.416_627)?.try_to_gcj02_fast()?;
-    /// assert_eq!(gcj.max_error_m(), 0.5);
-    /// assert!((gcj.lon() - 116.410_244).abs() < 1e-5);
+    /// assert_eq!(gcj.max_error().meters(), 0.5);
+    /// assert!((gcj.value().lon() - 116.410_244).abs() < 1e-5);
     /// let south_pole = Bd09::new(-90.0, 0.0)?.try_to_gcj02_fast();
     /// assert!(matches!(south_pole, Err(Error::OutsideDomain { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
@@ -145,7 +145,7 @@ impl Bd09 {
     pub fn try_to_gcj02_fast(self) -> Result<Approx<Gcj02>> {
         let (lat, lon) = bd_to_gcj(self.lat(), self.lon());
         within_poles(lat, "BD-09 inverse", (self.lat(), self.lon()))?;
-        Ok(Approx::new(
+        Ok(Approx::from_valid(
             Gcj02::from_valid(lat, lon),
             fast_bound_m(self.lon()),
         ))
@@ -155,7 +155,7 @@ impl Bd09 {
     ///
     /// Tightens [`try_to_gcj02_fast`](Self::try_to_gcj02_fast) by iterating
     /// against the exact forward [`Gcj02::try_to_bd09`], across the
-    /// antimeridian too. A converged run reports `max_error_m` of 0.5 m; one
+    /// antimeridian too. A converged run reports `max_error` of 0.5 m; one
     /// that cannot converge reports 0.5 m plus the distance between its
     /// result's forward image and `self`. The bound is on that forward image:
     /// within about 0.01° of the antimeridian the nudge is not one-to-one, and
@@ -170,8 +170,8 @@ impl Bd09 {
     /// use geocoordinates::china::Bd09;
     ///
     /// let gcj = Bd09::new(0.0, -180.0)?.try_to_gcj02_refined()?;
-    /// assert!((gcj.lon() - 179.9935).abs() < 1e-3); // wrapped
-    /// assert_eq!(gcj.max_error_m(), 0.5);
+    /// assert!((gcj.value().lon() - 179.9935).abs() < 1e-3); // wrapped
+    /// assert_eq!(gcj.max_error().meters(), 0.5);
     /// assert!(Bd09::new(-90.0, 0.0)?.try_to_gcj02_refined().is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -179,7 +179,10 @@ impl Bd09 {
         let target = (self.lat(), self.lon());
         let r = refine(target, bd_to_gcj(target.0, target.1), gcj_to_bd);
         within_poles(r.lat, "BD-09 inverse", target)?;
-        Ok(Approx::new(Gcj02::from_valid(r.lat, r.lon), r.max_error_m))
+        Ok(Approx::from_valid(
+            Gcj02::from_valid(r.lat, r.lon),
+            r.max_error_m,
+        ))
     }
 }
 
@@ -220,7 +223,7 @@ impl TryFrom<Wgs84> for Bd09 {
 impl Bd09 {
     /// BD-09 → WGS-84, refined composition through GCJ-02 (**approximate**).
     ///
-    /// Chains the two refined inverses and sums their `max_error_m` bounds.
+    /// Chains the two refined inverses and sums their `max_error` bounds.
     ///
     /// # Errors
     ///
@@ -230,17 +233,17 @@ impl Bd09 {
     /// use geocoordinates::china::Bd09;
     ///
     /// let wgs = Bd09::new(39.922_700, 116.416_627)?.try_to_wgs84_refined()?;
-    /// assert_eq!(wgs.max_error_m(), 1.0); // 0.5 m per refined leg
-    /// assert!((wgs.lat() - 39.915).abs() < 1e-5);
+    /// assert_eq!(wgs.max_error().meters(), 1.0); // 0.5 m per refined leg
+    /// assert!((wgs.value().lat() - 39.915).abs() < 1e-5);
     /// assert!(Bd09::new(-90.0, 0.0)?.try_to_wgs84_refined().is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn try_to_wgs84_refined(self) -> Result<Approx<Wgs84>> {
         let gcj = self.try_to_gcj02_refined()?;
         let wgs = gcj.value().to_wgs84_refined();
-        Ok(Approx::new(
+        Ok(Approx::from_valid(
             *wgs.value(),
-            gcj.max_error_m() + wgs.max_error_m(),
+            gcj.max_error().meters() + wgs.max_error().meters(),
         ))
     }
 }
@@ -294,7 +297,7 @@ mod tests {
         for v in DATUM_VECTORS {
             let g = v.gcj02();
             let back = g.try_to_bd09().unwrap().try_to_gcj02_refined().unwrap();
-            assert_eq!(back.max_error_m(), REFINED_BOUND_M);
+            assert_eq!(back.max_error().meters(), REFINED_BOUND_M);
             assert_within_meters(back.value(), &g, 0.01);
         }
     }
@@ -350,17 +353,17 @@ mod tests {
         let target = bd(0.0, -180.0);
         let refined = target.try_to_gcj02_refined().unwrap();
         assert!(
-            (refined.lon() - 179.9935).abs() < 1e-3,
+            (refined.value().lon() - 179.9935).abs() < 1e-3,
             "lon {}",
-            refined.lon()
+            refined.value().lon()
         );
-        assert_eq!(refined.max_error_m(), REFINED_BOUND_M);
+        assert_eq!(refined.max_error().meters(), REFINED_BOUND_M);
         let image = refined.value().try_to_bd09().unwrap();
         assert_within_meters(&image, &target, 0.01);
 
         let fast = target.try_to_gcj02_fast().unwrap();
-        assert_eq!(fast.max_error_m(), ANTIMERIDIAN_FAST_BOUND_M);
-        assert_within_meters(fast.value(), refined.value(), fast.max_error_m());
+        assert_eq!(fast.max_error().meters(), ANTIMERIDIAN_FAST_BOUND_M);
+        assert_within_meters(fast.value(), refined.value(), fast.max_error().meters());
     }
 
     #[test]
@@ -383,12 +386,12 @@ mod tests {
                 .try_to_wgs84_refined()
                 .unwrap();
             assert_within_meters(back.value(), &v.wgs84(), 0.01);
-            assert_eq!(back.max_error_m(), 2.0 * REFINED_BOUND_M);
+            assert_eq!(back.max_error().meters(), 2.0 * REFINED_BOUND_M);
         }
     }
 
     /// Honest-bound sweep: every 0.5° inside the box, the fast and refined
-    /// inverses land within their own `max_error_m` of the true GCJ-02 point.
+    /// inverses land within their own `max_error` of the true GCJ-02 point.
     #[test]
     fn inverse_bounds_hold_across_the_box() {
         let mut worst_fast = 0.0_f64;
@@ -397,9 +400,9 @@ mod tests {
             let b = g.try_to_bd09().unwrap();
             let fast = b.try_to_gcj02_fast().unwrap();
             let refined = b.try_to_gcj02_refined().unwrap();
-            assert_within_meters(fast.value(), &g, fast.max_error_m());
-            assert_within_meters(refined.value(), &g, refined.max_error_m());
-            assert_eq!(refined.max_error_m(), REFINED_BOUND_M);
+            assert_within_meters(fast.value(), &g, fast.max_error().meters());
+            assert_within_meters(refined.value(), &g, refined.max_error().meters());
+            assert_eq!(refined.max_error().meters(), REFINED_BOUND_M);
             worst_fast = worst_fast.max(haversine_distance(fast.value(), &g).unwrap().meters());
         }
         // The bound is set by the worldwide worst case (about 0.41 m, near the
@@ -426,10 +429,10 @@ mod tests {
                 let g = gcj(f64::from(i), lon);
                 let b = g.try_to_bd09().unwrap();
                 let fast = b.try_to_gcj02_fast().unwrap();
-                assert_within_meters(fast.value(), &g, fast.max_error_m());
+                assert_within_meters(fast.value(), &g, fast.max_error().meters());
                 let back = b.try_to_gcj02_refined().unwrap();
                 let image = back.value().try_to_bd09().unwrap();
-                assert_within_meters(&image, &b, back.max_error_m());
+                assert_within_meters(&image, &b, back.max_error().meters());
             }
         }
     }

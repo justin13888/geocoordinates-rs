@@ -11,19 +11,19 @@ fn each_non_finite_enu_component_is_rejected_as_enu() {
     for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
         for enu in [
             Enu {
-                east: bad,
-                north: 0.0,
-                up: 0.0,
+                east_m: bad,
+                north_m: 0.0,
+                up_m: 0.0,
             },
             Enu {
-                east: 0.0,
-                north: bad,
-                up: 0.0,
+                east_m: 0.0,
+                north_m: bad,
+                up_m: 0.0,
             },
             Enu {
-                east: 0.0,
-                north: 0.0,
-                up: bad,
+                east_m: 0.0,
+                north_m: 0.0,
+                up_m: bad,
             },
         ] {
             assert!(

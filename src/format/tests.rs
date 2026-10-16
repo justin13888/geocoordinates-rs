@@ -56,8 +56,8 @@ fn fix_with_accuracy(coord: Coordinate, horizontal_m: Option<f64>) -> Fix {
     Fix {
         coord,
         accuracy: Some(Accuracy {
-            horizontal_m,
-            vertical_m: None,
+            horizontal: horizontal_m.map(crate::Length::from_meters),
+            vertical: None,
         }),
         timestamp: None,
         source: None,

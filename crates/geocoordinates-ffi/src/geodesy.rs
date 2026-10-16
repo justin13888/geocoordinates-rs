@@ -84,7 +84,7 @@ pub struct Aer {
 impl From<gc::geodesy::Ellipsoid> for Ellipsoid {
     fn from(e: gc::geodesy::Ellipsoid) -> Self {
         Ellipsoid {
-            semi_major_m: e.semi_major_m(),
+            semi_major_m: e.semi_major().meters(),
             inverse_flattening: e.inverse_flattening(),
         }
     }
@@ -93,15 +93,19 @@ impl TryFrom<Ellipsoid> for gc::geodesy::Ellipsoid {
     type Error = GeoError;
 
     fn try_from(e: Ellipsoid) -> Result<Self, GeoError> {
-        gc::geodesy::Ellipsoid::new(e.semi_major_m, e.inverse_flattening).map_err(GeoError::from)
+        gc::geodesy::Ellipsoid::new(
+            gc::Length::from_meters(e.semi_major_m),
+            e.inverse_flattening,
+        )
+        .map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Ecef> for Ecef {
     fn from(c: gc::geodesy::Ecef) -> Self {
         Ecef {
-            x: c.x,
-            y: c.y,
-            z: c.z,
+            x: c.x_m,
+            y: c.y_m,
+            z: c.z_m,
         }
     }
 }
@@ -113,36 +117,36 @@ impl From<Ecef> for gc::geodesy::Ecef {
 impl From<gc::geodesy::Enu> for Enu {
     fn from(e: gc::geodesy::Enu) -> Self {
         Enu {
-            east: e.east,
-            north: e.north,
-            up: e.up,
+            east: e.east_m,
+            north: e.north_m,
+            up: e.up_m,
         }
     }
 }
 impl From<Enu> for gc::geodesy::Enu {
     fn from(e: Enu) -> Self {
         gc::geodesy::Enu {
-            east: e.east,
-            north: e.north,
-            up: e.up,
+            east_m: e.east,
+            north_m: e.north,
+            up_m: e.up,
         }
     }
 }
 impl From<gc::geodesy::Ned> for Ned {
     fn from(n: gc::geodesy::Ned) -> Self {
         Ned {
-            north: n.north,
-            east: n.east,
-            down: n.down,
+            north: n.north_m,
+            east: n.east_m,
+            down: n.down_m,
         }
     }
 }
 impl From<Ned> for gc::geodesy::Ned {
     fn from(n: Ned) -> Self {
         gc::geodesy::Ned {
-            north: n.north,
-            east: n.east,
-            down: n.down,
+            north_m: n.north,
+            east_m: n.east,
+            down_m: n.down,
         }
     }
 }
@@ -205,7 +209,7 @@ pub fn ellipsoid_clarke_1866() -> Ellipsoid {
 /// positive, or the inverse flattening is NaN or not greater than one.
 #[uniffi::export]
 pub fn ellipsoid_new(semi_major_m: f64, inverse_flattening: f64) -> Result<Ellipsoid, GeoError> {
-    gc::geodesy::Ellipsoid::new(semi_major_m, inverse_flattening)
+    gc::geodesy::Ellipsoid::new(gc::Length::from_meters(semi_major_m), inverse_flattening)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -231,7 +235,9 @@ pub fn ellipsoid_flattening(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
 /// `GeoError::InvalidValue` for a malformed ellipsoid record.
 #[uniffi::export]
 pub fn ellipsoid_semi_minor_m(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
-    Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?.semi_minor_m())
+    Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?
+        .semi_minor()
+        .meters())
 }
 /// First eccentricity squared `e²` of the ellipsoid.
 ///

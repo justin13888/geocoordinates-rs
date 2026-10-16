@@ -17,6 +17,7 @@ use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 use crate::grids::utm::{K0 as UTM_K0, UPS_K0, Ups, Utm, UtmHemisphere};
+use crate::units::Length;
 
 // --- 100 km square lettering tables (I and O are always excluded) ---
 /// UTM column letters, selected by `(zone − 1) mod 3`.
@@ -61,17 +62,18 @@ pub enum MgrsPrecision {
 }
 
 impl MgrsPrecision {
-    /// The square's side in meters: 100 000, 10 000, 1 000, 100, 10, or 1.
+    /// The square's side: 100 km, 10 km, 1 km, 100 m, 10 m, or 1 m.
     ///
     /// ```
     /// use geocoordinates::grids::MgrsPrecision;
+    /// use geocoordinates::{Length, LengthUnit};
     ///
-    /// assert_eq!(MgrsPrecision::Km100.meters(), 100_000);
-    /// assert_eq!(MgrsPrecision::M1.meters(), 1);
+    /// assert_eq!(MgrsPrecision::Km100.side().to_unit(LengthUnit::Kilometer), 100.0);
+    /// assert_eq!(MgrsPrecision::M1.side(), Length::from_meters(1.0));
     /// ```
     #[must_use]
-    pub fn meters(self) -> u32 {
-        10u32.pow(5 - self.digits())
+    pub fn side(self) -> Length {
+        Length::from_meters(f64::from(10u32.pow(5 - self.digits())))
     }
 
     /// Easting (and northing) digit count, 0 through 5.
@@ -160,7 +162,7 @@ impl Mgrs {
     ///
     /// The error bound is the square's half diagonal converted from grid to
     /// ground meters: `side / √2 / k_min`, where `side` is
-    /// [`MgrsPrecision::meters`] and `k_min` is the
+    /// [`MgrsPrecision::side`] and `k_min` is the
     /// projection's minimum point scale factor (0.9996 for UTM, 0.994 for
     /// UPS). Grid distance is ground distance times the point scale factor k,
     /// and k never falls below `k_min`, so the bound holds everywhere in the
@@ -173,17 +175,17 @@ impl Mgrs {
     ///
     /// // A 1 m square in lower Manhattan.
     /// let center = Mgrs::try_from("18TWL8395907350")?.to_coordinate();
-    /// assert!((center.lat() - 40.7128).abs() < 1e-5);
-    /// assert!((center.lon() + 74.006).abs() < 1e-5);
-    /// assert!(center.max_error_m() < 0.71); // 1 m / √2 / 0.9996
+    /// assert!((center.value().lat() - 40.7128).abs() < 1e-5);
+    /// assert!((center.value().lon() + 74.006).abs() < 1e-5);
+    /// assert!(center.max_error().meters() < 0.71); // 1 m / √2 / 0.9996
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
     pub fn to_coordinate(&self) -> Approx<Coordinate> {
         let (coord, _) = decode(&self.text).expect("MGRS was validated at construction");
-        Approx::new(
+        Approx::from_valid(
             coord,
-            f64::from(self.precision.meters()) * core::f64::consts::FRAC_1_SQRT_2
+            self.precision.side().meters() * core::f64::consts::FRAC_1_SQRT_2
                 / min_scale_factor(&self.text),
         )
     }
@@ -322,23 +324,23 @@ fn digit_pair(easting: f64, northing: f64, digits: u32) -> String {
 fn encode_utm(coord: Coordinate, digits: u32) -> String {
     let utm = Utm::try_from_coordinate(coord).expect("latitude is in the UTM band");
     let set = ((utm.zone() - 1) % 3) as usize;
-    let col = UTM_COLS[set].as_bytes()[(utm.easting() / 100_000.0) as usize - 1] as char;
+    let col = UTM_COLS[set].as_bytes()[(utm.easting_m() / 100_000.0) as usize - 1] as char;
     let row_off = if utm.zone() % 2 == 0 { 5 } else { 0 };
-    let row = UTM_ROW.as_bytes()[((utm.northing() / 100_000.0) as usize + row_off) % 20] as char;
+    let row = UTM_ROW.as_bytes()[((utm.northing_m() / 100_000.0) as usize + row_off) % 20] as char;
     format!(
         "{:02}{}{}{}{}",
         utm.zone(),
         band_letter(coord.lat()),
         col,
         row,
-        digit_pair(utm.easting(), utm.northing(), digits),
+        digit_pair(utm.easting_m(), utm.northing_m(), digits),
     )
 }
 
 fn encode_ups(coord: Coordinate, digits: u32) -> String {
     let ups = Ups::try_from_coordinate(coord).expect("latitude is in the polar band");
     let north = ups.hemisphere() == UtmHemisphere::North;
-    let east = ups.easting() >= 2_000_000.0;
+    let east = ups.easting_m() >= 2_000_000.0;
     let zl = match (north, east) {
         (true, false) => 'Y',
         (true, true) => 'Z',
@@ -346,15 +348,15 @@ fn encode_ups(coord: Coordinate, digits: u32) -> String {
         (false, true) => 'B',
     };
     let (col_tbl, col_off) = ups_column_table(zl);
-    let col = col_tbl.as_bytes()[(ups.easting() / 100_000.0) as usize - col_off] as char;
+    let col = col_tbl.as_bytes()[(ups.easting_m() / 100_000.0) as usize - col_off] as char;
     let row_off = if north { 13 } else { 8 };
-    let row = UPS_ROW.as_bytes()[(ups.northing() / 100_000.0) as usize - row_off] as char;
+    let row = UPS_ROW.as_bytes()[(ups.northing_m() / 100_000.0) as usize - row_off] as char;
     format!(
         "{}{}{}{}",
         zl,
         col,
         row,
-        digit_pair(ups.easting(), ups.northing(), digits)
+        digit_pair(ups.easting_m(), ups.northing_m(), digits)
     )
 }
 

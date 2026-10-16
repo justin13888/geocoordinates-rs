@@ -9,7 +9,7 @@
 //! parsing that string back returns an equal value.
 //!
 //! Encoding a point into a cell is exact; `decode` returns the cell **center**
-//! wrapped in [`Approx`]. Its `max_error_m` is the largest WGS-84 geodesic
+//! wrapped in [`Approx`]. Its [`max_error`](Approx::max_error) is the largest WGS-84 geodesic
 //! (Karney) distance from the center to the cell's four corners, which is a
 //! true upper bound on the distance to any point of the cell: along a meridian
 //! or a parallel the distance from a fixed point grows monotonically away from
@@ -136,7 +136,7 @@ fn cell_center(lat_lo: f64, lat_hi: f64, lon_lo: f64, lon_hi: f64) -> Approx<Coo
     .fold(0.0, f64::max)
         + ROUNDING_MARGIN_M;
     // Every caller passes a cell inside the globe, so its center is in range.
-    Approx::new(
+    Approx::from_valid(
         Coordinate::from_valid(lat, lon, None, crate::Crs::Wgs84),
         max_error_m,
     )

@@ -75,7 +75,11 @@ fn precision_meters_are_the_square_sides() {
         (MgrsPrecision::M1, 1),
     ];
     for (precision, meters) in sides {
-        assert_eq!(precision.meters(), meters, "{precision:?}");
+        assert_eq!(
+            precision.side(),
+            crate::Length::from_meters(f64::from(meters)),
+            "{precision:?}"
+        );
     }
 }
 
@@ -108,13 +112,13 @@ fn decode_recovers_each_reference() {
             0.994
         };
         assert_close(
-            approx.max_error_m(),
+            approx.max_error().meters(),
             core::f64::consts::FRAC_1_SQRT_2 / k_min,
             1e-12,
         );
         // The published bound is a ground distance on the ellipsoid, so it
         // is checked with the geodesic oracle, not a spherical one.
-        assert_within_geodesic_meters(approx.value(), &c(lat, lon), approx.max_error_m());
+        assert_within_geodesic_meters(approx.value(), &c(lat, lon), approx.max_error().meters());
     }
 }
 
@@ -157,7 +161,7 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
         ],
     );
     assert!(worst > half_diag, "UTM worst {worst} m");
-    assert!(worst <= approx.max_error_m(), "UTM worst {worst} m");
+    assert!(worst <= approx.max_error().meters(), "UTM worst {worst} m");
 
     // UPS: the cell whose south-west corner is the North Pole.
     let ups = Mgrs::try_from("ZAH0000").expect("valid");
@@ -178,7 +182,7 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
         ],
     );
     assert!(worst > half_diag, "UPS worst {worst} m");
-    assert!(worst <= approx.max_error_m(), "UPS worst {worst} m");
+    assert!(worst <= approx.max_error().meters(), "UPS worst {worst} m");
 }
 
 #[test]
@@ -186,7 +190,7 @@ fn encode_decode_round_trips_within_bound() {
     for &(lat, lon, _) in REFS {
         let m = Mgrs::try_from_coordinate(c(lat, lon), MgrsPrecision::M1).unwrap();
         let back = m.to_coordinate();
-        assert_within_geodesic_meters(back.value(), &c(lat, lon), back.max_error_m());
+        assert_within_geodesic_meters(back.value(), &c(lat, lon), back.max_error().meters());
     }
 }
 
@@ -218,7 +222,7 @@ fn coarser_cells_have_larger_bounds() {
     let m = Mgrs::try_from_coordinate(c(48.8584, 2.2945), MgrsPrecision::Km1).unwrap();
     assert_eq!(m.precision(), MgrsPrecision::Km1);
     assert_close(
-        m.to_coordinate().max_error_m(),
+        m.to_coordinate().max_error().meters(),
         1000.0 * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
         1e-9,
     );
@@ -238,7 +242,7 @@ fn decode_coarse_precision_scales_the_digits() {
     assert_eq!(m.precision(), MgrsPrecision::M100);
     let approx = m.to_coordinate();
     assert_close(
-        approx.max_error_m(),
+        approx.max_error().meters(),
         100.0 * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
         1e-10,
     );

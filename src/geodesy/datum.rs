@@ -17,9 +17,9 @@
 //!   uses regional *mean*, translation-only shifts from NIMA TR8350.2, which
 //!   match a local realization of the datum only to meters or tens of meters.
 //!   Each carries that published accuracy as
-//!   [`DatumTransform::accuracy_m`], and
+//!   [`DatumTransform::accuracy`], and
 //!   [`convert`](crate::convert::convert) reports it as the leg's
-//!   `max_error_m`.
+//!   [`max_error`](crate::Approx::max_error).
 //!
 //! This module owns only the lightweight parametric path (a small catalog of
 //! common datums: NAD27, Tokyo, Pulkovo-1942). Helmert (run through ECEF) is the
@@ -52,6 +52,7 @@ use core::f64::consts::PI;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::geodesy::ecef::{Ecef, ellipsoid_of};
+use crate::units::Length;
 
 /// Arc-seconds → radians (the rotation parameters are published in arc-seconds).
 const ARCSEC_TO_RAD: f64 = PI / (180.0 * 3600.0);
@@ -68,7 +69,7 @@ const ARCSEC_TO_RAD: f64 = PI / (180.0 * 3600.0);
 /// // A 1 ppm scale change moves a point at one Earth radius by about 6.4 m.
 /// let scale = Helmert { scale_ppm: 1.0, ..Helmert::IDENTITY };
 /// let moved = scale.apply_ecef(Ecef::new(6_378_137.0, 0.0, 0.0));
-/// assert!((moved.x - 6_378_137.0 - 6.378_137).abs() < 1e-6);
+/// assert!((moved.x_m - 6_378_137.0 - 6.378_137).abs() < 1e-6);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -126,11 +127,11 @@ impl Helmert {
         let ry = self.ry_arcsec * ARCSEC_TO_RAD;
         let rz = self.rz_arcsec * ARCSEC_TO_RAD;
         let s = 1.0 + self.scale_ppm * 1e-6;
-        let (x, y, z) = (ecef.x, ecef.y, ecef.z);
+        let (x, y, z) = (ecef.x_m, ecef.y_m, ecef.z_m);
         Ecef {
-            x: self.tx_m + s * (x - rz * y + ry * z),
-            y: self.ty_m + s * (rz * x + y - rx * z),
-            z: self.tz_m + s * (-ry * x + rx * y + z),
+            x_m: self.tx_m + s * (x - rz * y + ry * z),
+            y_m: self.ty_m + s * (rz * x + y - rx * z),
+            z_m: self.tz_m + s * (-ry * x + rx * y + z),
         }
     }
 
@@ -197,13 +198,13 @@ impl Helmert {
 /// goes through [`DatumTransform::new`].
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, geodesy::DatumTransform};
+/// use geocoordinates::{Coordinate, Crs, Length, geodesy::DatumTransform};
 ///
 /// let nad27_to_wgs84 = DatumTransform::catalog_to_wgs84(Crs::Nad27).unwrap();
 /// let wgs = nad27_to_wgs84.apply(Coordinate::new(40.0, -100.0, Crs::Nad27)?)?;
 /// assert_eq!(wgs.crs(), Crs::Wgs84);
 /// // TR8350.2 publishes ±5 m, ±5 m, ±6 m for this mean shift.
-/// assert_eq!(nad27_to_wgs84.accuracy_m(), Some(86f64.sqrt()));
+/// assert_eq!(nad27_to_wgs84.accuracy(), Some(Length::from_meters(86f64.sqrt())));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -213,7 +214,7 @@ pub struct DatumTransform {
     from_crs: Crs,
     to_crs: Crs,
     helmert: Helmert,
-    accuracy_m: Option<f64>,
+    accuracy: Option<Length>,
 }
 
 /// Unvalidated serde shape of [`DatumTransform`]; deserialization goes
@@ -224,7 +225,7 @@ struct DatumTransformRecord {
     from_crs: Crs,
     to_crs: Crs,
     helmert: Helmert,
-    accuracy_m: Option<f64>,
+    accuracy: Option<Length>,
 }
 
 #[cfg(feature = "serde")]
@@ -232,37 +233,41 @@ impl TryFrom<DatumTransformRecord> for DatumTransform {
     type Error = Error;
 
     fn try_from(r: DatumTransformRecord) -> Result<Self> {
-        DatumTransform::new(r.from_crs, r.to_crs, r.helmert, r.accuracy_m)
+        DatumTransform::new(r.from_crs, r.to_crs, r.helmert, r.accuracy)
     }
 }
 
 impl DatumTransform {
     /// Build a transform carrying `from_crs` to `to_crs` by `helmert`, with
-    /// `accuracy_m` the accuracy of the parameters themselves in meters
-    /// (`None` when no estimate is published).
+    /// `accuracy` the accuracy of the parameters themselves (`None` when no
+    /// estimate is published).
     ///
     /// # Errors
     /// - [`Error::CrsMismatch`] (expecting [`Crs::Wgs84`]) when either system
     ///   is GCJ-02 or BD-09, which are not geodetic datums and have no
     ///   ellipsoid;
     /// - [`Error::InvalidValue`] (field `"helmert"`) when a Helmert parameter
-    ///   is not finite, and (field `"accuracy_m"`) when `accuracy_m` is
-    ///   negative or not finite.
+    ///   is not finite, and (field `"accuracy"`) when `accuracy` is negative
+    ///   or not finite.
     ///
     /// ```
-    /// use geocoordinates::{Crs, geodesy::{DatumTransform, Helmert}};
+    /// use geocoordinates::{Crs, Error, Length, geodesy::{DatumTransform, Helmert}};
     ///
     /// let shift = Helmert { tx_m: -8.0, ty_m: 160.0, tz_m: 176.0, ..Helmert::IDENTITY };
-    /// let t = DatumTransform::new(Crs::Nad27, Crs::Wgs84, shift, Some(10.0))?;
+    /// let t = DatumTransform::new(Crs::Nad27, Crs::Wgs84, shift, Some(Length::from_meters(10.0)))?;
     /// assert_eq!(t.to_crs(), Crs::Wgs84);
     /// assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, shift, None).is_err());
+    /// assert!(matches!(
+    ///     DatumTransform::new(Crs::Nad27, Crs::Wgs84, shift, Some(Length::from_meters(-1.0))),
+    ///     Err(Error::InvalidValue { field: "accuracy", .. })
+    /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn new(
         from_crs: Crs,
         to_crs: Crs,
         helmert: Helmert,
-        accuracy_m: Option<f64>,
+        accuracy: Option<Length>,
     ) -> Result<Self> {
         ellipsoid_of(from_crs)?;
         ellipsoid_of(to_crs)?;
@@ -272,9 +277,9 @@ impl DatumTransform {
                 detail: "every parameter must be finite".into(),
             });
         }
-        if accuracy_m.is_some_and(|a| !a.is_finite() || a < 0.0) {
+        if accuracy.is_some_and(|a| !a.meters().is_finite() || a.meters() < 0.0) {
             return Err(Error::InvalidValue {
-                field: "accuracy_m",
+                field: "accuracy",
                 detail: "must be finite and non-negative".into(),
             });
         }
@@ -282,7 +287,7 @@ impl DatumTransform {
             from_crs,
             to_crs,
             helmert,
-            accuracy_m,
+            accuracy,
         })
     }
 
@@ -290,7 +295,7 @@ impl DatumTransform {
     ///
     /// Each is a regional mean, translation-only shift from NIMA TR8350.2
     /// (Third Edition, Amendment 1, 3 January 2000), with its published
-    /// accuracy in [`accuracy_m`](Self::accuracy_m):
+    /// accuracy in [`accuracy`](Self::accuracy):
     ///
     /// | Datum | Entry | Shift (m) | Accuracy |
     /// |---|---|---|---|
@@ -359,9 +364,9 @@ impl DatumTransform {
         self.helmert
     }
 
-    /// The accuracy of the parameters, in meters: how far the modeled shift
-    /// may be from the local realization of the datum, or `None` when no
-    /// estimate is published.
+    /// The accuracy of the parameters: how far the modeled shift may be from
+    /// the local realization of the datum, or `None` when no estimate is
+    /// published.
     ///
     /// For the catalog this is the root-sum-square of TR8350.2's per-axis
     /// `±` figures for ΔX, ΔY and ΔZ (see
@@ -370,23 +375,23 @@ impl DatumTransform {
     /// and a point far from that region can be worse.
     ///
     /// ```
-    /// use geocoordinates::{Crs, geodesy::DatumTransform};
+    /// use geocoordinates::{Crs, Length, geodesy::DatumTransform};
     ///
     /// let tokyo = DatumTransform::catalog_to_wgs84(Crs::Tokyo).unwrap();
-    /// assert_eq!(tokyo.accuracy_m(), Some(825f64.sqrt()));
+    /// assert_eq!(tokyo.accuracy(), Some(Length::from_meters(825f64.sqrt())));
     /// // TR8350.2 publishes no error estimate for Pulkovo-1942.
-    /// assert_eq!(DatumTransform::catalog_to_wgs84(Crs::Pulkovo42).unwrap().accuracy_m(), None);
+    /// assert_eq!(DatumTransform::catalog_to_wgs84(Crs::Pulkovo42).unwrap().accuracy(), None);
     /// ```
     #[must_use]
-    pub fn accuracy_m(&self) -> Option<f64> {
-        self.accuracy_m
+    pub fn accuracy(&self) -> Option<Length> {
+        self.accuracy
     }
 
     /// Transform a geodetic coordinate from the source to the target datum,
     /// tagging the result with [`to_crs`](Self::to_crs).
     ///
     /// The computation is exact to round-off; the result is only as accurate
-    /// as the Helmert parameters ([`accuracy_m`](Self::accuracy_m)). A 2-D
+    /// as the Helmert parameters ([`accuracy`](Self::accuracy)). A 2-D
     /// input gives a 2-D output: the shifted ellipsoidal height is dropped.
     ///
     /// # Errors
@@ -451,7 +456,7 @@ impl DatumTransform {
             from_crs: self.to_crs,
             to_crs: self.from_crs,
             helmert: self.helmert.inverse_first_order(),
-            accuracy_m: self.accuracy_m,
+            accuracy: self.accuracy,
         }
     }
 }
@@ -483,7 +488,7 @@ impl HubRoute {
     pub(crate) fn of(datum: Crs) -> HubRoute {
         // NIMA TR8350.2 (3rd ed., Amendment 1) mean translation-only shifts;
         // see `DatumTransform::catalog_to_wgs84` for the table entries.
-        let helmert = |tx_m, ty_m, tz_m, accuracy_m| {
+        let helmert = |tx_m, ty_m, tz_m, accuracy: Option<f64>| {
             HubRoute::Helmert(DatumTransform {
                 from_crs: datum,
                 to_crs: Crs::Wgs84,
@@ -493,7 +498,7 @@ impl HubRoute {
                     tz_m,
                     ..Helmert::IDENTITY
                 },
-                accuracy_m,
+                accuracy: accuracy.map(Length::from_meters),
             })
         };
         match datum {

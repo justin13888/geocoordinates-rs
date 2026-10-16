@@ -17,6 +17,7 @@ use crate::angle::{Ddm, Hemisphere};
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
+use crate::units::Length;
 
 use super::NOMINAL_UERE_M;
 
@@ -58,7 +59,8 @@ use super::NOMINAL_UERE_M;
 /// let fix = from_nmea_sentence(gga)?;
 /// assert!((fix.coord.lat() - 48.1173).abs() < 1e-9);
 /// assert!((fix.coord.lon() - 11.516_666_666).abs() < 1e-9);
-/// assert_eq!(fix.accuracy.and_then(|a| a.horizontal_m), Some(4.5)); // HDOP 0.9 × 5 m
+/// let horizontal = fix.accuracy.and_then(|a| a.horizontal).map(|h| h.meters());
+/// assert_eq!(horizontal, Some(4.5)); // HDOP 0.9 × 5 m
 ///
 /// // Status `V`: the receiver has no fix, so there is no position.
 /// let void = "$GPRMC,123519,V,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W";
@@ -221,8 +223,8 @@ fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
                 return Err(Error::Parse(format!("negative NMEA HDOP: {raw}")));
             }
             Ok(Accuracy {
-                horizontal_m: Some(hdop * NOMINAL_UERE_M),
-                vertical_m: None,
+                horizontal: Some(Length::from_meters(hdop * NOMINAL_UERE_M)),
+                vertical: None,
             })
         })
         .transpose()?;
@@ -351,7 +353,7 @@ mod tests {
         assert_close(fix.coord.lon(), 11.0 + 31.0 / 60.0, 1e-9);
         assert_eq!(fix.coord.height(), Some(Height::Orthometric(545.4)));
         assert_close(
-            fix.accuracy.unwrap().horizontal_m.unwrap(),
+            fix.accuracy.unwrap().horizontal.unwrap().meters(),
             0.9 * NOMINAL_UERE_M,
             1e-9,
         );
@@ -577,7 +579,7 @@ mod tests {
     fn gga_hdop_zero_is_accepted_and_negative_rejected() {
         let gga = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.0,545.4,M,46.9,M,,*4E";
         let fix = from_nmea_sentence(gga).unwrap();
-        assert_eq!(fix.accuracy.unwrap().horizontal_m, Some(0.0));
+        assert_eq!(fix.accuracy.unwrap().horizontal, Some(Length::ZERO));
         let gga = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,-0.9,545.4,M,46.9,M,,*6A";
         assert!(matches!(from_nmea_sentence(gga), Err(Error::Parse(m)) if m.contains("HDOP")));
     }

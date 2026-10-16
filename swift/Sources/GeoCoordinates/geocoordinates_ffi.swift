@@ -3941,6 +3941,14 @@ public enum LengthUnit: Equatable, Hashable {
      * Nautical mile (1852 m).
      */
     case nauticalMile
+    /**
+     * International statute mile (1609.344 m).
+     */
+    case mile
+    /**
+     * International yard (0.9144 m).
+     */
+    case yard
 
 
 
@@ -3972,6 +3980,10 @@ public struct FfiConverterTypeLengthUnit: FfiConverterRustBuffer {
         
         case 5: return .nauticalMile
         
+        case 6: return .mile
+        
+        case 7: return .yard
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -3998,6 +4010,14 @@ public struct FfiConverterTypeLengthUnit: FfiConverterRustBuffer {
         
         case .nauticalMile:
             writeInt(&buf, Int32(5))
+        
+        
+        case .mile:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .yard:
+            writeInt(&buf, Int32(7))
         
         }
     }
@@ -5459,7 +5479,7 @@ public func datumTransformInverseFirstOrder(transform: DatumTransform)throws  ->
  * # Errors
  * `GeoError::CrsMismatch` (expecting WGS-84) when either system is GCJ-02 or
  * BD-09; `GeoError::InvalidValue` (field `helmert`) for a non-finite
- * parameter, and (field `accuracy_m`) for a negative or non-finite accuracy.
+ * parameter, and (field `accuracy`) for a negative or non-finite accuracy.
  */
 public func datumTransformNew(fromCrs: Crs, toCrs: Crs, helmert: Helmert, accuracyM: Double?)throws  -> DatumTransform  {
     return try  FfiConverterTypeDatumTransform_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6688,7 +6708,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_inverse_first_order() != 47466) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_new() != 29065) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_new() != 1820) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 15241) {

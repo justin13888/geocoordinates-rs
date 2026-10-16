@@ -108,11 +108,11 @@ impl Ups {
     ///
     /// // On the prime meridian the easting is the false easting.
     /// let ups = Ups::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)?)?;
-    /// assert!((ups.easting() - 2_000_000.0).abs() < 1e-6);
+    /// assert!((ups.easting_m() - 2_000_000.0).abs() < 1e-6);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn easting(&self) -> f64 {
+    pub fn easting_m(&self) -> f64 {
         self.easting
     }
 
@@ -124,11 +124,11 @@ impl Ups {
     ///
     /// // 85°N on the prime meridian lies about 556 km grid-south of the pole.
     /// let ups = Ups::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)?)?;
-    /// assert!((ups.northing() - 1_444_542.609).abs() < 1e-3);
+    /// assert!((ups.northing_m() - 1_444_542.609).abs() < 1e-3);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn northing(&self) -> f64 {
+    pub fn northing_m(&self) -> f64 {
         self.northing
     }
 
@@ -140,7 +140,7 @@ impl Ups {
     /// use geocoordinates::{Coordinate, Error};
     ///
     /// let ups = Ups::try_from_coordinate(Coordinate::wgs84(87.0, 45.0)?)?;
-    /// assert!((ups.easting() - 2_235_568.725).abs() < 1e-3);
+    /// assert!((ups.easting_m() - 2_235_568.725).abs() < 1e-3);
     /// // 83.9°N is still UTM territory.
     /// let utm_band = Ups::try_from_coordinate(Coordinate::wgs84(83.9, 0.0)?);
     /// assert!(matches!(utm_band, Err(Error::OutsideDomain { operation: "UPS", .. })));

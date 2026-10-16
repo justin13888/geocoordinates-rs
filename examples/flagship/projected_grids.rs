@@ -5,7 +5,7 @@ use geocoordinates::geodesy::{DatumTransform, Ecef, Helmert};
 use geocoordinates::grids::{
     Mgrs, MgrsPrecision, Ups, Utm, UtmHemisphere, utm_central_meridian_deg, utm_zone_for,
 };
-use geocoordinates::{Coordinate, Crs, Height};
+use geocoordinates::{Coordinate, Crs, Height, Length};
 
 use crate::support::{DemoResult, assert_close, assert_within_meters};
 
@@ -23,7 +23,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     ] {
         let transform =
             DatumTransform::catalog_to_wgs84(datum).expect("classic datum is catalogued");
-        assert_eq!(transform.accuracy_m(), accuracy_m);
+        assert_eq!(transform.accuracy(), accuracy_m.map(Length::from_meters));
         let source = Coordinate::new(40.0, -100.0, datum)?.with_height(Height::Ellipsoidal(0.0))?;
         let wgs = transform.apply(source)?;
         let restored = transform.inverse_first_order().apply(wgs)?;
@@ -31,7 +31,10 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
         assert_within_meters(&restored, &source, 1e-6);
         // `convert` reports that accuracy as the Helmert leg's bound.
         let converted = convert(source, Crs::Wgs84)?;
-        assert_eq!(converted.max_error_m(), accuracy_m.unwrap_or(f64::INFINITY));
+        assert_eq!(
+            converted.max_error().meters(),
+            accuracy_m.unwrap_or(f64::INFINITY)
+        );
     }
     assert!(DatumTransform::catalog_to_wgs84(Crs::Wgs84).is_none());
 
@@ -44,12 +47,12 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     let utm = Utm::try_from_coordinate(philadelphia)?;
     assert_eq!(utm.zone(), 18);
     assert_eq!(utm.hemisphere(), UtmHemisphere::North);
-    assert_close(utm.easting(), 500_000.0, 0.001);
-    assert_close(utm.northing(), 4_427_757.218_8, 0.001);
+    assert_close(utm.easting_m(), 500_000.0, 0.001);
+    assert_close(utm.northing_m(), 4_427_757.218_8, 0.001);
     assert_within_meters(&utm.to_coordinate(), &philadelphia, 0.001);
     assert_eq!(Utm::try_from(philadelphia)?, utm);
     assert_eq!(
-        Utm::new(18, UtmHemisphere::North, utm.easting(), utm.northing())?,
+        Utm::new(18, UtmHemisphere::North, utm.easting_m(), utm.northing_m())?,
         utm
     );
     assert_eq!(
@@ -63,7 +66,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     assert_within_meters(&ups.to_coordinate(), &north_polar, 0.001);
     assert_eq!(Ups::try_from(north_polar)?, ups);
     assert_eq!(
-        Ups::new(UtmHemisphere::North, ups.easting(), ups.northing())?,
+        Ups::new(UtmHemisphere::North, ups.easting_m(), ups.northing_m())?,
         ups
     );
     assert_eq!(
@@ -74,7 +77,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     let mgrs = Mgrs::try_from_coordinate(philadelphia, MgrsPrecision::M1)?;
     assert_eq!(mgrs.as_str(), "18TWK0000027757");
     assert_eq!(mgrs.precision(), MgrsPrecision::M1);
-    assert_eq!(mgrs.precision().meters(), 1);
+    assert_eq!(mgrs.precision().side(), Length::from_meters(1.0));
     let parsed: Mgrs = "18t wk 00000 27757".parse()?;
     assert_eq!(parsed, mgrs);
     // Display writes the canonical string, which parses back to an equal value.
@@ -84,7 +87,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     let decoded = mgrs.to_coordinate();
     // Half the 1 m square's diagonal, in ground meters (grid / UTM k0).
     assert_eq!(
-        decoded.max_error_m(),
+        decoded.max_error().meters(),
         core::f64::consts::FRAC_1_SQRT_2 / 0.9996
     );
     assert_within_meters(decoded.value(), &philadelphia, 1.0);

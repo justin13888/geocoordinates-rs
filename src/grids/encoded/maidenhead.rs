@@ -116,8 +116,8 @@ impl Maidenhead {
     /// use geocoordinates::grids::Maidenhead;
     ///
     /// let area = Maidenhead::try_from("FN20")?.decode();
-    /// assert_eq!((area.lat(), area.lon()), (40.5, -75.0));
-    /// assert!(area.max_error_m() < 102_000.0);
+    /// assert_eq!((area.value().lat(), area.value().lon()), (40.5, -75.0));
+    /// assert!(area.max_error().meters() < 102_000.0);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]

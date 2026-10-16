@@ -19,7 +19,7 @@
 //! // The same latitude and longitude sit at different places on two datums.
 //! let wgs = Ecef::try_from_coordinate(Coordinate::new(35.0, 139.0, Crs::Wgs84)?)?;
 //! let tokyo = Ecef::try_from_coordinate(Coordinate::new(35.0, 139.0, Crs::Tokyo)?)?;
-//! assert!((wgs.x - tokyo.x).abs() > 100.0);
+//! assert!((wgs.x_m - tokyo.x_m).abs() > 100.0);
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 
@@ -53,7 +53,7 @@ pub(crate) fn ellipsoid_of(crs: Crs) -> Result<Ellipsoid> {
 /// use geocoordinates::{Coordinate, Crs, geodesy::Ecef};
 ///
 /// let ecef = Ecef::try_from_coordinate(Coordinate::wgs84(0.0, 0.0)?)?;
-/// assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_137.0, 0.0, 0.0));
+/// assert_eq!((ecef.x_m, ecef.y_m, ecef.z_m), (6_378_137.0, 0.0, 0.0));
 /// let back = ecef.try_to_coordinate(Crs::Wgs84)?;
 /// assert_eq!((back.lat(), back.lon()), (0.0, 0.0));
 /// # Ok::<(), geocoordinates::Error>(())
@@ -62,11 +62,11 @@ pub(crate) fn ellipsoid_of(crs: Crs) -> Result<Ellipsoid> {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ecef {
     /// X axis (meters), through the prime meridian at the equator.
-    pub x: f64,
+    pub x_m: f64,
     /// Y axis (meters), 90° east at the equator.
-    pub y: f64,
+    pub y_m: f64,
     /// Z axis (meters), through the north pole.
-    pub z: f64,
+    pub z_m: f64,
 }
 
 impl Ecef {
@@ -76,11 +76,11 @@ impl Ecef {
     /// use geocoordinates::geodesy::Ecef;
     ///
     /// let p = Ecef::new(1.0, 2.0, 3.0);
-    /// assert_eq!((p.x, p.y, p.z), (1.0, 2.0, 3.0));
+    /// assert_eq!((p.x_m, p.y_m, p.z_m), (1.0, 2.0, 3.0));
     /// ```
     #[must_use]
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { x, y, z }
+    pub fn new(x_m: f64, y_m: f64, z_m: f64) -> Self {
+        Self { x_m, y_m, z_m }
     }
 
     /// ECEF → geodetic [`Coordinate`] (lat/lon/ellipsoidal height) on the
@@ -114,14 +114,14 @@ impl Ecef {
     /// ```
     pub fn try_to_coordinate(self, crs: Crs) -> Result<Coordinate> {
         let ellipsoid = ellipsoid_of(crs)?;
-        if !self.x.is_finite() || !self.y.is_finite() || !self.z.is_finite() {
+        if !self.x_m.is_finite() || !self.y_m.is_finite() || !self.z_m.is_finite() {
             return Err(Error::InvalidValue {
                 field: "ECEF",
                 detail: "x, y, and z must be finite".into(),
             });
         }
         let (lat, h) = geodetic_latitude_and_height(self, ellipsoid);
-        let lon = self.y.atan2(self.x).to_degrees();
+        let lon = self.y_m.atan2(self.x_m).to_degrees();
         Coordinate::new(lat.to_degrees(), lon, crs)?.with_height(Height::Ellipsoidal(h))
     }
 
@@ -140,7 +140,7 @@ impl Ecef {
     ///
     /// let raised = Coordinate::wgs84(0.0, 90.0)?.with_height(Height::Ellipsoidal(100.0))?;
     /// let p = Ecef::try_from_coordinate(raised)?;
-    /// assert!(p.x.abs() < 1e-6 && (p.y - 6_378_237.0).abs() < 1e-6 && p.z == 0.0);
+    /// assert!(p.x_m.abs() < 1e-6 && (p.y_m - 6_378_237.0).abs() < 1e-6 && p.z_m == 0.0);
     /// // An orthometric height needs a geoid model this crate does not ship.
     /// let msl = Coordinate::wgs84(0.0, 90.0)?.with_height(Height::Orthometric(100.0))?;
     /// assert!(matches!(
@@ -154,15 +154,15 @@ impl Ecef {
         let h = height_meters(coord)?;
         let phi = coord.lat().to_radians();
         let lambda = coord.lon().to_radians();
-        let a = ellipsoid.semi_major_m();
+        let a = ellipsoid.semi_major().meters();
         let e2 = ellipsoid.eccentricity_sq();
         let sin_phi = phi.sin();
         let cos_phi = phi.cos();
         let n = a / (1.0 - e2 * sin_phi * sin_phi).sqrt();
         Ok(Ecef {
-            x: (n + h) * cos_phi * lambda.cos(),
-            y: (n + h) * cos_phi * lambda.sin(),
-            z: (n * (1.0 - e2) + h) * sin_phi,
+            x_m: (n + h) * cos_phi * lambda.cos(),
+            y_m: (n + h) * cos_phi * lambda.sin(),
+            z_m: (n * (1.0 - e2) + h) * sin_phi,
         })
     }
 }
@@ -175,15 +175,15 @@ impl Ecef {
 /// GeographicLib (MIT licence), itself Vermeille's 2002 closed-form solution
 /// with Karney's guards against cancellation and underflow.
 fn geodetic_latitude_and_height(p: Ecef, ellipsoid: Ellipsoid) -> (f64, f64) {
-    let r = p.x.hypot(p.y);
-    let (lat, h) = vermeille(r, p.z, ellipsoid);
+    let r = p.x_m.hypot(p.y_m);
+    let (lat, h) = vermeille(r, p.z_m, ellipsoid);
     if h.is_finite() {
         (lat, h)
     } else {
         // The closed form's eighth powers overflow somewhere past 1e40 m.
         // That far out the Earth is a point: the distance to its center is
         // the height to round-off, and the direction is the latitude.
-        (p.z.atan2(r), r.hypot(p.z))
+        (p.z_m.atan2(r), r.hypot(p.z_m))
     }
 }
 
@@ -191,7 +191,7 @@ fn geodetic_latitude_and_height(p: Ecef, ellipsoid: Ellipsoid) -> (f64, f64) {
 /// height `z` above the equatorial plane. Non-finite once its intermediate
 /// powers overflow.
 fn vermeille(r: f64, z: f64, ellipsoid: Ellipsoid) -> (f64, f64) {
-    let a = ellipsoid.semi_major_m();
+    let a = ellipsoid.semi_major().meters();
     let e2 = ellipsoid.eccentricity_sq();
     let e2m = 1.0 - e2; // (1 − f)²
     let e4 = e2 * e2;

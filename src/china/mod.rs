@@ -32,7 +32,7 @@
 //! let wgs = Wgs84::new(39.915, 116.404)?;
 //! let gcj: Gcj02 = wgs.to_gcj02(); // exact, infallible
 //! let back = gcj.to_wgs84_refined(); // approximate, with an honest bound
-//! assert!(back.max_error_m() <= 0.5);
+//! assert!(back.max_error().meters() <= 0.5);
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 

@@ -140,8 +140,8 @@ impl H3Cell {
     /// use geocoordinates::dgg::H3Cell;
     ///
     /// let area = H3Cell::encode(Coordinate::wgs84(40.7128, -74.006)?, 9)?.decode();
-    /// assert!((area.lat() - 40.7128).abs() < 0.003);
-    /// assert!((205.0..206.0).contains(&area.max_error_m()));
+    /// assert!((area.value().lat() - 40.7128).abs() < 0.003);
+    /// assert!((205.0..206.0).contains(&area.max_error().meters()));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
@@ -159,7 +159,7 @@ impl H3Cell {
                 .iter()
                 .map(|vertex| (vertex.lat(), vertex.lng())),
         );
-        Approx::new(center, radius)
+        Approx::from_valid(center, radius)
     }
 }
 
@@ -194,7 +194,7 @@ impl From<H3Cell> for u64 {
 ///
 /// let cell = S2CellId::encode(Coordinate::wgs84(40.7128, -74.006)?, 20)?;
 /// assert_eq!(S2CellId::new(cell.as_u64())?, cell);
-/// assert!(cell.decode().max_error_m() < 7.0);
+/// assert!(cell.decode().max_error().meters() < 7.0);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "s2")]
@@ -289,8 +289,8 @@ impl S2CellId {
     /// use geocoordinates::dgg::S2CellId;
     ///
     /// let area = S2CellId::encode(Coordinate::wgs84(40.7128, -74.006)?, 20)?.decode();
-    /// assert!((area.lat() - 40.7128).abs() < 1e-4);
-    /// assert!((6.0..7.0).contains(&area.max_error_m()));
+    /// assert!((area.value().lat() - 40.7128).abs() < 1e-4);
+    /// assert!((6.0..7.0).contains(&area.max_error().meters()));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
@@ -311,7 +311,7 @@ impl S2CellId {
                 (vertex.lat.deg(), vertex.lng.deg())
             }),
         );
-        Approx::new(center, radius)
+        Approx::from_valid(center, radius)
     }
 }
 
@@ -357,11 +357,11 @@ mod tests {
     fn h3_round_trips_within_its_bound() {
         for res in [0u8, 5, 9, 12, 15] {
             let approx = H3Cell::encode(c(40.7128, -74.006), res).unwrap().decode();
-            assert!(approx.max_error_m() > 0.0);
+            assert!(approx.max_error().meters() > 0.0);
             assert_within_geodesic_meters(
                 approx.value(),
                 &c(40.7128, -74.006),
-                approx.max_error_m(),
+                approx.max_error().meters(),
             );
         }
         // Finer resolutions give tighter bounds.
@@ -369,17 +369,20 @@ mod tests {
             H3Cell::encode(c(40.7128, -74.006), 12)
                 .unwrap()
                 .decode()
-                .max_error_m()
+                .max_error()
+                .meters()
                 < H3Cell::encode(c(40.7128, -74.006), 5)
                     .unwrap()
                     .decode()
-                    .max_error_m()
+                    .max_error()
+                    .meters()
         );
         // A resolution-9 cell's farthest boundary vertex is ≈ 205 m away.
         let bound9 = H3Cell::encode(c(40.7128, -74.006), 9)
             .unwrap()
             .decode()
-            .max_error_m();
+            .max_error()
+            .meters();
         assert!((205.0..206.0).contains(&bound9), "res-9 bound {bound9}");
     }
 
@@ -420,7 +423,7 @@ mod tests {
             .iter()
             .map(|vertex| c(vertex.lat(), vertex.lng()))
             .collect();
-        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error_m());
+        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error().meters());
     }
 
     #[cfg(feature = "s2")]
@@ -439,28 +442,31 @@ mod tests {
             let approx = S2CellId::encode(c(40.7128, -74.006), level)
                 .unwrap()
                 .decode();
-            assert!(approx.max_error_m() > 0.0);
+            assert!(approx.max_error().meters() > 0.0);
             assert_within_geodesic_meters(
                 approx.value(),
                 &c(40.7128, -74.006),
-                approx.max_error_m(),
+                approx.max_error().meters(),
             );
         }
         assert!(
             S2CellId::encode(c(40.7128, -74.006), 25)
                 .unwrap()
                 .decode()
-                .max_error_m()
+                .max_error()
+                .meters()
                 < S2CellId::encode(c(40.7128, -74.006), 5)
                     .unwrap()
                     .decode()
-                    .max_error_m()
+                    .max_error()
+                    .meters()
         );
         // A level-20 cell's farthest corner is ≈ 6–7 m away.
         let bound20 = S2CellId::encode(c(40.7128, -74.006), 20)
             .unwrap()
             .decode()
-            .max_error_m();
+            .max_error()
+            .meters();
         assert!((6.0..7.0).contains(&bound20), "level-20 bound {bound20}");
     }
 
@@ -483,7 +489,7 @@ mod tests {
                 c(vertex.lat.deg(), vertex.lng.deg())
             })
             .collect();
-        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error_m());
+        assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error().meters());
     }
 
     #[test]
@@ -596,7 +602,7 @@ mod tests {
     /// bound is a real (positive, finite) distance.
     #[cfg(any(feature = "h3", feature = "s2"))]
     fn assert_decodes_around(approx: &Approx<Coordinate>, point: &Coordinate) {
-        let bound = approx.max_error_m();
+        let bound = approx.max_error().meters();
         assert!(bound > 0.0 && bound.is_finite(), "bound {bound}");
         assert_eq!(approx.value().crs(), Crs::Wgs84);
         assert_within_geodesic_meters(approx.value(), point, bound);

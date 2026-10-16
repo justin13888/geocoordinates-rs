@@ -46,7 +46,7 @@ impl Length {
     /// assert_eq!(Length::from_meters(42.0).meters(), 42.0);
     /// ```
     #[must_use]
-    pub fn from_meters(meters: f64) -> Self {
+    pub const fn from_meters(meters: f64) -> Self {
         Self { meters }
     }
 
@@ -58,7 +58,7 @@ impl Length {
     /// assert_eq!(Length::from_unit(1.0, LengthUnit::NauticalMile).meters(), 1852.0);
     /// ```
     #[must_use]
-    pub fn meters(&self) -> f64 {
+    pub const fn meters(&self) -> f64 {
         self.meters
     }
 
@@ -101,6 +101,10 @@ impl Length {
 /// let intl = Length::from_unit(1e6, LengthUnit::Foot).meters();
 /// let survey = Length::from_unit(1e6, LengthUnit::UsSurveyFoot).meters();
 /// assert!((survey - intl - 0.6096).abs() < 1e-3);
+///
+/// // Statute miles and yards are the exact international definitions.
+/// assert_eq!(Length::from_unit(1.0, LengthUnit::Mile).meters(), 1609.344);
+/// assert_eq!(Length::from_unit(1.0, LengthUnit::Yard).meters(), 0.9144);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -113,8 +117,13 @@ pub enum LengthUnit {
     Foot,
     /// US survey foot (1200/3937 m) — distinct from the international foot.
     UsSurveyFoot,
-    /// Nautical mile (1852 m).
+    /// Nautical mile (exactly 1852 m).
     NauticalMile,
+    /// International statute mile (exactly 1609.344 m, 5280 international
+    /// feet).
+    Mile,
+    /// International yard (exactly 0.9144 m, 3 international feet).
+    Yard,
 }
 
 impl LengthUnit {
@@ -128,6 +137,8 @@ impl LengthUnit {
             LengthUnit::Foot => 0.3048,
             LengthUnit::UsSurveyFoot => 1200.0 / 3937.0,
             LengthUnit::NauticalMile => 1852.0,
+            LengthUnit::Mile => 1609.344,
+            LengthUnit::Yard => 0.9144,
         }
     }
 }
@@ -170,6 +181,8 @@ mod tests {
         LengthUnit::Foot,
         LengthUnit::UsSurveyFoot,
         LengthUnit::NauticalMile,
+        LengthUnit::Mile,
+        LengthUnit::Yard,
     ];
 
     #[test]
@@ -201,6 +214,19 @@ mod tests {
         assert_close(
             Length::from_unit(1.0, LengthUnit::NauticalMile).meters(),
             1852.0,
+            1e-12,
+        );
+        assert_eq!(Length::from_unit(1.0, LengthUnit::Mile).meters(), 1609.344);
+        assert_eq!(Length::from_unit(1.0, LengthUnit::Yard).meters(), 0.9144);
+        // 1 mile = 1760 yards = 5280 feet, exactly as defined.
+        assert_close(
+            Length::from_unit(1760.0, LengthUnit::Yard).to_unit(LengthUnit::Mile),
+            1.0,
+            1e-12,
+        );
+        assert_close(
+            Length::from_unit(5280.0, LengthUnit::Foot).to_unit(LengthUnit::Mile),
+            1.0,
             1e-12,
         );
     }
