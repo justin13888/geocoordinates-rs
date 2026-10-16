@@ -61,6 +61,16 @@ assert approx(w.lat, WGS[0], 1e-5), w.lat  # < 0.5 m ~= 4.5e-6 deg
 assert approx(w.lon, WGS[1], 1e-5), w.lon
 assert 0.0 <= w.max_error_m <= 0.5, w.max_error_m  # flattened Approx bound
 
+# --- Approximate inverse: BD-09 -> WGS-84, fast (both legs' bounds summed) ---
+f = gc.bd09_to_wgs84_fast(gc.Bd09(lat=BD[0], lon=BD[1]))
+assert approx(f.lat, WGS[0], 1e-4), f.lat
+assert approx(f.lon, WGS[1], 1e-4), f.lon
+assert f.max_error_m == 6.5, f.max_error_m
+
+# --- The fast GCJ-02 inverse measures its residual at the box edge ---
+edge = gc.gcj02_to_wgs84_fast(gc.Gcj02(lat=40.0, lon=72.006))
+assert edge.max_error_m > 300.0, edge.max_error_m
+
 # --- Baidu Web Mercator round trip (exact both ways) ---
 src = gc.Bd09(lat=BD[0], lon=BD[1])
 merc = gc.baidu_mercator_from_bd09(src)

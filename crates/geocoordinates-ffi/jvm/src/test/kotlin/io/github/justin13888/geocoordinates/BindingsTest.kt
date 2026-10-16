@@ -17,12 +17,14 @@ import uniffi.geocoordinates_ffi.MgrsPrecision
 import uniffi.geocoordinates_ffi.UtmHemisphere
 import uniffi.geocoordinates_ffi.Wgs84
 import uniffi.geocoordinates_ffi.baiduMercatorFromBd09
+import uniffi.geocoordinates_ffi.bd09ToWgs84Fast
 import uniffi.geocoordinates_ffi.baiduMercatorFromCoordinate
 import uniffi.geocoordinates_ffi.convert
 import uniffi.geocoordinates_ffi.coordinateNew
 import uniffi.geocoordinates_ffi.datumTransformCatalogToWgs84
 import uniffi.geocoordinates_ffi.fromNmeaSentence
 import uniffi.geocoordinates_ffi.gcj02ToBd09
+import uniffi.geocoordinates_ffi.gcj02ToWgs84Fast
 import uniffi.geocoordinates_ffi.gcj02ToWgs84Refined
 import uniffi.geocoordinates_ffi.geodesicDistanceM
 import uniffi.geocoordinates_ffi.h3Decode
@@ -86,6 +88,16 @@ class BindingsTest {
         assertEquals(WGS.lat, back.lat, 1e-5)
         assertEquals(WGS.lon, back.lon, 1e-5)
         assertTrue(back.maxErrorM > 0.0 && back.maxErrorM <= 0.5, "bound ${back.maxErrorM}")
+    }
+
+    @Test
+    fun fastInversesMeasureTheirBounds() {
+        val fast = bd09ToWgs84Fast(BD)
+        assertEquals(WGS.lat, fast.lat, 1e-4)
+        assertEquals(WGS.lon, fast.lon, 1e-4)
+        assertEquals(6.5, fast.maxErrorM)
+        val edge = gcj02ToWgs84Fast(Gcj02(40.0, 72.006))
+        assertTrue(edge.maxErrorM > 300.0, "bound ${edge.maxErrorM}")
     }
 
     @Test
