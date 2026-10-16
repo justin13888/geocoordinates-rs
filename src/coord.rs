@@ -176,7 +176,8 @@ impl Coordinate {
     /// [`angle::wrap_longitude`](crate::angle::wrap_longitude) /
     /// [`clamp_latitude`](crate::angle::clamp_latitude) if the input may be
     /// out of range. Suspicious-but-valid values such as "Null Island" are
-    /// accepted; see [`is_null_island`](Self::is_null_island).
+    /// accepted; see [`is_null_island`](Self::is_null_island). A `-0.0` is
+    /// stored as `+0.0`.
     ///
     /// # Errors
     /// Returns [`Error::OutOfRange`] when latitude is outside `[-90, 90]`,
@@ -199,12 +200,7 @@ impl Coordinate {
         if !(-90.0..=90.0).contains(&lat) || !(-180.0..=180.0).contains(&lon) {
             return Err(Error::OutOfRange { lat, lon });
         }
-        Ok(Self {
-            lat,
-            lon,
-            height: None,
-            crs,
-        })
+        Ok(Self::from_valid(lat, lon, None, crs))
     }
 
     /// Construct a coordinate from longitude and latitude in decimal degrees
@@ -285,7 +281,8 @@ impl Coordinate {
     /// Build a coordinate from components the caller has already proven valid.
     ///
     /// For internal producers whose math guarantees the invariant (a validated
-    /// input, a wrapped longitude). Debug builds assert it.
+    /// input, a wrapped longitude). Debug builds assert it. Adding `+0.0`
+    /// stores a `-0.0` component as `+0.0` and leaves every other value as is.
     pub(crate) fn from_valid(lat: f64, lon: f64, height: Option<Height>, crs: Crs) -> Self {
         debug_assert!(
             (-90.0..=90.0).contains(&lat) && (-180.0..=180.0).contains(&lon),
@@ -296,8 +293,8 @@ impl Coordinate {
             "Coordinate::from_valid non-finite height: {height:?}"
         );
         Self {
-            lat,
-            lon,
+            lat: lat + 0.0,
+            lon: lon + 0.0,
             height,
             crs,
         }
@@ -533,6 +530,9 @@ mod tests {
         // Longitude ±180 is accepted (closed range; construction does not normalize).
         assert_eq!(wgs(0.0, 180.0).lon(), 180.0);
         assert_eq!(wgs(0.0, -180.0).lon(), -180.0);
+        // A negative zero is stored as +0.0 on both axes.
+        let zero = wgs(-0.0, -0.0);
+        assert!(zero.lat().is_sign_positive() && zero.lon().is_sign_positive());
     }
 
     #[test]
