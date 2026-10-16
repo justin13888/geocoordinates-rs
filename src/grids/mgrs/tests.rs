@@ -98,6 +98,8 @@ fn display_and_string_conversions_round_trip() {
     assert_eq!(m.to_string(), "ZAB0000044542");
     assert_eq!(m.to_string().parse::<Mgrs>().unwrap(), m);
     assert_eq!(String::from(m.clone()), m.as_str());
+    // Equality is the canonical string's: a different square is unequal.
+    assert_ne!(m, Mgrs::try_from("ZAB0000044543").unwrap());
     assert_invalid_grid_ref(Mgrs::try_from(String::from("99TWK")));
 }
 
@@ -382,6 +384,101 @@ fn squares_across_the_antimeridian_decode_wrapped() {
     let east = Mgrs::try_from("60NZF5000050000").expect("valid");
     let east = east.to_coordinate();
     assert!(east.value().lon() < -179.8, "{:?}", east.value());
+}
+
+const PRECISIONS: [MgrsPrecision; 6] = [
+    MgrsPrecision::Km100,
+    MgrsPrecision::Km10,
+    MgrsPrecision::Km1,
+    MgrsPrecision::M100,
+    MgrsPrecision::M10,
+    MgrsPrecision::M1,
+];
+
+/// Encode `coord`, then check the reference survives `Display` → parse and
+/// decodes without panicking to a point within its bound of `coord`.
+#[track_caller]
+fn assert_round_trips(coord: Coordinate, precision: MgrsPrecision) {
+    let encoded = Mgrs::try_from_coordinate(coord, precision).expect("WGS-84 encodes");
+    let parsed: Mgrs = encoded
+        .to_string()
+        .parse()
+        .unwrap_or_else(|e| panic!("{encoded} does not parse back: {e}"));
+    assert_eq!(parsed, encoded);
+    assert_eq!(parsed.precision(), precision);
+    let center = parsed.to_coordinate();
+    assert_eq!(center, encoded.to_coordinate(), "{encoded}");
+    // A point on a square's corner where k is exactly k_min (the equator on
+    // the central meridian, or the pole) sits *at* the bound, so projection
+    // rounding lands it a few nanometers either side; 1 um absorbs that.
+    assert_within_geodesic_meters(center.value(), &coord, center.max_error().meters() + 1e-6);
+}
+
+#[test]
+fn near_equator_references_round_trip() {
+    // -8e-15 used to round `lat + 80` into band M while its southern northing
+    // rounded to exactly 10 000 000 m, emitting `31MEA0000000000`, which no
+    // southern northing reaches: parsing it failed and `to_coordinate` on the
+    // encoded value panicked.
+    let mgrs = Mgrs::try_from_coordinate(c(-8e-15, 3.0), MgrsPrecision::M1).unwrap();
+    assert_eq!(mgrs.as_str(), "31NEA0000000000");
+    for lat in [
+        -8e-15,
+        -1e-300,
+        -f64::MIN_POSITIVE,
+        -0.0,
+        0.0,
+        1e-300,
+        8e-15,
+        -1e-10,
+        -5e-11,
+        -1e-9,
+        1e-9,
+    ] {
+        for lon in [-180.0, -177.0, 0.0, 3.0, 179.999_999_999_999_97] {
+            for precision in PRECISIONS {
+                assert_round_trips(c(lat, lon), precision);
+            }
+        }
+    }
+}
+
+#[test]
+fn band_and_domain_edges_round_trip() {
+    // Every band boundary, from either side, and the UTM / UPS seams.
+    let mut lats = vec![-90.0, -80.000_000_000_000_01, 84.0, 90.0];
+    for k in 0..=20 {
+        let edge = -80.0 + 8.0 * f64::from(k);
+        lats.extend([edge, edge - 1e-12, edge + 1e-12]);
+    }
+    lats.retain(|lat: &f64| (-90.0..=90.0).contains(lat));
+    for lat in lats {
+        for lon in [-180.0, -0.000_000_1, 0.0, 3.0, 9.0, 42.0, 179.999_999] {
+            for precision in PRECISIONS {
+                assert_round_trips(c(lat, lon), precision);
+            }
+        }
+    }
+}
+
+proptest::proptest! {
+    #[test]
+    fn every_encoded_reference_round_trips(
+        lat in -90.0f64..=90.0,
+        lon in -180.0f64..=180.0,
+        precision in proptest::sample::select(PRECISIONS.to_vec()),
+    ) {
+        assert_round_trips(c(lat, lon), precision);
+    }
+
+    #[test]
+    fn near_equator_references_always_round_trip(
+        lat in -1e-6f64..=1e-6,
+        lon in -180.0f64..=180.0,
+        precision in proptest::sample::select(PRECISIONS.to_vec()),
+    ) {
+        assert_round_trips(c(lat, lon), precision);
+    }
 }
 
 #[cfg(feature = "serde")]

@@ -35,7 +35,7 @@ pub(crate) const K0: f64 = 0.9996;
 /// UTM false easting (meters).
 const FALSE_EASTING: f64 = 500_000.0;
 /// UTM false northing applied in the southern hemisphere (meters).
-const FALSE_NORTHING_SOUTH: f64 = 10_000_000.0;
+pub(crate) const FALSE_NORTHING_SOUTH: f64 = 10_000_000.0;
 
 // --- WGS-84 transverse Mercator (Karney–Krüger n-series) constants ---
 const A_AXIS: f64 = Ellipsoid::WGS84.semi_major().meters();

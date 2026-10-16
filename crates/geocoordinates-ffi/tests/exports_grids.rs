@@ -229,6 +229,12 @@ fn mgrs_encodes_decodes_and_reports_precision() {
     close(square.max_error_m, 0.5f64.sqrt() / 0.9996, 1e-12);
     close(square.coord.lat, 40.000_002_534_090_015, 1e-9);
     close(square.coord.lon, -74.999_994_142_434_64, 1e-9);
+    // A latitude a few ulps south of the equator encodes to a reference that
+    // decodes back across the boundary (it was `31MEA…`, which failed to parse).
+    let equator = mgrs_from_coordinate(wgs84(-8e-15, 3.0), MgrsPrecision::M1).unwrap();
+    assert_eq!(equator, "31NEA0000000000");
+    let center = mgrs_to_coordinate(equator).unwrap();
+    assert!(center.coord.lat.abs() < 1e-5 && (center.coord.lon - 3.0).abs() < 1e-5);
     assert!(matches!(
         mgrs_to_coordinate("not-an-mgrs".to_string()),
         Err(GeoError::InvalidGridRef { .. })
