@@ -117,8 +117,10 @@ fn inverse_to_or_from_a_pole_is_the_meridian() {
     assert_inverse(c(-90.0, 0.0), c(90.0, 0.0), 0.0, 20_003_931.458_625_446);
     // RhumbSolve I 80 0 90 90: arriving at a pole, the longitude is moot.
     assert_inverse(c(80.0, 0.0), c(90.0, 90.0), 0.0, 1_116_825.857_375_85);
-    // RhumbSolve I 90 0 0 90: leaving a pole, likewise.
-    assert_inverse(c(90.0, 0.0), c(0.0, 90.0), 180.0, 10_001_965.729_312_723);
+    // Leaving a pole the distance is RhumbSolve I 90 0 0 90's, while the
+    // bearing, taken against the start's own meridian, names meridian 90° E
+    // (RhumbSolve leaves it at 180° whatever the longitudes).
+    assert_inverse(c(90.0, 0.0), c(0.0, 90.0), 90.0, 10_001_965.729_312_723);
     // Southward to the south pole.
     assert_inverse(c(0.0, 0.0), c(-90.0, 45.0), 180.0, 10_001_965.729_312_723);
 }
@@ -340,10 +342,103 @@ fn direct_from_inside_the_pole_band_may_leave_or_stay() {
 }
 
 #[test]
-fn direct_non_meridional_from_a_pole_is_invalid() {
-    // RhumbSolve D 90 30 45 1000000 has a NaN longitude.
-    assert_invalid(rhumb_destination(&c(90.0, 30.0), 45.0, m(1e6)), "bearing");
-    assert_invalid(rhumb_destination(&c(-90.0, 30.0), 90.0, m(1e6)), "bearing");
+fn direct_any_bearing_from_a_pole_names_a_meridian() {
+    // RhumbSolve D 90 30 45 1000000 has a NaN longitude; here the bearing is
+    // read against the start's meridian, so it names meridian 30 + 180 − 45.
+    assert_direct(c(90.0, 30.0), 45.0, 1e6, 81.046_232_815_950_6, 165.0);
+    // From the south pole bearing β runs up meridian 30 + β.
+    assert_direct(c(-90.0, 30.0), 90.0, 1e6, -81.046_232_815_950_6, 120.0);
+    // Past the far pole the line carries on up that meridian's far side.
+    assert_direct(c(90.0, 0.0), 135.0, 1e6, 81.046_232_815_950_6, 45.0);
+    let pole_to_pole = 20_003_931.458_625_446;
+    assert_direct(
+        c(90.0, 0.0),
+        135.0,
+        pole_to_pole + 1e6,
+        -81.046_232_815_950_6,
+        -135.0,
+    );
+    // A zero distance stays on the pole with its own longitude, whatever the
+    // bearing (the meridian it names is not taken).
+    let p = rhumb_destination(&c(90.0, 30.0), 0.0, m(0.0)).unwrap();
+    assert_eq!((p.lat(), p.lon()), (90.0, 30.0));
+}
+
+#[test]
+fn issue_175_pole_start_round_trips() {
+    // From (90, 0) to (0, 90): the destination used to run down meridian 0°
+    // and land 10 000 km from the target.
+    let (a, b) = (c(90.0, 0.0), c(0.0, 90.0));
+    let p = rhumb_destination(
+        &a,
+        rhumb_bearing(&a, &b).unwrap(),
+        rhumb_distance(&a, &b).unwrap(),
+    )
+    .unwrap();
+    assert_close(p.lat(), 0.0, DEGREES);
+    assert_close(p.lon(), 90.0, DEGREES);
+    // The bearing names b's meridian from either pole, across the antimeridian.
+    assert_close(
+        rhumb_bearing(&c(90.0, 170.0), &c(10.0, -170.0)).unwrap(),
+        160.0,
+        DEGREES,
+    );
+    assert_close(
+        rhumb_bearing(&c(-90.0, 170.0), &c(10.0, -170.0)).unwrap(),
+        20.0,
+        DEGREES,
+    );
+    // Pole to pole: the meridian of the target's longitude.
+    assert_close(
+        rhumb_bearing(&c(90.0, 0.0), &c(-90.0, 45.0)).unwrap(),
+        135.0,
+        DEGREES,
+    );
+    assert_close(
+        rhumb_bearing(&c(-90.0, 0.0), &c(90.0, 0.0)).unwrap(),
+        0.0,
+        DEGREES,
+    );
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(1024))]
+
+    /// From any start, the poles and the antimeridian included, the direct
+    /// problem inverts the inverse one to within 1 mm, or the bearing is
+    /// rejected because the two points are one place.
+    #[test]
+    fn direct_inverts_the_inverse_everywhere(
+        a_lat in latitude(), a_lon in longitude(),
+        b_lat in latitude(), b_lon in longitude(),
+    ) {
+        let (a, b) = (c(a_lat, a_lon), c(b_lat, b_lon));
+        let distance = rhumb_distance(&a, &b).unwrap();
+        match rhumb_bearing(&a, &b) {
+            Ok(bearing) => {
+                let p = rhumb_destination(&a, bearing, distance).unwrap();
+                let miss = crate::geodesy::geodesic_distance(&p, &b).unwrap().meters();
+                proptest::prop_assert!(miss < 1e-3, "{a:?} → {b:?}: {p:?} misses by {miss} m");
+            }
+            Err(e) => {
+                proptest::prop_assert!(
+                    matches!(e, Error::InvalidValue { field: "points", .. }),
+                    "{e:?}"
+                );
+                proptest::prop_assert_eq!(distance.meters(), 0.0);
+            }
+        }
+    }
+}
+
+fn latitude() -> impl proptest::strategy::Strategy<Value = f64> {
+    use proptest::prelude::*;
+    prop_oneof![-90.0..=90.0_f64, Just(90.0), Just(-90.0), Just(0.0)]
+}
+
+fn longitude() -> impl proptest::strategy::Strategy<Value = f64> {
+    use proptest::prelude::*;
+    prop_oneof![-180.0..=180.0_f64, Just(180.0), Just(-180.0), Just(0.0)]
 }
 
 #[test]
