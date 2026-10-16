@@ -538,30 +538,22 @@ fn gpx_rejections_are_parse_errors() {
     let negative_hdop = format!(
         r#"{GPX_HEAD}<wpt lat="1" lon="2"/><wpt lat="1" lon="2"><hdop>-1</hdop></wpt></gpx>"#
     );
-    assert_parse_err!(
-        from_gpx(&negative_hdop),
-        "gpx: invalid position at index 1: ",
-    );
     let infinite_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>inf</hdop></wpt></gpx>"#);
-    assert_parse_err!(
-        from_gpx(&infinite_hdop),
-        "gpx: invalid position at index 0: ",
-    );
-    // A negative or non-finite HDOP is named as such, not as an overflow.
-    for bad in [&negative_hdop, &infinite_hdop] {
-        let r = from_gpx(bad);
-        assert!(
-            matches!(&r, Err(Error::Parse(m)) if m.contains("hdop must be finite and nonnegative")),
-            "{r:?}"
-        );
-    }
-    // A finite HDOP whose `× 5 m` accuracy overflows names the scaled range.
+    // A negative or non-finite HDOP is named as such; a finite one whose
+    // `× 5 m` accuracy overflows names the scaled range instead.
     let huge_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>1e308</hdop></wpt></gpx>"#);
-    let r = from_gpx(&huge_hdop);
-    assert!(
-        matches!(&r, Err(Error::Parse(m)) if m.contains("out of range") && !m.contains("finite")),
-        "{r:?}"
-    );
+    let finite_msg = "hdop must be finite and nonnegative";
+    for (doc, index, bad_hdop) in [
+        (&negative_hdop, 1, true),
+        (&infinite_hdop, 0, true),
+        (&huge_hdop, 0, false),
+    ] {
+        let r = from_gpx(doc);
+        let prefix = format!("gpx: invalid position at index {index}: ");
+        let ok = matches!(&r, Err(Error::Parse(m)) if m.starts_with(&prefix)
+            && m.contains(finite_msg) == bad_hdop && m.contains("out of range") != bad_hdop);
+        assert!(ok, "{r:?}");
+    }
     // A zero HDOP is valid, and scales to a zero radius.
     let zero_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>0</hdop></wpt></gpx>"#);
     let accuracy = from_gpx(&zero_hdop).unwrap()[0].accuracy.unwrap();
