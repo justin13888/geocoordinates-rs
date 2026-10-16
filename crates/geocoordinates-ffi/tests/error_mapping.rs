@@ -66,6 +66,39 @@ fn invalid_value_keeps_its_field_and_detail() {
 }
 
 #[test]
+fn a_crs_argument_with_no_ellipsoid_maps_to_invalid_value_naming_the_argument() {
+    // The core rejects GCJ-02 / BD-09 passed as a `Crs` argument with
+    // `InvalidValue` naming that argument, not with an invented `CrsMismatch`.
+    let identity = gc::geodesy::Helmert::IDENTITY;
+    let ecef = gc::geodesy::Ecef::new(6_378_137.0, 0.0, 0.0);
+    for (core, field) in [
+        (ecef.try_to_coordinate(gc::Crs::Gcj02).unwrap_err(), "crs"),
+        (
+            gc::geodesy::DatumTransform::new(gc::Crs::Bd09, gc::Crs::Wgs84, identity, None)
+                .unwrap_err(),
+            "from_crs",
+        ),
+        (
+            gc::geodesy::DatumTransform::new(gc::Crs::Nad27, gc::Crs::Gcj02, identity, None)
+                .unwrap_err(),
+            "to_crs",
+        ),
+    ] {
+        let detail = match &core {
+            gc::Error::InvalidValue { field: f, detail } if *f == field => detail.clone(),
+            other => panic!("expected InvalidValue for `{field}`, got {other:?}"),
+        };
+        assert_maps(
+            core,
+            GeoError::InvalidValue {
+                field: field.to_string(),
+                detail,
+            },
+        );
+    }
+}
+
+#[test]
 fn invalid_cell_id_keeps_its_grid_and_value() {
     assert_maps(
         gc::Error::InvalidCellId {

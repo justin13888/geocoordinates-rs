@@ -132,8 +132,8 @@ pub fn helmert_inverse_first_order(helmert: Helmert) -> Helmert {
 /// Build a validated datum transform — the FFI form of `DatumTransform::new`.
 ///
 /// # Errors
-/// `GeoError::CrsMismatch` (expecting WGS-84) when either system is GCJ-02 or
-/// BD-09; `GeoError::InvalidValue` (field `helmert`) for a non-finite
+/// `GeoError::InvalidValue` (field `from_crs` or `to_crs`) when that system is
+/// GCJ-02 or BD-09; (field `helmert`) for a non-finite
 /// parameter, and (field `accuracy`) for a negative or non-finite accuracy.
 #[uniffi::export]
 pub fn datum_transform_new(

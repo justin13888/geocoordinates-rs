@@ -38,12 +38,23 @@ fn height_meters(coord: Coordinate) -> Result<f64> {
     }
 }
 
-/// The ellipsoid of `crs`, or [`Error::CrsMismatch`] (expecting WGS-84) for the
-/// China obfuscation systems, which have none.
+/// The ellipsoid of a coordinate's own `crs`, or [`Error::CrsMismatch`]
+/// (expecting WGS-84) for the China obfuscation systems, which have none.
 pub(crate) fn ellipsoid_of(crs: Crs) -> Result<Ellipsoid> {
     Ellipsoid::for_crs(crs).ok_or(Error::CrsMismatch {
         expected: Crs::Wgs84,
         found: crs,
+    })
+}
+
+/// The ellipsoid of a `crs` the caller passed as an argument, or
+/// [`Error::InvalidValue`] naming that argument (`field`) for the China
+/// obfuscation systems, which have none. No coordinate is on the wrong datum
+/// here, so the error is not a [`Error::CrsMismatch`].
+pub(crate) fn ellipsoid_of_argument(crs: Crs, field: &'static str) -> Result<Ellipsoid> {
+    Ellipsoid::for_crs(crs).ok_or_else(|| Error::InvalidValue {
+        field,
+        detail: format!("{crs} is not a geodetic datum and has no ellipsoid"),
     })
 }
 
@@ -92,8 +103,8 @@ impl Ecef {
     /// expressed in, and with it the ellipsoid.
     ///
     /// # Errors
-    /// - [`Error::CrsMismatch`] (expecting [`Crs::Wgs84`]) when `crs` is GCJ-02
-    ///   or BD-09, which are not geodetic datums and have no ellipsoid;
+    /// - [`Error::InvalidValue`] (field `"crs"`) when `crs` is GCJ-02 or
+    ///   BD-09, which are not geodetic datums and have no ellipsoid;
     /// - [`Error::InvalidValue`] (field `"ECEF"`) when a component is not
     ///   finite, and (field `"height"`) when the position is so far from the
     ///   Earth that its height overflows.
@@ -108,12 +119,12 @@ impl Ecef {
     /// // GCJ-02 is no datum, so an ECEF position cannot be expressed in it.
     /// assert!(matches!(
     ///     Ecef::new(6_378_137.0, 0.0, 0.0).try_to_coordinate(Crs::Gcj02),
-    ///     Err(Error::CrsMismatch { .. })
+    ///     Err(Error::InvalidValue { field: "crs", .. })
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn try_to_coordinate(self, crs: Crs) -> Result<Coordinate> {
-        let ellipsoid = ellipsoid_of(crs)?;
+        let ellipsoid = ellipsoid_of_argument(crs, "crs")?;
         if !self.x_m.is_finite() || !self.y_m.is_finite() || !self.z_m.is_finite() {
             return Err(Error::InvalidValue {
                 field: "ECEF",

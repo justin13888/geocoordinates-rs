@@ -267,7 +267,7 @@ pub fn ecef_from_coordinate(coord: Coordinate) -> Result<Ecef, GeoError> {
 /// form, as refined in GeographicLib).
 ///
 /// # Errors
-/// `GeoError::CrsMismatch` (expecting WGS-84) when `crs` is GCJ-02 or BD-09;
+/// `GeoError::InvalidValue` (field `crs`) when `crs` is GCJ-02 or BD-09;
 /// `GeoError::InvalidValue` (field `ECEF`) for a non-finite component, and
 /// (field `height`) when the height overflows.
 #[uniffi::export]

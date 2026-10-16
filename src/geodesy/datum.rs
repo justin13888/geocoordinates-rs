@@ -51,7 +51,7 @@ use core::f64::consts::PI;
 
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::geodesy::ecef::{Ecef, ellipsoid_of};
+use crate::geodesy::ecef::{Ecef, ellipsoid_of_argument};
 use crate::units::Length;
 
 /// Arc-seconds → radians (the rotation parameters are published in arc-seconds).
@@ -243,8 +243,8 @@ impl DatumTransform {
     /// estimate is published).
     ///
     /// # Errors
-    /// - [`Error::CrsMismatch`] (expecting [`Crs::Wgs84`]) when either system
-    ///   is GCJ-02 or BD-09, which are not geodetic datums and have no
+    /// - [`Error::InvalidValue`] (field `"from_crs"` or `"to_crs"`) when that
+    ///   system is GCJ-02 or BD-09, which are not geodetic datums and have no
     ///   ellipsoid;
     /// - [`Error::InvalidValue`] (field `"helmert"`) when a Helmert parameter
     ///   is not finite, and (field `"accuracy"`) when `accuracy` is negative
@@ -256,7 +256,10 @@ impl DatumTransform {
     /// let shift = Helmert { tx_m: -8.0, ty_m: 160.0, tz_m: 176.0, ..Helmert::IDENTITY };
     /// let t = DatumTransform::new(Crs::Nad27, Crs::Wgs84, shift, Some(Length::from_meters(10.0)))?;
     /// assert_eq!(t.to_crs(), Crs::Wgs84);
-    /// assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, shift, None).is_err());
+    /// assert!(matches!(
+    ///     DatumTransform::new(Crs::Gcj02, Crs::Wgs84, shift, None),
+    ///     Err(Error::InvalidValue { field: "from_crs", .. })
+    /// ));
     /// assert!(matches!(
     ///     DatumTransform::new(Crs::Nad27, Crs::Wgs84, shift, Some(Length::from_meters(-1.0))),
     ///     Err(Error::InvalidValue { field: "accuracy", .. })
@@ -269,8 +272,8 @@ impl DatumTransform {
         helmert: Helmert,
         accuracy: Option<Length>,
     ) -> Result<Self> {
-        ellipsoid_of(from_crs)?;
-        ellipsoid_of(to_crs)?;
+        ellipsoid_of_argument(from_crs, "from_crs")?;
+        ellipsoid_of_argument(to_crs, "to_crs")?;
         if !helmert.is_finite() {
             return Err(Error::InvalidValue {
                 field: "helmert",

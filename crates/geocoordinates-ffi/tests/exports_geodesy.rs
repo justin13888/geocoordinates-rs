@@ -153,18 +153,19 @@ fn ecef_from_coordinate_uses_the_ellipsoid_of_the_crs() {
     assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_206.4, 0.0, 0.0));
     let back = ecef_to_coordinate(ecef, Crs::Nad27).unwrap();
     assert_eq!((back.lat, back.lon, back.crs), (0.0, 0.0, Crs::Nad27));
+    // A GCJ-02 coordinate is on the wrong datum; BD-09 named as the target
+    // system is an invalid `crs` argument.
     let gcj = coordinate_new(39.9, 116.4, Crs::Gcj02).unwrap();
-    for result in [
-        ecef_from_coordinate(gcj).map(|_| ()),
-        ecef_to_coordinate(ecef, Crs::Bd09).map(|_| ()),
-    ] {
-        assert!(matches!(
-            result,
-            Err(GeoError::CrsMismatch {
-                expected: Crs::Wgs84,
-                ..
-            })
-        ));
+    assert!(matches!(
+        ecef_from_coordinate(gcj),
+        Err(GeoError::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: Crs::Gcj02,
+        })
+    ));
+    match ecef_to_coordinate(ecef, Crs::Bd09) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "crs"),
+        other => panic!("expected InvalidValue for `crs`, got {other:?}"),
     }
 }
 
@@ -583,13 +584,14 @@ fn datum_transform_new_validates_hand_built_records() {
         accuracy_m: Some(-1.0),
         ..dt
     };
-    assert!(matches!(
-        datum_transform_new(gcj.from_crs, gcj.to_crs, gcj.helmert, gcj.accuracy_m),
-        Err(GeoError::CrsMismatch {
-            expected: Crs::Wgs84,
-            found: Crs::Gcj02,
-        })
-    ));
+    match datum_transform_new(gcj.from_crs, gcj.to_crs, gcj.helmert, gcj.accuracy_m) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "from_crs"),
+        other => panic!("expected InvalidValue for `from_crs`, got {other:?}"),
+    }
+    match datum_transform_new(Crs::Tokyo, Crs::Bd09, shift, None) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "to_crs"),
+        other => panic!("expected InvalidValue for `to_crs`, got {other:?}"),
+    }
     let tokyo = coordinate_new(35.0, 139.0, Crs::Tokyo).unwrap();
     for bad in [gcj, bad_helmert, bad_accuracy] {
         assert!(datum_transform_apply(bad, tokyo).is_err(), "{bad:?}");
