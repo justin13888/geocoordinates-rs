@@ -100,7 +100,8 @@ pub fn cross_track_distance_spherical(
     validate_path(point, start, end)?;
     let d13 = angular_distance_rad(start, point);
     let bearing_diff = spherical_bearing_rad(start, point) - spherical_bearing_rad(start, end);
-    let xt = (d13.sin() * bearing_diff.sin()).asin();
+    // `+ 0.0` turns a -0.0 (a point at `start`) into +0.0.
+    let xt = (d13.sin() * bearing_diff.sin()).asin() + 0.0;
     Ok(Length::from_meters(xt * MEAN_EARTH_RADIUS_M))
 }
 

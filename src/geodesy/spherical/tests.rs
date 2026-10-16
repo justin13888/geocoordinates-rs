@@ -433,6 +433,31 @@ fn along_track_matches_the_foot_all_round_the_circle() {
 }
 
 #[test]
+fn cross_and_along_track_from_the_start_are_positive_zero() {
+    // A point at the path's start is on the path and at its origin: both
+    // components are zero, and never -0.0 (start (0, 0), end (0, 10) gave it).
+    for lat in (-80..=80).step_by(10) {
+        for lon in (-170..=170).step_by(10) {
+            let (lat, lon) = (f64::from(lat), f64::from(lon));
+            let start = c(lat, lon);
+            for (d_lat, d_lon) in [(0.0, 10.0), (5.0, 5.0), (-5.0, 5.0), (5.0, 0.0)] {
+                let end = c(lat + d_lat, lon + d_lon);
+                for d in [
+                    cross_track_distance_spherical(&start, &start, &end).unwrap(),
+                    along_track_distance_spherical(&start, &start, &end).unwrap(),
+                ] {
+                    let m = d.meters();
+                    assert!(m.abs() < 1e-6, "{lat}, {lon}: {m}");
+                    if m == 0.0 {
+                        assert!(m.is_sign_positive(), "{lat}, {lon}: -0.0");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn intersection_across_the_antimeridian() {
     // The equator east from 170°E meets the 175°W meridian north from 10°S.
     let x = intersection_spherical(&c(0.0, 170.0), 90.0, &c(-10.0, -175.0), 0.0)
