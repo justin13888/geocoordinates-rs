@@ -63,9 +63,20 @@ const NOMINAL_UERE_M: f64 = 5.0;
     feature = "kml"
 ))]
 fn hdop_accuracy(hdop: f64) -> Result<Accuracy> {
-    let horizontal = Length::from_meters(hdop * NOMINAL_UERE_M);
-    Accuracy::new(AccuracyKind::OneSigma, Some(horizontal), None)
-        .map_err(|_| Error::Parse(format!("hdop must be finite and nonnegative, got {hdop}")))
+    if !hdop.is_finite() || hdop < 0.0 {
+        return Err(Error::Parse(format!(
+            "hdop must be finite and nonnegative, got {hdop}"
+        )));
+    }
+    // A finite HDOP can still overflow once scaled (e.g. 1e308 × 5 m).
+    let scaled = hdop * NOMINAL_UERE_M;
+    let horizontal = Length::from_meters(scaled);
+    Accuracy::new(AccuracyKind::OneSigma, Some(horizontal), None).map_err(|_| {
+        Error::Parse(format!(
+            "hdop {hdop} scales to a horizontal accuracy out of range \
+             ({hdop} × {NOMINAL_UERE_M} m = {scaled} m)"
+        ))
+    })
 }
 
 use crate::approx::Approx;

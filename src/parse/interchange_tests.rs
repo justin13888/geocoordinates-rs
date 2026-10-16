@@ -547,6 +547,13 @@ fn gpx_rejections_are_parse_errors() {
         from_gpx(&infinite_hdop),
         "gpx: invalid position at index 0: ",
     );
+    // A finite HDOP whose `× 5 m` accuracy overflows names the scaled range.
+    let huge_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>1e308</hdop></wpt></gpx>"#);
+    let r = from_gpx(&huge_hdop);
+    assert!(
+        matches!(&r, Err(Error::Parse(m)) if m.contains("out of range") && !m.contains("finite")),
+        "{r:?}"
+    );
     // A zero HDOP is valid, and scales to a zero radius.
     let zero_hdop = format!(r#"{GPX_HEAD}<wpt lat="1" lon="2"><hdop>0</hdop></wpt></gpx>"#);
     let accuracy = from_gpx(&zero_hdop).unwrap()[0].accuracy.unwrap();

@@ -263,6 +263,19 @@ fn gga_hdop_zero_is_accepted_and_negative_rejected() {
     assert!(matches!(from_nmea_sentence(gga), Err(Error::Parse(m)) if m.contains("HDOP")));
 }
 
+/// A finite HDOP whose `× 5 m` accuracy overflows is rejected for the
+/// overflow, not misreported as a non-finite or negative HDOP.
+#[test]
+fn gga_hdop_overflowing_accuracy_names_the_scaled_range() {
+    let data = "GPGGA,123519,4807.038,N,01131.000,E,1,08,1e308,545.4,M,46.9,M,,";
+    let cs = data.bytes().fold(0u8, |acc, b| acc ^ b);
+    let r = from_nmea_sentence(&format!("${data}*{cs:02X}"));
+    assert!(
+        matches!(&r, Err(Error::Parse(m)) if m.contains("out of range") && !m.contains("finite")),
+        "{r:?}"
+    );
+}
+
 #[test]
 fn unsupported_and_malformed_are_errors() {
     assert!(from_nmea_sentence("$GPVTG,054.7,T,034.4,M,005.5,N,010.2,K*48").is_err());
