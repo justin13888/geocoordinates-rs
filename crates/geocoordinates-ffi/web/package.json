@@ -1,7 +1,7 @@
 {
   "name": "geocoordinates-rs",
   "version": "0.14.2",
-  "description": "WebAssembly bindings for the geocoordinates geospatial library — China datums (GCJ-02/BD-09), geodetic transforms.",
+  "description": "Low-level geospatial coordinate primitives (WebAssembly): China datums (GCJ-02/BD-09), datum transforms, DMS/DDM angles, coordinate parsing and formatting, geodesics, local frames (ECEF/ENU/NED/AER), UTM/UPS/MGRS, grid codes (Geohash, Plus Code, Maidenhead, H3, S2), and GeoJSON/WKT/GPX/KML/NMEA ingestion.",
   "license": "MIT OR Apache-2.0",
   "author": "Justin Chung",
   "repository": {
@@ -19,23 +19,29 @@
     "webassembly"
   ],
   "type": "module",
-  "main": "src/index.web.ts",
-  "module": "src/index.web.ts",
-  "browser": "src/index.web.ts",
-  "types": "src/index.web.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "publishConfig": {
     "access": "public"
   },
   "files": [
-    "src/index.web.ts",
-    "src/generated/web"
+    "dist"
   ],
   "scripts": {
     "generate": "ubrn build web --release --no-cargo --no-wasm-pack",
     "build": "bash build.sh",
+    "compile": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
-    "clean": "rm -rf src/generated src/index.web.ts rust_modules"
+    "test:packed": "bash test/packed-import.sh",
+    "clean": "rm -rf dist src/generated src/index.web.ts rust_modules"
   },
   "dependencies": {
     "@ubjs/core": "0.31.0-3"

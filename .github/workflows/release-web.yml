@@ -91,6 +91,10 @@ jobs:
         run: npm version "${{ steps.plan.outputs.version }}" --no-git-tag-version --allow-same-version
       - name: Build bindings
         run: npm run build
+      # The package a consumer installs must import from plain Node: pack it,
+      # install the tarball into an empty project, and import it there.
+      - name: Packed-tarball import (plain Node)
+        run: npm run test:packed
       # OIDC trusted publishing: no NODE_AUTH_TOKEN. npm exchanges the GitHub
       # `id-token` (permissions below) for a publish credential and attaches
       # provenance automatically. Requires the package to already exist on npm.
