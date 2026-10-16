@@ -209,6 +209,32 @@ fn zone_in_band(lat: f64, lon: f64) -> u8 {
     base
 }
 
+/// The longitudes `[west, east)` that [`zone_in_band`] assigns to `zone` at a
+/// UTM-band latitude, the Norway and Svalbard exceptions included; `None`
+/// where the Svalbard exception drops the zone (32, 34 and 36 above 72°N).
+/// Zone 60 also takes 180° itself.
+pub(crate) fn zone_span(zone: u8, lat: f64) -> Option<(f64, f64)> {
+    let west = f64::from(zone) * 6.0 - 186.0;
+    if (56.0..64.0).contains(&lat) {
+        match zone {
+            31 => return Some((0.0, 3.0)),
+            32 => return Some((3.0, 12.0)),
+            _ => {}
+        }
+    }
+    if (72.0..84.0).contains(&lat) {
+        match zone {
+            31 => return Some((0.0, 9.0)),
+            32 | 34 | 36 => return None,
+            33 => return Some((9.0, 21.0)),
+            35 => return Some((21.0, 33.0)),
+            37 => return Some((33.0, 42.0)),
+            _ => {}
+        }
+    }
+    Some((west, west + 6.0))
+}
+
 /// The central meridian (degrees) of a UTM zone.
 ///
 /// ```

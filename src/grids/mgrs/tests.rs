@@ -1,5 +1,6 @@
 use super::*;
 use crate::test_support::{assert_close, assert_within_geodesic_meters};
+use proptest::prelude::{Strategy, prop_oneof};
 
 fn c(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
@@ -384,6 +385,17 @@ fn squares_across_the_antimeridian_decode_wrapped() {
     let east = Mgrs::try_from("60NZF5000050000").expect("valid");
     let east = east.to_coordinate();
     assert!(east.value().lon() < -179.8, "{:?}", east.value());
+    // Neither square holds a point its own zone owns, so there is nothing to
+    // clip to: each keeps the nominal center and half-diagonal bound. So does
+    // a square of zone 32X, which the Svalbard exception drops.
+    let dropped = Mgrs::try_from("32XNJ").expect("valid").to_coordinate();
+    for (square, side) in [(west, 1.0), (east, 1.0), (dropped, 100_000.0)] {
+        assert_close(
+            square.max_error().meters(),
+            side * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
+            1e-12,
+        );
+    }
 }
 
 const PRECISIONS: [MgrsPrecision; 6] = [
@@ -408,6 +420,10 @@ fn assert_round_trips(coord: Coordinate, precision: MgrsPrecision) {
     assert_eq!(parsed.precision(), precision);
     let center = parsed.to_coordinate();
     assert_eq!(center, encoded.to_coordinate(), "{encoded}");
+    // The decoded point lies in the reference's own square, inside its
+    // grid-zone designator, so it encodes back to the same reference (#149).
+    let again = Mgrs::try_from_coordinate(*center.value(), precision).unwrap();
+    assert_eq!(again, encoded);
     // A point on a square's corner where k is exactly k_min (the equator on
     // the central meridian, or the pole) sits *at* the bound, so projection
     // rounding lands it a few nanometers either side; 1 um absorbs that.
@@ -461,6 +477,20 @@ fn band_and_domain_edges_round_trip() {
     }
 }
 
+#[test]
+fn a_latitude_just_below_a_band_edge_keeps_its_band() {
+    // One ulp below 72°N, `lat + 80.0` rounds up to 152, which named band X
+    // while the zone rules (south of the Svalbard exception) still picked
+    // zone 36: `36X` is a designator the exception drops.
+    let below = f64::from_bits(72.0_f64.to_bits() - 1);
+    let mgrs = Mgrs::try_from_coordinate(c(below, 33.5), MgrsPrecision::Km100).unwrap();
+    assert!(mgrs.as_str().starts_with("36W"), "{mgrs}");
+    assert_round_trips(c(below, 33.5), MgrsPrecision::M1);
+    // Band C has no band below it to fall back to.
+    let south = Mgrs::try_from_coordinate(c(-80.0, 3.0), MgrsPrecision::Km100).unwrap();
+    assert!(south.as_str().starts_with("31C"), "{south}");
+}
+
 proptest::proptest! {
     #[test]
     fn every_encoded_reference_round_trips(
@@ -499,3 +529,30 @@ fn serde_validates_and_uses_the_canonical_string() {
     let one: Mgrs = serde_json::from_str(r#""4QFH0460911793""#).unwrap();
     assert_eq!(serde_json::to_string(&one).unwrap(), r#""04QFH0460911793""#);
 }
+
+proptest::proptest! {
+    /// #149: points near a grid-zone designator's corner — a band edge
+    /// crossed with a zone meridian, or with a Norway / Svalbard exception
+    /// edge — where the designator truncates the square to a sliver. Offsets
+    /// stop at about a micrometer: 3°E is zone 31's central meridian, so a
+    /// longitude within ~1e-15° west of it projects onto easting 500 000 m
+    /// exactly, the edge of a square of 31V that holds no point west of 3°E.
+    #[test]
+    fn references_at_grid_zone_corners_round_trip(
+        band in 0i32..=20,
+        meridian in prop_oneof![
+            (0i32..=60).prop_map(|k| -180.0 + 6.0 * f64::from(k)),
+            proptest::sample::select(vec![3.0, 9.0, 21.0, 33.0, 42.0]),
+        ],
+        dlat in -1.0f64..1.0,
+        dlon in -1.0f64..1.0,
+        scale in proptest::sample::select(vec![1e-3, 1e-6, 1e-9, 1e-11]),
+        precision in proptest::sample::select(PRECISIONS.to_vec()),
+    ) {
+        let lat = (-80.0 + 8.0 * f64::from(band) + dlat * scale).clamp(-90.0, 90.0);
+        let lon = (meridian + dlon * scale).clamp(-180.0, 180.0);
+        assert_round_trips(c(lat, lon), precision);
+    }
+}
+
+mod truncated;

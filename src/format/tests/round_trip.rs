@@ -98,26 +98,6 @@ fn trip(lat: f64, lon: f64, options: &FormatOptions) -> (String, String) {
     (first, fmt(&parsed, options))
 }
 
-/// Whether a re-rendering moved an MGRS reference into another grid-zone
-/// designator: the zone number and latitude band of a UTM reference
-/// (`18T`), or the single polar letter (`A`, `B`, `Y`, `Z`) of a UPS one,
-/// whose next two letters already name the 100 km square.
-///
-/// KNOWN WRONG (#149): [`Mgrs::to_coordinate`] returns the center of
-/// the nominal square even where the grid zone truncates it, and that center
-/// can lie in the neighbouring zone or band, so the re-rendering names a
-/// different square. The pinned case is
-/// `mgrs_truncated_square_center_leaves_its_zone_today`. Every other drift,
-/// including a different square inside the same zone or polar area, still
-/// fails the property.
-fn mgrs_left_its_zone(first: &str, second: &str, options: &FormatOptions) -> bool {
-    let gzd = |s: &str| {
-        let digits = s.chars().take_while(char::is_ascii_digit).count();
-        s.chars().take(digits + 1).collect::<String>()
-    };
-    matches!(options.representation, Representation::Mgrs { .. }) && gzd(first) != gzd(second)
-}
-
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(2048))]
 
@@ -132,37 +112,41 @@ proptest! {
         options in options(),
     ) {
         let (first, second) = trip(lat, lon, &options);
-        prop_assume!(!mgrs_left_its_zone(&first, &second, &options));
         prop_assert_eq!(first, second, "options {:?}", options);
     }
 }
 
-/// The MGRS counterexample excluded from the property above, pinned so the
-/// exclusion is visible and flips when the decoder clips truncated squares.
+/// The MGRS counterexamples the property found while the decoder returned the
+/// nominal center of a square its grid-zone designator truncates (#149): that
+/// center can lie in the neighbouring zone, band, or projection, so the
+/// re-rendering named a different square. Each now decodes inside its own
+/// designator and renders back unchanged.
 #[test]
-fn mgrs_truncated_square_center_leaves_its_zone_today() {
+fn mgrs_truncated_square_decodes_inside_its_zone() {
     let km100 = opts(Representation::Mgrs {
         precision: MgrsPrecision::Km100,
     });
-    // KNOWN WRONG (#149): zone 1's westernmost 100 km square is cut
-    // by the antimeridian; its nominal center lies west of 180°W, in zone 60.
-    let (first, second) = trip(0.0, -180.0, &km100);
-    assert_eq!(first, "01NAA");
-    assert_eq!(second, "60NZF");
-    assert!(mgrs_left_its_zone(&first, &second, &km100));
-    // A drift inside one zone is not excused.
-    assert!(!mgrs_left_its_zone("18TWK", "18TWL", &km100));
-    // Nor is a drift between 100 km squares of one polar area: a UPS
-    // reference's designator is its first letter alone.
-    assert!(!mgrs_left_its_zone("ZAB", "ZAC", &km100));
-    assert!(!mgrs_left_its_zone("BCS", "BDS", &km100));
-    assert!(mgrs_left_its_zone("ZAB", "YZB", &km100));
-    assert!(mgrs_left_its_zone("ZAB", "32XNJ", &km100));
-    assert!(!mgrs_left_its_zone(
-        "01NAA",
-        "60NZF",
-        &FormatOptions::default()
-    ));
+    for (lat, lon, rendering) in [
+        // Zone 1's westernmost square, cut by the antimeridian (was `60NZF`).
+        (0.0, -180.0, "01NAA"),
+        // Zone 60's easternmost square, cut by it from the other side (was
+        // `01NAB`).
+        (1.0, 180.0, "60NZG"),
+        // Norway: zone 32 widened west to 3°E across band V (was `31VDG`).
+        (60.0, 3.001, "32VJM"),
+        // Svalbard: zone 33 widened west to 9°E from band X's 72°N edge (was
+        // `32WNE`).
+        (72.001, 10.0, "33XUV"),
+        // A band edge: band P starts at 8°N (was `31NEJ`).
+        (8.0, 3.0, "31PEJ"),
+        // The UTM / UPS seams: 84°N (was `YZA`) and 80°S (was `31CDM`).
+        (83.99, 1.0, "31XDP"),
+        (-80.001, 5.0, "BAZ"),
+    ] {
+        let (first, second) = trip(lat, lon, &km100);
+        assert_eq!(first, rendering, "({lat}, {lon})");
+        assert_eq!(second, rendering, "({lat}, {lon})");
+    }
 }
 
 /// The C11 counterexamples the property found before the sign was chosen
@@ -241,7 +225,6 @@ proptest! {
         options in options(),
     ) {
         let (first, second) = trip(lat, lon, &options);
-        prop_assume!(!mgrs_left_its_zone(&first, &second, &options));
         prop_assert_eq!(first, second, "options {:?}", options);
     }
 }
