@@ -19,5 +19,10 @@ echo "packed $tarball"
 cd "$work"
 npm init -y >/dev/null
 npm install --silent --no-audit --no-fund "./$tarball"
-cp "$here/test/packed-import.mjs" .
+cp "$here/test/packed-import.mjs" "$here/test/packed-init-source.mjs" .
 node packed-import.mjs
+# The other wasm sources uniffiInitAsync accepts, one process each (the glue
+# initializes once per process).
+for mode in bytes module url served; do
+  node packed-init-source.mjs "$mode"
+done
