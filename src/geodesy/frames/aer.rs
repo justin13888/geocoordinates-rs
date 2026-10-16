@@ -156,12 +156,12 @@ impl Aer {
         // Each component is at most `r`, so finite.
         let (mut east_m, mut north_m, mut up_m) =
             (r * cos_el * sin_az, r * cos_el * cos_az, r * sin_el);
-        // Only a range within a few ulps of `f64::MAX` can round the
-        // components' magnitude past it; pull them in by round-off until it is
-        // finite, as `Enu::new` requires. Each step shrinks the largest
-        // component by at least one ulp, so this ends within a few steps.
-        while !magnitude(east_m, north_m, up_m).is_finite() {
-            let shrink = 1.0 - f64::EPSILON;
+        if !magnitude(east_m, north_m, up_m).is_finite() {
+            // Only a range within a few ulps of `f64::MAX` gets here: the
+            // trigonometry's rounding can carry the computed magnitude a few
+            // ulps past it. Pulling every component in by 16 ulps of relative
+            // round-off keeps the magnitude finite, as `Enu::new` requires.
+            let shrink = 1.0 - 16.0 * f64::EPSILON;
             (east_m, north_m, up_m) = (east_m * shrink, north_m * shrink, up_m * shrink);
         }
         Enu {

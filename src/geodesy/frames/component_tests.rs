@@ -75,19 +75,43 @@ fn aer_normalizes_azimuth() {
     }
 }
 
-/// A range at `f64::MAX` still converts to a valid ENU offset: the
-/// components are pulled in by round-off rather than producing one whose
-/// length overflows.
+/// A range at `f64::MAX` still converts to a valid ENU offset in every
+/// direction: where rounding carries the components' magnitude past
+/// `f64::MAX`, they are pulled in by round-off instead.
 #[test]
 fn aer_at_the_largest_range_converts_to_a_valid_enu() {
-    for (azimuth, elevation) in [(45.0, 45.0), (0.0, 0.0), (0.0, 90.0), (123.0, -35.0)] {
-        let aer = Aer::new(azimuth, elevation, Length::from_meters(f64::MAX)).unwrap();
-        let enu = aer.to_enu();
-        let rebuilt = Enu::new(enu.east_m(), enu.north_m(), enu.up_m()).unwrap();
-        assert_eq!(rebuilt, enu);
-        let back = enu.to_aer();
-        assert_close(back.range().meters() / f64::MAX, 1.0, 1e-12);
-        let ned = aer.to_ned();
-        assert!(Ned::new(ned.north_m(), ned.east_m(), ned.down_m()).is_ok());
+    let mut pulled_in = 0;
+    for i in 0..720 {
+        for j in 0..=180 {
+            let (azimuth, elevation) = (f64::from(i) * 0.5, f64::from(j) - 90.0);
+            let aer = Aer::new(azimuth, elevation, Length::from_meters(f64::MAX)).unwrap();
+            let enu = aer.to_enu();
+            let rebuilt = Enu::new(enu.east_m(), enu.north_m(), enu.up_m()).unwrap();
+            assert_eq!(rebuilt, enu, "{aer:?}");
+            assert_close(enu.to_aer().range().meters() / f64::MAX, 1.0, 1e-12);
+            let (sin_az, cos_az) = azimuth.to_radians().sin_cos();
+            let (sin_el, cos_el) = elevation.to_radians().sin_cos();
+            let raw = [
+                f64::MAX * cos_el * sin_az,
+                f64::MAX * cos_el * cos_az,
+                f64::MAX * sin_el,
+            ];
+            let got = [enu.east_m(), enu.north_m(), enu.up_m()];
+            if got != raw {
+                pulled_in += 1;
+                // Every non-zero component is pulled in, not just some.
+                for (g, r) in got.iter().zip(raw) {
+                    assert!(*g == 0.0 || g.abs() < r.abs(), "{aer:?}");
+                }
+            }
+        }
     }
+    // The sweep reaches the pulled-in branch, e.g. at (0.5°, -42°).
+    assert!(pulled_in > 0);
+    // An ordinary range is never pulled in: the components are the exact
+    // products.
+    let east = Aer::new(90.0, 0.0, Length::from_meters(100.0))
+        .unwrap()
+        .to_enu();
+    assert_eq!(east.east_m(), 100.0);
 }

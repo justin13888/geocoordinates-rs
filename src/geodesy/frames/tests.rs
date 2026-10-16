@@ -137,12 +137,12 @@ fn aer_enu_round_trip() {
 
 #[test]
 fn enu_ned_repackaging() {
-    let ned = enu(1.0, 2.0, 3.0).to_ned();
+    let ned = enu(1.5, 2.0, 3.0).to_ned();
     assert_eq!(
         (ned.north_m(), ned.east_m(), ned.down_m()),
-        (2.0, 1.0, -3.0)
+        (2.0, 1.5, -3.0)
     );
-    assert_eq!(ned.to_enu(), enu(1.0, 2.0, 3.0));
+    assert_eq!(ned.to_enu(), enu(1.5, 2.0, 3.0));
     assert_eq!(
         aer(30.0, 10.0, 7.0).to_ned(),
         aer(30.0, 10.0, 7.0).to_enu().to_ned()
