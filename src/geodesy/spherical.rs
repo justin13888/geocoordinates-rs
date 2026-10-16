@@ -44,7 +44,6 @@ pub(super) const MEAN_EARTH_RADIUS_M: f64 = 6_371_008.8;
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range position, and
 /// [`Error::CrsMismatch`] when the two CRSs differ.
 ///
 /// ```
@@ -75,8 +74,8 @@ pub fn haversine_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range position, [`Error::CrsMismatch`]
-/// when the three CRSs differ, and [`Error::InvalidValue`] (`field: "path"`)
+/// [`Error::CrsMismatch`] when the three CRSs differ, and
+/// [`Error::InvalidValue`] (`field: "path"`)
 /// when `start` and `end` are the same place or antipodal, which fixes no
 /// single great circle.
 ///
@@ -238,10 +237,9 @@ pub enum Intersection {
 ///
 /// # Errors
 ///
-/// [`Error::OutOfRange`] for an out-of-range start, [`Error::CrsMismatch`]
-/// when the CRSs differ or are GCJ-02 / BD-09 (obfuscated renderings; convert
-/// them to WGS-84 first), and [`Error::InvalidValue`] (`field: "bearing"`) for
-/// a non-finite bearing.
+/// [`Error::CrsMismatch`] when the CRSs differ or are GCJ-02 / BD-09
+/// (obfuscated renderings; convert them to WGS-84 first), and
+/// [`Error::InvalidValue`] (`field: "bearing"`) for a non-finite bearing.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Error, geodesy::{Intersection, intersection_spherical}};
@@ -349,8 +347,7 @@ fn is_forward(along: f64) -> bool {
     along > -1e-12 && along < PI - 1e-12
 }
 
-/// Validates a cross/along-track path: each position in range, one shared
-/// CRS, and `start` / `end` neither coincident nor antipodal (either leaves
+/// Validates a cross/along-track path: one shared CRS, and `start` / `end` neither coincident nor antipodal (either leaves
 /// the great circle through them undefined).
 fn validate_path(point: &impl LatLon, start: &impl LatLon, end: &impl LatLon) -> Result<()> {
     validate_pair(point, start)?;
