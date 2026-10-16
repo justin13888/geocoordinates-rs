@@ -5116,6 +5116,22 @@ public func bd09ToGcj02Refined(p: Bd09)throws  -> ApproxGcj02  {
 })
 }
 /**
+ * BD-09 → WGS-84, fast composition through GCJ-02. **Approximate**: the
+ * returned record carries the summed `max_error_m` — 6.5 m in the China box
+ * away from its edge, more where the GCJ-02 step crosses the edge, and the
+ * BD-09 leg's bound alone outside the box.
+ *
+ * # Errors
+ * As [`bd09_to_gcj02_fast`].
+ */
+public func bd09ToWgs84Fast(p: Bd09)throws  -> ApproxWgs84  {
+    return try  FfiConverterTypeApproxWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_bd09_to_wgs84_fast(
+        FfiConverterTypeBd09_lower(p),$0
+    )
+})
+}
+/**
  * BD-09 → WGS-84, refined composition through GCJ-02. **Approximate**: the
  * returned record carries the summed `max_error_m`.
  *
@@ -5184,9 +5200,11 @@ public func gcj02ToCoordinate(p: Gcj02)throws  -> Coordinate  {
 }
 /**
  * GCJ-02 → WGS-84, fast single-step inverse (within 6 m away from the China
- * box edge). **Approximate**: the returned record carries `max_error_m`.
- * An input just outside the box is returned unchanged; where an inside
- * point may also map onto it, `max_error_m` covers that point too.
+ * box edge). **Approximate**: the returned record carries `max_error_m`,
+ * measured by running the forward offset once on the result: 6 m, or 6 m
+ * plus that residual where the step crosses the box edge. An input just
+ * outside the box is returned unchanged; where an inside point may also map
+ * onto it, `max_error_m` covers that point too.
  *
  * # Errors
  * As [`gcj02_validate`], for an invalid record; the conversion itself
@@ -6633,6 +6651,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_gcj02_refined() != 15279) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_fast() != 45067) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_bd09_to_wgs84_refined() != 57298) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -6648,7 +6669,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_coordinate() != 3193) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 49181) {
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_fast() != 47229) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_wgs84_refined() != 38083) {

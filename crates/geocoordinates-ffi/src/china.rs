@@ -271,9 +271,11 @@ pub fn gcj02_to_bd09(p: Gcj02) -> Result<Bd09, GeoError> {
 // --- China datum conversions (approximate inverse) ---
 
 /// GCJ-02 → WGS-84, fast single-step inverse (within 6 m away from the China
-/// box edge). **Approximate**: the returned record carries `max_error_m`.
-/// An input just outside the box is returned unchanged; where an inside
-/// point may also map onto it, `max_error_m` covers that point too.
+/// box edge). **Approximate**: the returned record carries `max_error_m`,
+/// measured by running the forward offset once on the result: 6 m, or 6 m
+/// plus that residual where the step crosses the box edge. An input just
+/// outside the box is returned unchanged; where an inside point may also map
+/// onto it, `max_error_m` covers that point too.
 ///
 /// # Errors
 /// As [`gcj02_validate`], for an invalid record; the conversion itself
@@ -319,6 +321,18 @@ pub fn bd09_to_gcj02_fast(p: Bd09) -> Result<ApproxGcj02, GeoError> {
 #[uniffi::export]
 pub fn bd09_to_gcj02_refined(p: Bd09) -> Result<ApproxGcj02, GeoError> {
     Ok(gc::china::Bd09::try_from(p)?.try_to_gcj02_refined()?.into())
+}
+
+/// BD-09 → WGS-84, fast composition through GCJ-02. **Approximate**: the
+/// returned record carries the summed `max_error_m` — 6.5 m in the China box
+/// away from its edge, more where the GCJ-02 step crosses the edge, and the
+/// BD-09 leg's bound alone outside the box.
+///
+/// # Errors
+/// As [`bd09_to_gcj02_fast`].
+#[uniffi::export]
+pub fn bd09_to_wgs84_fast(p: Bd09) -> Result<ApproxWgs84, GeoError> {
+    Ok(gc::china::Bd09::try_from(p)?.try_to_wgs84_fast()?.into())
 }
 
 /// BD-09 → WGS-84, refined composition through GCJ-02. **Approximate**: the
