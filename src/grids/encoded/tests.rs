@@ -121,34 +121,30 @@ fn validation_accepts_and_rejects() {
 /// differently spelled inputs of one code collapse to one set entry.
 #[test]
 fn codes_hash_by_their_canonical_string() {
+    use core::hash::{BuildHasher, Hash};
     use std::collections::HashSet;
+    use std::hash::RandomState;
 
-    fn distinct<T: core::hash::Hash + Eq>(codes: impl IntoIterator<Item = T>) -> usize {
-        codes.into_iter().collect::<HashSet<_>>().len()
+    /// `a` and `b` spell one code and `other` a different one: `a == b` hash
+    /// alike, `other` hashes apart, and the three make two set entries.
+    fn check<T: Hash + Eq + core::fmt::Debug>(a: T, b: T, other: T) {
+        let state = RandomState::new();
+        assert_eq!(a, b);
+        assert_eq!(state.hash_one(&a), state.hash_one(&b));
+        assert_ne!(state.hash_one(&a), state.hash_one(&other));
+        assert_eq!(HashSet::from([a, b, other]).len(), 2);
     }
     let geohash = |s| Geohash::parse(s).unwrap();
-    assert_eq!(
-        distinct([geohash("ezs42"), geohash(" EZS42 "), geohash("ezs43")]),
-        2
-    );
+    check(geohash("ezs42"), geohash(" EZS42 "), geohash("ezs43"));
     let locator = |s| Maidenhead::parse(s).unwrap();
-    assert_eq!(
-        distinct([locator("JN58td"), locator("jn58TD"), locator("FN20")]),
-        2
-    );
+    check(locator("JN58td"), locator("jn58TD"), locator("FN20"));
     let plus = |s| PlusCode::parse(s).unwrap();
-    assert_eq!(
-        distinct([plus("8FVC2222+22"), plus("8fvc2222+22"), plus("8FVC0000+")]),
-        2
-    );
+    check(plus("8FVC2222+22"), plus("8fvc2222+22"), plus("8FVC0000+"));
     let mgrs = |s| crate::grids::Mgrs::parse(s).unwrap();
-    assert_eq!(
-        distinct([
-            mgrs("04QFJ12345678"),
-            mgrs("4q fj 1234 5678"),
-            mgrs("18TWL")
-        ]),
-        2
+    check(
+        mgrs("04QFJ12345678"),
+        mgrs("4q fj 1234 5678"),
+        mgrs("18TWL"),
     );
 }
 
