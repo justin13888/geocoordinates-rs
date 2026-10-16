@@ -101,8 +101,8 @@ is re-expressed. The published `geocoordinates` crate is unaffected — the
 bindings build from their own `cdylib`/`staticlib` crate.
 
 > Java is served by the Kotlin/JVM bindings (directly callable from Java), so it
-> has no separate generated surface. TypeScript targets WebAssembly (browser /
-> bundler) via [`ubrn`](https://github.com/jhugman/uniffi-bindgen-react-native);
+> has no separate generated surface. TypeScript targets WebAssembly (browser,
+> bundler, or plain Node) via [`ubrn`](https://github.com/jhugman/uniffi-bindgen-react-native);
 > initialize it with `await uniffiInitAsync()` before use (see
 > [`crates/geocoordinates-ffi/web/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web/)).
 
