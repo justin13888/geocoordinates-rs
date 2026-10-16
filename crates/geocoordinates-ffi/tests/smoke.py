@@ -187,7 +187,34 @@ assert gc.coordinate_is_null_island(a) is False
 fix = gc.fix_from_coord(a)
 assert approx(fix.coord.lat, WGS[0], 1e-9)
 assert fix.accuracy is None and fix.timestamp is None and fix.source is None
-assert approx(gc.confidence_new(2.0).value, 1.0, 1e-12)  # clamped into [0, 1]
+# Confidence and Accuracy are validated, at construction or as they cross in.
+assert gc.confidence_new(0.25).value == 0.25
+for bad in [2.0, -0.5, float("nan")]:
+    try:
+        gc.confidence_new(bad)
+        raise AssertionError(f"expected confidence {bad} to be rejected")
+    except gc.GeoError.InvalidValue as e:
+        assert e.field == "confidence", e.field
+try:
+    gc.confidence_validate(gc.Confidence(value=7.0))
+    raise AssertionError("expected a hand-built confidence of 7 to be rejected")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "confidence", e.field
+acc = gc.accuracy_new(gc.AccuracyKind.CEP50, 3.0, None)
+assert acc == gc.Accuracy(kind=gc.AccuracyKind.CEP50, horizontal_m=3.0, vertical_m=None)
+gc.accuracy_validate(acc)
+for kind, horizontal, vertical, field in [
+    (gc.AccuracyKind.BOUND, -1.0, None, "horizontal"),
+    (gc.AccuracyKind.ONE_SIGMA, None, float("nan"), "vertical"),
+    (gc.AccuracyKind.UNSPECIFIED, None, None, "accuracy"),
+]:
+    try:
+        gc.accuracy_new(kind, horizontal, vertical)
+        raise AssertionError(f"expected {field} to be rejected")
+    except gc.GeoError.InvalidValue as e:
+        assert e.field == field, e.field
+source = gc.raw_source_new("51.5, -0.12", gc.confidence_new(0.9))
+assert source.raw == "51.5, -0.12" and source.geoid_separation_m is None
 
 # --- Coordinate formatting (DD / DMS, plus accuracy-derived precision) ---
 dd_opts = gc.FormatOptions(
@@ -218,11 +245,22 @@ auto_opts = gc.format_options_default()
 assert auto_opts.decimal_separator == gc.DecimalSeparator.POINT
 km_fix = gc.Fix(
     coord=wgs84_coord(40.7128, -74.006),
-    accuracy=gc.Accuracy(horizontal_m=1000.0, vertical_m=None),
+    accuracy=gc.Accuracy(
+        kind=gc.AccuracyKind.ONE_SIGMA, horizontal_m=1000.0, vertical_m=None
+    ),
     timestamp=None,
     source=None,
 )
 assert gc.format_fix(km_fix, auto_opts) == "40.71, -74.01"
+# A hand-built Fix is validated whole as it crosses in: a negative accuracy fails.
+km_fix.accuracy = gc.Accuracy(
+    kind=gc.AccuracyKind.ONE_SIGMA, horizontal_m=-1.0, vertical_m=None
+)
+try:
+    gc.format_fix(km_fix, auto_opts)
+    raise AssertionError("expected a negative accuracy to be rejected")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "horizontal", e.field
 # The locale heuristic picks the separator; a comma rendering re-parses with
 # format_options_parse_options (which carries decimal_separator=COMMA).
 assert gc.decimal_separator_for_locale("de-DE") == gc.DecimalSeparator.COMMA
@@ -255,6 +293,7 @@ geo = gc.parse_coordinate("geo:48.2,16.3,183;crs=wgs84;u=40")
 assert approx(geo.coord.lat, 48.2, 1e-9) and approx(geo.coord.lon, 16.3, 1e-9)
 assert geo.source.axis_order == gc.AxisOrder.LAT_LON  # RFC 5870 lists lat first
 assert geo.accuracy.horizontal_m == 40.0
+assert geo.accuracy.kind == gc.AccuracyKind.UNSPECIFIED  # RFC 5870 states no level
 text = gc.parse_coordinate("40.7128, -74.006")
 assert approx(text.coord.lat, 40.7128, 1e-9)
 assert text.source.axis_order is not None  # free text records the assumed order
@@ -287,6 +326,7 @@ for ambiguous in ["1234.5, 10", "40.5 30, 10", "4e1 3e1"]:
 mgrs_fix = gc.parse_coordinate("18TWK0000027757")
 assert mgrs_fix.source.axis_order is None
 assert mgrs_fix.accuracy.horizontal_m < 1.0
+assert mgrs_fix.accuracy.kind == gc.AccuracyKind.BOUND  # the cell bounds the error
 try:
     gc.parse_coordinate("ezs42")
     raise AssertionError("a geohash must not be detected unasked")
@@ -525,6 +565,7 @@ assert gpxfixes[0].source.axis_order is None  # GPX labels its axes
 assert gpxfixes[0].coord.height == gc.Height.ORTHOMETRIC(183.0)
 assert gpxfixes[0].timestamp is not None
 assert approx(gpxfixes[0].accuracy.horizontal_m, 1.5 * 5.0, 1e-9)  # HDOP x nominal UERE
+assert gpxfixes[0].accuracy.kind == gc.AccuracyKind.ONE_SIGMA
 kmlfixes = gc.from_kml(
     '<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
     "<Placemark><Point><coordinates>16.3,48.2,183</coordinates></Point></Placemark></Document></kml>"
@@ -548,6 +589,9 @@ assert approx(nmea.coord.lat, 48.0 + 7.038 / 60.0, 1e-9)
 assert approx(nmea.coord.lon, 11.0 + 31.0 / 60.0, 1e-9)
 assert nmea.source.axis_order == gc.AxisOrder.LAT_LON  # NMEA lists lat first
 assert approx(nmea.accuracy.horizontal_m, 0.9 * 5.0, 1e-9)  # HDOP x nominal UERE
+assert nmea.accuracy.kind == gc.AccuracyKind.ONE_SIGMA
+assert nmea.source.geoid_separation_m == 46.9  # h = H + N
+assert nmea.source.notes == []
 assert nmea.timestamp is None  # GGA has a time of day but no date
 rmc = gc.from_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
 assert rmc.timestamp is not None
