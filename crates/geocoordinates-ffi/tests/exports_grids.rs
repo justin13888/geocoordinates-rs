@@ -235,6 +235,17 @@ fn mgrs_encodes_decodes_and_reports_precision() {
     assert_eq!(equator, "31NEA0000000000");
     let center = mgrs_to_coordinate(equator).unwrap();
     assert!(center.coord.lat.abs() < 1e-5 && (center.coord.lon - 3.0).abs() < 1e-5);
+    // A square the antimeridian truncates decodes inside its own zone, so it
+    // encodes back to the same reference (its nominal center is in zone 60),
+    // with a bound from that point to the square's farthest corner.
+    let cut = mgrs_to_coordinate("01NAA".to_string()).unwrap();
+    assert!(cut.coord.lon > -180.0 && cut.coord.lon < -179.0, "{cut:?}");
+    assert_eq!(
+        mgrs_from_coordinate(cut.coord, MgrsPrecision::Km100).unwrap(),
+        "01NAA"
+    );
+    let half_diagonal = 100_000.0 * 0.5f64.sqrt() / 0.9996;
+    assert!(cut.max_error_m > half_diagonal && cut.max_error_m <= 2.0 * half_diagonal);
     assert!(matches!(
         mgrs_to_coordinate("not-an-mgrs".to_string()),
         Err(GeoError::InvalidGridRef { .. })

@@ -1,5 +1,6 @@
 use super::*;
 use crate::test_support::{assert_close, assert_within_geodesic_meters};
+use proptest::prelude::{Strategy, prop_oneof};
 
 fn c(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
@@ -384,6 +385,218 @@ fn squares_across_the_antimeridian_decode_wrapped() {
     let east = Mgrs::try_from("60NZF5000050000").expect("valid");
     let east = east.to_coordinate();
     assert!(east.value().lon() < -179.8, "{:?}", east.value());
+    // Neither square holds a point its own zone owns, so there is nothing to
+    // clip to: each keeps the nominal center and half-diagonal bound. So does
+    // a square of zone 32X, which the Svalbard exception drops.
+    let dropped = Mgrs::try_from("32XNJ").expect("valid").to_coordinate();
+    for (square, side) in [(west, 1.0), (east, 1.0), (dropped, 100_000.0)] {
+        assert_close(
+            square.max_error().meters(),
+            side * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
+            1e-12,
+        );
+    }
+}
+
+/// The decoded point of a truncated square sits midway between the
+/// designator edge that cuts the square and the square edge facing it, as the
+/// center of the largest inscribed circle does where the owned part is a
+/// strip. `along_easting` names the axis the strip is cut across: easting for
+/// a zone meridian, northing for a band edge. The designator edge is found by
+/// bisecting, along that axis from the point, for where encoding stops giving
+/// the reference back.
+#[track_caller]
+fn assert_centered_in_strip(s: &str, along_easting: bool) {
+    let m = Mgrs::try_from(s).expect("valid");
+    let Decoded {
+        center: nominal,
+        precision,
+        ..
+    } = decode(s).expect("valid");
+    let half = precision.side().meters() / 2.0;
+    let (ce, cn) = nominal.grid();
+    let (pe, pn) = m.center.grid();
+    let pick = |e: f64, n: f64| if along_easting { e } else { n };
+    let at = |v: f64| {
+        let grid = if along_easting { (v, pn) } else { (pe, v) };
+        nominal.at(grid).expect("in the domain").coordinate()
+    };
+    let owns = |v: f64| Mgrs::try_from_coordinate(at(v), precision).unwrap() == m;
+    let (p, c) = (pick(pe, pn), pick(ce, cn));
+    // The cut lies between the point and the square's edge on the other side
+    // of the nominal center.
+    let mut outside = if p > c { c - half } else { c + half };
+    let mut inside = p;
+    assert!(owns(inside) && !owns(outside), "{s}");
+    for _ in 0..60 {
+        let mid = (inside + outside) / 2.0;
+        if owns(mid) {
+            inside = mid;
+        } else {
+            outside = mid;
+        }
+    }
+    let to_cut = (p - inside).abs();
+    let to_edge = if p > c { c + half - p } else { p - (c - half) };
+    assert!(
+        (to_cut - to_edge).abs() < 0.01 * to_edge,
+        "{s}: {to_cut} vs {to_edge}"
+    );
+    // The strip's other axis is longer, so the circle does not touch it.
+    let across = pick(pn - cn, pe - ce).abs();
+    assert!(half - across >= 0.99 * to_edge, "{s}");
+}
+
+#[test]
+fn truncated_squares_decode_midway_across_the_owned_strip() {
+    // Zone 1's westernmost column, cut by the antimeridian.
+    assert_centered_in_strip("01NAA", true);
+    assert_centered_in_strip("01NAA60", true);
+    // A square cut by band P's 8°N edge.
+    assert_centered_in_strip("31PEJ", false);
+}
+
+#[test]
+fn chebyshev_center_is_the_center_of_the_largest_inscribed_circle() {
+    // The square [-3, 3]² cut to [1.5, 3]² by x ≥ 1.5 and y ≥ 1.5. (Not a
+    // unit square, so every offset enters the solve as itself.)
+    let planes = [
+        ([1.0, 0.0], 3.0),
+        ([-1.0, 0.0], 3.0),
+        ([0.0, 1.0], 3.0),
+        ([0.0, -1.0], 3.0),
+        ([1.0, 0.0], -1.5),
+        ([0.0, 1.0], -1.5),
+    ];
+    let [x, y] = clip::chebyshev_center(&planes, 3.0).unwrap();
+    assert_close(x, 2.25, 1e-12);
+    assert_close(y, 2.25, 1e-12);
+    // A diagonal cut x + y ≥ 3 leaves a triangle with legs of 3 at (3, 3),
+    // whose incircle has radius 3 (1 − 1/√2).
+    let s = core::f64::consts::FRAC_1_SQRT_2;
+    let r = 3.0 * (1.0 - s);
+    let diagonal = [
+        planes[0],
+        planes[1],
+        planes[2],
+        planes[3],
+        ([s, s], -3.0 * s),
+    ];
+    let [x, y] = clip::chebyshev_center(&diagonal, 3.0).unwrap();
+    assert_close(x, 3.0 - r, 1e-12);
+    assert_close(y, 3.0 - r, 1e-12);
+}
+
+#[test]
+fn relinearizing_at_the_answer_keeps_it() {
+    // A later round linearizes the designator's edges at the previous
+    // answer instead of at the center. Where the edges are nearly straight
+    // (zone 1's antimeridian edge at the equator), it lands where the first
+    // round did, to a few meters of curvature over 33 km; an `owns` that
+    // rejects the first answer forces it.
+    let Decoded {
+        center,
+        precision,
+        gzd,
+        ..
+    } = decode("01NAA").expect("valid");
+    let half = precision.side().meters() / 2.0;
+    let first = clip::deepest_owned(center, half, gzd, |_| true).unwrap();
+    let calls = core::cell::Cell::new(0);
+    let second = clip::deepest_owned(center, half, gzd, |_| {
+        calls.set(calls.get() + 1);
+        calls.get() > 1
+    })
+    .unwrap();
+    assert_eq!(calls.get(), 2);
+    let ((e1, n1), (e2, n2)) = (first.grid(), second.grid());
+    assert!((e1 - e2).hypot(n1 - n2) < 10.0, "{first:?} vs {second:?}");
+    // An `owns` that never accepts exhausts the rounds.
+    assert!(clip::deepest_owned(center, half, gzd, |_| false).is_none());
+}
+
+#[test]
+fn zone_spans_match_the_zone_rules() {
+    use crate::grids::utm::{utm_zone_for, zone_span};
+    // Every band's middle latitude, and a sweep of longitudes across the
+    // exceptions and the antimeridian: the zone the rules pick holds the
+    // longitude in its span, and no other zone's span does.
+    for band in 0..20 {
+        let lat = -76.0 + 8.0 * f64::from(band);
+        let lat = if band == 19 { 78.0 } else { lat };
+        for step in 0..=720 {
+            let lon = -180.0 + 0.5 * f64::from(step);
+            let zone = utm_zone_for(&c(lat, lon)).unwrap();
+            for z in 1..=60 {
+                let holds = zone_span(z, lat)
+                    .is_some_and(|(w, e)| (w..e).contains(&lon) || (z == 60 && lon == 180.0));
+                assert_eq!(holds, z == zone, "zone {z} at ({lat}, {lon})");
+            }
+        }
+    }
+}
+
+/// #149: squares the grid-zone designator truncates — by the antimeridian
+/// from either side (at 100 km and at 10 km), Norway's widened zone 32V,
+/// Svalbard's widened zone 33X at its band edge, a latitude-band edge, the
+/// UTM / UPS seams at 84°N and 80°S, and the 10 m square holding 32V's
+/// south-west corner (56°N 3°E), of which the designator owns only a sliver.
+/// Each nominal center lies outside the designator; the decoded point lies
+/// inside it, so re-encoding gives the reference back, and the bound still
+/// reaches every corner of the nominal square, which contains the truncated
+/// part.
+#[test]
+fn truncated_squares_decode_inside_their_designator() {
+    for s in [
+        "01NAA",
+        "60NZG",
+        "01NAA60",
+        "32VJM",
+        "33XUV",
+        "31PEJ",
+        "31XDP",
+        "BAZ",
+        "32VJH26042233",
+    ] {
+        let Decoded {
+            center: nominal,
+            precision,
+            ..
+        } = decode(s).expect("valid");
+        assert_ne!(
+            encode_text(nominal.coordinate(), precision.digits()).unwrap(),
+            s,
+            "{s}: the nominal center is not truncated"
+        );
+        let decoded = Mgrs::try_from(s).expect("valid").to_coordinate();
+        let again = Mgrs::try_from_coordinate(*decoded.value(), precision).unwrap();
+        assert_eq!(again.as_str(), s);
+
+        let half = precision.side().meters() / 2.0;
+        let (ce, cn) = nominal.grid();
+        let corner = |de: f64, dn: f64| {
+            nominal
+                .at((ce + de, cn + dn))
+                .expect("in the projection's domain")
+                .coordinate()
+        };
+        let worst = worst_corner_distance(
+            decoded.value(),
+            [
+                corner(-half, -half),
+                corner(half, -half),
+                corner(-half, half),
+                corner(half, half),
+            ],
+        );
+        let bound = decoded.max_error().meters();
+        assert!(worst <= bound, "{s}: worst {worst} m, bound {bound} m");
+        // Never more than the full diagonal from a point of the square.
+        assert!(
+            bound <= 2.0 * half * core::f64::consts::SQRT_2 / nominal.k_min(),
+            "{s}"
+        );
+    }
 }
 
 const PRECISIONS: [MgrsPrecision; 6] = [
@@ -408,6 +621,10 @@ fn assert_round_trips(coord: Coordinate, precision: MgrsPrecision) {
     assert_eq!(parsed.precision(), precision);
     let center = parsed.to_coordinate();
     assert_eq!(center, encoded.to_coordinate(), "{encoded}");
+    // The decoded point lies in the reference's own square, inside its
+    // grid-zone designator, so it encodes back to the same reference (#149).
+    let again = Mgrs::try_from_coordinate(*center.value(), precision).unwrap();
+    assert_eq!(again, encoded);
     // A point on a square's corner where k is exactly k_min (the equator on
     // the central meridian, or the pole) sits *at* the bound, so projection
     // rounding lands it a few nanometers either side; 1 um absorbs that.
@@ -461,6 +678,20 @@ fn band_and_domain_edges_round_trip() {
     }
 }
 
+#[test]
+fn a_latitude_just_below_a_band_edge_keeps_its_band() {
+    // One ulp below 72°N, `lat + 80.0` rounds up to 152, which named band X
+    // while the zone rules (south of the Svalbard exception) still picked
+    // zone 36: `36X` is a designator the exception drops.
+    let below = f64::from_bits(72.0_f64.to_bits() - 1);
+    let mgrs = Mgrs::try_from_coordinate(c(below, 33.5), MgrsPrecision::Km100).unwrap();
+    assert!(mgrs.as_str().starts_with("36W"), "{mgrs}");
+    assert_round_trips(c(below, 33.5), MgrsPrecision::M1);
+    // Band C has no band below it to fall back to.
+    let south = Mgrs::try_from_coordinate(c(-80.0, 3.0), MgrsPrecision::Km100).unwrap();
+    assert!(south.as_str().starts_with("31C"), "{south}");
+}
+
 proptest::proptest! {
     #[test]
     fn every_encoded_reference_round_trips(
@@ -498,4 +729,29 @@ fn serde_validates_and_uses_the_canonical_string() {
     // A one-digit zone deserializes to, and serializes as, the padded form.
     let one: Mgrs = serde_json::from_str(r#""4QFH0460911793""#).unwrap();
     assert_eq!(serde_json::to_string(&one).unwrap(), r#""04QFH0460911793""#);
+}
+
+proptest::proptest! {
+    /// #149: points near a grid-zone designator's corner — a band edge
+    /// crossed with a zone meridian, or with a Norway / Svalbard exception
+    /// edge — where the designator truncates the square to a sliver. Offsets
+    /// stop at about a micrometer: 3°E is zone 31's central meridian, so a
+    /// longitude within ~1e-15° west of it projects onto easting 500 000 m
+    /// exactly, the edge of a square of 31V that holds no point west of 3°E.
+    #[test]
+    fn references_at_grid_zone_corners_round_trip(
+        band in 0i32..=20,
+        meridian in prop_oneof![
+            (0i32..=60).prop_map(|k| -180.0 + 6.0 * f64::from(k)),
+            proptest::sample::select(vec![3.0, 9.0, 21.0, 33.0, 42.0]),
+        ],
+        dlat in -1.0f64..1.0,
+        dlon in -1.0f64..1.0,
+        scale in proptest::sample::select(vec![1e-3, 1e-6, 1e-9, 1e-11]),
+        precision in proptest::sample::select(PRECISIONS.to_vec()),
+    ) {
+        let lat = (-80.0 + 8.0 * f64::from(band) + dlat * scale).clamp(-90.0, 90.0);
+        let lon = (meridian + dlon * scale).clamp(-180.0, 180.0);
+        assert_round_trips(c(lat, lon), precision);
+    }
 }

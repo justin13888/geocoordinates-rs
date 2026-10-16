@@ -355,6 +355,11 @@ pub fn mgrs_from_coordinate(
 /// Decode an MGRS string to the center of its square. The error bound is the
 /// square's half diagonal in ground meters, `side / √2 / k_min` (`k_min` is
 /// 0.9996 for UTM, 0.994 for UPS), which covers every point of the square.
+/// Where the grid-zone designator truncates the square (a zone or band edge,
+/// the antimeridian, the Norway / Svalbard exceptions, the UTM / UPS seam),
+/// the point is instead one deep inside the part the designator owns, so it
+/// encodes back to the same string, and the bound is its distance to the
+/// square's farthest corner over `k_min`.
 ///
 /// # Errors
 /// `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.

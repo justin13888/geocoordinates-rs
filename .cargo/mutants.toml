@@ -14,4 +14,13 @@ exclude_re = [
     # crate-internal `from_valid` debug-asserts the range. No reachable
     # position fails the check, so `Ok(())` is indistinguishable from it.
     'src/geodesy/geodesic\.rs:.*: replace validate_position -> Result<\(\)> with Ok\(\(\)\)',
+    # grids::mgrs::clip::deepest_owned works in offsets `x` from the square's
+    # center, and offset_point is the only place an offset becomes a grid
+    # point. Flipping `ce + x` (or `cn + y`) to a subtraction reflects that one
+    # axis of the offset frame consistently: the finite differences, the
+    # linearized half-planes (the square's four are symmetric), and the
+    # Chebyshev center are all computed in the reflected frame, and
+    # offset_point maps the answer back through the same reflection, so the
+    # physical point, and everything observable about it, is unchanged.
+    'src/grids/mgrs/clip\.rs:.*: replace \+ with - in offset_point',
 ]
