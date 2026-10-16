@@ -21,6 +21,12 @@
 //! yields `Ok(vec![])`. One invalid position rejects the whole document, and the
 //! error names its zero-based index in document order. Each format is behind
 //! its own cargo feature.
+//!
+//! **Untrusted input:** every parser returns or errors on any input; none
+//! recurses without bound. GeoJSON nesting is capped at 128 levels by
+//! `serde_json`; WKT parentheses nested deeper than 128 levels and KML
+//! elements nested deeper than 32 are rejected before they are parsed; and the
+//! walks over the parsed geometry are iterative.
 
 use super::NOMINAL_UERE_M;
 use crate::coord::{Coordinate, Crs, Height};
@@ -111,6 +117,105 @@ fn into_fixes(format: &str, positions: Vec<Position>) -> Result<Vec<Fix>> {
         .collect()
 }
 
+/// The deepest parenthesis nesting a WKT string may have: 128, the recursion
+/// limit `serde_json` applies to GeoJSON. The `wkt` parser recurses once per
+/// level with no limit of its own, so deeper text is rejected before it
+/// reaches it rather than allowed to overflow the stack.
+#[cfg(feature = "wkt")]
+const MAX_WKT_DEPTH: usize = 128;
+
+/// The deepest element nesting a KML document may have. The `kml` parser
+/// recurses once per element with no limit of its own and spends tens of
+/// kilobytes of stack on each `<Folder>` level in an unoptimized build (about
+/// 40 levels exhaust a 2 MiB thread stack), so the limit is 32 rather than
+/// [`MAX_WKT_DEPTH`]'s 128. Real KML (`kml` / `Document` / a few `Folder`s /
+/// `Placemark` / `MultiGeometry` / `Polygon` / boundary / `LinearRing` /
+/// `coordinates`) stays well inside it.
+#[cfg(feature = "kml")]
+const MAX_KML_DEPTH: usize = 32;
+
+/// The error for a document nested deeper than `limit` levels.
+#[cfg(any(feature = "wkt", feature = "kml"))]
+fn too_deep(format: &str, limit: usize) -> Error {
+    Error::Parse(format!("{format}: nesting deeper than {limit} levels"))
+}
+
+/// Reject WKT whose parentheses nest deeper than [`MAX_WKT_DEPTH`].
+/// WKT has no string literals or comments, so every `(` opens a level.
+#[cfg(feature = "wkt")]
+fn check_wkt_depth(input: &str) -> Result<()> {
+    let mut depth = 0usize;
+    for b in input.bytes() {
+        match b {
+            b'(' => {
+                depth += 1;
+                if depth > MAX_WKT_DEPTH {
+                    return Err(too_deep("wkt", MAX_WKT_DEPTH));
+                }
+            }
+            b')' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// Reject XML whose elements nest deeper than [`MAX_KML_DEPTH`].
+///
+/// A start tag opens a level and an end tag closes one; self-closing tags,
+/// comments, CDATA sections, processing instructions, and declarations open
+/// none, and a `>` inside a quoted attribute value does not end its tag. The
+/// scan stops at the first unterminated construct, leaving the malformed
+/// remainder to the parser.
+#[cfg(feature = "kml")]
+pub(super) fn check_xml_depth(input: &str) -> Result<()> {
+    /// The offset of the `>` ending the tag `tag` starts, skipping quotes.
+    fn tag_end(tag: &str) -> Option<usize> {
+        let mut quote = None;
+        for (i, b) in tag.bytes().enumerate() {
+            match (quote, b) {
+                (None, b'"' | b'\'') => quote = Some(b),
+                (Some(q), b) if b == q => quote = None,
+                (None, b'>') => return Some(i),
+                _ => {}
+            }
+        }
+        None
+    }
+
+    let mut depth = 0usize;
+    let mut rest = input;
+    while let Some(open) = rest.find('<') {
+        rest = &rest[open..];
+        // Resume at the construct's terminator, which holds no `<`, so the
+        // next search starts past it.
+        let end = if rest.starts_with("<!--") {
+            rest.find("-->")
+        } else if rest.starts_with("<![CDATA[") {
+            rest.find("]]>")
+        } else if rest.starts_with("<!") || rest.starts_with("<?") {
+            rest.find('>')
+        } else if rest.starts_with("</") {
+            depth = depth.saturating_sub(1);
+            rest.find('>')
+        } else {
+            let end = tag_end(rest);
+            if let Some(i) = end
+                && rest.as_bytes()[i - 1] != b'/'
+            {
+                depth += 1;
+                if depth > MAX_KML_DEPTH {
+                    return Err(too_deep("kml", MAX_KML_DEPTH));
+                }
+            }
+            end
+        };
+        let Some(end) = end else { break };
+        rest = &rest[end..];
+    }
+    Ok(())
+}
+
 /// Parse every position in a GeoJSON document (lon-lat order, RFC 7946).
 ///
 /// Walks the whole structure — features, geometry collections, and every
@@ -122,7 +227,8 @@ fn into_fixes(format: &str, positions: Vec<Position>) -> Result<Vec<Fix>> {
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] on malformed GeoJSON, or naming the
-/// zero-based index of the first position that is out of range.
+/// zero-based index of the first position that is out of range or has fewer
+/// than two numbers.
 ///
 /// ```
 /// use geocoordinates::{Error, Height};
@@ -148,55 +254,71 @@ fn into_fixes(format: &str, positions: Vec<Position>) -> Result<Vec<Fix>> {
 pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
     use geojson::{GeoJson, Geometry, GeometryValue, Position as GeoJsonPosition};
 
-    fn position(p: &GeoJsonPosition, out: &mut Vec<Position>) {
-        if p.len() >= 2 {
-            let alt = (p.len() >= 3).then(|| Height::Ellipsoidal(p[2]));
-            let raw = Geometry::new_point(p.clone()).to_string();
-            out.push(Position::new(p[0], p[1], alt, Some(AxisOrder::LonLat), raw));
+    /// Push one position, rejecting one with fewer than two numbers (the
+    /// `geojson` crate length-checks only a `Point`'s) at its document index.
+    fn position(p: &GeoJsonPosition, out: &mut Vec<Position>) -> Result<()> {
+        if p.len() < 2 {
+            return Err(Error::Parse(format!(
+                "geojson: invalid position at index {}: \
+                 a position needs at least 2 numbers, got {}",
+                out.len(),
+                p.len()
+            )));
         }
+        let alt = (p.len() >= 3).then(|| Height::Ellipsoidal(p[2]));
+        let raw = Geometry::new_point(p.clone()).to_string();
+        out.push(Position::new(p[0], p[1], alt, Some(AxisOrder::LonLat), raw));
+        Ok(())
     }
-    fn geometry(g: &Geometry, out: &mut Vec<Position>) {
-        match &g.value {
-            GeometryValue::Point { coordinates } => position(coordinates, out),
-            GeometryValue::MultiPoint { coordinates }
-            | GeometryValue::LineString { coordinates } => {
-                coordinates.iter().for_each(|p| position(p, out));
-            }
-            GeometryValue::MultiLineString { coordinates }
-            | GeometryValue::Polygon { coordinates } => {
-                coordinates.iter().flatten().for_each(|p| position(p, out));
-            }
-            GeometryValue::MultiPolygon { coordinates } => {
-                coordinates
-                    .iter()
-                    .flatten()
-                    .flatten()
-                    .for_each(|p| position(p, out));
-            }
-            GeometryValue::GeometryCollection { geometries } => {
-                geometries.iter().for_each(|g| geometry(g, out));
+    /// Walk `root` in document order with an explicit stack, not recursion.
+    fn geometry(root: &Geometry, out: &mut Vec<Position>) -> Result<()> {
+        let mut stack = vec![root];
+        while let Some(g) = stack.pop() {
+            match &g.value {
+                GeometryValue::Point { coordinates } => position(coordinates, out)?,
+                GeometryValue::MultiPoint { coordinates }
+                | GeometryValue::LineString { coordinates } => {
+                    coordinates.iter().try_for_each(|p| position(p, out))?;
+                }
+                GeometryValue::MultiLineString { coordinates }
+                | GeometryValue::Polygon { coordinates } => {
+                    coordinates
+                        .iter()
+                        .flatten()
+                        .try_for_each(|p| position(p, out))?;
+                }
+                GeometryValue::MultiPolygon { coordinates } => {
+                    coordinates
+                        .iter()
+                        .flatten()
+                        .flatten()
+                        .try_for_each(|p| position(p, out))?;
+                }
+                GeometryValue::GeometryCollection { geometries } => {
+                    stack.extend(geometries.iter().rev());
+                }
             }
         }
+        Ok(())
     }
 
     let parsed: GeoJson = input
         .parse()
         .map_err(|e| Error::Parse(format!("geojson: {e}")))?;
     let mut out = Vec::new();
-    match parsed {
-        GeoJson::Geometry(g) => geometry(&g, &mut out),
-        GeoJson::Feature(f) => {
-            if let Some(g) = f.geometry {
-                geometry(&g, &mut out);
-            }
-        }
-        GeoJson::FeatureCollection(fc) => fc.features.iter().for_each(|f| {
-            if let Some(g) = &f.geometry {
-                geometry(g, &mut out);
-            }
-        }),
-    }
-    into_fixes("geojson", out)
+    let walked = match &parsed {
+        GeoJson::Geometry(g) => geometry(g, &mut out),
+        GeoJson::Feature(f) => f.geometry.iter().try_for_each(|g| geometry(g, &mut out)),
+        GeoJson::FeatureCollection(fc) => fc
+            .features
+            .iter()
+            .filter_map(|f| f.geometry.as_ref())
+            .try_for_each(|g| geometry(g, &mut out)),
+    };
+    // A short position stops the walk; an out-of-range position before it
+    // still comes first in document order, so validate those first.
+    let fixes = into_fixes("geojson", out)?;
+    walked.map(|()| fixes)
 }
 
 /// Parse every position in a WKT string, reading its X and Y as `axis_order`.
@@ -214,8 +336,9 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
 /// `POINT`, which this function parses back to the same fix.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] on malformed WKT, or naming the zero-based
-/// index of the first position that is out of range.
+/// Returns [`crate::Error::Parse`] on malformed WKT, on parentheses nested
+/// deeper than 128 levels, or naming the zero-based index of the first
+/// position that is out of range.
 ///
 /// ```
 /// use geocoordinates::Error;
@@ -262,39 +385,41 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
     fn coords(cs: &[Coord<f64>], axis_order: AxisOrder, out: &mut Vec<Position>) {
         cs.iter().for_each(|c| coord(c, axis_order, out));
     }
-    fn geometry(g: &Wkt<f64>, axis_order: AxisOrder, out: &mut Vec<Position>) {
-        match g {
-            Wkt::Point(p) => {
-                if let Some(c) = p.coord() {
-                    coord(c, axis_order, out);
+    /// Walk `root` in document order with an explicit stack, not recursion.
+    fn geometry(root: &Wkt<f64>, axis_order: AxisOrder, out: &mut Vec<Position>) {
+        let mut stack = vec![root];
+        while let Some(g) = stack.pop() {
+            match g {
+                Wkt::Point(p) => {
+                    if let Some(c) = p.coord() {
+                        coord(c, axis_order, out);
+                    }
                 }
-            }
-            Wkt::LineString(ls) => coords(ls.coords(), axis_order, out),
-            Wkt::Polygon(poly) => poly
-                .rings()
-                .iter()
-                .for_each(|ls| coords(ls.coords(), axis_order, out)),
-            Wkt::MultiPoint(mp) => mp.points().iter().for_each(|p| {
-                if let Some(c) = p.coord() {
-                    coord(c, axis_order, out);
-                }
-            }),
-            Wkt::MultiLineString(mls) => mls
-                .line_strings()
-                .iter()
-                .for_each(|ls| coords(ls.coords(), axis_order, out)),
-            Wkt::MultiPolygon(mp) => mp.polygons().iter().for_each(|poly| {
-                poly.rings()
+                Wkt::LineString(ls) => coords(ls.coords(), axis_order, out),
+                Wkt::Polygon(poly) => poly
+                    .rings()
                     .iter()
-                    .for_each(|ls| coords(ls.coords(), axis_order, out));
-            }),
-            Wkt::GeometryCollection(gc) => gc
-                .geometries()
-                .iter()
-                .for_each(|g| geometry(g, axis_order, out)),
+                    .for_each(|ls| coords(ls.coords(), axis_order, out)),
+                Wkt::MultiPoint(mp) => mp.points().iter().for_each(|p| {
+                    if let Some(c) = p.coord() {
+                        coord(c, axis_order, out);
+                    }
+                }),
+                Wkt::MultiLineString(mls) => mls
+                    .line_strings()
+                    .iter()
+                    .for_each(|ls| coords(ls.coords(), axis_order, out)),
+                Wkt::MultiPolygon(mp) => mp.polygons().iter().for_each(|poly| {
+                    poly.rings()
+                        .iter()
+                        .for_each(|ls| coords(ls.coords(), axis_order, out));
+                }),
+                Wkt::GeometryCollection(gc) => stack.extend(gc.geometries().iter().rev()),
+            }
         }
     }
 
+    check_wkt_depth(input)?;
     let parsed = Wkt::<f64>::from_str(input).map_err(|e| Error::Parse(format!("wkt: {e}")))?;
     let mut out = Vec::new();
     geometry(&parsed, axis_order, &mut out);
@@ -381,8 +506,9 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// back to the same fix.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] on malformed KML, or naming the zero-based
-/// index of the first position that is out of range.
+/// Returns [`crate::Error::Parse`] on malformed KML, on elements nested
+/// deeper than 32 levels, or naming the zero-based index of the first
+/// position that is out of range.
 ///
 /// ```
 /// use geocoordinates::{Error, Height};
@@ -422,45 +548,53 @@ pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
             raw,
         ));
     }
-    fn geometry(g: &Geometry<f64>, out: &mut Vec<Position>) {
-        match g {
-            Geometry::Point(p) => coord(&p.coord, out),
-            Geometry::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
-            Geometry::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(c, out)),
-            Geometry::Polygon(poly) => {
-                poly.outer.coords.iter().for_each(|c| coord(c, out));
-                poly.inner
-                    .iter()
-                    .for_each(|r| r.coords.iter().for_each(|c| coord(c, out)));
-            }
-            Geometry::MultiGeometry(mg) => mg.geometries.iter().for_each(|g| geometry(g, out)),
-            _ => {} // Element / future variants carry no coordinates
-        }
+    /// A node still to visit: a document element or a geometry within one.
+    enum Node<'a> {
+        Kml(&'a Kml<f64>),
+        Geometry(&'a Geometry<f64>),
     }
-    fn walk(k: &Kml<f64>, out: &mut Vec<Position>) {
-        match k {
-            Kml::Point(p) => coord(&p.coord, out),
-            Kml::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
-            Kml::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(c, out)),
-            Kml::Polygon(poly) => {
-                poly.outer.coords.iter().for_each(|c| coord(c, out));
-                poly.inner
-                    .iter()
-                    .for_each(|r| r.coords.iter().for_each(|c| coord(c, out)));
+    fn polygon(poly: &kml::types::Polygon<f64>, out: &mut Vec<Position>) {
+        poly.outer.coords.iter().for_each(|c| coord(c, out));
+        poly.inner
+            .iter()
+            .for_each(|r| r.coords.iter().for_each(|c| coord(c, out)));
+    }
+    /// Walk `root` in document order with an explicit stack, not recursion.
+    fn walk(root: &Kml<f64>, out: &mut Vec<Position>) {
+        fn kmls(elements: &[Kml<f64>]) -> impl DoubleEndedIterator<Item = Node<'_>> {
+            elements.iter().map(Node::Kml)
+        }
+        fn geometries(gs: &[Geometry<f64>]) -> impl DoubleEndedIterator<Item = Node<'_>> {
+            gs.iter().map(Node::Geometry)
+        }
+        let mut stack = vec![Node::Kml(root)];
+        while let Some(node) = stack.pop() {
+            match node {
+                Node::Geometry(g) => match g {
+                    Geometry::Point(p) => coord(&p.coord, out),
+                    Geometry::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
+                    Geometry::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(c, out)),
+                    Geometry::Polygon(poly) => polygon(poly, out),
+                    Geometry::MultiGeometry(mg) => stack.extend(geometries(&mg.geometries).rev()),
+                    _ => {} // Element / future variants carry no coordinates
+                },
+                Node::Kml(k) => match k {
+                    Kml::Point(p) => coord(&p.coord, out),
+                    Kml::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
+                    Kml::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(c, out)),
+                    Kml::Polygon(poly) => polygon(poly, out),
+                    Kml::MultiGeometry(mg) => stack.extend(geometries(&mg.geometries).rev()),
+                    Kml::Placemark(pm) => stack.extend(pm.geometry.as_ref().map(Node::Geometry)),
+                    Kml::Document { elements, .. } => stack.extend(kmls(elements).rev()),
+                    Kml::Folder(f) => stack.extend(kmls(&f.elements).rev()),
+                    Kml::KmlDocument(doc) => stack.extend(kmls(&doc.elements).rev()),
+                    _ => {}
+                },
             }
-            Kml::MultiGeometry(mg) => mg.geometries.iter().for_each(|g| geometry(g, out)),
-            Kml::Placemark(pm) => {
-                if let Some(g) = &pm.geometry {
-                    geometry(g, out);
-                }
-            }
-            Kml::Document { elements, .. } => elements.iter().for_each(|e| walk(e, out)),
-            Kml::Folder(f) => f.elements.iter().for_each(|e| walk(e, out)),
-            Kml::KmlDocument(doc) => doc.elements.iter().for_each(|e| walk(e, out)),
-            _ => {}
         }
     }
 
+    check_xml_depth(input)?;
     let parsed = Kml::<f64>::from_str(input).map_err(|e| Error::Parse(format!("kml: {e}")))?;
     let mut out = Vec::new();
     walk(&parsed, &mut out);
