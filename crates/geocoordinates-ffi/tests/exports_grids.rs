@@ -388,6 +388,10 @@ fn interchange_parsers_reject_short_positions_and_deep_nesting() {
     let (kind, detail) = parse_error(from_kml(kml));
     assert_eq!(kind, ParseErrorKind::TooDeep);
     assert_eq!(detail, "kml: nesting deeper than 32 levels");
+    // A truncated document returns a syntax error rather than never returning.
+    let (kind, detail) = parse_error(from_kml("<kml><Point>".to_string()));
+    assert_eq!(kind, ParseErrorKind::Syntax);
+    assert_eq!(detail, "kml: element <Point> is not closed");
 }
 
 // --- NMEA 0183 ---
