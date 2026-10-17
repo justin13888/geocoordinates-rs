@@ -221,7 +221,7 @@ fn geodesic_for(crs: Crs) -> Result<Geodesic> {
 
 /// Validates a pair (one shared CRS) and returns the geodesic
 /// on that CRS's ellipsoid.
-fn geodesic_for_pair(a: &impl LatLon, b: &impl LatLon) -> Result<Geodesic> {
+pub(super) fn geodesic_for_pair(a: &impl LatLon, b: &impl LatLon) -> Result<Geodesic> {
     validate_pair(a, b)?;
     geodesic_for(a.crs())
 }

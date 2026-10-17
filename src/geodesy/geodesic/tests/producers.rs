@@ -3,6 +3,7 @@
 use proptest::prelude::*;
 
 use super::*;
+use crate::geodesy::{GeodesicIntersection, intersection};
 
 fn latitude() -> impl Strategy<Value = f64> {
     prop_oneof![-90.0..=90.0_f64, Just(90.0), Just(-90.0), Just(0.0)]
@@ -45,6 +46,9 @@ proptest! {
         assert_valid(&midpoint(&a, &b).unwrap(), crs)?;
         assert_valid(&intermediate(&a, &b, fraction).unwrap(), crs)?;
         if let Intersection::Crossing(p) = intersection_spherical(&a, bearing, &b, bearing_b).unwrap() {
+            assert_valid(&p, crs)?;
+        }
+        if let Ok(GeodesicIntersection::Crossing(p)) = intersection(&a, bearing, &b, bearing_b) {
             assert_valid(&p, crs)?;
         }
     }

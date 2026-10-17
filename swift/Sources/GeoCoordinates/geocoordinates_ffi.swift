@@ -3596,6 +3596,105 @@ public func FfiConverterTypeGeoError_lower(_ value: GeoError) -> RustBuffer {
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The outcome of [`intersection`] — mirror of
+ * [`gc::geodesy::GeodesicIntersection`].
+ *
+ * `gc::geodesy::GeodesicIntersection` is exhaustive, so the `From` impl below
+ * is an exhaustive match: a new outcome upstream fails this crate's build
+ * until mirrored here.
+ */
+
+public enum GeodesicIntersectionResult: Equatable, Hashable {
+    
+    /**
+     * The paths cross at `point`, which each start reaches along its own path
+     * as the shortest geodesic (in the inputs' CRS, with no height).
+     */
+    case crossing(
+        /**
+         * The crossing point.
+         */point: Coordinate
+    )
+    /**
+     * Both paths run along the same geodesic, so no single crossing exists.
+     */
+    case sameGeodesic
+    /**
+     * The geodesics cross at no point both starts reach forward along their
+     * own paths as the shortest geodesic.
+     */
+    case noForwardCrossing
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GeodesicIntersectionResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGeodesicIntersectionResult: FfiConverterRustBuffer {
+    typealias SwiftType = GeodesicIntersectionResult
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GeodesicIntersectionResult {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .crossing(point: try FfiConverterTypeCoordinate.read(from: &buf)
+        )
+        
+        case 2: return .sameGeodesic
+        
+        case 3: return .noForwardCrossing
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GeodesicIntersectionResult, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .crossing(point):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeCoordinate.write(point, into: &buf)
+            
+        
+        case .sameGeodesic:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .noForwardCrossing:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeodesicIntersectionResult_lift(_ buf: RustBuffer) throws -> GeodesicIntersectionResult {
+    return try FfiConverterTypeGeodesicIntersectionResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeodesicIntersectionResult_lower(_ value: GeodesicIntersectionResult) -> RustBuffer {
+    return FfiConverterTypeGeodesicIntersectionResult.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * A grid whose strings [`parse_coordinate_with`] can decode — mirror of
  * [`gc::parse::GridKind`].
  *
@@ -5903,39 +6002,6 @@ public func aerValidate(aer: Aer)throws   {try rustCallWithError(FfiConverterTyp
 }
 }
 /**
- * Along-track distance (meters) from `start` to the foot of the perpendicular
- * from `point` onto the great-circle path `start` → `end` on the mean sphere.
- * Approximate; errors as [`cross_track_distance_spherical_m`] does, and with
- * `GeoError::InvalidValue` (field `point`) when `point` is a pole of the
- * path's great circle, where no along-track distance is defined.
- */
-public func alongTrackDistanceSphericalM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_along_track_distance_spherical_m(
-        FfiConverterTypeCoordinate_lower(point),
-        FfiConverterTypeCoordinate_lower(start),
-        FfiConverterTypeCoordinate_lower(end),$0
-    )
-})
-}
-/**
- * Signed perpendicular distance (meters) from `point` to the great-circle
- * path `start` → `end` on the mean sphere (positive to the right).
- * Approximate: the sphere is not the ellipsoid.
- *
- * Errors when `start` and `end` are the same place or antipodal (no single
- * great circle runs through them).
- */
-public func crossTrackDistanceSphericalM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
-    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_cross_track_distance_spherical_m(
-        FfiConverterTypeCoordinate_lower(point),
-        FfiConverterTypeCoordinate_lower(start),
-        FfiConverterTypeCoordinate_lower(end),$0
-    )
-})
-}
-/**
  * The point reached from `start` along `bearing_deg` for `distance_m` meters
  * (exact, Karney), on the ellipsoid of `start`'s CRS; the result keeps that
  * CRS and has no height. Errors for a GCJ-02 / BD-09 start.
@@ -6245,24 +6311,6 @@ public func intermediate(a: Coordinate, b: Coordinate, fraction: Double)throws  
 })
 }
 /**
- * Where two great-circle paths (each a start point and an initial bearing in
- * degrees) cross ahead of both starts, on the mean sphere. Approximate: the
- * sphere is not the ellipsoid.
- *
- * At a pole a bearing follows the meridian of the start's own longitude.
- * Errors for GCJ-02 / BD-09 inputs, mixed CRSs, or a non-finite bearing.
- */
-public func intersectionSpherical(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> IntersectionResult  {
-    return try  FfiConverterTypeIntersectionResult_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_intersection_spherical(
-        FfiConverterTypeCoordinate_lower(a),
-        FfiConverterDouble.lower(bearingADeg),
-        FfiConverterTypeCoordinate_lower(b),
-        FfiConverterDouble.lower(bearingBDeg),$0
-    )
-})
-}
-/**
  * The geodesic midpoint between `a` and `b`, on the ellipsoid of their
  * shared CRS (kept, with no height). Errors for GCJ-02 / BD-09 inputs.
  */
@@ -6384,6 +6432,114 @@ public func rhumbDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
     uniffi_geocoordinates_ffi_fn_func_rhumb_distance_m(
         FfiConverterTypeCoordinate_lower(a),
         FfiConverterTypeCoordinate_lower(b),$0
+    )
+})
+}
+/**
+ * Along-track distance (meters) from `start` to the foot of the perpendicular
+ * from `point` onto the geodesic path `start` → `end`, on the ellipsoid of
+ * their shared CRS (negative behind `start`). Errors as
+ * [`cross_track_distance_m`] does, and with `GeoError::InvalidValue` (field
+ * `point`) where every foot is equally near (a pole, for an equatorial path).
+ * Near such a point the foot is defined only to about `1e-9 m / M`, `M` the
+ * geodesic scale of `point` relative to its foot.
+ */
+public func alongTrackDistanceM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_along_track_distance_m(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterTypeCoordinate_lower(start),
+        FfiConverterTypeCoordinate_lower(end),$0
+    )
+})
+}
+/**
+ * Along-track distance (meters) from `start` to the foot of the perpendicular
+ * from `point` onto the great-circle path `start` → `end` on the mean sphere.
+ * Approximate; errors as [`cross_track_distance_spherical_m`] does, and with
+ * `GeoError::InvalidValue` (field `point`) when `point` is a pole of the
+ * path's great circle, where no along-track distance is defined.
+ */
+public func alongTrackDistanceSphericalM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_along_track_distance_spherical_m(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterTypeCoordinate_lower(start),
+        FfiConverterTypeCoordinate_lower(end),$0
+    )
+})
+}
+/**
+ * Signed perpendicular distance (meters) from `point` to the geodesic path
+ * `start` → `end`, on the ellipsoid of their shared CRS (positive to the
+ * right). Exact to well under a micrometre, unlike
+ * [`cross_track_distance_spherical_m`].
+ *
+ * Errors (`GeoError::CrsMismatch`) for mixed CRSs or GCJ-02 / BD-09 inputs,
+ * and (`GeoError::InvalidValue`, field `path`) when `start` and `end` are the
+ * same place or antipodal.
+ */
+public func crossTrackDistanceM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_cross_track_distance_m(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterTypeCoordinate_lower(start),
+        FfiConverterTypeCoordinate_lower(end),$0
+    )
+})
+}
+/**
+ * Signed perpendicular distance (meters) from `point` to the great-circle
+ * path `start` → `end` on the mean sphere (positive to the right).
+ * Approximate: the sphere is not the ellipsoid.
+ *
+ * Errors when `start` and `end` are the same place or antipodal (no single
+ * great circle runs through them).
+ */
+public func crossTrackDistanceSphericalM(point: Coordinate, start: Coordinate, end: Coordinate)throws  -> Double  {
+    return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_cross_track_distance_spherical_m(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterTypeCoordinate_lower(start),
+        FfiConverterTypeCoordinate_lower(end),$0
+    )
+})
+}
+/**
+ * Where two geodesic paths (each a start point and an initial bearing in
+ * degrees) cross ahead of both starts, on the ellipsoid of their shared CRS.
+ * Exact to well under a micrometre, unlike [`intersection_spherical`].
+ *
+ * At a pole a bearing follows the meridian of the start's own longitude.
+ * Errors for GCJ-02 / BD-09 inputs, mixed CRSs, a non-finite bearing, or
+ * (`GeoError::InvalidValue`, field `paths`) when the iteration cannot locate
+ * a crossing the mean sphere places ahead of both starts.
+ */
+public func intersection(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> GeodesicIntersectionResult  {
+    return try  FfiConverterTypeGeodesicIntersectionResult_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_intersection(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterDouble.lower(bearingADeg),
+        FfiConverterTypeCoordinate_lower(b),
+        FfiConverterDouble.lower(bearingBDeg),$0
+    )
+})
+}
+/**
+ * Where two great-circle paths (each a start point and an initial bearing in
+ * degrees) cross ahead of both starts, on the mean sphere. Approximate: the
+ * sphere is not the ellipsoid.
+ *
+ * At a pole a bearing follows the meridian of the start's own longitude.
+ * Errors for GCJ-02 / BD-09 inputs, mixed CRSs, or a non-finite bearing.
+ */
+public func intersectionSpherical(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> IntersectionResult  {
+    return try  FfiConverterTypeIntersectionResult_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_intersection_spherical(
+        FfiConverterTypeCoordinate_lower(a),
+        FfiConverterDouble.lower(bearingADeg),
+        FfiConverterTypeCoordinate_lower(b),
+        FfiConverterDouble.lower(bearingBDeg),$0
     )
 })
 }
@@ -7135,12 +7291,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_aer_validate() != 22020) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_spherical_m() != 41447) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_spherical_m() != 59124) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_geocoordinates_ffi_checksum_func_destination() != 44460) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -7213,9 +7363,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_intermediate() != 25155) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 493) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_geocoordinates_ffi_checksum_func_midpoint() != 4329) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -7241,6 +7388,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_rhumb_distance_m() != 825) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_m() != 42804) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_spherical_m() != 7565) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_m() != 18058) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_cross_track_distance_spherical_m() != 48027) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_intersection() != 30493) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 64808) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_geohash_canonicalize() != 44917) {
