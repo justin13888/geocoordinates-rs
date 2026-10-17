@@ -179,8 +179,11 @@ pub fn rhumb_bearing(a: impl LatLon, b: impl LatLon) -> Result<f64> {
 /// From a pole every bearing is accepted, taken against the meridian of
 /// `start.lon()` (see the [module docs](crate::geodesy)): from the north pole
 /// bearing `β` runs down meridian `start.lon() + 180° − β`, and from the south
-/// pole up meridian `start.lon() + β`, as [`rhumb_bearing`] reports it. A zero
-/// `distance` returns `start` unchanged.
+/// pole up meridian `start.lon() + β`, as [`rhumb_bearing`] reports it.
+///
+/// A zero `distance` returns the latitude and longitude of `start` exactly,
+/// from every start and on every bearing: no series runs, so there is no
+/// round-off.
 ///
 /// # Errors
 ///
