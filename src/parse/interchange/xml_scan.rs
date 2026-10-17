@@ -51,8 +51,10 @@ const MAX_KML_DEPTH: usize = 32;
 /// tag named `Point` (any prefix), so a nested `<Point>…</Point>` ends the
 /// outer one early, and keeps only the last `<coordinates>` start tag (any
 /// prefix, at any depth) inside that span, taking the event after it: text,
-/// which holds a coordinate when anything but whitespace lies outside its
-/// entity references, or a CDATA section, which holds one when anything but
+/// which holds a coordinate when anything but whitespace remains once its
+/// references are unescaped as `quick-xml` unescapes them (where that fails,
+/// `kml` keeps the raw text, `&` included), or a CDATA section, which holds
+/// one when anything but
 /// whitespace lies in it. Each `Point` is held to its own span, whatever the
 /// element around it, so a coordinate-less `Point` the parser would skip is
 /// rejected too.
@@ -98,27 +100,63 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     fn local(name: &str) -> &str {
         name.split_once(':').map_or(name, |(_, local)| local)
     }
+    /// The character `quick-xml` 0.37's `unescape` puts in place of the
+    /// numeric reference named `name` (between `&` and `;`): `#` then
+    /// decimal, or `#x` then hex. `None` for any other name, or where
+    /// unescaping fails. Only a whitespace result matters to the caller, so
+    /// a named entity (one of the five predefined ones, none whitespace, as
+    /// `kml` builds no `escape-html` table; any other fails) and a failed
+    /// reference to U+0000 (not whitespace either) need no case of their
+    /// own. A leading `+`, which `quick-xml` rejects and `from_str_radix`
+    /// accepts, does.
+    fn numeric_reference(name: &str) -> Option<char> {
+        let number = name.strip_prefix('#')?;
+        let (digits, radix) = number
+            .strip_prefix('x')
+            .map_or((number, 10), |hex| (hex, 16));
+        if digits.starts_with('+') {
+            return None;
+        }
+        u32::from_str_radix(digits, radix)
+            .ok()
+            .and_then(char::from_u32)
+    }
+    /// Whether the text `kml`'s `read_str` returns for `text` holds a
+    /// character that is not Unicode whitespace, on which `kml` splits it
+    /// into positions. `read_str` unescapes the text as `quick-xml` does,
+    /// ending each reference at the next `&` or `;` after its `&` (it must
+    /// be a `;`); where unescaping fails it returns the raw text, whose `&`
+    /// is not whitespace.
+    fn unescapes_to_position(text: &str) -> bool {
+        let mut rest = text;
+        while let Some(amp) = rest.find('&') {
+            if rest[..amp].chars().any(|c| !c.is_whitespace()) {
+                return true;
+            }
+            let reference = &rest[amp + 1..];
+            let Some(end) = reference
+                .find(['&', ';'])
+                .filter(|&i| reference.as_bytes()[i] == b';')
+            else {
+                return true;
+            };
+            if numeric_reference(&reference[..end]).is_none_or(|c| !c.is_whitespace()) {
+                return true;
+            }
+            rest = &reference[end + 1..];
+        }
+        rest.chars().any(|c| !c.is_whitespace())
+    }
     /// Whether the content `after` a `<coordinates>` start tag holds a
     /// position for `kml`'s `read_str`, which reads only the next event and
-    /// trims `quick-xml` whitespace from text. Text holds one when a
-    /// character outside its entity references is not whitespace: unescaping
-    /// replaces only those references, and the `kml` reader splits on
-    /// Unicode whitespace, so a reference such as `&#160;` may stand for
-    /// none. Any other next event yields no position, or an error, which
-    /// rejecting here also turns into an error.
+    /// trims `quick-xml` whitespace from text. Text holds one when its
+    /// unescaped form has a character that is not whitespace (so `&#49;`
+    /// does, and `&#160;` does not). Any other next event yields no
+    /// position, or an error, which rejecting here also turns into an error.
     fn holds_position(after: &str) -> bool {
         let text = &after[..after.find('<').unwrap_or(after.len())];
         if !text.trim_matches(is_space).is_empty() {
-            let mut in_reference = false;
-            return text.chars().any(|c| {
-                match c {
-                    '&' => in_reference = true,
-                    ';' if in_reference => in_reference = false,
-                    c if !in_reference && !c.is_whitespace() => return true,
-                    _ => {}
-                }
-                false
-            });
+            return unescapes_to_position(text);
         }
         after[text.len()..]
             .strip_prefix("<![CDATA[")

@@ -18,6 +18,7 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
         // whitespace in the `kml` reader.
         "<Point><coordinates>\u{a0}</coordinates></Point>",
         "<Point><coordinates>&#160;</coordinates></Point>",
+        "<Point><coordinates>&#xA0; &#32;&#x2003;</coordinates></Point>",
         "<Point><coordinates><![CDATA[ ]]></coordinates></Point>",
         // Only the last `<coordinates>` counts.
         "<Point><coordinates>1,2</coordinates><coordinates></coordinates></Point>",
@@ -34,12 +35,34 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
     }
     // A `;` outside a reference is not whitespace: the pre-scan passes it,
     // and the `kml` parser rejects it as a coordinate.
-    let r = from_kml("<Point><coordinates>;</coordinates></Point>");
-    assert!(
-        matches!(&r, Err(Error::Parse { detail, .. }) if !detail.starts_with("kml: <Point>")),
-        "{r:?}"
-    );
-    assert_parse_err!(r, "kml: ");
+    // So do references that unescape to something other than whitespace,
+    // and malformed ones, which `kml` keeps raw, `&` included.
+    let reaches_kml = [
+        ";",
+        "&lt;",
+        "&gt;",
+        "&amp;",
+        "&apos;",
+        "&quot;",
+        "&foo;",
+        "&#0;",
+        "&#+32;",
+        "&#-32;",
+        "&#xD800;",
+        "&#;",
+        "&#32",
+        "&#32&#32;",
+    ];
+    for coordinates in reaches_kml {
+        let r = from_kml(&format!(
+            "<Point><coordinates>{coordinates}</coordinates></Point>"
+        ));
+        assert!(
+            matches!(&r, Err(Error::Parse { detail, .. }) if !detail.starts_with("kml: <Point>")),
+            "{coordinates}: {r:?}"
+        );
+        assert_parse_err!(r, "kml: ");
+    }
     let r = from_kml("<kml><Placemark><Point></Point></Placemark></kml>");
     assert_parse_err!(r, "kml: <Point> at byte 16 has no coordinates");
     // The nested `Point` is named: the outer one's coordinates do not count
@@ -67,11 +90,22 @@ fn kml_point_with_coordinates_is_read() {
         one("<Point><coordinates><![CDATA[ 1,2 ]]></coordinates></Point>"),
         (2.0, 1.0)
     );
-    // A reference is skipped, but the characters around it still count.
-    assert_eq!(
-        one("<Point><coordinates>&#49;,2</coordinates></Point>"),
-        (2.0, 1.0)
-    );
+    // References are unescaped, so coordinates written only as references,
+    // decimal or hex, hold a position.
+    for coordinates in [
+        "&#49;,2",
+        "&#49;&#44;&#50;",
+        "&#x31;&#x2C;&#x32;",
+        " &#32;1,&#50; ",
+    ] {
+        assert_eq!(
+            one(&format!(
+                "<Point><coordinates>{coordinates}</coordinates></Point>"
+            )),
+            (2.0, 1.0),
+            "{coordinates}"
+        );
+    }
     // A self-closing `<coordinates/>` is ignored, as `kml` ignores it.
     assert_eq!(
         one("<Point><coordinates>1,2</coordinates><coordinates/></Point>"),
