@@ -25,6 +25,8 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.fromNmeaSentence;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.heightMeters;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.lengthUnitMetersPerUnit;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsPrecision;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
@@ -55,6 +57,8 @@ import uniffi.geocoordinates_ffi.Fix;
 import uniffi.geocoordinates_ffi.Gcj02;
 import uniffi.geocoordinates_ffi.GeoException;
 import uniffi.geocoordinates_ffi.GridKind;
+import uniffi.geocoordinates_ffi.Height;
+import uniffi.geocoordinates_ffi.LengthUnit;
 import uniffi.geocoordinates_ffi.MgrsPrecision;
 import uniffi.geocoordinates_ffi.ParseOptions;
 import uniffi.geocoordinates_ffi.RawSource;
@@ -136,6 +140,15 @@ class SmokeTest {
         String code = mgrsFromCoordinate(coordinateNew(40.0, -75.0, Crs.WGS84), MgrsPrecision.M100);
         assertEquals("18TWK000277", code);
         assertEquals(MgrsPrecision.M100, mgrsPrecision(code));
+    }
+
+    // Either height surface reads back in meters without a type switch, and a
+    // length unit states its size in meters.
+    @Test
+    void heightAndUnitMetersFromJava() {
+        assertEquals(46.9, heightMeters(new Height.Ellipsoidal(46.9)), 0.0);
+        assertEquals(-28.0, heightMeters(new Height.Orthometric(-28.0)), 0.0);
+        assertEquals(1852.0, lengthUnitMetersPerUnit(LengthUnit.NAUTICAL_MILE), 0.0);
     }
 
     // ECEF and datum transforms take the ellipsoid from the coordinate's CRS,

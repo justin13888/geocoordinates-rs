@@ -4539,7 +4539,7 @@ public enum Representation: Equatable, Hashable {
      */
     case decimalDegrees(
         /**
-         * Decimal places of degrees, at most 15.
+         * Decimal places of degrees, at most 15 (the most that round-trips).
          */decimals: UInt8?, 
         /**
          * Sign or cardinal letter.
@@ -4550,7 +4550,8 @@ public enum Representation: Equatable, Hashable {
      */
     case dms(
         /**
-         * Decimal places of arcseconds, at most 15.
+         * Decimal places of arcseconds, at most 9 (the most that
+         * round-trips; a tenth digit can drift by one through a re-parse).
          */secondDecimals: UInt8?, 
         /**
          * Degree / minute / second glyphs.
@@ -4564,7 +4565,9 @@ public enum Representation: Equatable, Hashable {
      */
     case ddm(
         /**
-         * Decimal places of arcminutes, at most 15.
+         * Decimal places of arcminutes, at most 12 (the most that
+         * round-trips; a thirteenth digit can drift by one through a
+         * re-parse).
          */minuteDecimals: UInt8?, 
         /**
          * Degree / minute glyphs.
@@ -5852,6 +5855,17 @@ public func fixFromCoord(coord: Coordinate)throws  -> Fix  {
 })
 }
 /**
+ * The height in meters, whichever surface it is measured from — mirror of
+ * [`gc::Height::meters`] (`Length` is flattened to `f64` meters).
+ */
+public func heightMeters(height: Height) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_height_meters(
+        FfiConverterTypeHeight_lower(height),$0
+    )
+})
+}
+/**
  * Convert `value` expressed in `unit` to meters.
  */
 public func lengthFromUnit(value: Double, unit: LengthUnit) -> Double  {
@@ -5869,6 +5883,16 @@ public func lengthToUnit(meters: Double, unit: LengthUnit) -> Double  {
     return try!  FfiConverterDouble.lift(try! rustCall() {
     uniffi_geocoordinates_ffi_fn_func_length_to_unit(
         FfiConverterDouble.lower(meters),
+        FfiConverterTypeLengthUnit_lower(unit),$0
+    )
+})
+}
+/**
+ * Meters in one of `unit` — mirror of [`gc::LengthUnit::meters_per_unit`].
+ */
+public func lengthUnitMetersPerUnit(unit: LengthUnit) -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_length_unit_meters_per_unit(
         FfiConverterTypeLengthUnit_lower(unit),$0
     )
 })
@@ -7098,8 +7122,9 @@ public func decimalSeparatorForLocale(tag: String) -> DecimalSeparator  {
  *
  * # Errors
  * - `GeoError::OutOfRange` for an out-of-range coordinate record.
- * - `GeoError::InvalidValue` when a decimal count exceeds 15, or a grid
- * representation's size is outside the range its variant documents.
+ * - `GeoError::InvalidValue` when a decimal count exceeds the most that
+ * round-trips (DD 15, DMS 9, DDM 12), or a grid representation's size is
+ * outside the range its variant documents.
  * - `GeoError::CrsMismatch` when a grid representation is asked to render a
  * non-WGS-84 coordinate.
  */
@@ -7380,10 +7405,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_fix_from_coord() != 4840) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_height_meters() != 31695) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_length_from_unit() != 28617) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_length_to_unit() != 23152) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_length_unit_meters_per_unit() != 16079) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_raw_source_new() != 30305) {
@@ -7641,7 +7672,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 30884) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 57575) {
+    if (uniffi_geocoordinates_ffi_checksum_func_format_coordinate() != 45436) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_format_fix() != 38020) {
