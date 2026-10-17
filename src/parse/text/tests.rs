@@ -330,14 +330,14 @@ fn is_isolated_excludes_word_letters() {
     assert!(!is_isolated(&flanked, 1)); // N between letters
 }
 
-/// Whether `input` is rejected as free text with no single reading.
+/// Whether `input` is rejected as free text with no single reading, and says so.
 fn is_ambiguous(input: &str) -> bool {
     matches!(
         parse_text(input),
         Err(Error::Parse {
             kind: ParseErrorKind::Ambiguous,
-            ..
-        })
+            detail,
+        }) if detail.starts_with("component has no single reading: ")
     )
 }
 
