@@ -23,7 +23,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
-| **Core types** (crate root) | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Length`, `LengthUnit` | ✅ | ✅ |
+| **Core types** (crate root) | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `ParseErrorKind`, `Length`, `LengthUnit` | ✅ | ✅ |
 | **Fix metadata** (`fix`) | `Fix`, `Accuracy`, `AccuracyKind`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
 | **Angles** (`angle`) | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees` | ✅ | ✅ |
 | **China datums** (`china`) | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `Wgs84::is_outside_china` / `Gcj02::is_outside_china` | ✅ | ✅ |
@@ -39,9 +39,8 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
 
-**Known open defects**, tracked in the ledger:
-`from_kml` does not return on some truncated documents
-([#135](https://github.com/justin13888/geocoordinates-rs/issues/135), G17).
+**Known open defects:** none. Every finding of the stabilization audit and the
+pre-1.0 audit is closed in the ledger.
 
 **Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
 a system library or multi-megabyte external data. **Out of scope:** EXIF
@@ -95,10 +94,11 @@ column of the surface table above records it subsystem by subsystem.
 The FFI surface is deliberately flatter than the idiomatic Rust API; the
 [bindings README](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md#how-each-rust-idiom-is-re-expressed) states how each Rust idiom
 is re-expressed, and its [naming section](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md#naming)
-the one scheme every export follows, with its two stated exceptions: a unit
-suffix on every returned length and angle (`initial_bearing_deg`), `parse_*` for every reader (the FFI form of
-`from_geojson` is `parse_geojson`), and a `*_validate` for every invariant
-record. The published `geocoordinates` crate is unaffected — the
+the one scheme every export follows: a unit suffix on every returned length
+and angle (`initial_bearing_deg`), with two stated exceptions; `parse_*` for
+every reader (the FFI form of `from_geojson` is `parse_geojson`); a
+`*_validate` for every invariant record; and `*_canonicalize` for every grid
+code. The published `geocoordinates` crate is unaffected — the
 bindings build from their own `cdylib`/`staticlib` crate.
 
 > Java is served by the Kotlin/JVM bindings (directly callable from Java), so it
