@@ -14,8 +14,8 @@
 //!
 //! Each encoded code type is valid by construction: the only ways to obtain one
 //! are its `encode` (which clamps the pole and wraps the antimeridian) and its
-//! validating `TryFrom<&str>` / `TryFrom<String>` / `FromStr` (which serde
-//! routes through too). `Display` and `AsRef<str>` yield the canonical string,
+//! validating `parse` (with `TryFrom<&str>` / `TryFrom<String>` / `FromStr` as
+//! sugar over it, which serde routes through too). `Display` and `AsRef<str>` yield the canonical string,
 //! and parsing that string back returns an equal value.
 //!
 //! ```
@@ -44,3 +44,19 @@ mod utm; // transverse Mercator / polar stereographic
 pub use encoded::{Geohash, Maidenhead, PlusCode};
 pub use mgrs::{Mgrs, MgrsPrecision};
 pub use utm::{Ups, Utm, UtmHemisphere, utm_central_meridian_deg, utm_zone_for};
+
+use crate::coord::{Coordinate, Crs};
+use crate::error::{Error, Result};
+
+/// `Ok` for a WGS-84 coordinate, else [`Error::CrsMismatch`] expecting
+/// WGS-84: the gate of every grid defined only on WGS-84 latitude / longitude
+/// (the encoded locators, UTM / UPS, MGRS, and the H3 / S2 cells).
+pub(crate) fn require_wgs84(coord: &Coordinate) -> Result<()> {
+    if coord.crs() != Crs::Wgs84 {
+        return Err(Error::CrsMismatch {
+            expected: Crs::Wgs84,
+            found: coord.crs(),
+        });
+    }
+    Ok(())
+}

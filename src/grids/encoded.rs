@@ -3,8 +3,8 @@
 //!
 //! Each code type is valid by construction: the only ways to obtain one are
 //! its `encode` (which clamps the pole and wraps the antimeridian, so it never
-//! emits a code its own validator rejects) and its validating
-//! `TryFrom<&str>` / `TryFrom<String>` / [`FromStr`] (which serde routes
+//! emits a code its own validator rejects) and its validating `parse` (with
+//! `TryFrom<&str>` / `TryFrom<String>` / [`FromStr`] as sugar over it, which serde routes
 //! through too). [`Display`] and `AsRef<str>` yield the canonical string, and
 //! parsing that string back returns an equal value.
 //!
@@ -28,11 +28,10 @@
 //! [`Display`]: core::fmt::Display
 //! [`FromStr`]: core::str::FromStr
 
-use geographiclib_rs::{Geodesic, InverseGeodesic};
-
 use crate::approx::Approx;
 use crate::coord::Coordinate;
-use crate::error::{Error, Result};
+use crate::error::Result;
+use crate::geodesy::farthest_geodesic_m;
 
 mod geohash;
 mod maidenhead;
@@ -43,7 +42,7 @@ pub use maidenhead::Maidenhead;
 pub use plus_code::PlusCode;
 
 /// The string conversions every code type shares: `TryFrom<String>` and
-/// `FromStr` (validating, as `TryFrom<&str>` does), `From<Self> for String`,
+/// `FromStr` (validating through the inherent `parse`), `From<Self> for String`,
 /// `AsRef<str>`, and `Display` (the canonical string). `TryFrom<String>` and
 /// `From<Self> for String` are the serde route, so a deserialized code is as
 /// valid as a parsed one.
@@ -52,24 +51,24 @@ macro_rules! string_conversions {
         impl TryFrom<String> for $ty {
             type Error = crate::Error;
 
-            /// Validate as `TryFrom<&str>` does.
+            /// Validate as the type's inherent `parse` does.
             ///
             /// # Errors
             /// Returns [`crate::Error::InvalidGridRef`] for a malformed code.
             fn try_from(s: String) -> Result<Self> {
-                Self::try_from(s.as_str())
+                Self::parse(&s)
             }
         }
 
         impl core::str::FromStr for $ty {
             type Err = crate::Error;
 
-            /// Validate as `TryFrom<&str>` does.
+            /// Validate as the type's inherent `parse` does.
             ///
             /// # Errors
             /// Returns [`crate::Error::InvalidGridRef`] for a malformed code.
             fn from_str(s: &str) -> Result<Self> {
-                Self::try_from(s)
+                Self::parse(s)
             }
         }
 
@@ -96,18 +95,6 @@ macro_rules! string_conversions {
 
 string_conversions!(Geohash, Maidenhead, PlusCode);
 
-/// Reject any coordinate that is not WGS-84: every encoded grid is defined on
-/// WGS-84 latitude/longitude.
-fn validate_encoding_coordinate(coord: Coordinate) -> Result<()> {
-    if coord.crs() != crate::Crs::Wgs84 {
-        return Err(Error::CrsMismatch {
-            expected: crate::Crs::Wgs84,
-            found: coord.crs(),
-        });
-    }
-    Ok(())
-}
-
 /// Midpoint of a `[lo, hi]` range.
 fn midpoint(lo: f64, hi: f64) -> f64 {
     (lo + hi) / 2.0
@@ -122,24 +109,21 @@ const ROUNDING_MARGIN_M: f64 = 1e-6;
 /// largest WGS-84 geodesic distance from that center to the cell's corners
 /// (plus [`ROUNDING_MARGIN_M`]).
 fn cell_center(lat_lo: f64, lat_hi: f64, lon_lo: f64, lon_hi: f64) -> Approx<Coordinate> {
-    let lat = midpoint(lat_lo, lat_hi);
-    let lon = midpoint(lon_lo, lon_hi);
-    let geodesic = Geodesic::wgs84();
-    let max_error_m = [
+    // Every caller passes a cell inside the globe, so its center is in range.
+    let center = Coordinate::from_valid(
+        midpoint(lat_lo, lat_hi),
+        midpoint(lon_lo, lon_hi),
+        None,
+        crate::Crs::Wgs84,
+    );
+    let corners = [
         (lat_lo, lon_lo),
         (lat_lo, lon_hi),
         (lat_hi, lon_lo),
         (lat_hi, lon_hi),
-    ]
-    .into_iter()
-    .map(|(corner_lat, corner_lon)| -> f64 { geodesic.inverse(lat, lon, corner_lat, corner_lon) })
-    .fold(0.0, f64::max)
-        + ROUNDING_MARGIN_M;
-    // Every caller passes a cell inside the globe, so its center is in range.
-    Approx::from_valid(
-        Coordinate::from_valid(lat, lon, None, crate::Crs::Wgs84),
-        max_error_m,
-    )
+    ];
+    let max_error_m = farthest_geodesic_m(&center, corners) + ROUNDING_MARGIN_M;
+    Approx::from_valid(center, max_error_m)
 }
 
 #[cfg(test)]

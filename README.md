@@ -101,8 +101,8 @@ is re-expressed. The published `geocoordinates` crate is unaffected — the
 bindings build from their own `cdylib`/`staticlib` crate.
 
 > Java is served by the Kotlin/JVM bindings (directly callable from Java), so it
-> has no separate generated surface. TypeScript targets WebAssembly (browser /
-> bundler) via [`ubrn`](https://github.com/jhugman/uniffi-bindgen-react-native);
+> has no separate generated surface. TypeScript targets WebAssembly (browser,
+> bundler, or plain Node) via [`ubrn`](https://github.com/jhugman/uniffi-bindgen-react-native);
 > initialize it with `await uniffiInitAsync()` before use (see
 > [`crates/geocoordinates-ffi/web/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web/)).
 
@@ -186,6 +186,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run file-length-check`| Files over 654 lines fail unless in `.file-length-baseline` (shrink-only) |
 | `mise run ffi-check`        | Clippy on the FFI crate (the mirror gates every release)             |
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
+| `mise run version-check`    | Every crate and binding manifest ships the workspace version (`mise run version-sync` fixes npm) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
 | `mise run public-api-check` | Every public item has one path besides its prelude entry (pinned nightly rustdoc JSON) |
 | `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |

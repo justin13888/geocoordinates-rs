@@ -1,18 +1,19 @@
 //! Open Location Code / Plus Codes (full codes only).
 
-use super::{cell_center, validate_encoding_coordinate};
+use super::cell_center;
 use crate::angle::{clamp_latitude, wrap_longitude};
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
+use crate::grids::require_wgs84;
 
 /// A validated **full** Open Location Code / Plus Code, e.g. `87G7X2VV+2V`.
 ///
 /// Google Maps' shareable grid representation. Only **full** codes are
 /// supported (short codes need a reference location to recover). The
 /// canonical form is uppercase. It is valid by construction: obtain one from
-/// [`PlusCode::encode`] or the validating `TryFrom<&str>` / `TryFrom<String>` /
-/// [`FromStr`](core::str::FromStr); [`Display`](core::fmt::Display) writes the
+/// [`PlusCode::encode`] or the validating [`PlusCode::parse`] (or its sugar `TryFrom<&str>` / `TryFrom<String>` /
+/// [`FromStr`](core::str::FromStr)); [`Display`](core::fmt::Display) writes the
 /// canonical string back. Under the `serde` feature it (de)serializes as that
 /// bare string, and deserialization validates the same way.
 ///
@@ -24,7 +25,7 @@ use crate::error::{Error, Result};
 /// assert!(PlusCode::try_from("X2VV+2V").is_err()); // a short code
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -87,7 +88,7 @@ impl PlusCode {
     /// Returns [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
     /// [`Error::InvalidValue`] for any other `length`.
     pub fn encode(coord: Coordinate, length: u8) -> Result<Self> {
-        validate_encoding_coordinate(coord)?;
+        require_wgs84(&coord)?;
         if !matches!(length, 2 | 4 | 6 | 8 | 10..=15) {
             return Err(Error::InvalidValue {
                 field: "Plus Code length",
@@ -212,11 +213,34 @@ impl PlusCode {
 impl TryFrom<&str> for PlusCode {
     type Error = crate::Error;
 
-    /// Validate and canonicalize (trim, uppercase) a **full** Open Location Code.
+    /// Validate as [`PlusCode::parse`] does.
     ///
     /// # Errors
     /// Returns [`crate::Error::InvalidGridRef`] for malformed or short codes.
     fn try_from(s: &str) -> Result<Self> {
+        Self::parse(s)
+    }
+}
+
+impl PlusCode {
+    /// Validate and canonicalize (trim, uppercase) a **full** Open Location Code.
+    ///
+    /// `TryFrom<&str>`, `TryFrom<String>`, [`FromStr`](core::str::FromStr), and
+    /// serde all route through this.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::grids::PlusCode;
+    ///
+    /// assert_eq!(PlusCode::parse(" 8fvc2222+22 ")?.as_str(), "8FVC2222+22");
+    /// // A short code needs a reference location, so it is rejected.
+    /// assert!(matches!(PlusCode::parse("2222+22"), Err(Error::InvalidGridRef(_))));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    /// Returns [`Error::InvalidGridRef`] for malformed or short codes.
+    pub fn parse(s: &str) -> Result<Self> {
         let upper = s.trim().to_ascii_uppercase();
         if is_valid_full(&upper) {
             Ok(PlusCode(upper))

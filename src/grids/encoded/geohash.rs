@@ -1,16 +1,17 @@
 //! Geohash (base-32 interleaved bisection).
 
-use super::{cell_center, midpoint, validate_encoding_coordinate};
+use super::{cell_center, midpoint};
 use crate::angle::{clamp_latitude, wrap_longitude};
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
+use crate::grids::require_wgs84;
 
 /// Geohash base-32 alphabet (omits `a`, `i`, `l`, `o`).
 const GEOHASH_ALPHABET: &[u8; 32] = b"0123456789bcdefghjkmnpqrstuvwxyz";
 
 /// The longest geohash accepted by [`Geohash::encode`] and
-/// `TryFrom<&str>`: twelve characters already resolve a cell of about
+/// [`Geohash::parse`]: twelve characters already resolve a cell of about
 /// 37 mm × 19 mm, finer than any real positioning fix, so a longer code adds
 /// only spurious precision. (An `f64` still holds it: thirteen characters
 /// resolve 360°/2³³ ≈ 4.2e-8° of longitude, far above `f64`'s ≈ 2.8e-14°
@@ -20,8 +21,8 @@ pub(super) const GEOHASH_MAX_LENGTH: u8 = 12;
 /// A validated geohash string (base-32, 1–12 characters), e.g. `dr5regy`.
 ///
 /// The canonical form is lowercase. It is valid by construction: obtain one
-/// from [`Geohash::encode`] or the validating `TryFrom<&str>` /
-/// `TryFrom<String>` / [`FromStr`](core::str::FromStr); [`Display`](core::fmt::Display)
+/// from [`Geohash::encode`] or the validating [`Geohash::parse`] (or its sugar `TryFrom<&str>` /
+/// `TryFrom<String>` / [`FromStr`](core::str::FromStr)); [`Display`](core::fmt::Display)
 /// writes the canonical string back. Under the `serde` feature it
 /// (de)serializes as that bare string, and deserialization validates the same
 /// way.
@@ -34,7 +35,7 @@ pub(super) const GEOHASH_MAX_LENGTH: u8 = 12;
 /// assert!(Geohash::try_from("dr5rega").is_err()); // 'a' is not base-32
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -43,6 +44,34 @@ pub(super) const GEOHASH_MAX_LENGTH: u8 = 12;
 pub struct Geohash(pub(super) String);
 
 impl Geohash {
+    /// Validate and canonicalize (trim, lowercase) a 1–12 character geohash.
+    ///
+    /// `TryFrom<&str>`, `TryFrom<String>`, [`FromStr`](core::str::FromStr), and
+    /// serde all route through this.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::grids::Geohash;
+    ///
+    /// assert_eq!(Geohash::parse(" EZS42 ")?.as_str(), "ezs42");
+    /// assert!(matches!(Geohash::parse("ezs4a"), Err(Error::InvalidGridRef(_))));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    /// Returns [`Error::InvalidGridRef`] for empty, overlong, or non-base-32
+    /// input.
+    pub fn parse(s: &str) -> Result<Self> {
+        let lower = s.trim().to_ascii_lowercase();
+        if lower.is_empty()
+            || lower.len() > usize::from(GEOHASH_MAX_LENGTH)
+            || lower.bytes().any(|b| !GEOHASH_ALPHABET.contains(&b))
+        {
+            return Err(Error::InvalidGridRef(format!("invalid geohash: {s}")));
+        }
+        Ok(Geohash(lower))
+    }
+
     /// Encode a WGS-84 coordinate at `length` characters, 1 through 12
     /// (exact: the coordinate lies inside the returned cell).
     ///
@@ -60,7 +89,7 @@ impl Geohash {
     /// Returns [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
     /// [`Error::InvalidValue`] for a `length` outside `1..=12`.
     pub fn encode(coord: Coordinate, length: u8) -> Result<Self> {
-        validate_encoding_coordinate(coord)?;
+        require_wgs84(&coord)?;
         if !(1..=GEOHASH_MAX_LENGTH).contains(&length) {
             return Err(Error::InvalidValue {
                 field: "geohash length",
@@ -164,19 +193,11 @@ impl Geohash {
 impl TryFrom<&str> for Geohash {
     type Error = crate::Error;
 
-    /// Validate and canonicalize (trim, lowercase) a 1–12 character geohash.
+    /// Validate as [`Geohash::parse`] does.
     ///
     /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for empty, overlong, or
-    /// non-base-32 input.
+    /// Returns [`crate::Error::InvalidGridRef`] for a malformed geohash.
     fn try_from(s: &str) -> Result<Self> {
-        let lower = s.trim().to_ascii_lowercase();
-        if lower.is_empty()
-            || lower.len() > usize::from(GEOHASH_MAX_LENGTH)
-            || lower.bytes().any(|b| !GEOHASH_ALPHABET.contains(&b))
-        {
-            return Err(Error::InvalidGridRef(format!("invalid geohash: {s}")));
-        }
-        Ok(Geohash(lower))
+        Self::parse(s)
     }
 }

@@ -130,16 +130,23 @@ jobs:
       - name: Assert expected outputs exist
         working-directory: crates/geocoordinates-ffi/web
         run: |
-          test -f src/index.web.ts
           test -f src/generated/web/geocoordinates_ffi.ts
           test -f src/generated/web/wasm-bindgen/index.js
           test -f src/generated/web/wasm-bindgen/index_bg.wasm
-          echo "WASM/TypeScript bindings generated and type-checked."
+          test -f dist/index.js
+          test -f dist/index.d.ts
+          test -f dist/generated/web/wasm-bindgen/index_bg.wasm
+          echo "WASM/TypeScript bindings generated, type-checked, and compiled to dist/."
       # Load the built wasm in Node and exercise conversions, approximate bounds,
       # and the typed GeoError variants (test/bindings.test.ts).
       - name: Behavioural tests (Node)
         working-directory: crates/geocoordinates-ffi/web
         run: npm test
+      # `npm pack` the package and import the tarball from an empty project in
+      # plain Node (no tsx, no bundler): what a consumer installing it gets.
+      - name: Packed-tarball import (plain Node)
+        working-directory: crates/geocoordinates-ffi/web
+        run: npm run test:packed
 
   # Build the JVM (Kotlin) bindings and test them from both languages: generate
   # the Kotlin, then run the Gradle JUnit suites that load the cdylib via JNA -

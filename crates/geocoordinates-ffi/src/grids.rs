@@ -28,19 +28,19 @@ pub fn plus_code_encode(coord: Coordinate, length: u8) -> Result<String, GeoErro
 /// Returns a [`GeoError`] for a malformed or short code.
 #[uniffi::export]
 pub fn plus_code_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
-    let pc = gc::grids::PlusCode::try_from(code.as_str()).map_err(GeoError::from)?;
+    let pc = gc::grids::PlusCode::parse(&code).map_err(GeoError::from)?;
     Ok(approx_coordinate(pc.decode()))
 }
 
 /// Validate a full Open Location Code and return its canonical (trimmed,
-/// uppercase) form — the FFI form of `PlusCode`'s `TryFrom<&str>` and
+/// uppercase) form — the FFI form of `PlusCode::parse` and
 /// `Display`.
 ///
 /// # Errors
 /// Returns [`GeoError::InvalidGridRef`] for a malformed or short code.
 #[uniffi::export]
 pub fn plus_code_canonicalize(code: String) -> Result<String, GeoError> {
-    gc::grids::PlusCode::try_from(code)
+    gc::grids::PlusCode::parse(&code)
         .map(String::from)
         .map_err(Into::into)
 }
@@ -64,12 +64,12 @@ pub fn geohash_encode(coord: Coordinate, length: u8) -> Result<String, GeoError>
 /// Returns a [`GeoError`] for empty, overlong, or non-base-32 input.
 #[uniffi::export]
 pub fn geohash_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
-    let gh = gc::grids::Geohash::try_from(code.as_str()).map_err(GeoError::from)?;
+    let gh = gc::grids::Geohash::parse(&code).map_err(GeoError::from)?;
     Ok(approx_coordinate(gh.decode()))
 }
 
 /// Validate a 1–12 character geohash and return its canonical (trimmed,
-/// lowercase) form — the FFI form of `Geohash`'s `TryFrom<&str>` and
+/// lowercase) form — the FFI form of `Geohash::parse` and
 /// `Display`.
 ///
 /// # Errors
@@ -77,7 +77,7 @@ pub fn geohash_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
 /// input.
 #[uniffi::export]
 pub fn geohash_canonicalize(code: String) -> Result<String, GeoError> {
-    gc::grids::Geohash::try_from(code)
+    gc::grids::Geohash::parse(&code)
         .map(String::from)
         .map_err(Into::into)
 }
@@ -102,19 +102,19 @@ pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoErro
 /// Returns a [`GeoError`] for a malformed locator.
 #[uniffi::export]
 pub fn maidenhead_decode(code: String) -> Result<ApproxCoordinate, GeoError> {
-    let mh = gc::grids::Maidenhead::try_from(code.as_str()).map_err(GeoError::from)?;
+    let mh = gc::grids::Maidenhead::parse(&code).map_err(GeoError::from)?;
     Ok(approx_coordinate(mh.decode()))
 }
 
 /// Validate a 2-, 4-, or 6-character Maidenhead locator and return its
 /// canonical form (uppercase field, digit square, lowercase subsquare) — the
-/// FFI form of `Maidenhead`'s `TryFrom<&str>` and `Display`.
+/// FFI form of `Maidenhead::parse` and `Display`.
 ///
 /// # Errors
 /// Returns [`GeoError::InvalidGridRef`] for a malformed locator.
 #[uniffi::export]
 pub fn maidenhead_canonicalize(code: String) -> Result<String, GeoError> {
-    gc::grids::Maidenhead::try_from(code)
+    gc::grids::Maidenhead::parse(&code)
         .map(String::from)
         .map_err(Into::into)
 }
@@ -365,7 +365,7 @@ pub fn mgrs_from_coordinate(
 /// `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
 #[uniffi::export]
 pub fn mgrs_to_coordinate(mgrs: String) -> Result<ApproxCoordinate, GeoError> {
-    let parsed = gc::grids::Mgrs::try_from(mgrs.as_str()).map_err(GeoError::from)?;
+    let parsed = gc::grids::Mgrs::parse(&mgrs).map_err(GeoError::from)?;
     Ok(approx_coordinate(parsed.to_coordinate()))
 }
 
@@ -375,7 +375,19 @@ pub fn mgrs_to_coordinate(mgrs: String) -> Result<ApproxCoordinate, GeoError> {
 /// `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
 #[uniffi::export]
 pub fn mgrs_precision(mgrs: String) -> Result<MgrsPrecision, GeoError> {
-    gc::grids::Mgrs::try_from(mgrs.as_str())
+    gc::grids::Mgrs::parse(&mgrs)
         .map(|m| m.precision().into())
+        .map_err(GeoError::from)
+}
+
+/// Validate an MGRS reference and return its canonical form (uppercase, no
+/// whitespace, two-digit zone) — the FFI form of `Mgrs::parse` and `Display`.
+///
+/// # Errors
+/// `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
+#[uniffi::export]
+pub fn mgrs_canonicalize(mgrs: String) -> Result<String, GeoError> {
+    gc::grids::Mgrs::parse(&mgrs)
+        .map(String::from)
         .map_err(GeoError::from)
 }

@@ -34,7 +34,26 @@ wasm-pack build rust_modules/wasm --release --target web \
 rm -f src/generated/web/wasm-bindgen/.gitignore \
       src/generated/web/wasm-bindgen/package.json
 
-# 4. Type-check the generated bindings against @ubjs/core + the wasm typings.
-npm run --silent typecheck
+# 4. Drop ubrn's generated entry: it imports the `.wasm` as a module, which only a
+#    bundler resolves. The hand-written src/index.ts is the package entry instead.
+rm -f src/index.web.ts
 
-echo "✓ WebAssembly bindings built at src/generated/web/"
+# 5. Type-check and compile src/ to dist/ (ES modules + `.d.ts`). tsc does not
+#    copy the wasm-bindgen glue or the wasm itself, so copy them alongside.
+rm -rf dist
+npm run --silent compile
+mkdir -p dist/generated/web/wasm-bindgen
+cp src/generated/web/wasm-bindgen/index.js \
+   src/generated/web/wasm-bindgen/index.d.ts \
+   src/generated/web/wasm-bindgen/index_bg.wasm \
+   src/generated/web/wasm-bindgen/index_bg.wasm.d.ts \
+   dist/generated/web/wasm-bindgen/
+
+# 6. The generated TypeScript imports its siblings without a file extension,
+#    which bundler resolution accepts and Node's ES module loader rejects. Give
+#    every extensionless relative specifier in dist/ its `.js`, so the package
+#    loads in plain Node and its types resolve under `moduleResolution: node16`.
+find dist -name '*.js' -o -name '*.d.ts' | xargs perl -i -pe \
+  's{(\bfrom\s+|\bimport\s*\(\s*)(["'"'"'])(\.\.?/[^"'"'"']*?)(?<!\.js)(?<!\.wasm)\2}{$1$2$3.js$2}g'
+
+echo "✓ WebAssembly bindings built at src/generated/web/ and compiled to dist/"

@@ -1,6 +1,6 @@
 use super::*;
-use crate::Crs;
 use crate::test_support::{assert_close, assert_within_geodesic_meters, assert_within_meters};
+use crate::{Crs, Error};
 
 fn wgs(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
@@ -117,10 +117,61 @@ fn validation_accepts_and_rejects() {
     assert_invalid_grid_ref(PlusCode::try_from("")); // empty
 }
 
+/// Every string code hashes by its canonical form, consistent with `Eq`, so
+/// differently spelled inputs of one code collapse to one set entry.
+#[test]
+fn codes_hash_by_their_canonical_string() {
+    use core::hash::{BuildHasher, Hash};
+    use std::collections::HashSet;
+    use std::hash::RandomState;
+
+    /// `a` and `b` spell one code and `other` a different one: `a == b` hash
+    /// alike, `other` hashes apart, and the three make two set entries.
+    fn check<T: Hash + Eq + core::fmt::Debug>(a: T, b: T, other: T) {
+        let state = RandomState::new();
+        assert_eq!(a, b);
+        assert_eq!(state.hash_one(&a), state.hash_one(&b));
+        assert_ne!(state.hash_one(&a), state.hash_one(&other));
+        assert_eq!(HashSet::from([a, b, other]).len(), 2);
+    }
+    let geohash = |s| Geohash::parse(s).unwrap();
+    check(geohash("ezs42"), geohash(" EZS42 "), geohash("ezs43"));
+    let locator = |s| Maidenhead::parse(s).unwrap();
+    check(locator("JN58td"), locator("jn58TD"), locator("FN20"));
+    let plus = |s| PlusCode::parse(s).unwrap();
+    check(plus("8FVC2222+22"), plus("8fvc2222+22"), plus("8FVC0000+"));
+    let mgrs = |s| crate::grids::Mgrs::parse(s).unwrap();
+    check(
+        mgrs("04QFJ12345678"),
+        mgrs("4q fj 1234 5678"),
+        mgrs("18TWL"),
+    );
+}
+
+#[test]
+fn parse_is_the_path_every_string_conversion_takes() {
+    // `TryFrom<&str>`, `TryFrom<String>`, and `FromStr` are sugar over `parse`.
+    assert_eq!(
+        Geohash::try_from("DR5REGY").unwrap(),
+        Geohash::parse("dr5regy").unwrap()
+    );
+    assert_eq!(
+        Maidenhead::try_from(String::from("jn58td")).unwrap(),
+        Maidenhead::parse("JN58td").unwrap()
+    );
+    assert_eq!(
+        "87g7x2vv+2v".parse::<PlusCode>().unwrap(),
+        PlusCode::parse("87G7X2VV+2V").unwrap()
+    );
+    assert_invalid_grid_ref(Geohash::parse(""));
+    assert_invalid_grid_ref(Maidenhead::parse("JN58t"));
+    assert_invalid_grid_ref(PlusCode::parse("X2VV+2V"));
+}
+
 #[test]
 fn from_str_matches_try_from() {
-    // `FromStr` is thin sugar over `TryFrom<&str>`: same canonical value, same
-    // rejection variant.
+    // `FromStr` is thin sugar over `parse`, as `TryFrom<&str>` is: same
+    // canonical value, same rejection variant.
     assert_eq!(
         "87g7x2vv+2v".parse::<PlusCode>().unwrap(),
         PlusCode::try_from("87G7X2VV+2V").unwrap()

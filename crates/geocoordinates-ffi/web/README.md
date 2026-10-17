@@ -7,9 +7,14 @@ the `geocoordinates-ffi` UniFFI surface with
 [`uniffi-bindgen-react-native`](https://github.com/jhugman/uniffi-bindgen-react-native)
 (`ubrn`) targeting `wasm32-unknown-unknown`.
 
-This package is the **hand-authored source** of the npm package. The actual bindings
-(`src/generated/`, `src/index.web.ts`) and the wasm wrapper crate (`rust_modules/`) are
-**generated** and git-ignored; rebuild them with `npm run build`.
+This package is the **hand-authored source** of the npm package: the entry point
+`src/index.ts`, the build script, and the tests. The bindings (`src/generated/`), the wasm
+wrapper crate (`rust_modules/`), and the compiled package (`dist/`) are **generated** and
+git-ignored; rebuild them with `npm run build`. The published package is `dist/` alone:
+ES modules with `.d.ts` types, behind an `exports` map.
+
+Its version is the workspace version in the repository's root `Cargo.toml`; run
+`mise run version-sync` after changing that, and `mise run version-check` confirms it.
 
 ## Build
 
@@ -18,8 +23,9 @@ on `PATH`, and Node.js.
 
 ```bash
 npm ci
-npm run build      # generate TS + wasm, then type-check (see build.sh)
-npm test           # run test/*.test.ts in Node against the built wasm
+npm run build        # generate TS + wasm, type-check, and compile to dist/ (see build.sh)
+npm test             # run test/*.test.ts in Node against the built wasm
+npm run test:packed  # npm pack, install the tarball in an empty project, import it in plain Node
 ```
 
 `build.sh` documents the two `ubrn` pre-1.0 quirks it works around (the wrapper crate is
@@ -37,10 +43,17 @@ await uniffiInitAsync();
 const gcj = wgs84ToGcj02({ lat: 39.9, lon: 116.4 });
 ```
 
-Bundler notes:
+`uniffiInitAsync()` finds the package's own `index_bg.wasm` through
+`new URL(..., import.meta.url)`: under Node it reads the file from disk, and in a
+browser it fetches it. webpack 5 and Vite recognise that pattern and emit the wasm as
+an asset with no plugin or configuration. esbuild and Rollup do not: without a plugin
+that handles `new URL(..., import.meta.url)` assets (for Rollup, e.g.
+`@web/rollup-plugin-import-meta-assets`), the wasm is left out of the bundle and the
+default fetch fails at runtime. With those bundlers, either add such a plugin or copy
+`dist/generated/web/wasm-bindgen/index_bg.wasm` into your static assets and pass its
+location explicitly. To load the module from elsewhere, pass its bytes, a compiled
+`WebAssembly.Module`, or a URL:
+`await uniffiInitAsync(new URL("/static/geocoordinates.wasm", location.href))`.
 
-- **Webpack**: enable `experiments.asyncWebAssembly = true`.
-- The package targets ES2021+ (the runtime uses `FinalizationRegistry`).
-
-> Node.js consumers are not the target of this WASM build (the generated loader is
-> web/bundler-shaped).
+The package is ES modules only (no CommonJS build) and targets ES2021+ (the runtime uses
+`FinalizationRegistry`).

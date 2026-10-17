@@ -198,6 +198,82 @@ cargo "+$toolchain" rustdoc -q -p geocoordinates --lib --all-features -- \
 python3 -I scripts/check_public_paths.py target/doc/geocoordinates.json
 '''
 
+# --- Release versions ---
+
+# Every artifact of a release ships the workspace version in Cargo.toml
+# (`[workspace.package] version`). Both crates inherit it, the Python wheel reads
+# it through the FFI crate (maturin), and the JVM build reads it from Cargo.toml,
+# so none of those can carry a second copy; this fails if one does. The npm
+# manifest must hold a literal version, so it is a copy that `version-sync`
+# writes and this holds to the workspace version.
+[tasks.version-check]
+description = "Fail when a crate or binding manifest's version is not the workspace version"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -I - <<'PY'
+import json
+import pathlib
+import re
+import sys
+import tomllib
+
+def read(path):
+    return pathlib.Path(path).read_text(encoding="utf-8")
+
+version = tomllib.loads(read("Cargo.toml")).get("workspace", {}).get("package", {}).get("version")
+if not isinstance(version, str):
+    sys.exit("version-check: Cargo.toml has no [workspace.package] version")
+
+errors = []
+for path in ("Cargo.toml", "crates/geocoordinates-ffi/Cargo.toml"):
+    if tomllib.loads(read(path))["package"].get("version") != {"workspace": True}:
+        errors.append(f"{path}: [package] must say `version.workspace = true`")
+
+web = "crates/geocoordinates-ffi/web"
+manifest = json.loads(read(f"{web}/package.json"))
+lock = json.loads(read(f"{web}/package-lock.json"))
+for where, found in (
+    (f"{web}/package.json", manifest.get("version")),
+    (f"{web}/package-lock.json", lock.get("version")),
+    (f'{web}/package-lock.json packages[""]', lock.get("packages", {}).get("", {}).get("version")),
+):
+    if found != version:
+        errors.append(f"{where}: version {found!r}, not the workspace version {version!r}")
+
+project = tomllib.loads(read("crates/geocoordinates-ffi/pyproject.toml"))["project"]
+if "version" in project or "version" not in project.get("dynamic", []):
+    errors.append("crates/geocoordinates-ffi/pyproject.toml: version must be dynamic (maturin reads the FFI crate's)")
+
+gradle = "crates/geocoordinates-ffi/jvm/build.gradle.kts"
+if re.search(r'^version\s*=.*"[0-9]', read(gradle), re.MULTILINE):
+    errors.append(f"{gradle}: the project version holds a literal; read it from Cargo.toml")
+
+if errors:
+    print("\n".join(errors), file=sys.stderr)
+    print("version-check: run `mise run version-sync` for the npm manifest", file=sys.stderr)
+    sys.exit(1)
+print(f"version-check: every manifest ships {version}")
+PY
+'''
+
+# Writes the workspace version into the npm manifest and its lockfile. The
+# release PR workflow runs it after release-plz bumps Cargo.toml.
+[tasks.version-sync]
+description = "Stamp the npm manifest with the workspace version from Cargo.toml"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+version="$(sed -n '/^\[workspace\.package\]$/,/^\[/ s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+if [ -z "$version" ]; then
+    echo "version-sync: Cargo.toml has no [workspace.package] version" >&2
+    exit 1
+fi
+cd crates/geocoordinates-ffi/web
+npm version "$version" --no-git-tag-version --allow-same-version >/dev/null
+echo "version-sync: npm manifest set to $version"
+'''
+
 [tasks.build]
 description = "Build the crate"
 run = "cargo build --all-features"

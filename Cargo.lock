@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "geocoordinates-ffi"
-version = "0.14.0"
+version = "0.14.2"
 dependencies = [
  "geocoordinates",
  "thiserror 2.0.18",

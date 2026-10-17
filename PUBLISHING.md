@@ -8,10 +8,40 @@ core Rust crate continues to publish to crates.io via release-plz, untouched.
 
 When a release PR merges, `release-plz.yml` cuts the **`v*` GitHub Release** and then
 **dispatches** the four binding workflows, passing the released tag + version and
-`publish=true`. Each tracks the Rust crate version, so it is the single source of truth
-and all packages release in lockstep. Each workflow also accepts a plain manual
-`workflow_dispatch` (with `publish` defaulting to **false**) that **builds/packages but
-does not publish** — use it to dry-run a pipeline.
+`publish=true`. Each workflow also accepts a plain manual `workflow_dispatch` (with
+`publish` defaulting to **false**) that **builds/packages but does not publish** — use it
+to dry-run a pipeline.
+
+**One version.** Every artifact of a release ships the workspace version,
+`[workspace.package] version` in the root `Cargo.toml`, so all packages release in
+lockstep:
+
+| Artifact | Where its version comes from |
+|---|---|
+| `geocoordinates` crate, `geocoordinates-ffi` crate | `version.workspace = true`; release-plz bumps the workspace line once for both |
+| PyPI wheel | maturin reads the FFI crate's version (`dynamic = ["version"]` in `pyproject.toml`) |
+| Maven Central JAR | `build.gradle.kts` reads the workspace line from `Cargo.toml` |
+| npm package | a literal in `web/package.json` (+ lockfile), written by `mise run version-sync` |
+| SwiftPM | the release tag `Package.swift` is re-pointed to |
+
+The publishing workflows stamp the released version again from the tag, so a
+publish cannot ship any other. `mise run version-check` (CI's *Release versions* job)
+fails when a crate manifest stops inheriting the workspace version, when `pyproject.toml`
+or the Gradle build gains a literal version, or when the npm manifest differs from the
+workspace version. After changing the workspace version by hand, run
+`mise run version-sync`.
+
+**The release PR.** Each time release-plz creates or updates the release PR, the
+`release-plz-pr` job stamps the npm manifest with the bumped version on the release
+branch (`mise run version-sync`, committed as `github-actions[bot]`), then dispatches
+`ci.yml`, `ffi.yml`, and the four binding workflows as dry runs at the branch head. A
+dispatch is needed because the release PR is pushed with the default `GITHUB_TOKEN`,
+whose `pull_request` runs stop at `action_required`. So the bumped version is built,
+tested, and packaged for every registry before the release PR merges. The release PR
+header carries no semver-checks verdict (`semver_check = false` in `release-plz.toml`):
+release-plz measures the API against the version it has already chosen, so a breaking
+change under a 0.x minor bump would read "API compatible". Breaking changes are listed
+in the changelog as `[**breaking**]`.
 
 The same dry run also runs **automatically**, so a pipeline's scripted steps (version
 stamping, native staging, the `Package.swift` checksum rewrite) are exercised between
@@ -99,8 +129,13 @@ matching manifest. Optionally list the package on the Swift Package Index.
 - Python wheel: `cd crates/geocoordinates-ffi && maturin build --release`
   (temporarily set `default-members = ["crates/geocoordinates-ffi"]` so maturin's
   `cargo run --bin uniffi-bindgen` resolves; the workflow does this automatically).
+  The wheel carries the workspace version and requires Python 3.9 or newer.
 - WASM/npm: `cd crates/geocoordinates-ffi/web && npm ci && npm run build`
-  (needs the `wasm32-unknown-unknown` target + `wasm-pack`).
+  (needs the `wasm32-unknown-unknown` target + `wasm-pack`). The build compiles the
+  package to `dist/` (ES modules + `.d.ts` behind an `exports` map), which is all the
+  tarball ships; `npm run test:packed` packs it, installs the tarball into an empty
+  project, and imports it from plain Node, as `ffi.yml` and `release-web.yml` do before
+  anything is published.
 - Swift XCFramework: `crates/geocoordinates-ffi/swift/build-xcframework.sh`, then build
   against it with `GEOCOORDINATES_LOCAL_XCFRAMEWORK=1`.
 - JVM JAR: stage the cdylib + generated Kotlin, then `gradle build` in

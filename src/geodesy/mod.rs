@@ -80,6 +80,7 @@ pub use datum::{DatumTransform, Helmert};
 pub use ecef::Ecef;
 pub use ellipsoid::Ellipsoid;
 pub use frames::{Aer, Enu, Ned};
+pub(crate) use geodesic::farthest_geodesic_m;
 pub use geodesic::{
     destination, final_bearing, geodesic_distance, initial_bearing, intermediate, midpoint,
 };
