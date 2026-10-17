@@ -32,6 +32,14 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
     for input in rejected {
         assert_parse_err!(from_kml(input), "kml: <Point> at byte ");
     }
+    // A `;` outside a reference is not whitespace: the pre-scan passes it,
+    // and the `kml` parser rejects it as a coordinate.
+    let r = from_kml("<Point><coordinates>;</coordinates></Point>");
+    assert!(
+        matches!(&r, Err(Error::Parse { detail, .. }) if !detail.starts_with("kml: <Point>")),
+        "{r:?}"
+    );
+    assert_parse_err!(r, "kml: ");
     let r = from_kml("<kml><Placemark><Point></Point></Placemark></kml>");
     assert_parse_err!(r, "kml: <Point> at byte 16 has no coordinates");
     // The nested `Point` is named: the outer one's coordinates do not count
