@@ -15,13 +15,14 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.confidenceNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.confidenceValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformCatalogToWgs84;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ecefFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidClarke1866;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidForCrs;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.fixFromCoord;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatFix;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatOptionsDefault;
-import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.fromNmeaSentence;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
@@ -32,6 +33,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsPrecision;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinateWith;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseNmeaSentence;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseOptionsDefault;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.rawSourceNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.upsToCoordinate;
@@ -179,6 +181,9 @@ class SmokeTest {
         double accuracy = tokyo.getAccuracyM();
         assertEquals(Math.sqrt(825.0), accuracy, 1e-12);
         assertNull(datumTransformCatalogToWgs84(Crs.PULKOVO42).getAccuracyM());
+        // A record this library returned validates; the validators return void.
+        ellipsoidValidate(ellipsoidClarke1866());
+        datumTransformValidate(tokyo);
     }
 
     // MGRS is always detected; a geohash decodes only when `ParseOptions` expects
@@ -202,7 +207,7 @@ class SmokeTest {
     @Test
     void nmeaFixesFromJava() throws GeoException {
         Fix rmc =
-                fromNmeaSentence(
+                parseNmeaSentence(
                         "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10");
         assertEquals(Instant.parse("1994-03-23T12:35:19Z"), rmc.getTimestamp());
         assertEquals(AxisOrder.LAT_LON, rmc.getSource().getAxisOrder());
@@ -210,11 +215,11 @@ class SmokeTest {
         assertThrows(
                 GeoException.Parse.class,
                 () ->
-                        fromNmeaSentence(
+                        parseNmeaSentence(
                                 "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"));
         assertThrows(
                 GeoException.Parse.class,
-                () -> fromNmeaSentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"));
+                () -> parseNmeaSentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"));
     }
 
     // Fix metadata: every accuracy carries its kind, a GGA geoid separation is a
@@ -223,7 +228,7 @@ class SmokeTest {
     @Test
     void fixMetadataFromJava() throws GeoException {
         Fix gga =
-                fromNmeaSentence(
+                parseNmeaSentence(
                         "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47");
         assertEquals(AccuracyKind.ONE_SIGMA, gga.getAccuracy().getKind());
         double separation = gga.getSource().getGeoidSeparationM();
