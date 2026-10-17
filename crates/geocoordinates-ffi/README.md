@@ -18,7 +18,7 @@ explicit `max_error_m`.
 
 | Rust idiom | FFI form |
 |---|---|
-| `Approx<T>` (generic wrapper) | flat records `ApproxWgs84` / `ApproxGcj02` (the China inverses) and `ApproxCoordinate` (`convert` and every grid / cell decoder), each carrying `max_error_m` |
+| `Approx<T>` (generic wrapper) | flat records `ApproxWgs84` / `ApproxGcj02` (the China inverses) and `ApproxCoordinate` (`convert` and every grid / cell decoder), each carrying `max_error_m`; output-only, so `Approx::new` is Rust-only |
 | `LatLon` trait / `impl LatLon` | functions take the concrete `Coordinate` record |
 | `Wgs84::is_outside_china` / `Gcj02::is_outside_china` methods | `wgs84_is_outside_china` / `gcj02_is_outside_china` |
 | `Length` + operator overloads | lengths as `f64` meters (`haversine_distance_m`) |
@@ -60,7 +60,10 @@ Every export follows one scheme, so a name reads the same in every language
   them; one exists where construction derives or normalizes a field
   (`aer_new`, `raw_source_new`), beside the constructors that predate that
   rule (`coordinate_new`, `ellipsoid_new`, `accuracy_new`, `confidence_new`,
-  `datum_transform_new`).
+  `datum_transform_new`). The `Approx*` records are the exception: every
+  export that returns one is a decoder, `convert` or a China inverse, and no
+  export takes one as input, so they have no `_new` or `_validate` and
+  `Approx::new` has no FFI form.
 - **`<grid>_canonicalize` for grid codes.** `plus_code_canonicalize`,
   `geohash_canonicalize`, `maidenhead_canonicalize` and `mgrs_canonicalize`
   validate a code and return its canonical form.

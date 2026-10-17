@@ -9,7 +9,7 @@
 //!
 //! | Rust idiom | FFI form here |
 //! |---|---|
-//! | `Approx<T>` (generic wrapper) | flat records [`ApproxWgs84`] / [`ApproxGcj02`] (China inverses) and [`ApproxCoordinate`] ([`convert`] and every grid / cell decoder), each carrying `max_error_m` |
+//! | `Approx<T>` (generic wrapper) | flat records [`ApproxWgs84`] / [`ApproxGcj02`] (China inverses) and [`ApproxCoordinate`] ([`convert`] and every grid / cell decoder), each carrying `max_error_m`; output-only, so `Approx::new` is Rust-only |
 //! | `LatLon` trait / `impl LatLon` | functions take the concrete [`Coordinate`] record |
 //! | `Wgs84::is_outside_china` / `Gcj02::is_outside_china` methods | [`wgs84_is_outside_china`] / [`gcj02_is_outside_china`] |
 //! | `Length` + operator overloads | distance returned as `f64` meters ([`haversine_distance_m`]) |
@@ -52,6 +52,10 @@
 //!   constructors that predate this rule ([`coordinate_new`],
 //!   [`ellipsoid_new`], [`accuracy_new`], [`confidence_new`],
 //!   [`datum_transform_new`]) fail at construction rather than at first use.
+//!   The `Approx*` records are the exception: every export that returns one
+//!   is a decoder, [`convert`] or a China inverse, and no export takes one as
+//!   input, so they have no `_new` or `_validate` and `Approx::new` has no
+//!   FFI form.
 //! - **`*_canonicalize` for grid codes.** A string grid code validates and
 //!   normalizes through `<grid>_canonicalize` ([`mgrs_canonicalize`], …).
 //!
