@@ -55,11 +55,10 @@ use super::{hdop_accuracy, syntax};
 /// - [`Syntax`](ParseErrorKind::Syntax) when a coordinate field is not
 ///   `ddmm[.m…]` (latitude) or `dddmm[.m…]` (longitude) — exactly two minute
 ///   digits before the decimal point — or its hemisphere letter is missing or
-///   wrong for the axis (or the position it reads is out of range), the `GGA`
-///   altitude or geoid
-///   separation is present but its unit field is not `M` (meters), or a
-///   numeric field (altitude, geoid separation, HDOP) is malformed or
-///   non-finite, or HDOP is negative.
+///   wrong for the axis (or the position it reads is out of range); when the
+///   `GGA` altitude or geoid separation is present but its unit field is not
+///   `M` (meters); or when a numeric field (altitude, geoid separation, HDOP)
+///   is malformed or non-finite, or HDOP is negative.
 ///
 /// ```
 /// use geocoordinates::{Error, ParseErrorKind};
