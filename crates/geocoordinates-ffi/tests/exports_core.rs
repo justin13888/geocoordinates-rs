@@ -85,6 +85,25 @@ fn coordinate_new_rejects_out_of_range_and_non_finite_input() {
 }
 
 #[test]
+fn coordinate_from_lon_lat_takes_longitude_first() {
+    // GeoJSON / WKT X,Y order: (lon, lat).
+    assert_eq!(
+        coordinate_from_lon_lat(-74.006, 40.7128, Crs::Tokyo).unwrap(),
+        coordinate_new(40.7128, -74.006, Crs::Tokyo).unwrap()
+    );
+    // A longitude of 120 is valid where a latitude of 120 is not, so a swapped
+    // pair is caught rather than silently accepted.
+    match coordinate_from_lon_lat(120.0, 30.0, Crs::Wgs84) {
+        Ok(c) => assert_eq!((c.lat, c.lon), (30.0, 120.0)),
+        other => panic!("expected a coordinate, got {other:?}"),
+    }
+    match coordinate_from_lon_lat(30.0, 120.0, Crs::Wgs84) {
+        Err(GeoError::OutOfRange { lat, lon }) => assert_eq!((lat, lon), (120.0, 30.0)),
+        other => panic!("expected OutOfRange, got {other:?}"),
+    }
+}
+
+#[test]
 fn exports_reject_a_hand_built_out_of_range_record() {
     let bad = OUT_OF_RANGE;
     let is_out_of_range =

@@ -433,13 +433,32 @@ pub fn parse_coordinate_with(input: String, options: ParseOptions) -> Result<Fix
 }
 
 /// Parse a `geo:` URI per RFC 5870 (lat-first; optional altitude; `crs`/`u`
-/// parameters).
+/// parameters) — the FFI form of the core `parse::from_geo_uri`.
 ///
 /// # Errors
 /// Returns a [`GeoError`] when the input is not a well-formed `geo:` URI.
 #[uniffi::export]
-pub fn from_geo_uri(input: String) -> Result<Fix, GeoError> {
+pub fn parse_geo_uri(input: String) -> Result<Fix, GeoError> {
     gc::parse::from_geo_uri(&input)
+        .map(Into::into)
+        .map_err(GeoError::from)
+}
+
+/// Parse a free-text coordinate (DD / DMS / DDM; no `geo:` URI or grid
+/// detection) with the default options: unlabelled numbers are read lat-first
+/// unless the `|value| > 90` range rule decides otherwise, with a point
+/// decimal separator. The [`Fix`] records the assumed axis order and parse
+/// confidence. Use [`parse_text_with`] for other options.
+///
+/// # Errors
+/// `GeoError::Parse` when the input cannot be interpreted: kind `Ambiguous`
+/// when it has no single reading (concatenated `DDMM.mmm` without a
+/// hemisphere letter, a fraction on any field but the last, exponent
+/// notation), and `Syntax` otherwise, including a reading out of range and a
+/// grid reference, which is not free text.
+#[uniffi::export]
+pub fn parse_text(input: String) -> Result<Fix, GeoError> {
+    gc::parse::parse_text(&input)
         .map(Into::into)
         .map_err(GeoError::from)
 }

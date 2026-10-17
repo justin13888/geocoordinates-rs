@@ -155,7 +155,8 @@ impl From<UtmHemisphere> for gc::grids::UtmHemisphere {
 /// A record crosses the boundary unvalidated; every export that accepts one
 /// validates it as [`gc::grids::Utm::new`] does: zone `1..=60`, and an
 /// easting and northing in the forward image, decoding to a point the
-/// forward projection assigns to that zone and hemisphere.
+/// forward projection assigns to that zone and hemisphere. Call
+/// [`utm_validate`] to check a hand-built record up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Utm {
     /// Longitude zone number, 1–60.
@@ -172,7 +173,8 @@ pub struct Utm {
 ///
 /// A record crosses the boundary unvalidated; every export that accepts one
 /// validates it as [`gc::grids::Ups::new`] does: an easting and northing in
-/// the forward image, decoding into the hemisphere's polar cap.
+/// the forward image, decoding into the hemisphere's polar cap. Call
+/// [`ups_validate`] to check a hand-built record up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ups {
     /// North or south polar zone.
@@ -230,6 +232,17 @@ pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
         .map_err(GeoError::from)
 }
 
+/// Validate a (possibly hand-built) UTM record as `Utm::new` does: zone
+/// `1..=60`, and an easting and northing in the forward image.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the field (`zone`, `easting`, or
+/// `northing`) when the record is outside the UTM forward image.
+#[uniffi::export]
+pub fn utm_validate(utm: Utm) -> Result<(), GeoError> {
+    gc::grids::Utm::try_from(utm).map(drop)
+}
+
 /// UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
 /// series (sub-millimeter within the UTM domain; not exact). The point lies
 /// in the record's zone and hemisphere, so `utm_from_coordinate` on it gives
@@ -275,6 +288,18 @@ pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
     gc::grids::Ups::try_from_coordinate(coord.try_into()?)
         .map(Into::into)
         .map_err(GeoError::from)
+}
+
+/// Validate a (possibly hand-built) UPS record as `Ups::new` does: an easting
+/// and northing in the forward image, decoding into the hemisphere's polar
+/// cap.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming the field (`easting` or `northing`) when
+/// the record is outside the UPS forward image.
+#[uniffi::export]
+pub fn ups_validate(ups: Ups) -> Result<(), GeoError> {
+    gc::grids::Ups::try_from(ups).map(drop)
 }
 
 /// UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic

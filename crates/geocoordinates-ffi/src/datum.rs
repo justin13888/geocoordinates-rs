@@ -40,7 +40,8 @@ pub struct Helmert {
 /// core `DatumTransform::new` does (both systems geodetic datums rather than
 /// GCJ-02 / BD-09, Helmert parameters finite, accuracy finite and
 /// non-negative). Build one with [`datum_transform_new`] to fail at
-/// construction instead.
+/// construction instead, or call [`datum_transform_validate`] on a hand-built
+/// record.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct DatumTransform {
     /// Source reference system.
@@ -149,6 +150,16 @@ pub fn datum_transform_new(
         accuracy_m,
     })
     .map(Into::into)
+}
+
+/// Validate a (possibly hand-built) datum transform record as
+/// `DatumTransform::new` does.
+///
+/// # Errors
+/// As [`datum_transform_new`].
+#[uniffi::export]
+pub fn datum_transform_validate(transform: DatumTransform) -> Result<(), GeoError> {
+    gc::geodesy::DatumTransform::try_from(transform).map(drop)
 }
 
 /// The catalogued transform carrying `datum` to WGS-84, or `None` when none is

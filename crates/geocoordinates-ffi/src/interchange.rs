@@ -1,5 +1,10 @@
 //! Structured interchange formats (GeoJSON / WKT / GPX / KML) and NMEA 0183
 //! sensor sentences, each parsed into [`Fix`] records.
+//!
+//! The core crate names these readers `from_geojson`, `from_wkt`, … after the
+//! format they read; across the boundary they are top-level functions with no
+//! module to say what they produce, so each is named for what it does,
+//! `parse_<format>`, beside [`parse_coordinate`](crate::parse_coordinate).
 
 use geocoordinates as gc;
 
@@ -18,7 +23,7 @@ use crate::{AxisOrder, Fix, GeoError};
 /// nesting), or naming the index of the first position with fewer than two
 /// numbers; `GeoError::OutOfRange` for the first position out of range.
 #[uniffi::export]
-pub fn from_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
+pub fn parse_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_geojson(&input)
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
@@ -35,7 +40,7 @@ pub fn from_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
 /// deeper than 128 levels); `GeoError::OutOfRange` for the first position out
 /// of range.
 #[uniffi::export]
-pub fn from_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoError> {
+pub fn parse_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_wkt(&input, axis_order.into())
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
@@ -50,7 +55,7 @@ pub fn from_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoErr
 /// of range (the GPX reader range-checks both before any point is built), or
 /// naming the index of the first point with an invalid `<hdop>`.
 #[uniffi::export]
-pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
+pub fn parse_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_gpx(&input)
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
@@ -67,7 +72,7 @@ pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
 /// of range; `GeoError::InvalidValue`, naming the position's index, for a
 /// non-finite altitude.
 #[uniffi::export]
-pub fn from_kml(input: String) -> Result<Vec<Fix>, GeoError> {
+pub fn parse_kml(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_kml(&input)
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
@@ -92,7 +97,7 @@ pub fn from_kml(input: String) -> Result<Vec<Fix>, GeoError> {
 /// a coordinate whose minutes are not two integer digits or a `GGA` altitude
 /// whose unit is not `M`.
 #[uniffi::export]
-pub fn from_nmea_sentence(sentence: String) -> Result<Fix, GeoError> {
+pub fn parse_nmea_sentence(sentence: String) -> Result<Fix, GeoError> {
     gc::parse::sensors::from_nmea_sentence(&sentence)
         .map(Into::into)
         .map_err(GeoError::from)

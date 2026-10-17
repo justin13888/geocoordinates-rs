@@ -65,9 +65,14 @@ fn ellipsoid_new_and_the_getters_validate() {
         semi_major_m: 6_378_137.0,
         inverse_flattening: 0.5,
     };
+    assert_eq!(ellipsoid_validate(ellipsoid_wgs84()), Ok(()));
     for e in [bad_axis, bad_flattening] {
         assert!(matches!(
             ellipsoid_new(e.semi_major_m, e.inverse_flattening),
+            Err(GeoError::InvalidValue { .. })
+        ));
+        assert!(matches!(
+            ellipsoid_validate(e),
             Err(GeoError::InvalidValue { .. })
         ));
         assert!(matches!(
@@ -179,12 +184,12 @@ fn geodesic_distance_and_bearings_are_pinned() {
         1e-6,
     );
     close(
-        initial_bearing(new_york(), london()).unwrap(),
+        initial_bearing_deg(new_york(), london()).unwrap(),
         51.241_229_119_512_35,
         1e-9,
     );
     close(
-        final_bearing(new_york(), london()).unwrap(),
+        final_bearing_deg(new_york(), london()).unwrap(),
         108.368_998_113_182_66,
         1e-9,
     );
@@ -221,7 +226,7 @@ fn rhumb_line_distance_bearing_and_destination_are_pinned() {
         1e-5,
     );
     close(
-        rhumb_bearing(new_york(), london()).unwrap(),
+        rhumb_bearing_deg(new_york(), london()).unwrap(),
         78.081_345_760_192_42,
         1e-9,
     );
@@ -235,13 +240,13 @@ fn rhumb_line_distance_bearing_and_destination_are_pinned() {
     ));
     // Coincident points have no bearing.
     assert!(matches!(
-        rhumb_bearing(new_york(), new_york()),
+        rhumb_bearing_deg(new_york(), new_york()),
         Err(GeoError::InvalidValue { .. })
     ));
     // From a pole the bearing is read against the start's own meridian, so
     // destination inverts it: (90, 0) → (0, 90) is bearing 90°.
     let (pole, target) = (wgs84(90.0, 0.0), wgs84(0.0, 90.0));
-    let bearing = rhumb_bearing(pole, target).unwrap();
+    let bearing = rhumb_bearing_deg(pole, target).unwrap();
     close(bearing, 90.0, 1e-9);
     let reached =
         rhumb_destination(pole, bearing, rhumb_distance_m(pole, target).unwrap()).unwrap();
@@ -374,7 +379,7 @@ fn geodesics_use_the_datum_ellipsoid_and_reject_obfuscated_datums() {
     );
     let gcj = |lat, lon| coordinate_new(lat, lon, Crs::Gcj02).unwrap();
     assert!(geodesic_distance_m(gcj(30.0, 110.0), gcj(31.0, 111.0)).is_err());
-    assert!(initial_bearing(new_york(), new_york()).is_err());
+    assert!(initial_bearing_deg(new_york(), new_york()).is_err());
 }
 
 // --- Helmert and datum transforms ---
@@ -536,6 +541,18 @@ fn datum_transform_new_validates_hand_built_records() {
         match datum_transform_new(bad.from_crs, bad.to_crs, bad.helmert, bad.accuracy_m) {
             Err(GeoError::InvalidValue { field: f, .. }) => assert_eq!(f, field),
             other => panic!("expected InvalidValue, got {other:?}"),
+        }
+    }
+    // `datum_transform_validate` applies the same rules to a hand-built record.
+    assert_eq!(datum_transform_validate(dt), Ok(()));
+    for (bad, field) in [
+        (gcj, "from_crs"),
+        (bad_helmert, "helmert"),
+        (bad_accuracy, "accuracy"),
+    ] {
+        match datum_transform_validate(bad) {
+            Err(GeoError::InvalidValue { field: f, .. }) => assert_eq!(f, field),
+            other => panic!("expected InvalidValue for `{field}`, got {other:?}"),
         }
     }
 }
