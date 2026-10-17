@@ -127,21 +127,27 @@ fn utm_rejects_polar_latitudes() {
 }
 
 #[test]
-fn utm_to_coordinate_validates_the_record_and_wraps_longitude() {
+fn utm_to_coordinate_accepts_only_the_forward_image() {
     let record = |zone, easting, northing| Utm {
         zone,
         hemisphere: UtmHemisphere::North,
         easting,
         northing,
     };
-    // Zone 1 west of the antimeridian wraps to +179.86° instead of failing.
-    let wrapped = utm_to_coordinate(record(1, 150_000.0, 0.0)).unwrap();
-    close(wrapped.lon, 179.856_227_657, 1e-8);
-    // Each out-of-domain field is named.
+    // Zone 60's 180° edge decodes just west of 180°, so it stays in zone 60.
+    let edge = utm_from_coordinate(wgs84(0.0, 180.0)).unwrap();
+    let back = utm_to_coordinate(edge).unwrap();
+    assert!(back.lon < 180.0 && back.lon > 179.999_999, "{back:?}");
+    assert_eq!(utm_from_coordinate(back).unwrap().zone, 60);
+    // Each field outside the domain or the forward image is named.
     for (utm, field) in [
         (record(0, 500_000.0, 0.0), "zone"),
         (record(31, 99_999.0, 0.0), "easting"),
         (record(1, 500_000.0, 9_999_000.0), "northing"),
+        // Zone 1 west of the antimeridian is zone 60's longitude.
+        (record(1, 150_000.0, 0.0), "easting"),
+        // ≈ 89°N: north of the UTM band.
+        (record(18, 500_000.0, 9_900_000.0), "northing"),
     ] {
         assert!(
             matches!(&utm_to_coordinate(utm), Err(GeoError::InvalidValue { field: f, .. }) if f == field),
@@ -192,6 +198,16 @@ fn ups_covers_the_poles_and_round_trips() {
     };
     assert!(matches!(
         ups_to_coordinate(off_grid),
+        Err(GeoError::InvalidValue { field, .. }) if field == "northing"
+    ));
+    // On the grid, but its corner decodes near 64°N, outside the 84°N cap.
+    let off_cap = Ups {
+        hemisphere: UtmHemisphere::North,
+        easting: 0.0,
+        northing: 0.0,
+    };
+    assert!(matches!(
+        ups_to_coordinate(off_cap),
         Err(GeoError::InvalidValue { field, .. }) if field == "northing"
     ));
 }
@@ -255,6 +271,13 @@ fn mgrs_encodes_decodes_and_reports_precision() {
         mgrs_to_coordinate("not-an-mgrs".to_string()),
         Err(GeoError::InvalidGridRef { .. })
     ));
+    // Well-formed squares wholly outside their designator name nothing.
+    for code in ["AJA", "32XNJ", "1NAA5000050000"] {
+        assert!(matches!(
+            mgrs_to_coordinate(code.to_string()),
+            Err(GeoError::InvalidGridRef { .. })
+        ));
+    }
     assert!(matches!(
         mgrs_precision("not-an-mgrs".to_string()),
         Err(GeoError::InvalidGridRef { .. })

@@ -5,11 +5,13 @@
 //! — but they are **not** exact.
 //!
 //! [`Utm`] and [`Ups`] are valid by construction: [`Utm::new`] / [`Ups::new`]
-//! reject a zone, easting, or northing outside the projection's domain, so the
-//! grid → lat/lon direction ([`Utm::to_coordinate`], [`Ups::to_coordinate`]) is
-//! infallible and always yields a wrapped, in-range longitude. The lat/lon →
-//! grid direction can fail (UTM is undefined at the poles, where UPS is used
-//! instead), so it returns [`Result`] with [`Error::OutsideDomain`].
+//! accept only the **forward image** — a grid position some point projects
+//! to — so every value decodes ([`Utm::to_coordinate`], [`Ups::to_coordinate`],
+//! infallible) to a point whose forward projection gives the same zone and
+//! hemisphere back, at the same easting and northing to well under a
+//! millimeter. The lat/lon → grid direction can fail (UTM is undefined at the
+//! poles, where UPS is used instead), so it returns [`Result`] with
+//! [`Error::OutsideDomain`].
 //!
 //! The transverse Mercator forward/inverse use the Karney–Krüger `n`-series
 //! truncated at 4th order: sub-millimeter throughout a UTM zone (a round trip
@@ -57,6 +59,67 @@ const MAX_EASTING: f64 = 900_000.0;
 /// pole onto the far meridian.
 const POLE_NORTHING: f64 = K0 * RECT_A * core::f64::consts::FRAC_PI_2;
 
+/// Degrees by which a decoded point may lie outside a projection's forward
+/// image and still count as inside it (≈ 0.1 mm of latitude): the inverse and
+/// forward series disagree by micrometers, so the projection of a point on an
+/// image edge (80°S, a zone meridian, the 84°N cap) can decode a hair across
+/// it. Such a value is accepted, and decoding moves it onto the edge.
+const IMAGE_SLACK_DEG: f64 = 1e-9;
+
+/// The largest `f64` below `x` (`f64::next_down` needs Rust 1.86; MSRV is
+/// 1.85). `x` is finite.
+fn below(x: f64) -> f64 {
+    if x > 0.0 {
+        f64::from_bits(x.to_bits() - 1)
+    } else if x < 0.0 {
+        f64::from_bits(x.to_bits() + 1)
+    } else {
+        -f64::from_bits(1)
+    }
+}
+
+/// `v` clamped into `lo..=hi`, or `None` where it lies more than
+/// [`IMAGE_SLACK_DEG`] outside.
+fn snap(v: f64, lo: f64, hi: f64) -> Option<f64> {
+    (lo - IMAGE_SLACK_DEG..=hi + IMAGE_SLACK_DEG)
+        .contains(&v)
+        .then(|| v.clamp(lo, hi))
+}
+
+/// The point of `zone`'s forward image in `hemisphere` that a decoded
+/// `(lat, lon)` stands for — `lon` unwrapped, the zone's central meridian
+/// plus the inverse's offset — or the [`Utm`] field to blame where it lies more than
+/// [`IMAGE_SLACK_DEG`] outside: `"northing"` for a latitude outside the
+/// hemisphere's part of the UTM band, `"easting"` for a longitude outside the
+/// zone. The image is what [`Utm::try_from_coordinate`] produces: latitudes
+/// `[0, 84)` (north) or `[-80, 0)` (south), and the longitudes
+/// [`zone_span`] gives at that latitude.
+fn utm_image(
+    zone: u8,
+    hemisphere: UtmHemisphere,
+    lat: f64,
+    lon: f64,
+) -> core::result::Result<(f64, f64), &'static str> {
+    let (lo, hi) = match hemisphere {
+        UtmHemisphere::North => (0.0, below(84.0)),
+        UtmHemisphere::South => (-80.0, below(0.0)),
+    };
+    let lat = snap(lat, lo, hi).ok_or("northing")?;
+    // The Norway and Svalbard bands change a zone's span at 56°, 64° and
+    // 72°N, so a latitude within the slack of one may need the far side.
+    let edges = [56.0, 64.0, 72.0]
+        .into_iter()
+        .filter(|e: &f64| (lat - e).abs() <= IMAGE_SLACK_DEG)
+        .flat_map(|e| [e, below(e)]);
+    core::iter::once(lat)
+        .chain(edges)
+        .find_map(|lat| {
+            let (west, east) = zone_span(zone, lat)?;
+            Some((lat, snap(lon, west, below(east))?))
+        })
+        .ok_or("easting")
+}
+
 /// Northern or southern hemisphere of a [`Utm`] or [`Ups`] coordinate.
 ///
 /// Distinct from [`angle::Hemisphere`](crate::angle::Hemisphere), which names
@@ -82,10 +145,10 @@ pub enum UtmHemisphere {
 /// A UTM coordinate: zone, hemisphere, easting, and northing.
 ///
 /// Valid by construction — build one with [`Utm::new`] or
-/// [`Utm::try_from_coordinate`]. The domain is zone `1..=60`, easting
-/// `100 000..=900 000` m, and a northing that does not fold over the pole:
-/// from 0 up to the pole's grid northing (≈ 9 997 965 m) in the north, and from
-/// 10 000 000 m minus that (≈ 2 035 m) up to 10 000 000 m in the south.
+/// [`Utm::try_from_coordinate`]. The domain is the forward image: zone
+/// `1..=60`, and an easting and northing that decode to a point the forward
+/// projection assigns to that zone and hemisphere (80°S–84°N, inside the
+/// zone's longitudes, the Norway and Svalbard exceptions included).
 ///
 /// ```
 /// use geocoordinates::Coordinate;
@@ -184,7 +247,17 @@ pub fn utm_zone_for(coord: Coordinate) -> Result<u8> {
 
 /// [`utm_zone_for`] on a latitude already inside the UTM band.
 fn zone_in_band(lat: f64, lon: f64) -> u8 {
-    let base = (((lon + 180.0) / 6.0).floor() as i32).clamp(0, 59) as u8 + 1;
+    // `lon + 180.0` rounds, and a longitude a few ulps west of a zone
+    // meridian can round up onto it, naming the zone east of the point; check
+    // the index against the meridian itself, so this agrees with
+    // `zone_span` on which side of every meridian the longitude lies.
+    // (Rounding never goes the other way: at or east of a meridian the sum is
+    // at or above the meridian's exact sum.)
+    let mut idx = ((lon + 180.0) / 6.0).floor() as i32;
+    if lon < -180.0 + 6.0 * f64::from(idx) {
+        idx -= 1;
+    }
+    let base = idx.clamp(0, 59) as u8 + 1;
     // Norway: zone 32 is widened westward to 3°E across band V (56°–64°N).
     if (56.0..64.0).contains(&lat) && (3.0..12.0).contains(&lon) {
         return 32;
@@ -255,8 +328,9 @@ pub(crate) fn central_meridian(zone: u8) -> f64 {
 }
 
 impl Utm {
-    /// Build a UTM coordinate from its parts, validating each against the UTM
-    /// domain.
+    /// Build a UTM coordinate from its parts, accepting only the forward
+    /// image: a position [`Utm::try_from_coordinate`] can produce, so the
+    /// value decodes to a point that projects back to it.
     ///
     /// ```
     /// use geocoordinates::Error;
@@ -266,16 +340,53 @@ impl Utm {
     /// assert!((utm.to_coordinate().lat() - 40.7128).abs() < 1e-6);
     /// let err = Utm::new(18, UtmHemisphere::North, 950_000.0, 4_507_351.0);
     /// assert!(matches!(err, Err(Error::InvalidValue { field: "easting", .. })));
+    /// // Inside the numeric ranges, but ≈ 89°N: north of the UTM band.
+    /// let err = Utm::new(18, UtmHemisphere::North, 500_000.0, 9_900_000.0);
+    /// assert!(matches!(err, Err(Error::InvalidValue { field: "northing", .. })));
+    /// // At the equator 150 km easting is west of zone 1's 180° edge.
+    /// let err = Utm::new(1, UtmHemisphere::North, 150_000.0, 0.0);
+    /// assert!(matches!(err, Err(Error::InvalidValue { field: "easting", .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
     /// # Errors
-    /// [`Error::InvalidValue`] naming the offending field: `"zone"` outside
-    /// `1..=60`; `"easting"` outside `100 000..=900 000` m; `"northing"`
-    /// outside 0 to ≈ 9 997 965 m (north) or ≈ 2 035 to 10 000 000 m
-    /// (south) — beyond those the inverse would fold over the pole. NaN and
-    /// the infinities are rejected.
+    /// [`Error::InvalidValue`] naming the offending field, checked in this
+    /// order: `"zone"` outside `1..=60`; `"easting"` outside
+    /// `100 000..=900 000` m; `"northing"` past the pole (above ≈ 9 997 965 m
+    /// north, below ≈ 2 035 m south), or decoding to a latitude outside the
+    /// hemisphere's part of the UTM band (`[0, 84)` north, `[-80, 0)` south);
+    /// `"easting"` decoding to a longitude outside the zone at that latitude.
+    /// A decoded point within about 0.1 mm of the image counts as inside it
+    /// (so a southern 10 000 000 m, which is what a latitude a hair south of
+    /// the equator projects to, is accepted), so every value the forward
+    /// projection produces is accepted. NaN and the infinities are rejected.
     pub fn new(zone: u8, hemisphere: UtmHemisphere, easting: f64, northing: f64) -> Result<Utm> {
+        let utm = Utm::from_grid(zone, hemisphere, easting, northing)?;
+        let (lat, lon) = utm.inverse();
+        match utm_image(zone, hemisphere, lat, lon) {
+            Ok(_) => Ok(utm),
+            Err(field) => Err(Error::InvalidValue {
+                field,
+                detail: format!(
+                    "{easting} m E, {northing} m N decodes to {lat}°, {}° (wrapped), \
+                     outside what zone {zone} {hemisphere:?} projects",
+                    wrap_longitude(lon)
+                ),
+            }),
+        }
+    }
+
+    /// A UTM position checked only against the projection's numeric domain
+    /// (zone, easting range, northing short of the pole), not the forward
+    /// image: MGRS decoding probes grid points across a whole square, some of
+    /// them outside the zone. [`Utm::to_coordinate`] on such a value decodes
+    /// without snapping and may name a point of another zone.
+    pub(crate) fn from_grid(
+        zone: u8,
+        hemisphere: UtmHemisphere,
+        easting: f64,
+        northing: f64,
+    ) -> Result<Utm> {
         check_zone(zone)?;
         check_range("easting", easting, MIN_EASTING, MAX_EASTING)?;
         let (lo, hi) = match hemisphere {
@@ -392,8 +503,8 @@ impl Utm {
         } else {
             UtmHemisphere::North
         };
-        // The UTM band keeps every forward result inside the `Utm::new`
-        // domain (|Δλ| ≤ 6° only where cos φ ≤ 0.56, and |φ| < 84°).
+        // The forward image is, by definition, what this produces; `Utm::new`
+        // accepts it (its slack absorbs the inverse series' micrometers).
         Ok(Utm {
             zone,
             hemisphere,
@@ -405,20 +516,39 @@ impl Utm {
     /// UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger
     /// inverse series (sub-millimeter within the UTM domain; not exact).
     ///
-    /// Infallible: the domain was validated at construction. The longitude is
-    /// wrapped into `[-180, 180)`, so a zone 1 easting west of the
-    /// antimeridian decodes to about +179.9° rather than −180.1°.
+    /// Infallible: the domain was validated at construction. The point is in
+    /// the zone and hemisphere this value names, so
+    /// [`Utm::try_from_coordinate`] on it gives them back: a decoded point a
+    /// hair across an image edge (within about 0.1 mm) is moved onto it, and
+    /// zone 60's 180° edge decodes just west of 180° rather than to −180°,
+    /// which is zone 1.
     ///
     /// ```
-    /// use geocoordinates::grids::{Utm, UtmHemisphere};
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::grids::Utm;
     ///
-    /// // Zone 1's western edge reaches past the antimeridian; it wraps east.
-    /// let west = Utm::new(1, UtmHemisphere::North, 100_000.0, 0.0)?.to_coordinate();
-    /// assert!(west.lon() > 179.0 && west.lat().abs() < 1e-9);
+    /// let edge = Utm::try_from_coordinate(Coordinate::wgs84(0.0, 180.0)?)?;
+    /// let back = edge.to_coordinate();
+    /// assert!(back.lon() > 179.999_999 && back.lon() < 180.0);
+    /// assert_eq!(Utm::try_from_coordinate(back)?.zone(), 60);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
     pub fn to_coordinate(&self) -> Coordinate {
+        let (lat, lon) = self.inverse();
+        // An image point is already inside `[-180, 180)`, and is not wrapped:
+        // `wrap_longitude` rounds, and could move a longitude an ulp west of
+        // a zone meridian onto it. Only a value `Utm::from_grid` built
+        // outside the image (an MGRS probe) needs wrapping.
+        let (lat, lon) = utm_image(self.zone, self.hemisphere, lat, lon)
+            .unwrap_or_else(|_| (lat, wrap_longitude(lon)));
+        Coordinate::from_valid(lat, lon, None, Crs::Wgs84)
+    }
+
+    /// The inverse projection, unsnapped: the latitude clamped into
+    /// `[-90, 90]`, the longitude unwrapped (the central meridian plus the
+    /// series' offset, so a zone 1 point west of 180° comes out below −180).
+    fn inverse(&self) -> (f64, f64) {
         let lon0 = central_meridian(self.zone);
         let n0 = match self.hemisphere {
             UtmHemisphere::North => 0.0,
@@ -432,12 +562,7 @@ impl Utm {
         let chi = (xi_p.sin() / eta_p.cosh()).asin();
         let lat = SERIES.geodetic_from_conformal(chi);
         let lon = lon0 + eta_p.sinh().atan2(xi_p.cos()).to_degrees();
-        Coordinate::from_valid(
-            clamp_latitude(lat.to_degrees()),
-            wrap_longitude(lon),
-            None,
-            Crs::Wgs84,
-        )
+        (clamp_latitude(lat.to_degrees()), lon)
     }
 }
 

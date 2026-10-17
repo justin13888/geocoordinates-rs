@@ -312,16 +312,49 @@ fn utm_new_guards_each_field() {
     assert_invalid(Utm::new(0, North, f64::NAN, f64::NAN), "zone");
     assert_invalid(Utm::new(31, North, f64::NAN, f64::NAN), "easting");
     // The getters return exactly the validated parts.
-    let u = utm(31, South, 123_456.0, 7_654_321.0);
+    let u = utm(31, South, 234_567.0, 7_654_321.0);
     assert_eq!(
         (u.zone(), u.hemisphere(), u.easting_m(), u.northing_m()),
-        (31, South, 123_456.0, 7_654_321.0)
+        (31, South, 234_567.0, 7_654_321.0)
     );
-    // The domain bounds themselves are accepted.
-    let edge = utm(31, North, 100_000.0, 0.0).to_coordinate();
-    assert_close(edge.lon(), -0.592_327_203, 1e-8);
-    let edge = utm(31, North, 900_000.0, 0.0).to_coordinate();
-    assert_close(edge.lon(), 6.592_327_203, 1e-8);
+    // The numeric easting bounds are only a pre-filter: at the equator they
+    // decode to ≈ 0.59° beyond zone 31 on either side, outside its image.
+    assert_invalid(Utm::new(31, North, 100_000.0, 0.0), "easting");
+    assert_invalid(Utm::new(31, North, 900_000.0, 0.0), "easting");
+}
+
+#[test]
+fn utm_new_accepts_only_the_forward_image() {
+    use UtmHemisphere::{North, South};
+    // #183: inside every numeric range, but ≈ 89°N, which the forward
+    // direction refuses (UPS territory).
+    assert_invalid(Utm::new(18, North, 500_000.0, 9_900_000.0), "northing");
+    // 84°N on the central meridian lies between 9 328 and 9 330 km: past it is UPS.
+    assert_invalid(Utm::new(18, North, 500_000.0, 9_330_000.0), "northing");
+    let u = utm(18, North, 500_000.0, 9_328_000.0);
+    assert!(u.to_coordinate().lat() < 84.0);
+    // 80°S there lies between 1 117 and 1 119 km: south of it is UPS.
+    assert_invalid(Utm::new(18, South, 500_000.0, 1_117_000.0), "northing");
+    utm(18, South, 500_000.0, 1_119_000.0);
+    // Svalbard drops zone 32 above 72°N, so no zone-32 value lies there.
+    assert_invalid(Utm::new(32, North, 500_000.0, 8_100_000.0), "easting");
+    // Norway widens zone 32 west to 3°E in 56°–64°N, so 330 km easting at
+    // 60°N (≈ 3.6°E) is zone 32, and zone 31 ends at 3°E there.
+    utm(32, North, 330_000.0, 6_650_000.0);
+    assert_invalid(Utm::new(31, North, 640_000.0, 6_650_000.0), "easting");
+}
+
+#[test]
+fn utm_new_rejects_eastings_across_the_antimeridian() {
+    use UtmHemisphere::North;
+    // C6 / #183: zone 1 easting 150 km at the equator lies at ≈179.856°E,
+    // zone 60's longitude; it used to decode there, wrapped, and is now
+    // outside zone 1's image. Likewise zone 60's mirror easting.
+    assert_invalid(Utm::new(1, North, 150_000.0, 0.0), "easting");
+    assert_invalid(Utm::new(60, North, 850_000.0, 0.0), "easting");
+    // Inside ±180 the same zone decodes normally.
+    let p = utm(1, North, 170_000.0, 0.0).to_coordinate();
+    assert_close(p.lon(), -179.964_294_459, 1e-8);
 }
 
 #[test]
@@ -334,35 +367,28 @@ fn ups_new_guards_each_field() {
     assert_invalid(Ups::new(North, 2_000_000.0, -1.0), "northing");
     assert_invalid(Ups::new(South, 2_000_000.0, 4_000_001.0), "northing");
     assert_invalid(Ups::new(North, 2_000_000.0, f64::NAN), "northing");
-    let u = ups(South, 1_234_567.0, 3_456_789.0);
+    let u = ups(South, 2_277_728.5, 2_481_040.25);
     assert_eq!(
         (u.hemisphere(), u.easting_m(), u.northing_m()),
-        (South, 1_234_567.0, 3_456_789.0)
+        (South, 2_277_728.5, 2_481_040.25)
     );
-    // The origin corner is accepted too.
-    let origin = ups(South, 0.0, 0.0).to_coordinate();
-    assert_close(origin.lat(), -64.916_412_333, 1e-8);
-    assert_close(origin.lon(), -135.0, 1e-9);
-    // The domain corner itself is accepted, far below the 84°N cap.
-    let corner = ups(North, 4_000_000.0, 4_000_000.0).to_coordinate();
-    assert_close(corner.lat(), 64.916_412_333, 1e-8);
-    assert_close(corner.lon(), 135.0, 1e-9);
 }
 
 #[test]
-fn utm_inverse_wraps_the_antimeridian() {
-    use UtmHemisphere::North;
-    // C6: zone 1 easting 150 km at the equator lies at ≈179.856°E across the
-    // antimeridian; the inverse must wrap it rather than reject it.
-    let p = utm(1, North, 150_000.0, 0.0).to_coordinate();
-    assert_close(p.lat(), 0.0, 1e-12);
-    assert_close(p.lon(), 179.856_227_657, 1e-8);
-    // The mirror case in zone 60 wraps west.
-    let p = utm(60, North, 850_000.0, 0.0).to_coordinate();
-    assert_close(p.lon(), -179.856_227_657, 1e-8);
-    // Inside ±180 the same zone decodes normally.
-    let p = utm(1, North, 170_000.0, 0.0).to_coordinate();
-    assert_close(p.lon(), -179.964_294_459, 1e-8);
+fn ups_new_accepts_only_the_polar_cap() {
+    use UtmHemisphere::{North, South};
+    // #183: the grid's corners decode to ≈ 64.9°, far equatorward of either
+    // cap; the farther offset from the false origin is blamed, the northing
+    // on a tie.
+    assert_invalid(Ups::new(North, 0.0, 0.0), "northing");
+    assert_invalid(Ups::new(South, 4_000_000.0, 4_000_000.0), "northing");
+    assert_invalid(Ups::new(North, 0.0, 2_000_000.0), "easting");
+    assert_invalid(Ups::new(South, 2_000_000.0, 3_200_000.0), "northing");
+    // 84°N lies ≈ 667 km from the north pole, 80°S ≈ 1 113 km from the south.
+    ups(North, 2_000_000.0, 2_666_000.0);
+    assert_invalid(Ups::new(North, 2_000_000.0, 2_668_000.0), "northing");
+    ups(South, 3_112_000.0, 2_000_000.0);
+    assert_invalid(Ups::new(South, 3_115_000.0, 2_000_000.0), "easting");
 }
 
 #[test]
@@ -388,25 +414,33 @@ fn utm_northing_domain_ends_exactly_at_each_pole() {
     use UtmHemisphere::{North, South};
     // The pole's grid northing is the K0-scaled quarter meridian.
     assert_close(POLE_NORTHING, 9_997_964.943, 1e-3);
-    // North: the pole itself is accepted and decodes to 90°N; a centimeter
-    // past it would fold over and is rejected.
-    let p = utm(31, North, 500_000.0, POLE_NORTHING).to_coordinate();
-    assert_close(p.lat(), 90.0, 1e-9);
-    assert_invalid(
-        Utm::new(31, North, 500_000.0, POLE_NORTHING + 0.01),
-        "northing",
+    // The numeric grid domain (what MGRS decoding probes) stops at the pole:
+    // the pole itself decodes to 90°N; a centimeter past it would fold over
+    // and is rejected. `Utm::new` rejects the pole too: it is UPS.
+    let grid = |h, n| Utm::from_grid(31, h, 500_000.0, n);
+    assert_close(
+        grid(North, POLE_NORTHING).unwrap().to_coordinate().lat(),
+        90.0,
+        1e-9,
     );
+    assert_invalid(grid(North, POLE_NORTHING + 0.01), "northing");
+    assert_invalid(Utm::new(31, North, 500_000.0, POLE_NORTHING), "northing");
     // South: the same distance below the 10 000 km false northing.
     let south_pole = FALSE_NORTHING_SOUTH - POLE_NORTHING;
-    let p = utm(31, South, 500_000.0, south_pole).to_coordinate();
-    assert_close(p.lat(), -90.0, 1e-9);
-    assert_invalid(
-        Utm::new(31, South, 500_000.0, south_pole - 0.01),
-        "northing",
+    assert_close(
+        grid(South, south_pole).unwrap().to_coordinate().lat(),
+        -90.0,
+        1e-9,
     );
-    // The equator bounds each hemisphere from the other side.
+    assert_invalid(grid(South, south_pole - 0.01), "northing");
+    assert_invalid(Utm::new(31, South, 500_000.0, south_pole), "northing");
+    // The equator bounds each hemisphere from the other side. A southern
+    // 10 000 000 m decodes to the equator, which is northern, so it is moved
+    // a hair south and the forward keeps it southern.
     let p = utm(31, South, 500_000.0, FALSE_NORTHING_SOUTH).to_coordinate();
-    assert_close(p.lat(), 0.0, 1e-12);
+    assert!(p.lat() < 0.0 && p.lat() > -1e-300, "{p:?}");
+    let back = Utm::try_from_coordinate(p).unwrap();
+    assert_eq!(back, utm(31, South, 500_000.0, FALSE_NORTHING_SOUTH));
     assert_close(
         utm(31, North, 500_000.0, 0.0).to_coordinate().lat(),
         0.0,
@@ -414,7 +448,9 @@ fn utm_northing_domain_ends_exactly_at_each_pole() {
     );
     // Near the pole but off the central meridian the inverse stays on the
     // zone's side of the pole (|Δλ| < 90°) instead of folding.
-    let p = utm(31, North, 900_000.0, POLE_NORTHING - 1.0).to_coordinate();
+    let p = Utm::from_grid(31, North, 900_000.0, POLE_NORTHING - 1.0)
+        .unwrap()
+        .to_coordinate();
     assert!(p.lat() > 86.0 && (3.0..93.0).contains(&p.lon()), "{p:?}");
 }
 
@@ -443,11 +479,14 @@ fn every_forward_result_is_inside_the_constructor_domain() {
 
 #[test]
 fn inverse_longitude_is_always_wrapped_into_range() {
-    // Zone 60 at the antimeridian wraps 180 to the half-open range's west
-    // edge; the UPS pole (atan2 of ±0) does too.
+    // Zone 60 at the antimeridian decodes just west of 180°, not to −180°
+    // (zone 1), so it re-encodes to zone 60; the UPS pole (atan2 of ±0) is
+    // wrapped into range.
     let u = Utm::try_from_coordinate(c(0.0, 180.0)).unwrap();
     assert_eq!(u.zone(), 60);
-    assert_close(u.to_coordinate().lon(), -180.0, 1e-9);
+    let back = u.to_coordinate();
+    assert!(back.lon() < 180.0 && back.lon() > 180.0 - 1e-9, "{back:?}");
+    assert_eq!(Utm::try_from_coordinate(back).unwrap().zone(), 60);
     let p = Ups::try_from_coordinate(c(90.0, 0.0))
         .unwrap()
         .to_coordinate();
@@ -503,3 +542,5 @@ fn zone_edges_of_the_norway_and_svalbard_exceptions() {
     assert_eq!(zone(56.0, 11.999), 32);
     assert_eq!(zone(56.0, 12.0), 33);
 }
+
+mod image;

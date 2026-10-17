@@ -80,13 +80,15 @@ impl Center {
     }
 
     /// The point at grid `(easting, northing)` in this point's projection
-    /// (same zone and hemisphere); `None` outside that projection's domain.
+    /// (same zone and hemisphere); `None` outside that projection's numeric
+    /// grid domain. Not checked against the forward image: a probe may lie
+    /// outside the designator, and that is what the clipping measures.
     pub(super) fn at(self, (easting, northing): (f64, f64)) -> Option<Center> {
         match self {
-            Center::Utm(utm) => Utm::new(utm.zone(), utm.hemisphere(), easting, northing)
+            Center::Utm(utm) => Utm::from_grid(utm.zone(), utm.hemisphere(), easting, northing)
                 .ok()
                 .map(Center::Utm),
-            Center::Ups(ups) => Ups::new(ups.hemisphere(), easting, northing)
+            Center::Ups(ups) => Ups::from_grid(ups.hemisphere(), easting, northing)
                 .ok()
                 .map(Center::Ups),
         }
@@ -143,9 +145,11 @@ pub(super) fn encoder_easting(coord: Coordinate, utm: &Utm) -> f64 {
 /// designator's edges linearized in grid space and re-linearized at each
 /// answer until the encoder maps the point to `text`. The bound is then that
 /// point's grid distance to the farthest corner of the nominal square, which
-/// covers every point of the owned part. A reference whose square holds no
-/// point of its designator (one the parser accepts but the encoder never
-/// emits) keeps the nominal center and bound.
+/// covers every point of the owned part. `None` where the search finds no
+/// owned point, and the parser then rejects the reference: the square lies
+/// wholly outside its designator, so the encoder never emits it. (For every
+/// square the encoder does emit, the search finds one; the encoder
+/// round-trip properties in the tests check that down to ulp-wide slivers.)
 ///
 /// Every grid distance becomes a ground distance by dividing by the
 /// projection's minimum scale factor `k_min`.
@@ -155,21 +159,19 @@ pub(super) fn settle(
     center: Center,
     side: f64,
     gzd: Gzd,
-) -> (Center, f64) {
+) -> Option<(Center, f64)> {
     let k_min = center.k_min();
     let owns = |c: Center| encode_text(c.coordinate(), digits).is_ok_and(|t| t == text);
     if owns(center) {
-        return (center, side * FRAC_1_SQRT_2 / k_min);
+        return Some((center, side * FRAC_1_SQRT_2 / k_min));
     }
     let half = side / 2.0;
-    let Some(point) = deepest_owned(center, half, gzd, owns) else {
-        return (center, side * FRAC_1_SQRT_2 / k_min);
-    };
+    let point = deepest_owned(center, half, gzd, owns)?;
     let ((ce, cn), (pe, pn)) = (center.grid(), point.grid());
     // The farthest corner is the one diagonally across from the point's
     // quadrant of the square.
     let farthest = ((pe - ce).abs() + half).hypot((pn - cn).abs() + half);
-    (point, farthest / k_min)
+    Some((point, farthest / k_min))
 }
 
 /// A half-plane `a · x + c ≥ 0` in grid meters about the square's center,

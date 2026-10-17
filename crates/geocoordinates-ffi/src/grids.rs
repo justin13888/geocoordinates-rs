@@ -153,8 +153,9 @@ impl From<UtmHemisphere> for gc::grids::UtmHemisphere {
 /// A UTM coordinate — mirror of [`gc::Utm`](gc::grids::Utm).
 ///
 /// A record crosses the boundary unvalidated; every export that accepts one
-/// validates it as [`gc::grids::Utm::new`] does (zone `1..=60`, easting
-/// `100 000..=900 000` m, a northing that does not fold over the pole).
+/// validates it as [`gc::grids::Utm::new`] does: zone `1..=60`, and an
+/// easting and northing in the forward image, decoding to a point the
+/// forward projection assigns to that zone and hemisphere.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Utm {
     /// Longitude zone number, 1–60.
@@ -170,8 +171,8 @@ pub struct Utm {
 /// A UPS (polar) coordinate — mirror of [`gc::Ups`](gc::grids::Ups).
 ///
 /// A record crosses the boundary unvalidated; every export that accepts one
-/// validates it as [`gc::grids::Ups::new`] does (easting and northing each in
-/// `0..=4 000 000` m).
+/// validates it as [`gc::grids::Ups::new`] does: an easting and northing in
+/// the forward image, decoding into the hemisphere's polar cap.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ups {
     /// North or south polar zone.
@@ -230,12 +231,14 @@ pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
 }
 
 /// UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
-/// series (sub-millimeter within the UTM domain; not exact). The longitude is
-/// wrapped into `[-180, 180)`.
+/// series (sub-millimeter within the UTM domain; not exact). The point lies
+/// in the record's zone and hemisphere, so `utm_from_coordinate` on it gives
+/// the record back.
 ///
 /// # Errors
 /// `GeoError::InvalidValue` naming the field (`zone`, `easting`, or
-/// `northing`) when the record is outside the UTM domain.
+/// `northing`) when the record is outside the UTM forward image, as
+/// `Utm::new` defines it.
 #[uniffi::export]
 pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
     let utm = gc::grids::Utm::try_from(utm)?;
@@ -276,11 +279,13 @@ pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
 
 /// UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
 /// projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
-/// exact). The longitude is wrapped into `[-180, 180)`.
+/// exact). The longitude is wrapped into `[-180, 180)`, and the point lies in
+/// the record's polar cap, so `ups_from_coordinate` on it gives the record
+/// back.
 ///
 /// # Errors
 /// `GeoError::InvalidValue` naming the field (`easting` or `northing`) when
-/// the record is outside the UPS domain.
+/// the record is outside the UPS forward image, as `Ups::new` defines it.
 #[uniffi::export]
 pub fn ups_to_coordinate(ups: Ups) -> Result<Coordinate, GeoError> {
     let ups = gc::grids::Ups::try_from(ups)?;

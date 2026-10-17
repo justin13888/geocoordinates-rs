@@ -17,6 +17,8 @@ import uniffi.geocoordinates_ffi.GeoException
 import uniffi.geocoordinates_ffi.H3Cell
 import uniffi.geocoordinates_ffi.MgrsPrecision
 import uniffi.geocoordinates_ffi.ParseErrorKind
+import uniffi.geocoordinates_ffi.Ups
+import uniffi.geocoordinates_ffi.Utm
 import uniffi.geocoordinates_ffi.UtmHemisphere
 import uniffi.geocoordinates_ffi.Wgs84
 import uniffi.geocoordinates_ffi.accuracyNew
@@ -41,8 +43,10 @@ import uniffi.geocoordinates_ffi.h3Encode
 import uniffi.geocoordinates_ffi.mgrsFromCoordinate
 import uniffi.geocoordinates_ffi.mgrsToCoordinate
 import uniffi.geocoordinates_ffi.parseCoordinate
+import uniffi.geocoordinates_ffi.upsToCoordinate
 import uniffi.geocoordinates_ffi.utmCentralMeridianDeg
 import uniffi.geocoordinates_ffi.utmFromCoordinate
+import uniffi.geocoordinates_ffi.utmToCoordinate
 import uniffi.geocoordinates_ffi.wgs84IsOutsideChina
 import uniffi.geocoordinates_ffi.wgs84ToBd09
 import uniffi.geocoordinates_ffi.wgs84ToGcj02
@@ -196,6 +200,16 @@ class BindingsTest {
     fun invalidValueNamesTheField() {
         val e = throwsVariant<GeoException.InvalidValue> { utmCentralMeridianDeg(0u) }
         assertEquals("zone", e.field)
+        // Only the forward image decodes: zone 1 west of the antimeridian is
+        // zone 60's longitude, and the UPS grid corner is near 64°N.
+        val west = throwsVariant<GeoException.InvalidValue> {
+            utmToCoordinate(Utm(1u, UtmHemisphere.NORTH, 150_000.0, 0.0))
+        }
+        assertEquals("easting", west.field)
+        val offCap = throwsVariant<GeoException.InvalidValue> {
+            upsToCoordinate(Ups(UtmHemisphere.NORTH, 0.0, 0.0))
+        }
+        assertEquals("northing", offCap.field)
     }
 
     @Test
@@ -209,6 +223,9 @@ class BindingsTest {
     fun invalidGridRefCarriesTheReference() {
         val e = throwsVariant<GeoException.InvalidGridRef> { mgrsToCoordinate("not-an-mgrs") }
         assertEquals("not-an-mgrs", e.detail)
+        // Well-formed, but wholly equatorward of the 80°S cap.
+        val offCap = throwsVariant<GeoException.InvalidGridRef> { mgrsToCoordinate("AJA") }
+        assertEquals("AJA", offCap.detail)
     }
 
     @Test
