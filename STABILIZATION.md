@@ -61,7 +61,7 @@ Measured on `master` at the start of this effort (2026-09-01), and again at the
 | `rustdoc -D missing_docs` | clean | clean, and denied in CI |
 | **Doctests** | **0 executable** — one ` ```ignore ` fence crate-wide | 250 executable |
 | **FFI CI** | **red since 2026-08-05** — fixed by #37 | green; Rust tests for every export plus behavioural tests in all four languages |
-| Open issues | 0 | #131, #135 and #149 besides #129 (each recorded below) |
+| Open issues | 0 | #135 and #149 besides #129 (each recorded below) |
 
 ## Audit ledger
 
@@ -241,9 +241,6 @@ Unscheduled. Promoted only when a concrete consumer appears.
   Blocked: needs the system `libproj` C library.
 - **`geoid`** — EGM96/EGM2008/EGM2020 height undulation. Blocked: needs
   multi-megabyte external grid data files.
-- **Automatic Maven Central release** (#131) — the JVM workflow uploads each
-  release, but the deployment waits in the Central Portal for a manual release
-  (see `PUBLISHING.md`).
 
 `proj` and `geoid` have no source in-tree: #140 deleted the `todo!()` stubs (git
 history keeps them). Each survives only as a commented-out Cargo feature, so neither can
