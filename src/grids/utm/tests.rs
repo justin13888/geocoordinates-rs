@@ -517,6 +517,17 @@ fn serde_round_trips_and_rejects_out_of_domain_records() {
 }
 
 #[test]
+fn a_longitude_an_ulp_west_of_a_zone_meridian_keeps_the_western_zone() {
+    // East of 0°, `lon + 180.0` rounds an ulp below a meridian up onto it
+    // (5.999…° + 180 is 186), naming the zone east of the point.
+    for k in 1..60u8 {
+        let meridian = -180.0 + 6.0 * f64::from(k);
+        assert_eq!(zone(0.0, below(meridian)), k, "west of {meridian}");
+        assert_eq!(zone(0.0, meridian), k + 1, "at {meridian}");
+    }
+}
+
+#[test]
 fn zone_edges_of_the_norway_and_svalbard_exceptions() {
     // Svalbard (72°–84°N, 0°–42°E): boundaries at 9°, 21°, 33° and 42°E.
     assert_eq!(zone(72.0, 0.0), 31);
