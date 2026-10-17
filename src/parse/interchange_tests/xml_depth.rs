@@ -43,8 +43,9 @@ fn xml_depth_scan_counts_only_open_elements() {
     // ignoring quotes and `[`, so a quoted `>` counts: the declaration ends
     // after `'>'>` and the `<b>` that follows is a start tag the parser reads.
     assert!(!ok("<!DOCTYPE d [<!ENTITY e '>'><b>]>"));
-    // The shortest closed forms: the `?` opening `<?>` also ends it.
-    assert!(ok("<?></a><b>"));
+    // The shortest closed forms. The `?` opening `<?` never ends it, so
+    // `<?>` is unterminated rather than closed.
+    assert!(ok("<??></a><b>"));
     assert!(ok("<!----></a><b>"));
     assert!(ok("<!DOCTYPE d></a><b>"));
     // `kml` ignores `</kml>`, so it closes no level, whatever its prefix:
@@ -99,6 +100,8 @@ fn xml_closure_scan_rejects_every_unclosed_document() {
         "<!-- <b>",
         "<![CDATA[ <b>",
         "<?pi",
+        "<?>",
+        "<?> <b> ?>",
         "</b",
         "<!DOCTYPE <",
     ] {

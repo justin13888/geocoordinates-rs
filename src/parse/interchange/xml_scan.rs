@@ -41,7 +41,7 @@ const MAX_KML_DEPTH: usize = 32;
 /// a `>` inside a quoted attribute value ends neither a start nor an end tag,
 /// a comment ends at the first `-->` after `<!--` (so `<!-->` and `<!--->`
 /// do not end one), a processing instruction or `<?xml …?>` declaration ends
-/// at `?>`, and a `<!DOCTYPE …>` ends at the `>` that balances every `<`
+/// at the first `?>` after `<?` (so `<?>` is not terminated), and a `<!DOCTYPE …>` ends at the `>` that balances every `<`
 /// inside it.
 pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     /// The offset of the `>` ending the tag `tag` starts, skipping quotes.
@@ -109,7 +109,15 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
             }
             end
         } else if rest.starts_with("<?") {
-            find_from(rest, 1, "?>")
+            // `quick-xml` reports `<?>` as an unclosed processing
+            // instruction: its opening `?` never doubles as the one in `?>`.
+            // Rejecting it outright, rather than reading on to a later `?>`,
+            // also catches `<?>…?>`, which `quick-xml` errors on at the `<?>`.
+            if rest.starts_with("<?>") {
+                None
+            } else {
+                find_from(rest, 2, "?>")
+            }
         } else if rest.starts_with("<!") {
             // `quick-xml` errors on every other `<!` construct, and the
             // `Data` / `SchemaData` readers swallow that error and then spin
