@@ -197,11 +197,11 @@ pub enum GeodesicIntersection {
 /// the estimate, so the crossing lies on both to about 0.1 µm (at most
 /// 0.11 µm over 50,000 random WGS-84 crossings), rather than off by the mean
 /// sphere's error ([`intersection_spherical`](super::intersection_spherical)).
-/// Along the geodesics it is placed to about 1 nm over the sine of the angle
-/// at which they meet, which only very shallow crossings make noticeable. A crossing
-/// counts as ahead of a start when the shortest geodesic from that start to it
-/// leaves along the start's bearing, so a path more than about half way round
-/// the ellipsoid no longer reaches it.
+/// Along the geodesics it is placed to about 0.1 µm over the sine of the
+/// angle at which they meet, which only very shallow crossings make
+/// noticeable. A crossing counts as ahead of a start when the shortest
+/// geodesic from that start to it leaves along the start's bearing, so a path
+/// more than about half way round the ellipsoid no longer reaches it.
 ///
 /// At a pole the bearing is taken against the meridian of the start's own
 /// longitude (see the [module docs](crate::geodesy)). The result is a
