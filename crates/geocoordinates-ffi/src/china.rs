@@ -398,10 +398,23 @@ pub fn baidu_mercator_from_coordinate(coord: Coordinate) -> Result<BaiduMercator
 
 // --- Helpers ---
 
-/// Whether `(lat, lon)` lies outside the China bounding box, where the
-/// WGS-84 ↔ GCJ-02 offset is the identity. The BD-09 nudge is not gated by
-/// it.
+/// Whether a WGS-84 point lies outside the China bounding box, where
+/// [`wgs84_to_gcj02`] is the identity. The BD-09 nudge is not gated by it.
+///
+/// # Errors
+/// `GeoError::OutOfRange` for a non-finite or out-of-range record.
 #[uniffi::export]
-pub fn out_of_china(lat: f64, lon: f64) -> bool {
-    gc::china::out_of_china(lat, lon)
+pub fn wgs84_is_outside_china(p: Wgs84) -> Result<bool, GeoError> {
+    Ok(gc::china::Wgs84::try_from(p)?.is_outside_china())
+}
+
+/// Whether a GCJ-02 point lies outside the China bounding box (the same
+/// rectangle as [`wgs84_is_outside_china`]), where the inverses return it
+/// unchanged.
+///
+/// # Errors
+/// `GeoError::OutOfRange` for a non-finite or out-of-range record.
+#[uniffi::export]
+pub fn gcj02_is_outside_china(p: Gcj02) -> Result<bool, GeoError> {
+    Ok(gc::china::Gcj02::try_from(p)?.is_outside_china())
 }

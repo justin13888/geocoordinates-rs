@@ -26,7 +26,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Core types** (crate root) | `Coordinate`, `Crs`, `Height`, `LatLon`, `Approx<T>`, `Error` / `Result`, `Length`, `LengthUnit` | ✅ | ✅ |
 | **Fix metadata** (`fix`) | `Fix`, `Accuracy`, `AccuracyKind`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
 | **Angles** (`angle`) | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees` | ✅ | ✅ |
-| **China datums** (`china`) | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `out_of_china` | ✅ | ✅ |
+| **China datums** (`china`) | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `Wgs84::is_outside_china` / `Gcj02::is_outside_china` | ✅ | ✅ |
 | **Runtime dispatch** (`convert`) | `convert` | ✅ | ✅ |
 | **Format** (`format`) | `format`, `format_fix`, `FormatOptions` (with `parse_options` for the round trip), `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ✅ | ✅ |
 | **Parse** (`parse`) | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `from_geo_uri`, `parse_text`, `parse_text_with` | ✅ | ✅ |

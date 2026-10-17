@@ -1,6 +1,6 @@
 //! China datums (GCJ-02, BD-09) and CRS dispatch through `convert`.
 
-use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84, out_of_china};
+use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 use geocoordinates::convert::convert;
 use geocoordinates::{Approx, Coordinate, Crs, Height, Length};
 
@@ -75,7 +75,8 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
     assert_mercator_close(BaiduMercator::try_from(tagged)?, mercator, 0.02);
 
     let london = Wgs84::new(51.5074, -0.1278)?;
-    assert!(out_of_china(london.lat(), london.lon()));
+    assert!(london.is_outside_china());
+    assert!(london.to_gcj02().is_outside_china());
     assert_eq!(london.to_gcj02(), Gcj02::new(london.lat(), london.lon())?);
 
     let systems = [

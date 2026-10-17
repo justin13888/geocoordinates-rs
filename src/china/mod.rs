@@ -20,7 +20,7 @@
 //! conversions never re-validate their input.
 //!
 //! The WGS-84 ↔ GCJ-02 offset is the identity outside China (see
-//! [`out_of_china`]), which creates a documented discontinuity at the border.
+//! [`Wgs84::is_outside_china`]), which creates a documented discontinuity at the border.
 //! The BD-09 offset is **not** gated: like every reference port, Baidu's nudge
 //! applies worldwide. Its longitude is wrapped into `[-180, 180)` at the
 //! antimeridian, and a latitude it would push past a pole is reported as
@@ -82,18 +82,13 @@ pub(crate) const BD_DLON: f64 = 0.006_5;
 /// parity with the reference implementations and to avoid a large vendored
 /// vertex table.
 ///
-/// ```
-/// use geocoordinates::china::out_of_china;
-///
-/// assert!(!out_of_china(39.915, 116.404)); // Beijing
-/// assert!(out_of_china(51.5, -0.12)); // London
-/// ```
-#[must_use]
-pub fn out_of_china(lat: f64, lon: f64) -> bool {
+/// Public through the datum-tagged [`Wgs84::is_outside_china`] and
+/// [`Gcj02::is_outside_china`], so the pair can never be swapped or unvalidated.
+pub(crate) fn outside_china_box(lat: f64, lon: f64) -> bool {
     !near_china_box(lat, lon, 0.0)
 }
 
-/// Whether `(lat, lon)` lies inside the [`out_of_china`] box grown by
+/// Whether `(lat, lon)` lies inside the [`outside_china_box`] box grown by
 /// `margin_deg` on every side (`0.0` is the box itself).
 pub(crate) fn near_china_box(lat: f64, lon: f64, margin_deg: f64) -> bool {
     (72.004 - margin_deg..=137.8347 + margin_deg).contains(&lon)

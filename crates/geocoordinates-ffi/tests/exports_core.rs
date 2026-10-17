@@ -198,12 +198,6 @@ fn baidu_mercator_rejects_a_non_bd09_coordinate() {
 }
 
 #[test]
-fn out_of_china_separates_beijing_from_london() {
-    assert!(!out_of_china(WGS.0, WGS.1));
-    assert!(out_of_china(51.5074, -0.1278));
-}
-
-#[test]
 fn haversine_distance_is_pinned() {
     let ny = wgs84(40.7128, -74.006);
     let london = wgs84(51.5074, -0.1278);

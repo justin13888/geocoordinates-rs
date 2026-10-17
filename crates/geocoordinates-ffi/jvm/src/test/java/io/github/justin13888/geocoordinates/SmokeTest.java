@@ -22,17 +22,18 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.fixFromCoord;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatFix;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatOptionsDefault;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.fromNmeaSentence;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsPrecision;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsToCoordinate;
-import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.outOfChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinateWith;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseOptionsDefault;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.rawSourceNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84FromCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84Validate;
@@ -78,8 +79,9 @@ class SmokeTest {
         assertEquals(116.404, back.getLon(), 1e-4);
         assertTrue(back.getMaxErrorM() > 0.0);
 
-        assertTrue(outOfChina(0.0, 0.0));
-        assertFalse(outOfChina(39.915, 116.404));
+        assertTrue(wgs84IsOutsideChina(new Wgs84(0.0, 0.0)));
+        assertFalse(wgs84IsOutsideChina(wgs));
+        assertFalse(gcj02IsOutsideChina(gcj));
     }
 
     // China records are validated as they cross in, and BD-09 / Baidu Mercator

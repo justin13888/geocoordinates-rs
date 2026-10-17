@@ -39,8 +39,9 @@ final class ConversionTests: XCTestCase {
         let toBd = try wgs84ToBd09(p: wgs)
         XCTAssertEqual(toBd.lat, bd.lat, accuracy: 1e-9)
         XCTAssertEqual(toBd.lon, bd.lon, accuracy: 1e-9)
-        XCTAssertTrue(outOfChina(lat: 51.5074, lon: -0.1278))
-        XCTAssertFalse(outOfChina(lat: wgs.lat, lon: wgs.lon))
+        XCTAssertTrue(try wgs84IsOutsideChina(p: Wgs84(lat: 51.5074, lon: -0.1278)))
+        XCTAssertFalse(try wgs84IsOutsideChina(p: wgs))
+        XCTAssertFalse(try gcj02IsOutsideChina(p: gcj))
     }
 
     func testRefinedInverseCarriesItsBound() throws {
