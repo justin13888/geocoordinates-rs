@@ -67,9 +67,9 @@ jobs:
     name: Release-plz PR
     runs-on: ubuntu-latest
     permissions:
-      contents: write # push to the release PR branch
+      contents: write # push to the release PR branch (release-plz, and the npm version stamp)
       pull-requests: write # create/update the release PR
-      actions: write # dispatch CI + FFI on the release PR branch
+      actions: write # dispatch CI, FFI, and the binding dry runs on the release PR branch
     concurrency:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
@@ -88,26 +88,76 @@ jobs:
           command: release-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Run CI + FFI on the release PR's head commit.
+      # The steps below run whenever this run created or updated the release PR.
+      # Despite its name, the action's `prs_created` output is `true` in both
+      # cases: it is set from `prs`, the list of release PRs release-plz opened or
+      # pushed to, and is `false` only when release-plz left no PR behind.
+      - name: Resolve the release PR branch
+        id: release-pr
+        if: ${{ steps.release-plz.outputs.prs_created == 'true' }}
+        env:
+          PR: ${{ steps.release-plz.outputs.pr }}
+        run: |
+          set -euo pipefail
+          branch=$(printf '%s' "$PR" | jq -r '.head_branch')
+          [ -n "$branch" ] && [ "$branch" != "null" ] || { echo "::error::no head_branch in release-plz pr output"; exit 1; }
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+      - uses: jdx/mise-action@v2
+        if: ${{ steps.release-pr.outputs.branch }}
+        with:
+          version: 2026.9.13 # keep in step with ci.yml's pin
+      # release-plz bumps only Cargo.toml's workspace version. Stamp the npm
+      # manifest from it on the release branch (`mise run version-sync`), so CI's
+      # `version-check` passes there and the release ships one version. The push
+      # uses the default token, so it starts no workflow of its own; the dispatch
+      # below runs everything at the new head.
+      #
+      # mise-action installs the hk git hooks (`hk install --mise`), so a plain
+      # commit and push here would run commit-msg and the full pre-push gate set
+      # inside this job, and a failure would skip the dispatch below. The
+      # dispatched CI runs those gates; `HK=0` and `--no-verify` keep them out of
+      # this step.
+      - name: Stamp binding versions on the release PR branch
+        if: ${{ steps.release-pr.outputs.branch }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.release-pr.outputs.branch }}
+          HK: "0"
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin "refs/heads/$BRANCH"
+          git switch --quiet --detach FETCH_HEAD
+          mise run version-sync
+          if git diff --quiet; then
+            echo "npm manifest already carries the workspace version"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit --quiet --no-verify --all -m "chore(release): stamp the npm manifest with the workspace version"
+          git push --quiet --no-verify "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
+          echo "pushed $(git rev-parse HEAD) to $BRANCH"
+      # Run CI, FFI, and the four binding release dry runs on the release PR's head.
       #
       # The release PR is opened and pushed with the default GITHUB_TOKEN, so the
       # `pull_request` runs it triggers are held at `action_required` (actor
       # github-actions[bot]) and never execute a job. Dispatching is the same
       # documented exception the release job relies on: it runs at once, needs no PAT,
-      # and its check runs land on the branch head, so they show on the PR.
-      - name: Dispatch CI and FFI on the release PR branch
-        if: ${{ steps.release-plz.outputs.prs_created == 'true' }}
+      # and its check runs land on the branch head, so they show on the PR. The
+      # release workflows dispatched without `publish=true` are dry runs that build
+      # and package the bumped version (see .github/actions/release-plan), so the
+      # packaging is exercised before the release PR merges, not first after it.
+      - name: Dispatch CI, FFI, and binding dry runs on the release PR branch
+        if: ${{ steps.release-pr.outputs.branch }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ steps.release-plz.outputs.pr }}
+          BRANCH: ${{ steps.release-pr.outputs.branch }}
         run: |
           set -uo pipefail
-          branch=$(printf '%s' "$PR" | jq -r '.head_branch')
-          [ -n "$branch" ] && [ "$branch" != "null" ] || { echo "::error::no head_branch in release-plz pr output"; exit 1; }
-          echo "Dispatching CI and FFI on $branch"
+          echo "Dispatching on $BRANCH"
           rc=0
-          for wf in ci.yml ffi.yml; do
-            if gh workflow run "$wf" --ref "$branch"; then
+          for wf in ci.yml ffi.yml release-jvm.yml release-python.yml release-web.yml release-swift.yml; do
+            if gh workflow run "$wf" --ref "$BRANCH"; then
               echo "dispatched $wf"
             else
               echo "::warning::failed to dispatch $wf"; rc=1

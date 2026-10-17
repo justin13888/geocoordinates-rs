@@ -57,6 +57,17 @@ jobs:
       - name: Check formatting
         run: mise run fmt-check
 
+  versions:
+    name: Release versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      - name: Check every manifest ships the workspace version
+        run: mise run version-check
+
   file-length:
     name: File length
     runs-on: ubuntu-latest
