@@ -463,8 +463,10 @@ fn encode_utm(coord: Coordinate, digits: u32) -> Result<String> {
         UtmHemisphere::South if utm.northing_m() >= FALSE_NORTHING_SOUTH => (true, 0.0),
         UtmHemisphere::South => (false, utm.northing_m()),
     };
+    // On the central meridian's side the point lies on (#198).
+    let easting = clip::encoder_easting(coord, &utm);
     let set = ((utm.zone() - 1) % 3) as usize;
-    let col = UTM_COLS[set].as_bytes()[(utm.easting_m() / 100_000.0) as usize - 1] as char;
+    let col = UTM_COLS[set].as_bytes()[(easting / 100_000.0) as usize - 1] as char;
     let row_off = if utm.zone() % 2 == 0 { 5 } else { 0 };
     let row = UTM_ROW.as_bytes()[((northing / 100_000.0) as usize + row_off) % 20] as char;
     Ok(format!(
@@ -473,7 +475,7 @@ fn encode_utm(coord: Coordinate, digits: u32) -> Result<String> {
         band_letter(coord.lat(), north),
         col,
         row,
-        digit_pair(utm.easting_m(), northing, digits),
+        digit_pair(easting, northing, digits),
     ))
 }
 

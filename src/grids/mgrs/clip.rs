@@ -13,7 +13,7 @@ use core::f64::consts::FRAC_1_SQRT_2;
 use super::{Center, encode_text};
 use crate::angle::wrap_longitude;
 use crate::coord::Coordinate;
-use crate::grids::utm::{K0 as UTM_K0, UPS_K0, Ups, Utm};
+use crate::grids::utm::{K0 as UTM_K0, UPS_K0, Ups, Utm, central_meridian};
 
 /// Linearize-and-solve rounds before a truncated square falls back to its
 /// nominal center. Each round re-linearizes the designator's edges at the
@@ -55,7 +55,7 @@ impl Gzd {
                 let (west, east) = span?;
                 // Measured from the central meridian, so a longitude wrapped
                 // across the antimeridian stays on the zone's side of it.
-                let cm = f64::from(zone) * 6.0 - 183.0;
+                let cm = central_meridian(zone);
                 let rel = wrap_longitude(lon - cm);
                 vec![
                     lat - south,
@@ -107,6 +107,28 @@ impl Center {
             Center::Utm(_) => UTM_K0,
             Center::Ups(_) => UPS_K0,
         }
+    }
+}
+
+/// The easting the encoder names a square by: `utm`'s, the projection of
+/// `coord`, kept west of the central meridian where `coord` lies west of it.
+///
+/// A longitude within about 1e-15° west of the central meridian projects onto
+/// easting 500 000 m exactly, as its offset is below the easting's f64
+/// resolution, which names a square east of the meridian. Zone 31 in band V
+/// ends at its central meridian (3°E, the Norway edge with 32V), so that
+/// square holds no point of 31V: [`settle`] finds no owned point and keeps
+/// the nominal center, which re-encodes as 32V. Taking the largest easting
+/// below 500 000 m instead names the square on the side the point lies on,
+/// which does hold points of the designator. Elsewhere this moves a point
+/// that close to a central meridian into the square west of it, where it
+/// lies.
+pub(super) fn encoder_easting(coord: Coordinate, utm: &Utm) -> f64 {
+    if coord.lon() < central_meridian(utm.zone()) {
+        utm.easting_m()
+            .min(f64::from_bits(500_000f64.to_bits() - 1))
+    } else {
+        utm.easting_m()
     }
 }
 

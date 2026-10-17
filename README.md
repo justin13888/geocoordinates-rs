@@ -41,10 +41,7 @@ option and id type under the `serde` feature.
 
 **Known open defects**, tracked in the ledger:
 `from_kml` does not return on some truncated documents
-([#135](https://github.com/justin13888/geocoordinates-rs/issues/135), G17);
-an MGRS reference encoded from a longitude within about 1e-15° west of 3°E at
-56–64°N re-encodes in the neighbouring zone after decoding
-([#198](https://github.com/justin13888/geocoordinates-rs/issues/198), G18b).
+([#135](https://github.com/justin13888/geocoordinates-rs/issues/135), G17).
 
 **Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
 a system library or multi-megabyte external data. **Out of scope:** EXIF

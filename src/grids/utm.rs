@@ -250,7 +250,7 @@ pub fn utm_central_meridian_deg(zone: u8) -> Result<f64> {
 }
 
 /// [`utm_central_meridian_deg`] for a zone already known to be in `1..=60`.
-fn central_meridian(zone: u8) -> f64 {
+pub(crate) fn central_meridian(zone: u8) -> f64 {
     f64::from(zone) * 6.0 - 183.0
 }
 
