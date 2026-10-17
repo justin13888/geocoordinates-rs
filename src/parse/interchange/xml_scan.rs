@@ -100,13 +100,27 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     fn local(name: &str) -> &str {
         name.split_once(':').map_or(name, |(_, local)| local)
     }
+    /// Whether `quick-xml` 0.37's `unescape` may put whitespace in place of
+    /// the reference named `name` (between `&` and `;`). None of the five
+    /// predefined entities is whitespace. Any other named entity may be:
+    /// `kml` asks for no `escape-html` table, but Cargo builds one
+    /// `quick-xml` with every feature any crate in the program requests, and
+    /// with that table `&nbsp;`, `&emsp;`, `&ensp;`, or `&thinsp;` unescapes
+    /// to Unicode whitespace. Without it the reference fails to unescape and
+    /// `kml` keeps the raw text, which has no digit and so no position
+    /// either way. A numeric reference is whitespace only where it decodes
+    /// to whitespace; where it fails, the raw `&` is not.
+    fn may_be_whitespace(name: &str) -> bool {
+        if name.starts_with('#') {
+            return numeric_reference(name).is_some_and(char::is_whitespace);
+        }
+        !matches!(name, "lt" | "gt" | "amp" | "apos" | "quot")
+    }
     /// The character `quick-xml` 0.37's `unescape` puts in place of the
     /// numeric reference named `name` (between `&` and `;`): `#` then
     /// decimal, or `#x` then hex. `None` for any other name, or where
     /// unescaping fails. Only a whitespace result matters to the caller, so
-    /// a named entity (one of the five predefined ones, none whitespace, as
-    /// `kml` builds no `escape-html` table; any other fails) and a failed
-    /// reference to U+0000 (not whitespace either) need no case of their
+    /// a failed reference to U+0000 (not whitespace) needs no case of its
     /// own. A leading `+`, which `quick-xml` rejects and `from_str_radix`
     /// accepts, does.
     fn numeric_reference(name: &str) -> Option<char> {
@@ -126,7 +140,9 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     /// into positions. `read_str` unescapes the text as `quick-xml` does,
     /// ending each reference at the next `&` or `;` after its `&` (it must
     /// be a `;`); where unescaping fails it returns the raw text, whose `&`
-    /// is not whitespace.
+    /// is not whitespace. A reference that [`may_be_whitespace`] counts as
+    /// whitespace, so the answer holds whatever `quick-xml` features the
+    /// program enables.
     fn unescapes_to_position(text: &str) -> bool {
         let mut rest = text;
         while let Some(amp) = rest.find('&') {
@@ -140,7 +156,7 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
             else {
                 return true;
             };
-            if numeric_reference(&reference[..end]).is_none_or(|c| !c.is_whitespace()) {
+            if !may_be_whitespace(&reference[..end]) {
                 return true;
             }
             rest = &reference[end + 1..];
@@ -151,7 +167,7 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     /// position for `kml`'s `read_str`, which reads only the next event and
     /// trims `quick-xml` whitespace from text. Text holds one when its
     /// unescaped form has a character that is not whitespace (so `&#49;`
-    /// does, and `&#160;` does not). Any other next event yields no
+    /// does, and `&#160;` and `&nbsp;` do not). Any other next event yields no
     /// position, or an error, which rejecting here also turns into an error.
     fn holds_position(after: &str) -> bool {
         let text = &after[..after.find('<').unwrap_or(after.len())];

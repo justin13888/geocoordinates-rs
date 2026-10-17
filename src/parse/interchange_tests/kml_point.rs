@@ -19,6 +19,11 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
         "<Point><coordinates>\u{a0}</coordinates></Point>",
         "<Point><coordinates>&#160;</coordinates></Point>",
         "<Point><coordinates>&#xA0; &#32;&#x2003;</coordinates></Point>",
+        // A named entity other than the five predefined ones unescapes to
+        // whitespace where any crate enables `quick-xml`'s `escape-html`.
+        "<Point><coordinates>&nbsp;</coordinates></Point>",
+        "<Point><coordinates>&emsp; &ensp;&thinsp;</coordinates></Point>",
+        "<Point><coordinates>&foo;</coordinates></Point>",
         "<Point><coordinates><![CDATA[ ]]></coordinates></Point>",
         // Only the last `<coordinates>` counts.
         "<Point><coordinates>1,2</coordinates><coordinates></coordinates></Point>",
@@ -36,7 +41,8 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
     // A `;` outside a reference is not whitespace: the pre-scan passes it,
     // and the `kml` parser rejects it as a coordinate.
     // So do references that unescape to something other than whitespace,
-    // and malformed ones, which `kml` keeps raw, `&` included.
+    // and malformed ones, which `kml` keeps raw, `&` included, as does text
+    // with a non-whitespace character after an unknown entity.
     let reaches_kml = [
         ";",
         "&lt;",
@@ -44,7 +50,7 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
         "&amp;",
         "&apos;",
         "&quot;",
-        "&foo;",
+        "&nbsp;1",
         "&#0;",
         "&#+32;",
         "&#-32;",
