@@ -93,8 +93,12 @@ canonical FFI form, including both H3 and S2 discrete global grids, and the FFI
 column of the surface table above records it subsystem by subsystem.
 
 The FFI surface is deliberately flatter than the idiomatic Rust API; the
-[bindings README](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md) states how each Rust idiom
-is re-expressed. The published `geocoordinates` crate is unaffected — the
+[bindings README](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md#how-each-rust-idiom-is-re-expressed) states how each Rust idiom
+is re-expressed, and its [naming section](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md#naming)
+the one scheme every export follows: a unit suffix on every returned length
+and angle (`initial_bearing_deg`), `parse_*` for every reader (the FFI form of
+`from_geojson` is `parse_geojson`), and a `*_validate` for every invariant
+record. The published `geocoordinates` crate is unaffected — the
 bindings build from their own `cdylib`/`staticlib` crate.
 
 > Java is served by the Kotlin/JVM bindings (directly callable from Java), so it
