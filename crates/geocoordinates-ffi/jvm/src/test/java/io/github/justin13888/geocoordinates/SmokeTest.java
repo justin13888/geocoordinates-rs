@@ -34,6 +34,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinateWith;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseOptionsDefault;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.rawSourceNew;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.upsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84FromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToCoordinate;
@@ -62,6 +63,8 @@ import uniffi.geocoordinates_ffi.LengthUnit;
 import uniffi.geocoordinates_ffi.MgrsPrecision;
 import uniffi.geocoordinates_ffi.ParseOptions;
 import uniffi.geocoordinates_ffi.RawSource;
+import uniffi.geocoordinates_ffi.Ups;
+import uniffi.geocoordinates_ffi.UtmHemisphere;
 import uniffi.geocoordinates_ffi.Wgs84;
 
 /** Proves the Kotlin/JNA bindings are callable idiomatically from Java. */
@@ -131,6 +134,13 @@ class SmokeTest {
                 assertThrows(
                         GeoException.InvalidGridRef.class, () -> mgrsToCoordinate("not-an-mgrs"));
         assertEquals("not-an-mgrs", badGrid.getDetail());
+
+        // On the grid, but its corner decodes near 64°N, outside the 84°N cap.
+        GeoException.InvalidValue offCap =
+                assertThrows(
+                        GeoException.InvalidValue.class,
+                        () -> upsToCoordinate(new Ups(UtmHemisphere.NORTH, 0.0, 0.0)));
+        assertEquals("northing", offCap.getField());
     }
 
     // MGRS precision crosses as the closed `MgrsPrecision` enum, so Java cannot

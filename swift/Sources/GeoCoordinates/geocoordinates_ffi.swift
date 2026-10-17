@@ -2602,8 +2602,8 @@ public func FfiConverterTypeS2CellId_lower(_ value: S2CellId) -> RustBuffer {
  * A UPS (polar) coordinate — mirror of [`gc::Ups`](gc::grids::Ups).
  *
  * A record crosses the boundary unvalidated; every export that accepts one
- * validates it as [`gc::grids::Ups::new`] does (easting and northing each in
- * `0..=4 000 000` m).
+ * validates it as [`gc::grids::Ups::new`] does: an easting and northing in
+ * the forward image, decoding into the hemisphere's polar cap.
  */
 public struct Ups: Equatable, Hashable {
     /**
@@ -2685,8 +2685,9 @@ public func FfiConverterTypeUps_lower(_ value: Ups) -> RustBuffer {
  * A UTM coordinate — mirror of [`gc::Utm`](gc::grids::Utm).
  *
  * A record crosses the boundary unvalidated; every export that accepts one
- * validates it as [`gc::grids::Utm::new`] does (zone `1..=60`, easting
- * `100 000..=900 000` m, a northing that does not fold over the pole).
+ * validates it as [`gc::grids::Utm::new`] does: zone `1..=60`, and an
+ * easting and northing in the forward image, decoding to a point the
+ * forward projection assigns to that zone and hemisphere.
  */
 public struct Utm: Equatable, Hashable {
     /**
@@ -6935,11 +6936,13 @@ public func upsFromCoordinate(coord: Coordinate)throws  -> Ups  {
 /**
  * UPS → geodetic WGS-84 coordinate, by the inverse polar stereographic
  * projection with a latitude series truncated at `e⁶` (about 0.05 mm; not
- * exact). The longitude is wrapped into `[-180, 180)`.
+ * exact). The longitude is wrapped into `[-180, 180)`, and the point lies in
+ * the record's polar cap, so `ups_from_coordinate` on it gives the record
+ * back.
  *
  * # Errors
  * `GeoError::InvalidValue` naming the field (`easting` or `northing`) when
- * the record is outside the UPS domain.
+ * the record is outside the UPS forward image, as `Ups::new` defines it.
  */
 public func upsToCoordinate(ups: Ups)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6977,12 +6980,14 @@ public func utmFromCoordinate(coord: Coordinate)throws  -> Utm  {
 }
 /**
  * UTM → geodetic WGS-84 coordinate, by the 4th-order Karney–Krüger inverse
- * series (sub-millimeter within the UTM domain; not exact). The longitude is
- * wrapped into `[-180, 180)`.
+ * series (sub-millimeter within the UTM domain; not exact). The point lies
+ * in the record's zone and hemisphere, so `utm_from_coordinate` on it gives
+ * the record back.
  *
  * # Errors
  * `GeoError::InvalidValue` naming the field (`zone`, `easting`, or
- * `northing`) when the record is outside the UTM domain.
+ * `northing`) when the record is outside the UTM forward image, as
+ * `Utm::new` defines it.
  */
 public func utmToCoordinate(utm: Utm)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -7640,7 +7645,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ups_from_coordinate() != 30651) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 33262) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ups_to_coordinate() != 60315) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_utm_central_meridian_deg() != 18815) {
@@ -7649,7 +7654,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_utm_from_coordinate() != 47257) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 31239) {
+    if (uniffi_geocoordinates_ffi_checksum_func_utm_to_coordinate() != 49490) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_utm_zone_for() != 21952) {

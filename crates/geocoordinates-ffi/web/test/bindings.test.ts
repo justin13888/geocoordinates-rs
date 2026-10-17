@@ -19,6 +19,7 @@ import geocoordinatesFfi, {
   GeoError,
   MgrsPrecision,
   ParseErrorKind,
+  UtmHemisphere,
   accuracyNew,
   baiduMercatorFromBd09,
   baiduMercatorFromCoordinate,
@@ -43,6 +44,7 @@ import geocoordinatesFfi, {
   parseCoordinate,
   utmCentralMeridianDeg,
   utmFromCoordinate,
+  utmToCoordinate,
   wgs84IsOutsideChina,
   wgs84ToBd09,
   wgs84ToGcj02,
@@ -203,6 +205,13 @@ describe("typed GeoError variants", () => {
     const e = thrown(() => utmCentralMeridianDeg(0));
     assert.ok(GeoError.InvalidValue.instanceOf(e), String(e));
     assert.equal(e.inner.field, "zone");
+    // Only the forward image decodes: zone 1 west of the antimeridian is
+    // zone 60's longitude.
+    const west = thrown(() =>
+      utmToCoordinate({ zone: 1, hemisphere: UtmHemisphere.North, easting: 150_000.0, northing: 0.0 }),
+    );
+    assert.ok(GeoError.InvalidValue.instanceOf(west), String(west));
+    assert.equal(west.inner.field, "easting");
   });
 
   it("InvalidValue rejects an invalid Accuracy or Confidence, also inside a Fix", () => {
@@ -234,6 +243,10 @@ describe("typed GeoError variants", () => {
     const e = thrown(() => mgrsToCoordinate("not-an-mgrs"));
     assert.ok(GeoError.InvalidGridRef.instanceOf(e), String(e));
     assert.equal(e.inner.detail, "not-an-mgrs");
+    // Well-formed, but wholly equatorward of the 80°S cap.
+    const offCap = thrown(() => mgrsToCoordinate("AJA"));
+    assert.ok(GeoError.InvalidGridRef.instanceOf(offCap), String(offCap));
+    assert.equal(offCap.inner.detail, "AJA");
   });
 
   it("Parse rejects ambiguous text and no-fix NMEA", () => {

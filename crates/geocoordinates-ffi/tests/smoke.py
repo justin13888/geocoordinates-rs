@@ -519,14 +519,13 @@ try:
     raise AssertionError("expected OutsideDomain for a polar latitude")
 except gc.GeoError.OutsideDomain as e:
     assert e.operation == "UTM"
-# Zone 1 west of the antimeridian decodes wrapped; a past-the-pole northing is rejected.
-west = gc.utm_to_coordinate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=150_000.0, northing=0.0))
-assert approx(west.lon, 179.856227657, 1e-8)
-try:
-    gc.utm_to_coordinate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=500_000.0, northing=9_999_000.0))
-    raise AssertionError("expected InvalidValue for a northing past the pole")
-except gc.GeoError.InvalidValue as e:
-    assert e.field == "northing"
+# Only the forward image decodes: zone 1 west of 180° (zone 60's longitude), past the pole, north of 84°N.
+for e_m, n_m, field in [(150_000.0, 0.0, "easting"), (500_000.0, 9_999_000.0, "northing"), (500_000.0, 9_900_000.0, "northing")]:
+    try:
+        gc.utm_to_coordinate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=e_m, northing=n_m))
+        raise AssertionError(f"expected InvalidValue for {e_m}, {n_m}")
+    except gc.GeoError.InvalidValue as e:
+        assert e.field == field
 assert gc.utm_zone_for(wgs84_coord(60.0, 5.0)) == 32  # Norway exception
 assert gc.utm_central_meridian_deg(18) == -75.0
 try:
@@ -542,11 +541,12 @@ assert gc.mgrs_precision_meters(gc.MgrsPrecision.KM10) == 10_000
 dec = gc.mgrs_to_coordinate("18TWK0000027757")
 assert approx(dec.max_error_m, math.sqrt(0.5) / 0.9996, 1e-12)  # half-diagonal / UTM k0
 assert approx(dec.coord.lat, 40.0, 1e-3)
-try:
-    gc.mgrs_to_coordinate("not-an-mgrs")
-    raise AssertionError("expected error for a bad MGRS string")
-except gc.GeoError.InvalidGridRef as e:
-    assert e.detail == "not-an-mgrs", e.detail
+for code in ["not-an-mgrs", "AJA"]:  # AJA is well-formed, but wholly outside the 80°S cap
+    try:
+        gc.mgrs_to_coordinate(code)
+        raise AssertionError(f"expected error for the bad MGRS string {code}")
+    except gc.GeoError.InvalidGridRef as e:
+        assert e.detail == code, e.detail
 
 # --- Interchange formats (GeoJSON / WKT / GPX / KML) ---
 gj = gc.from_geojson('{"type":"Point","coordinates":[2.0,9.0,100.0]}')
