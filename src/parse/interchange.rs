@@ -29,13 +29,20 @@
 //! **Untrusted input:** every parser returns or errors on any input; none
 //! recurses without bound. GeoJSON nesting is capped at 128 levels by
 //! `serde_json`; WKT parentheses nested deeper than 128 levels and KML
-//! elements nested deeper than 32 are rejected before they are parsed; and the
-//! walks over the parsed geometry are iterative.
+//! elements nested deeper than 32 are rejected before they are parsed, as is
+//! KML with an unclosed element or construct (the `kml` parser never returns
+//! on a truncated document); and the walks over the parsed geometry are
+//! iterative.
 
 use super::{hdop_accuracy, syntax};
 use crate::coord::{Coordinate, Crs, Height};
 use crate::error::{Error, Result};
 use crate::fix::{AxisOrder, Confidence, Fix, RawSource};
+
+#[cfg(feature = "kml")]
+mod xml_scan;
+#[cfg(feature = "kml")]
+pub(super) use xml_scan::check_kml_markup;
 
 /// One position read from a document, not yet validated.
 struct Position {
@@ -116,16 +123,6 @@ fn into_fixes(format: &str, positions: Vec<Position>) -> Result<Vec<Fix>> {
 #[cfg(feature = "wkt")]
 const MAX_WKT_DEPTH: usize = 128;
 
-/// The deepest element nesting a KML document may have. The `kml` parser
-/// recurses once per element with no limit of its own and spends tens of
-/// kilobytes of stack on each `<Folder>` level in an unoptimized build (about
-/// 40 levels exhaust a 2 MiB thread stack), so the limit is 32 rather than
-/// [`MAX_WKT_DEPTH`]'s 128. Real KML (`kml` / `Document` / a few `Folder`s /
-/// `Placemark` / `MultiGeometry` / `Polygon` / boundary / `LinearRing` /
-/// `coordinates`) stays well inside it.
-#[cfg(feature = "kml")]
-const MAX_KML_DEPTH: usize = 32;
-
 /// The error for a document nested deeper than `limit` levels.
 #[cfg(any(feature = "geojson", feature = "wkt", feature = "kml"))]
 fn too_deep(format: &str, limit: usize) -> Error {
@@ -151,103 +148,6 @@ fn check_wkt_depth(input: &str) -> Result<()> {
             b')' => depth = depth.saturating_sub(1),
             _ => {}
         }
-    }
-    Ok(())
-}
-
-/// Reject XML whose elements nest deeper than [`MAX_KML_DEPTH`].
-///
-/// A start tag opens a level and an end tag closes one, except `</kml>` (any
-/// prefix): `kml` 0.13 ignores it and keeps the `<kml>` reader on its stack,
-/// so `<kml></kml>` repeated nests the parser one level per repeat and each
-/// one counts as a level here. Self-closing tags, comments, CDATA sections,
-/// processing instructions, and declarations open none. Every construct ends exactly where `quick-xml` (the `kml` parser's
-/// tokenizer) ends it, so no tag the parser reads is skipped or invented:
-/// a `>` inside a quoted attribute value ends neither a start nor an end tag,
-/// a comment ends at the first `-->` after `<!--` (so `<!-->` and `<!--->`
-/// do not end one), a processing instruction or `<?xml …?>` declaration ends
-/// at `?>`, and a `<!DOCTYPE …>` ends at the `>` that balances every `<`
-/// inside it. The scan stops at the first unterminated construct, leaving the
-/// malformed remainder to the parser.
-#[cfg(feature = "kml")]
-pub(super) fn check_xml_depth(input: &str) -> Result<()> {
-    /// The offset of the `>` ending the tag `tag` starts, skipping quotes.
-    fn tag_end(tag: &str) -> Option<usize> {
-        let mut quote = None;
-        for (i, b) in tag.bytes().enumerate() {
-            match (quote, b) {
-                (None, b'"' | b'\'') => quote = Some(b),
-                (Some(q), b) if b == q => quote = None,
-                (None, b'>') => return Some(i),
-                _ => {}
-            }
-        }
-        None
-    }
-    /// The offset of the `>` ending the `<!DOCTYPE` that `decl` starts: the
-    /// first `>` not balanced by a `<` inside it. Like `quick-xml` 0.37, it
-    /// tracks neither quotes nor `[`: skipping a quoted `>` the parser counts
-    /// would hide the start tags after it.
-    fn doctype_end(decl: &str) -> Option<usize> {
-        let mut open = 0usize;
-        for (i, b) in decl.bytes().enumerate().skip(1) {
-            match b {
-                b'<' => open += 1,
-                b'>' if open == 0 => return Some(i),
-                b'>' => open -= 1,
-                _ => {}
-            }
-        }
-        None
-    }
-    /// The offset of `needle` in `s` at or after `from`.
-    fn find_from(s: &str, from: usize, needle: &str) -> Option<usize> {
-        s.get(from..)?.find(needle).map(|i| i + from)
-    }
-
-    let mut depth = 0usize;
-    let mut rest = input;
-    while let Some(open) = rest.find('<') {
-        rest = &rest[open..];
-        // Resume at the construct's terminator, which holds no `<`, so the
-        // next search starts past it.
-        let end = if rest.starts_with("<!--") {
-            find_from(rest, 4, "-->")
-        } else if rest.starts_with("<![CDATA[") {
-            rest.find("]]>")
-        } else if rest.starts_with("<!D") || rest.starts_with("<!d") {
-            doctype_end(rest)
-        } else if rest.starts_with("<?") {
-            find_from(rest, 1, "?>")
-        } else if rest.starts_with("<!") {
-            // Any other `<!` construct is a parse error at this point.
-            rest.find('>')
-        } else if rest.starts_with("</") {
-            let end = tag_end(rest);
-            // `kml`'s element-list reader returns only at `</Folder>`,
-            // `</Document>`, or the end of input, so it ignores `</kml>`
-            // and the reader the `<kml>` opened stays on the stack: that
-            // level never closes.
-            let name = end.map_or("", |i| rest[2..i].trim());
-            let local = name.split_once(':').map_or(name, |(_, local)| local);
-            if local != "kml" {
-                depth = depth.saturating_sub(1);
-            }
-            end
-        } else {
-            let end = tag_end(rest);
-            if end.is_some_and(|i| rest.as_bytes()[i - 1] != b'/') {
-                depth += 1;
-                if depth > MAX_KML_DEPTH {
-                    return Err(too_deep("kml", MAX_KML_DEPTH));
-                }
-            }
-            end
-        };
-        let Some(end) = end else { break };
-        // Every terminator lies past the `<` at offset 0; stepping at least
-        // one byte keeps the scan advancing whatever a helper returns.
-        rest = &rest[end.max(1)..];
     }
     Ok(())
 }
@@ -558,11 +458,13 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// back to the same fix.
 ///
 /// # Errors
-/// [`Error::Parse`] on malformed KML (`TooDeep` past 32 levels of elements),
-/// or the first invalid position's error, as the [module docs](self) describe.
+/// [`Error::Parse`] on malformed KML: `TooDeep` past 32 levels of elements,
+/// `Syntax` for anything else, including an element left unclosed or an end
+/// tag that does not close the innermost open element. Otherwise the first
+/// invalid position's error, as the [module docs](self) describe.
 ///
 /// ```
-/// use geocoordinates::{Error, Height};
+/// use geocoordinates::{Error, Height, ParseErrorKind};
 /// use geocoordinates::parse::interchange::from_kml;
 ///
 /// let kml = r#"<Placemark><name>NYC</name>
@@ -574,6 +476,13 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 ///
 /// let off_the_map = "<Point><coordinates>-74.006,95</coordinates></Point>";
 /// assert_eq!(from_kml(off_the_map), Err(Error::OutOfRange { lat: 95.0, lon: -74.006 }));
+///
+/// // A truncated document is rejected rather than read to its end.
+/// let Err(Error::Parse { kind, detail }) = from_kml("<kml><Point>") else {
+///     panic!("expected a parse error");
+/// };
+/// assert_eq!(kind, ParseErrorKind::Syntax);
+/// assert_eq!(detail, "kml: element <Point> is not closed");
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "kml")]
@@ -646,7 +555,7 @@ pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
         }
     }
 
-    check_xml_depth(input)?;
+    check_kml_markup(input)?;
     let parsed = Kml::<f64>::from_str(input).map_err(|e| syntax(format!("kml: {e}")))?;
     let mut out = Vec::new();
     walk(&parsed, &mut out);

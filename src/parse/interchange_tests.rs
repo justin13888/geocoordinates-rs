@@ -277,14 +277,43 @@ mod xml_depth;
 
 #[cfg(feature = "kml")]
 #[test]
+fn kml_truncated_documents_are_rejected_instead_of_spinning() {
+    // The `kml` parser loops forever on these (#135), so each runs on its own
+    // thread: a regression fails the test instead of hanging the suite.
+    let point = "<Point><coordinates>1,2</coordinates></Point>";
+    let truncated = [
+        "<kml><Point>".to_string(),
+        "<kml><Placemark>".to_string(),
+        "<LineString><coordinates>0,0 1,1</coordinates>".to_string(),
+        r#"<kml><Data name="n"><displayName><!-- unterminated"#.to_string(),
+        "<kml><SchemaData><SimpleData name='n'>".to_string(),
+        format!("<kml><Document><Placemark>{point}"),
+    ];
+    for input in truncated {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let doc = input.clone();
+        std::thread::spawn(move || tx.send(from_kml(&doc)));
+        let r = rx.recv_timeout(std::time::Duration::from_secs(5));
+        let r = r.unwrap_or_else(|_| panic!("from_kml({input:?}) did not return"));
+        assert_parse_err!(r, "kml: ");
+    }
+    // The innermost unclosed element is named.
+    let r = from_kml(&format!("<kml><Document><Placemark>{point}"));
+    assert_parse_err!(r, "kml: element <Placemark> is not closed");
+    // The same document, closed, is read.
+    let closed = format!("<kml><Document><Placemark>{point}</Placemark></Document></kml>");
+    assert_eq!(from_kml(&closed).unwrap().len(), 1);
+}
+
+#[cfg(feature = "kml")]
+#[test]
 fn kml_100k_deep_nesting_errors_instead_of_overflowing() {
     let start = std::time::Instant::now();
     let closed = nested("<Folder>", "", "</Folder>", 100_000);
     assert_too_deep!(from_kml(&closed), "kml: nesting");
     let geometry = nested("<MultiGeometry>", "", "</MultiGeometry>", 100_000);
     assert_too_deep!(from_kml(&geometry), "kml: nesting");
-    // Unclosed: the depth check rejects it before the parser, which never
-    // returns on a truncated document (#135).
+    // Unclosed and too deep: the depth limit is reached first.
     assert_too_deep!(from_kml(&"<Folder>".repeat(100_000)), "kml: nesting");
     // End tags hidden inside constructs the parser skips close no level: an
     // `<?xml …?>` declaration (ignored by `kml` even inside elements) ends
@@ -598,10 +627,8 @@ fn kml_polygon_inner_rings_and_rejections() {
             <Placemark>{polygon}</Placemark></Folder></kml>"#
     );
     assert_eq!(from_kml(&doc).unwrap().len(), 12);
-    // Mismatched tags and a non-numeric coordinate are parse errors. (A
-    // truncated document such as `<kml><Point>` is not exercised: the
-    // `kml` crate never returns on it, tracked in #135.)
-    assert_parse_err!(from_kml("<kml></Point></kml>"), "kml: ");
+    // Mismatched tags and a non-numeric coordinate are parse errors.
+    assert_parse_err!(from_kml("<kml></Point></kml>"), "kml: end tag </Point>");
     assert_parse_err!(
         from_kml("<kml><Point><coordinates>abc</coordinates></Point></kml>"),
         "kml: ",
