@@ -466,6 +466,17 @@ fn the_gnomonic_projection_is_exact_on_a_sphere() {
     assert!(gnomonic_forward(&wgs84, 0.0, 0.0, (0.0, 90.5)).is_none());
 }
 
+#[test]
+fn a_crossing_near_the_pole_lies_on_both_paths() {
+    // Found by the property below: the crossing, about 7,000 km and 10,000 km
+    // along the two paths near the south pole, once stopped 1.03 µm off one.
+    let (a, ba) = (c(-22.650585410257776, 68.02949354908361), 174.6008046704343);
+    let (b, bb) = (c(0.0, -138.81624026636084), 185.8234302643924);
+    let p = crossing(intersection(&a, ba, &b, bb));
+    assert!(on_path(&p, &a, ba) && on_path(&p, &b, bb), "{p:?}");
+    assert!(p.lat() < -84.0, "{p:?}");
+}
+
 fn latitude() -> impl Strategy<Value = f64> {
     prop_oneof![-89.0..=89.0_f64, Just(0.0)]
 }
