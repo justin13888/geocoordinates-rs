@@ -97,7 +97,9 @@ is re-expressed, and its [naming section](https://github.com/justin13888/geocoor
 the one scheme every export follows: a unit suffix on every returned length
 and angle (`initial_bearing_deg`), with two stated exceptions; `parse_*` for
 every reader (the FFI form of `from_geojson` is `parse_geojson`); a
-`*_validate` for every invariant record; and `*_canonicalize` for every grid
+`*_validate` for every invariant record an export takes as input (the
+output-only `ApproxCoordinate` / `ApproxWgs84` / `ApproxGcj02` have none, so
+`Approx::new` stays Rust-only); and `*_canonicalize` for every grid
 code. The published `geocoordinates` crate is unaffected — the
 bindings build from their own `cdylib`/`staticlib` crate.
 
