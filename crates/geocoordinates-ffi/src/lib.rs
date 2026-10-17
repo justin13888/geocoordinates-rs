@@ -29,6 +29,13 @@
 //!   [`wrap_longitude_deg`], [`utm_central_meridian_deg`]) or names degrees
 //!   as its target ([`dms_to_degrees`], [`normalize_degrees`]). Length and
 //!   angle parameters carry the same suffix (`distance_m`, `bearing_deg`).
+//!   Two exceptions, where the unit is already fixed elsewhere: a
+//!   constructor's parameters take the names of the record fields they fill,
+//!   so [`coordinate_new`] and [`coordinate_from_lon_lat`] take `lat` / `lon`
+//!   like the [`Coordinate`] record (decimal degrees); and the `Length`
+//!   converters name the unit they convert between, with meters always the
+//!   other side ([`length_from_unit`] returns meters, [`length_to_unit`]
+//!   takes them).
 //! - **Ingestion is `parse_*`.** Every function that reads text into a
 //!   [`Fix`] is named for what it does: [`parse_coordinate`], [`parse_text`],
 //!   [`parse_geo_uri`], [`parse_geojson`], [`parse_wkt`], [`parse_gpx`],

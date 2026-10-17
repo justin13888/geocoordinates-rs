@@ -40,6 +40,12 @@ Every export follows one scheme, so a name reads the same in every language
   `wrap_longitude_deg`, `clamp_latitude_deg`, `utm_central_meridian_deg`) or
   names degrees as its target (`dms_to_degrees`, `normalize_degrees`). Length
   and angle parameters carry the same suffix (`distance_m`, `bearing_deg`).
+  Two exceptions, where the unit is already fixed elsewhere: a constructor's
+  parameters take the names of the record fields they fill, so `coordinate_new`
+  and `coordinate_from_lon_lat` take `lat` / `lon` like the `Coordinate`
+  record (decimal degrees); and the `Length` converters name the unit they
+  convert between, with meters always the other side (`length_from_unit`
+  returns meters, `length_to_unit` takes them).
 - **Ingestion is `parse_*`.** `parse_coordinate`, `parse_coordinate_with`,
   `parse_text`, `parse_text_with`, `parse_geo_uri`, `parse_geojson`,
   `parse_wkt`, `parse_gpx`, `parse_kml` and `parse_nmea_sentence` each read
