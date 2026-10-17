@@ -26,12 +26,12 @@ import geocoordinatesFfi, {
   bd09ToWgs84Fast,
   confidenceNew,
   convert,
+  coordinateFromLonLat,
   coordinateNew,
   datumTransformCatalogToWgs84,
   fixFromCoord,
   formatFix,
   formatOptionsDefault,
-  fromNmeaSentence,
   gcj02IsOutsideChina,
   gcj02ToBd09,
   gcj02ToWgs84Fast,
@@ -39,12 +39,19 @@ import geocoordinatesFfi, {
   geodesicDistanceM,
   h3Decode,
   h3Encode,
+  h3Validate,
+  initialBearingDeg,
   mgrsFromCoordinate,
   mgrsToCoordinate,
   parseCoordinate,
+  parseNmeaSentence,
+  parseText,
+  rhumbBearingDeg,
+  s2Validate,
   utmCentralMeridianDeg,
   utmFromCoordinate,
   utmToCoordinate,
+  utmValidate,
   wgs84IsOutsideChina,
   wgs84ToBd09,
   wgs84ToGcj02,
@@ -158,15 +165,38 @@ describe("grids and geodesics", () => {
     near(d, 5_585_233.578_931, 1e-3, "NY-London");
   });
 
+  it("suffixes every returned angle with its unit", () => {
+    const equator = coordinateNew(0.0, 0.0, Crs.Wgs84);
+    near(initialBearingDeg(equator, coordinateNew(0.0, 1.0, Crs.Wgs84)), 90.0, 1e-6, "initial");
+    const parallel = rhumbBearingDeg(
+      coordinateNew(60.0, -10.0, Crs.Wgs84),
+      coordinateNew(60.0, 30.0, Crs.Wgs84),
+    );
+    near(parallel, 90.0, 1e-9, "rhumb");
+  });
+
+  it("names a longitude-first constructor and a free-text parser", () => {
+    assert.deepEqual(
+      coordinateFromLonLat(-74.0, 40.0, Crs.Wgs84),
+      coordinateNew(40.0, -74.0, Crs.Wgs84),
+    );
+    const text = parseText("40.7128, -74.006");
+    near(text.coord.lat, 40.7128, 1e-9, "text lat");
+    near(text.coord.lon, -74.006, 1e-9, "text lon");
+    const grid = thrown(() => parseText("87G7PX7V+4J"));
+    assert.ok(GeoError.Parse.instanceOf(grid), String(grid));
+    assert.equal(grid.inner.kind, ParseErrorKind.Syntax);
+  });
+
   it("carries an RMC fix's UTC timestamp as a Date", () => {
-    const rmc = fromNmeaSentence(
+    const rmc = parseNmeaSentence(
       "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10",
     );
     assert.equal(rmc.timestamp?.toISOString(), "1994-03-23T12:35:19.000Z");
   });
 
   it("tags each accuracy with its kind and types the geoid separation", () => {
-    const gga = fromNmeaSentence(
+    const gga = parseNmeaSentence(
       "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
     );
     assert.equal(gga.accuracy?.kind, AccuracyKind.OneSigma);
@@ -212,6 +242,13 @@ describe("typed GeoError variants", () => {
     );
     assert.ok(GeoError.InvalidValue.instanceOf(west), String(west));
     assert.equal(west.inner.field, "easting");
+    // `utmValidate` applies the same rules without decoding.
+    utmValidate(utmFromCoordinate(coordinateNew(40.0, -75.0, Crs.Wgs84)));
+    const westRecord = thrown(() =>
+      utmValidate({ zone: 1, hemisphere: UtmHemisphere.North, easting: 150_000.0, northing: 0.0 }),
+    );
+    assert.ok(GeoError.InvalidValue.instanceOf(westRecord), String(westRecord));
+    assert.equal(westRecord.inner.field, "easting");
   });
 
   it("InvalidValue rejects an invalid Accuracy or Confidence, also inside a Fix", () => {
@@ -237,6 +274,15 @@ describe("typed GeoError variants", () => {
     // A valid cell still decodes, with its radius as the bound.
     const cell = h3Decode(h3Encode(coordinateNew(40.7128, -74.006, Crs.Wgs84), 9));
     near(cell.maxErrorM, 205.872_541, 1e-5, "H3 bound");
+    h3Validate(h3Encode(coordinateNew(40.7128, -74.006, Crs.Wgs84), 9));
+    for (const [validate, grid] of [
+      [() => h3Validate({ value: 0n }), "H3"],
+      [() => s2Validate({ value: 0n }), "S2"],
+    ] as const) {
+      const bad = thrown(validate);
+      assert.ok(GeoError.InvalidCellId.instanceOf(bad), String(bad));
+      assert.equal(bad.inner.grid, grid);
+    }
   });
 
   it("InvalidGridRef carries the rejected reference", () => {
@@ -260,12 +306,12 @@ describe("typed GeoError variants", () => {
       assert.equal(e.inner.kind, kind, input);
     }
     const voidFix = thrown(() =>
-      fromNmeaSentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
+      parseNmeaSentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
     );
     assert.ok(GeoError.Parse.instanceOf(voidFix), String(voidFix));
     assert.equal(voidFix.inner.kind, ParseErrorKind.NoFix);
     assert.match(voidFix.inner.detail, /void/);
-    const corrupt = thrown(() => fromNmeaSentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"));
+    const corrupt = thrown(() => parseNmeaSentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"));
     assert.ok(GeoError.Parse.instanceOf(corrupt), String(corrupt));
     assert.equal(corrupt.inner.kind, ParseErrorKind.Checksum);
   });
