@@ -210,7 +210,7 @@ ledger rows it closed are listed.
 | #205 | #209 | A KML `Point` with no coordinates rejected instead of panicking | G17b |
 | #183 | #211 | `Utm::new`, `Ups::new` and `Mgrs::parse` accept only the forward image | G26 |
 | #185 | #212 | FFI naming normalized; validation, capability and docs gaps closed | G27 |
-| #186 | this pull request | Reconcile this ledger, README, `AGENTS.md` and the changelog with the audited surface | — |
+| #186 | #213 | Reconcile this ledger, README, `AGENTS.md` and the changelog with the audited surface | — |
 
 ## 0.15.0 gate checklist
 
