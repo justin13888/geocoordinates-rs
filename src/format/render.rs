@@ -13,7 +13,7 @@ use crate::error::Result;
 
 /// Render a coordinate as decimal degrees with `p` decimals.
 pub(super) fn dd(
-    coord: &Coordinate,
+    coord: Coordinate,
     p: u8,
     hemisphere: HemisphereStyle,
     separator: DecimalSeparator,
@@ -51,7 +51,7 @@ pub(super) enum AngleKind {
 
 /// Render a coordinate as a DMS or DDM pair, the last unit with `p` decimals.
 pub(super) fn angle_pair(
-    coord: &Coordinate,
+    coord: Coordinate,
     kind: AngleKind,
     p: u8,
     symbols: SymbolStyle,

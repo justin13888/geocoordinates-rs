@@ -25,7 +25,7 @@
 //! let code = Geohash::encode(Coordinate::wgs84(42.6, -5.6)?, 5)?;
 //! assert_eq!(code.to_string(), "ezs42");
 //! assert_eq!("EZS42".parse::<Geohash>()?, code);
-//! assert_eq!(utm_zone_for(&Coordinate::wgs84(42.6, -5.6)?)?, 30);
+//! assert_eq!(utm_zone_for(Coordinate::wgs84(42.6, -5.6)?)?, 30);
 //! assert!("ezs4a".parse::<Geohash>().is_err()); // `a` is not a geohash digit
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```

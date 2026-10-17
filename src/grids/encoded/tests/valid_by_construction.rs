@@ -24,7 +24,7 @@ fn assert_corners_within_bound(
         (lat_hi, lon_lo),
         (lat_hi, lon_hi),
     ] {
-        assert_within_geodesic_meters(&wgs(lat, lon), area.value(), area.max_error().meters());
+        assert_within_geodesic_meters(wgs(lat, lon), *area.value(), area.max_error().meters());
     }
 }
 
@@ -144,14 +144,14 @@ where
     assert_eq!(code.to_string().parse::<T>().as_ref(), Ok(code));
     assert_eq!(T::try_from(code.clone().into()).as_ref(), Ok(code));
     let area = Approx::from(Decoded(code.clone()));
-    assert_within_geodesic_meters(c, area.value(), area.max_error().meters());
+    assert_within_geodesic_meters(*c, *area.value(), area.max_error().meters());
     let (lat, lon) = (area.value().lat(), area.value().lon());
     for (dlat, dlon) in [(-0.5, -0.5), (-0.5, 0.5), (0.5, -0.5), (0.5, 0.5)] {
         let corner = wgs(
             (lat + dlat * lat_size).clamp(-90.0, 90.0),
             (lon + dlon * lon_size).clamp(-180.0, 180.0),
         );
-        assert_within_geodesic_meters(&corner, area.value(), area.max_error().meters());
+        assert_within_geodesic_meters(corner, *area.value(), area.max_error().meters());
     }
 }
 

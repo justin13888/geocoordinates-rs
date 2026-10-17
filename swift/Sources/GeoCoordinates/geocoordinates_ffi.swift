@@ -5541,6 +5541,21 @@ public func gcj02FromCoordinate(coord: Coordinate)throws  -> Gcj02  {
 })
 }
 /**
+ * Whether a GCJ-02 point lies outside the China bounding box (the same
+ * rectangle as [`wgs84_is_outside_china`]), where the inverses return it
+ * unchanged.
+ *
+ * # Errors
+ * `GeoError::OutOfRange` for a non-finite or out-of-range record.
+ */
+public func gcj02IsOutsideChina(p: Gcj02)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_gcj02_is_outside_china(
+        FfiConverterTypeGcj02_lower(p),$0
+    )
+})
+}
+/**
  * GCJ-02 → BD-09. **Exact** forward nudge, applied worldwide; the longitude
  * is wrapped into `[-180, 180)`.
  *
@@ -5617,19 +5632,6 @@ public func gcj02Validate(p: Gcj02)throws   {try rustCallWithError(FfiConverterT
 }
 }
 /**
- * Whether `(lat, lon)` lies outside the China bounding box, where the
- * WGS-84 ↔ GCJ-02 offset is the identity. The BD-09 nudge is not gated by
- * it.
- */
-public func outOfChina(lat: Double, lon: Double) -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_out_of_china(
-        FfiConverterDouble.lower(lat),
-        FfiConverterDouble.lower(lon),$0
-    )
-})
-}
-/**
  * Canonical [`Coordinate`] → WGS-84 record. Any height is dropped.
  *
  * # Errors
@@ -5640,6 +5642,20 @@ public func wgs84FromCoordinate(coord: Coordinate)throws  -> Wgs84  {
     return try  FfiConverterTypeWgs84_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_wgs84_from_coordinate(
         FfiConverterTypeCoordinate_lower(coord),$0
+    )
+})
+}
+/**
+ * Whether a WGS-84 point lies outside the China bounding box, where
+ * [`wgs84_to_gcj02`] is the identity. The BD-09 nudge is not gated by it.
+ *
+ * # Errors
+ * `GeoError::OutOfRange` for a non-finite or out-of-range record.
+ */
+public func wgs84IsOutsideChina(p: Wgs84)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_wgs84_is_outside_china(
+        FfiConverterTypeWgs84_lower(p),$0
     )
 })
 }
@@ -7301,6 +7317,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_from_coordinate() != 27508) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_gcj02_is_outside_china() != 17243) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_to_bd09() != 38964) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -7316,10 +7335,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_gcj02_validate() != 22871) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_out_of_china() != 31834) {
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_from_coordinate() != 28512) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_from_coordinate() != 28512) {
+    if (uniffi_geocoordinates_ffi_checksum_func_wgs84_is_outside_china() != 48174) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_wgs84_to_bd09() != 26751) {

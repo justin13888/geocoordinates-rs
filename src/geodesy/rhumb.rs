@@ -76,16 +76,16 @@ const POLE_TOLERANCE: f64 = 1e-12;
 ///
 /// // Along a parallel the rhumb line is longer than the geodesic.
 /// let (a, b) = (Coordinate::wgs84(60.0, -10.0)?, Coordinate::wgs84(60.0, 30.0)?);
-/// assert!(rhumb_distance(&a, &b)?.meters() > geodesic_distance(&a, &b)?.meters() + 10_000.0);
+/// assert!(rhumb_distance(a, b)?.meters() > geodesic_distance(a, b)?.meters() + 10_000.0);
 /// // Along a meridian the two agree.
 /// let north = Coordinate::wgs84(70.0, -10.0)?;
-/// let gap = rhumb_distance(&a, &north)?.meters() - geodesic_distance(&a, &north)?.meters();
+/// let gap = rhumb_distance(a, north)?.meters() - geodesic_distance(a, north)?.meters();
 /// assert!(gap.abs() < 1e-3);
 /// let bd = Coordinate::new(39.9, 116.4, Crs::Bd09)?;
-/// assert!(matches!(rhumb_distance(&bd, &bd), Err(Error::CrsMismatch { .. })));
+/// assert!(matches!(rhumb_distance(bd, bd), Err(Error::CrsMismatch { .. })));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
+pub fn rhumb_distance(a: impl LatLon, b: impl LatLon) -> Result<Length> {
     let series = series_for_pair(a, b)?;
     let (phi1, phi2) = (a.lat().to_radians(), b.lat().to_radians());
     if touches_a_pole(a, b) {
@@ -125,21 +125,21 @@ pub fn rhumb_distance(a: &impl LatLon, b: &impl LatLon) -> Result<Length> {
 ///
 /// // Along a parallel the constant bearing is due east (or west).
 /// let a = Coordinate::wgs84(60.0, -10.0)?;
-/// assert!((rhumb_bearing(&a, &Coordinate::wgs84(60.0, 30.0)?)? - 90.0).abs() < 1e-9);
+/// assert!((rhumb_bearing(a, Coordinate::wgs84(60.0, 30.0)?)? - 90.0).abs() < 1e-9);
 /// // Toward the north pole it is 0° from any longitude.
-/// assert_eq!(rhumb_bearing(&a, &Coordinate::wgs84(90.0, 123.0)?)?, 0.0);
+/// assert_eq!(rhumb_bearing(a, Coordinate::wgs84(90.0, 123.0)?)?, 0.0);
 /// // From the north pole at longitude 0°, meridian 90° E is bearing 90°.
 /// let pole = Coordinate::wgs84(90.0, 0.0)?;
-/// assert_eq!(rhumb_bearing(&pole, &Coordinate::wgs84(0.0, 90.0)?)?, 90.0);
+/// assert_eq!(rhumb_bearing(pole, Coordinate::wgs84(0.0, 90.0)?)?, 90.0);
 /// // One pole named at two longitudes is still one place.
 /// let (p1, p2) = (Coordinate::wgs84(90.0, 0.0)?, Coordinate::wgs84(90.0, 45.0)?);
 /// assert!(matches!(
-///     rhumb_bearing(&p1, &p2),
+///     rhumb_bearing(p1, p2),
 ///     Err(Error::InvalidValue { field: "points", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
+pub fn rhumb_bearing(a: impl LatLon, b: impl LatLon) -> Result<f64> {
     let series = series_for_pair(a, b)?;
     if a.lat() == b.lat() && (a.lat().abs() == 90.0 || shortest_d_lon(a, b) == 0.0) {
         return Err(Error::InvalidValue {
@@ -195,21 +195,21 @@ pub fn rhumb_bearing(a: &impl LatLon, b: &impl LatLon) -> Result<f64> {
 ///
 /// // A constant 90° heading keeps its latitude.
 /// let start = Coordinate::wgs84(45.0, 7.0)?;
-/// let east = rhumb_destination(&start, 90.0, Length::from_meters(100_000.0))?;
+/// let east = rhumb_destination(start, 90.0, Length::from_meters(100_000.0))?;
 /// assert!((east.lat() - 45.0).abs() < 1e-9 && east.lon() > 7.0);
 /// // From the north pole at longitude 0°, bearing 90° heads down meridian 90° E.
 /// let pole = Coordinate::wgs84(90.0, 0.0)?;
-/// let down = rhumb_destination(&pole, 90.0, Length::from_meters(1_000_000.0))?;
+/// let down = rhumb_destination(pole, 90.0, Length::from_meters(1_000_000.0))?;
 /// assert!((down.lon() - 90.0).abs() < 1e-9 && down.lat() < 90.0);
 /// // A north-east heading spirals into the pole and never reaches it.
 /// assert!(matches!(
-///     rhumb_destination(&start, 45.0, Length::from_meters(20_000_000.0)),
+///     rhumb_destination(start, 45.0, Length::from_meters(20_000_000.0)),
 ///     Err(Error::InvalidValue { field: "distance", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn rhumb_destination(
-    start: &Coordinate,
+    start: Coordinate,
     bearing_deg: f64,
     distance: Length,
 ) -> Result<Coordinate> {
@@ -271,13 +271,13 @@ fn series_for(crs: Crs) -> Result<KrugerSeries> {
 
 /// Validates a pair (one shared CRS) and returns the series of
 /// that CRS's ellipsoid.
-fn series_for_pair(a: &impl LatLon, b: &impl LatLon) -> Result<KrugerSeries> {
+fn series_for_pair(a: impl LatLon, b: impl LatLon) -> Result<KrugerSeries> {
     validate_pair(a, b)?;
     series_for(a.crs())
 }
 
 /// Whether either end of the pair is a pole, where only a meridian arrives.
-fn touches_a_pole(a: &impl LatLon, b: &impl LatLon) -> bool {
+fn touches_a_pole(a: impl LatLon, b: impl LatLon) -> bool {
     a.lat().abs() == 90.0 || b.lat().abs() == 90.0
 }
 
@@ -344,7 +344,7 @@ fn meridian_scale(series: &KrugerSeries, psi1: f64, psi2: f64) -> f64 {
 }
 
 /// The shorter signed longitude difference `b − a`, in radians (antimeridian-safe).
-fn shortest_d_lon(a: &impl LatLon, b: &impl LatLon) -> f64 {
+fn shortest_d_lon(a: impl LatLon, b: impl LatLon) -> f64 {
     let mut d_lon = (b.lon() - a.lon()).to_radians();
     if d_lon.abs() > PI {
         d_lon -= d_lon.signum() * 2.0 * PI;

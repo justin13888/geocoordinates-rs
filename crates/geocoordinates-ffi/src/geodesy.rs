@@ -17,7 +17,7 @@ pub use track::*;
 pub fn haversine_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let a: gc::Coordinate = a.try_into()?;
     let b: gc::Coordinate = b.try_into()?;
-    gc::geodesy::haversine_distance(&a, &b)
+    gc::geodesy::haversine_distance(a, b)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
@@ -455,7 +455,7 @@ pub fn aer_to_ned(aer: Aer) -> Result<Ned, GeoError> {
 #[uniffi::export]
 pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
-    gc::geodesy::geodesic_distance(&a, &b)
+    gc::geodesy::geodesic_distance(a, b)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
@@ -467,7 +467,7 @@ pub fn geodesic_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError
 #[uniffi::export]
 pub fn initial_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
-    gc::geodesy::initial_bearing(&a, &b).map_err(Into::into)
+    gc::geodesy::initial_bearing(a, b).map_err(Into::into)
 }
 
 /// Final bearing (azimuth on arrival) from `a` to `b`, in degrees `[0, 360)`,
@@ -475,7 +475,7 @@ pub fn initial_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 #[uniffi::export]
 pub fn final_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
-    gc::geodesy::final_bearing(&a, &b).map_err(Into::into)
+    gc::geodesy::final_bearing(a, b).map_err(Into::into)
 }
 
 /// The point reached from `start` along `bearing_deg` for `distance_m` meters
@@ -488,7 +488,7 @@ pub fn destination(
     distance_m: f64,
 ) -> Result<Coordinate, GeoError> {
     gc::geodesy::destination(
-        &start.try_into()?,
+        start.try_into()?,
         bearing_deg,
         gc::Length::from_meters(distance_m),
     )
@@ -501,7 +501,7 @@ pub fn destination(
 #[uniffi::export]
 pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
-    gc::geodesy::midpoint(&a, &b)
+    gc::geodesy::midpoint(a, b)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -512,7 +512,7 @@ pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate, GeoError> {
 #[uniffi::export]
 pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Result<Coordinate, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
-    gc::geodesy::intermediate(&a, &b, fraction)
+    gc::geodesy::intermediate(a, b, fraction)
         .map(Into::into)
         .map_err(Into::into)
 }
@@ -523,7 +523,7 @@ pub fn intermediate(a: Coordinate, b: Coordinate, fraction: f64) -> Result<Coord
 #[uniffi::export]
 pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
-    gc::geodesy::rhumb_distance(&a, &b)
+    gc::geodesy::rhumb_distance(a, b)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
@@ -538,7 +538,7 @@ pub fn rhumb_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
 #[uniffi::export]
 pub fn rhumb_bearing(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> {
     let (a, b): (gc::Coordinate, gc::Coordinate) = (a.try_into()?, b.try_into()?);
-    gc::geodesy::rhumb_bearing(&a, &b).map_err(Into::into)
+    gc::geodesy::rhumb_bearing(a, b).map_err(Into::into)
 }
 
 /// The point reached from `start` along a constant `bearing_deg` rhumb line for
@@ -556,7 +556,7 @@ pub fn rhumb_destination(
     distance_m: f64,
 ) -> Result<Coordinate, GeoError> {
     gc::geodesy::rhumb_destination(
-        &start.try_into()?,
+        start.try_into()?,
         bearing_deg,
         gc::Length::from_meters(distance_m),
     )

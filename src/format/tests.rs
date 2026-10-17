@@ -49,7 +49,7 @@ fn wgs(lat: f64, lon: f64) -> Coordinate {
 }
 
 fn fmt(coord: &Coordinate, options: &FormatOptions) -> String {
-    format(coord, options).expect("formatting succeeds")
+    format(*coord, options).expect("formatting succeeds")
 }
 
 /// A fix whose one-sigma accuracy has this horizontal magnitude; with `None`,
@@ -282,7 +282,7 @@ fn format_fix_derives_dms_ddm_precision_in_their_own_units() {
     // Unusable accuracy falls back to the representation default.
     assert_eq!(
         format_fix(&fix(None), &dms).unwrap(),
-        format(&coord, &dms).unwrap()
+        format(coord, &dms).unwrap()
     );
     // The grid representations have no decimal count; accuracy leaves them
     // unchanged.
@@ -296,7 +296,7 @@ fn format_fix_derives_dms_ddm_precision_in_their_own_units() {
     ] {
         assert_eq!(
             format_fix(&fix(Some(1.0)), &opts(representation)).unwrap(),
-            format(&coord, &opts(representation)).unwrap()
+            format(coord, &opts(representation)).unwrap()
         );
     }
 }
@@ -457,13 +457,13 @@ fn too_many_decimals_is_an_error_naming_the_field() {
         ),
     ];
     for (representation, expected) in cases {
-        match format(&c, &opts(representation)) {
+        match format(c, &opts(representation)) {
             Err(Error::InvalidValue { field, .. }) => assert_eq!(field, expected),
             other => panic!("expected InvalidValue for {representation:?}, got {other:?}"),
         }
     }
     // Fifteen is the limit, and it renders.
-    assert!(format(&c, &opts(dd(Some(15), HemisphereStyle::Signed))).is_ok());
+    assert!(format(c, &opts(dd(Some(15), HemisphereStyle::Signed))).is_ok());
     // `format_fix` applies the same limit to a set count.
     let fix = fix_with_accuracy(c, Some(1.0));
     assert!(format_fix(&fix, &opts(dd(Some(16), HemisphereStyle::Signed))).is_err());
@@ -482,7 +482,7 @@ fn grid_sizes_out_of_range_are_errors() {
     ] {
         assert!(
             matches!(
-                format(&c, &opts(representation)),
+                format(c, &opts(representation)),
                 Err(Error::InvalidValue { .. })
             ),
             "{representation:?}"
@@ -505,7 +505,7 @@ fn grids_require_wgs84_but_angles_render_any_datum() {
             precision: MgrsPrecision::M1,
         },
     ] {
-        assert_eq!(format(&gcj, &opts(representation)), mismatch);
+        assert_eq!(format(gcj, &opts(representation)), mismatch);
     }
     assert_eq!(
         fmt(&gcj, &FormatOptions::default()),

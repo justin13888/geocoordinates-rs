@@ -4,7 +4,7 @@
 Exercises the curated FFI surface against the crate's own reference vectors
 (`src/test_support.rs`): an exact forward conversion, an approximate inverse
 (checking the `max_error_m` bound), the Baidu Mercator round trip, the
-`out_of_china` gate, the fallible try-conversion (error path), and distance.
+`*_is_outside_china` gate, the fallible try-conversion (error path), and distance.
 
 Run from the repo root after building + generating:
 
@@ -78,9 +78,9 @@ back = gc.baidu_mercator_to_bd09(merc)
 assert approx(back.lat, BD[0], 1e-6), back.lat
 assert approx(back.lon, BD[1], 1e-6), back.lon
 
-# --- out_of_china gate ---
-assert gc.out_of_china(51.5074, -0.1278) is True  # London
-assert gc.out_of_china(WGS[0], WGS[1]) is False  # Beijing
+# --- China box gate (validated datum records, never a bare pair) ---
+assert gc.wgs84_is_outside_china(gc.Wgs84(lat=51.5074, lon=-0.1278)) is True  # London
+assert gc.gcj02_is_outside_china(gc.Gcj02(lat=GCJ[0], lon=GCJ[1])) is False  # Beijing
 
 # --- Fallible conversion: error path + success path ---
 try:

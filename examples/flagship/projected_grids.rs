@@ -28,7 +28,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
         let wgs = transform.apply(source)?;
         let restored = transform.inverse_first_order().apply(wgs)?;
         assert_eq!(restored.crs(), datum);
-        assert_within_meters(&restored, &source, 1e-6);
+        assert_within_meters(restored, source, 1e-6);
         // `convert` reports that accuracy as the Helmert leg's bound.
         let converted = convert(source, Crs::Wgs84)?;
         assert_eq!(
@@ -38,9 +38,9 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     }
     assert!(DatumTransform::catalog_to_wgs84(Crs::Wgs84).is_none());
 
-    assert_eq!(utm_zone_for(&Coordinate::wgs84(40.0, -75.0)?)?, 18);
-    assert_eq!(utm_zone_for(&Coordinate::wgs84(60.0, 5.0)?)?, 32);
-    assert_eq!(utm_zone_for(&Coordinate::wgs84(78.0, 20.0)?)?, 33);
+    assert_eq!(utm_zone_for(Coordinate::wgs84(40.0, -75.0)?)?, 18);
+    assert_eq!(utm_zone_for(Coordinate::wgs84(60.0, 5.0)?)?, 32);
+    assert_eq!(utm_zone_for(Coordinate::wgs84(78.0, 20.0)?)?, 33);
     assert_eq!(utm_central_meridian_deg(18)?, -75.0);
 
     let philadelphia = Coordinate::wgs84(40.0, -75.0)?;
@@ -49,7 +49,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     assert_eq!(utm.hemisphere(), UtmHemisphere::North);
     assert_close(utm.easting_m(), 500_000.0, 0.001);
     assert_close(utm.northing_m(), 4_427_757.218_8, 0.001);
-    assert_within_meters(&utm.to_coordinate(), &philadelphia, 0.001);
+    assert_within_meters(utm.to_coordinate(), philadelphia, 0.001);
     assert_eq!(Utm::try_from(philadelphia)?, utm);
     assert_eq!(
         Utm::new(18, UtmHemisphere::North, utm.easting_m(), utm.northing_m())?,
@@ -63,7 +63,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     let north_polar = Coordinate::wgs84(85.0, 0.0)?;
     let ups = Ups::try_from_coordinate(north_polar)?;
     assert_eq!(ups.hemisphere(), UtmHemisphere::North);
-    assert_within_meters(&ups.to_coordinate(), &north_polar, 0.001);
+    assert_within_meters(ups.to_coordinate(), north_polar, 0.001);
     assert_eq!(Ups::try_from(north_polar)?, ups);
     assert_eq!(
         Ups::new(UtmHemisphere::North, ups.easting_m(), ups.northing_m())?,
@@ -90,7 +90,7 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
         decoded.max_error().meters(),
         core::f64::consts::FRAC_1_SQRT_2 / 0.9996
     );
-    assert_within_meters(decoded.value(), &philadelphia, 1.0);
+    assert_within_meters(*decoded.value(), philadelphia, 1.0);
 
     Ok("classic datums and projected grids")
 }

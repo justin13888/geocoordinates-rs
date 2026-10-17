@@ -28,7 +28,7 @@ use crate::geodesy::{geodesic_distance, haversine_distance};
 ///
 /// Works on any [`LatLon`] — `Coordinate` and the datum newtypes alike.
 #[track_caller]
-pub(crate) fn assert_within_meters(a: &impl LatLon, b: &impl LatLon, max_m: f64) {
+pub(crate) fn assert_within_meters(a: impl LatLon, b: impl LatLon, max_m: f64) {
     let d = haversine_distance(a, b).unwrap().meters();
     assert!(
         d <= max_m,
@@ -54,7 +54,7 @@ pub(crate) fn assert_within_meters(a: &impl LatLon, b: &impl LatLon, max_m: f64)
 /// ellipsoidal quantity: the spherical oracle can under-report the true ground
 /// distance, letting a bound that is too tight on the ellipsoid pass.
 #[track_caller]
-pub(crate) fn assert_within_geodesic_meters(a: &impl LatLon, b: &impl LatLon, max_m: f64) {
+pub(crate) fn assert_within_geodesic_meters(a: impl LatLon, b: impl LatLon, max_m: f64) {
     let d = geodesic_distance(a, b).unwrap().meters();
     assert!(
         d <= max_m,

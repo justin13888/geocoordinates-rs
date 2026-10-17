@@ -21,7 +21,9 @@
 //! (the input unchanged) and widen `max_error` to cover the inside one, so
 //! the bound holds whichever point the caller started from.
 
-use super::{EE, GCJ_A, Gcj02, Refined, Wgs84, near_china_box, out_of_china, refine, residual_m};
+use super::{
+    EE, GCJ_A, Gcj02, Refined, Wgs84, near_china_box, outside_china_box, refine, residual_m,
+};
 use crate::approx::Approx;
 
 use core::f64::consts::PI;
@@ -87,7 +89,7 @@ fn delta(lat: f64, lon: f64) -> (f64, f64) {
 /// The WGS-84 → GCJ-02 offset on raw degrees: the identity outside the China
 /// box, the published offset inside it.
 fn wgs_to_gcj(lat: f64, lon: f64) -> (f64, f64) {
-    if out_of_china(lat, lon) {
+    if outside_china_box(lat, lon) {
         return (lat, lon);
     }
     offset(lat, lon)
@@ -135,6 +137,29 @@ fn gap_m(lat: f64, lon: f64, other_lat: f64, other_lon: f64) -> f64 {
 }
 
 impl Wgs84 {
+    /// Whether this point lies outside the China box, where
+    /// [`to_gcj02`](Self::to_gcj02) is the identity. The BD-09 offset is not
+    /// gated by it; Baidu's nudge applies worldwide.
+    ///
+    /// The box is `72.004 ≤ lon ≤ 137.8347`, `0.8293 ≤ lat ≤ 55.8271` (closed),
+    /// the de-facto-standard rectangle every mainstream port (eviltransform,
+    /// coordtransform, …) uses, so results match theirs at the border. It is
+    /// coarse: it takes in ocean and neighboring countries, and its hard edge
+    /// is a **documented discontinuity** (a point just inside is offset, one
+    /// just outside is not).
+    ///
+    /// ```
+    /// use geocoordinates::china::Wgs84;
+    ///
+    /// assert!(!Wgs84::new(39.915, 116.404)?.is_outside_china()); // Beijing
+    /// assert!(Wgs84::new(51.5, -0.12)?.is_outside_china()); // London
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub fn is_outside_china(&self) -> bool {
+        outside_china_box(self.lat(), self.lon())
+    }
+
     /// WGS-84 → GCJ-02. **Exact** forward offset (identity outside China).
     ///
     /// Infallible: the offset is applied only inside the China box, where it
@@ -162,6 +187,23 @@ impl From<Wgs84> for Gcj02 {
 }
 
 impl Gcj02 {
+    /// Whether this point lies outside the China box (the same closed
+    /// rectangle as [`Wgs84::is_outside_china`]), where both inverses return
+    /// it unchanged. Within about 0.011° past the box edge an inside WGS-84
+    /// point can also land here; the inverses widen `max_error` to cover it.
+    ///
+    /// ```
+    /// use geocoordinates::china::Gcj02;
+    ///
+    /// assert!(!Gcj02::new(39.916_404, 116.410_244)?.is_outside_china()); // Beijing
+    /// assert!(Gcj02::new(-33.86, 151.21)?.is_outside_china()); // Sydney
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub fn is_outside_china(&self) -> bool {
+        outside_china_box(self.lat(), self.lon())
+    }
+
     /// GCJ-02 → WGS-84, fast single-step inverse (**approximate**, within
     /// 6 m away from the China box edge).
     ///
@@ -196,7 +238,7 @@ impl Gcj02 {
     #[must_use]
     pub fn to_wgs84_fast(self) -> Approx<Wgs84> {
         let (lat, lon) = (self.lat(), self.lon());
-        if out_of_china(lat, lon) {
+        if outside_china_box(lat, lon) {
             let identity = Wgs84::from_valid(lat, lon);
             if !near_china_box(lat, lon, EDGE_BAND_DEG) {
                 return Approx::from_valid(identity, 0.0);
@@ -247,7 +289,7 @@ impl Gcj02 {
     #[must_use]
     pub fn to_wgs84_refined(self) -> Approx<Wgs84> {
         let (lat, lon) = (self.lat(), self.lon());
-        if out_of_china(lat, lon) {
+        if outside_china_box(lat, lon) {
             let bound = inside_preimage(lat, lon)
                 .map_or(0.0, |r| gap_m(lat, lon, r.lat, r.lon) + r.max_error_m);
             return Approx::from_valid(Wgs84::from_valid(lat, lon), bound);
@@ -268,7 +310,7 @@ mod tests {
     #[test]
     fn wgs84_to_gcj02_matches_references() {
         for v in DATUM_VECTORS {
-            assert_within_meters(&v.wgs84().to_gcj02(), &v.gcj02(), 0.2);
+            assert_within_meters(v.wgs84().to_gcj02(), v.gcj02(), 0.2);
         }
     }
 
@@ -283,7 +325,7 @@ mod tests {
         for v in DATUM_VECTORS {
             let got = v.gcj02().to_wgs84_fast();
             assert_eq!(got.max_error().meters(), FAST_BOUND_M);
-            assert_within_meters(got.value(), &v.wgs84(), got.max_error().meters());
+            assert_within_meters(*got.value(), v.wgs84(), got.max_error().meters());
         }
     }
 
@@ -292,7 +334,7 @@ mod tests {
         for v in DATUM_VECTORS {
             let got = v.gcj02().to_wgs84_refined();
             assert_eq!(got.max_error().meters(), REFINED_BOUND_M);
-            assert_within_meters(got.value(), &v.wgs84(), 0.01);
+            assert_within_meters(*got.value(), v.wgs84(), 0.01);
         }
     }
 
@@ -303,8 +345,8 @@ mod tests {
         use crate::test_support::coordtransform::{GCJ_TO_WGS_FAST, INPUT};
         let got = Gcj02::new(INPUT.0, INPUT.1).unwrap().to_wgs84_fast();
         assert_within_meters(
-            got.value(),
-            &Wgs84::new(GCJ_TO_WGS_FAST.0, GCJ_TO_WGS_FAST.1).unwrap(),
+            *got.value(),
+            Wgs84::new(GCJ_TO_WGS_FAST.0, GCJ_TO_WGS_FAST.1).unwrap(),
             0.05,
         );
     }
@@ -335,7 +377,7 @@ mod tests {
         let target = Gcj02::new(40.0, 72.006).unwrap();
         let got = target.to_wgs84_refined();
         let image = got.value().to_gcj02();
-        let residual = haversine_distance(&image, &target).unwrap().meters();
+        let residual = haversine_distance(image, target).unwrap().meters();
         assert!(residual > 100.0, "the edge must not converge: {residual} m");
         assert!(
             residual <= got.max_error().meters(),
@@ -357,9 +399,9 @@ mod tests {
     fn fast_bound_covers_the_residual_at_the_box_edge() {
         let target = Gcj02::new(40.0, 72.006).unwrap();
         let got = target.to_wgs84_fast();
-        assert!(out_of_china(got.value().lat(), got.value().lon()));
+        assert!(got.value().is_outside_china());
         let image = got.value().to_gcj02();
-        let residual = haversine_distance(&image, &target).unwrap().meters();
+        let residual = haversine_distance(image, target).unwrap().meters();
         assert!(residual > 300.0, "{residual} m");
         let bound = got.max_error().meters();
         assert!(residual <= bound, "residual {residual} m exceeds {bound} m");
@@ -372,8 +414,8 @@ mod tests {
         // the fast bound covers the distance to its result too.
         let refined = target.to_wgs84_refined();
         assert_within_meters(
-            got.value(),
-            refined.value(),
+            *got.value(),
+            *refined.value(),
             bound + refined.max_error().meters(),
         );
     }
@@ -396,15 +438,15 @@ mod tests {
                     let got = gcj.to_wgs84_fast();
                     let bound = got.max_error().meters();
                     let image = got.value().to_gcj02();
-                    assert_within_meters(&image, &gcj, bound);
+                    assert_within_meters(image, gcj, bound);
                     if bound > FAST_BOUND_M {
                         widened += 1;
                     }
                     let origin = Wgs84::new(la, lo).unwrap();
                     let carried = origin.to_gcj02();
-                    if !out_of_china(carried.lat(), carried.lon()) {
+                    if !carried.is_outside_china() {
                         let back = carried.to_wgs84_fast();
-                        assert_within_meters(back.value(), &origin, back.max_error().meters());
+                        assert_within_meters(*back.value(), origin, back.max_error().meters());
                     }
                 }
             }
@@ -420,13 +462,13 @@ mod tests {
     fn outside_input_with_an_inside_preimage_covers_both() {
         let origin = Wgs84::new(55.824_77, 130.0).unwrap();
         let gcj = origin.to_gcj02();
-        assert!(out_of_china(gcj.lat(), gcj.lon()), "{gcj:?}");
+        assert!(gcj.is_outside_china(), "{gcj:?}");
         for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
             assert_eq!(
                 (got.value().lat(), got.value().lon()),
                 (gcj.lat(), gcj.lon())
             );
-            let off = haversine_distance(got.value(), &origin).unwrap().meters();
+            let off = haversine_distance(*got.value(), origin).unwrap().meters();
             assert!(off > 600.0, "{off} m");
             assert!(
                 off <= got.max_error().meters(),
@@ -473,12 +515,12 @@ mod tests {
             for (la, lo) in inside {
                 let wgs = Wgs84::new(la, lo).unwrap();
                 let gcj = wgs.to_gcj02();
-                if !out_of_china(gcj.lat(), gcj.lon()) {
+                if !gcj.is_outside_china() {
                     continue;
                 }
                 carried += 1;
                 for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-                    assert_within_meters(got.value(), &wgs, got.max_error().meters());
+                    assert_within_meters(*got.value(), wgs, got.max_error().meters());
                 }
             }
             let far = [
@@ -506,9 +548,9 @@ mod tests {
             let wgs = Wgs84::new(lat, lon).unwrap();
             let gcj = wgs.to_gcj02();
             for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-                assert_within_meters(got.value(), &wgs, got.max_error().meters());
+                assert_within_meters(*got.value(), wgs, got.max_error().meters());
             }
-            let fast = haversine_distance(gcj.to_wgs84_fast().value(), &wgs).unwrap();
+            let fast = haversine_distance(*gcj.to_wgs84_fast().value(), wgs).unwrap();
             worst_fast = worst_fast.max(fast.meters());
             // Away from the edge the measured residual stays within the sweep's bound.
             if near_china_box(lat, lon, -0.1) {

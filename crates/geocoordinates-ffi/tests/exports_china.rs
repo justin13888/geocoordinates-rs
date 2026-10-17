@@ -222,3 +222,19 @@ fn baidu_mercator_is_defined_only_within_74_degrees() {
         .is_ok()
     );
 }
+
+#[test]
+fn is_outside_china_separates_beijing_from_london_and_sydney() {
+    let wgs = |lat, lon| wgs84_is_outside_china(Wgs84 { lat, lon });
+    let gcj = |lat, lon| gcj02_is_outside_china(Gcj02 { lat, lon });
+    assert!(!wgs(39.915, 116.404).unwrap());
+    assert!(wgs(51.5074, -0.1278).unwrap());
+    assert!(!gcj(39.916_404, 116.410_244).unwrap());
+    assert!(gcj(-33.86, 151.21).unwrap());
+    // A record is validated as it crosses in: NaN is no longer "outside".
+    assert!(matches!(
+        wgs(f64::NAN, f64::NAN),
+        Err(GeoError::OutOfRange { .. })
+    ));
+    assert!(matches!(gcj(91.0, 0.0), Err(GeoError::OutOfRange { .. })));
+}

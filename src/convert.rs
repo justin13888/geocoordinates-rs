@@ -199,8 +199,8 @@ mod tests {
         // Recovers the original WGS-84 within the stated bound.
         let bound = r.max_error().meters();
         crate::test_support::assert_within_meters(
-            &r.into_inner(),
-            &Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
+            r.into_inner(),
+            Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
             bound,
         );
     }
@@ -236,7 +236,7 @@ mod tests {
                 (direct.value().lat(), direct.value().lon())
             );
             let back = Gcj02::new(r.value().lat(), r.value().lon()).unwrap();
-            crate::test_support::assert_within_meters(&back, &g, REFINED_BOUND_M);
+            crate::test_support::assert_within_meters(back, g, REFINED_BOUND_M);
         }
     }
 
@@ -246,8 +246,8 @@ mod tests {
         assert!(r.max_error().meters() > 0.0);
         let bound = r.max_error().meters();
         crate::test_support::assert_within_meters(
-            &r.into_inner(),
-            &Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
+            r.into_inner(),
+            Coordinate::wgs84(WGS.0, WGS.1).unwrap(),
             bound,
         );
     }
@@ -471,8 +471,8 @@ mod tests {
         let r = convert(Coordinate::gcj02(gcj.lat(), gcj.lon()).unwrap(), Crs::Wgs84).unwrap();
         assert_eq!((r.value().lat(), r.value().lon()), (gcj.lat(), gcj.lon()));
         let off = haversine_distance(
-            &Wgs84::new(r.value().lat(), r.value().lon()).unwrap(),
-            &origin,
+            Wgs84::new(r.value().lat(), r.value().lon()).unwrap(),
+            origin,
         )
         .unwrap()
         .meters();

@@ -158,10 +158,10 @@ fn check_zone(zone: u8) -> Result<()> {
 /// use geocoordinates::grids::utm_zone_for;
 /// use geocoordinates::{Coordinate, Error};
 ///
-/// assert_eq!(utm_zone_for(&Coordinate::wgs84(40.7128, -74.006)?)?, 18);
-/// assert_eq!(utm_zone_for(&Coordinate::wgs84(60.0, 5.0)?)?, 32); // Norway exception
+/// assert_eq!(utm_zone_for(Coordinate::wgs84(40.7128, -74.006)?)?, 18);
+/// assert_eq!(utm_zone_for(Coordinate::wgs84(60.0, 5.0)?)?, 32); // Norway exception
 /// let pole = Coordinate::wgs84(85.0, 0.0)?;
-/// assert!(matches!(utm_zone_for(&pole), Err(Error::OutsideDomain { .. })));
+/// assert!(matches!(utm_zone_for(pole), Err(Error::OutsideDomain { .. })));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 ///
@@ -169,8 +169,8 @@ fn check_zone(zone: u8) -> Result<()> {
 /// [`Error::CrsMismatch`] for a non-WGS-84 coordinate;
 /// [`Error::OutsideDomain`] (operation `"UTM"`) for a latitude outside the
 /// UTM band `[-80, 84)` — 84°N itself is UPS territory.
-pub fn utm_zone_for(coord: &Coordinate) -> Result<u8> {
-    require_wgs84(coord)?;
+pub fn utm_zone_for(coord: Coordinate) -> Result<u8> {
+    require_wgs84(&coord)?;
     let (lat, lon) = (coord.lat(), coord.lon());
     if !(-80.0..84.0).contains(&lat) {
         return Err(Error::OutsideDomain {
@@ -372,7 +372,7 @@ impl Utm {
     /// [`Error::OutsideDomain`] (operation `"UTM"`) for latitudes outside the
     /// UTM band (south of 80°S, or at or north of 84°N).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Utm> {
-        let zone = utm_zone_for(&coord)?;
+        let zone = utm_zone_for(coord)?;
         let (lat, lon) = (coord.lat(), coord.lon());
         let lon0 = central_meridian(zone);
         let phi = lat.to_radians();

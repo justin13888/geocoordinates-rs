@@ -20,7 +20,7 @@ pub fn cross_track_distance_spherical_m(
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::cross_track_distance_spherical(&point, &start, &end)
+    gc::geodesy::cross_track_distance_spherical(point, start, end)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
@@ -38,7 +38,7 @@ pub fn along_track_distance_spherical_m(
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::along_track_distance_spherical(&point, &start, &end)
+    gc::geodesy::along_track_distance_spherical(point, start, end)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
@@ -89,14 +89,9 @@ pub fn intersection_spherical(
     b: Coordinate,
     bearing_b_deg: f64,
 ) -> Result<IntersectionResult, GeoError> {
-    gc::geodesy::intersection_spherical(
-        &a.try_into()?,
-        bearing_a_deg,
-        &b.try_into()?,
-        bearing_b_deg,
-    )
-    .map(Into::into)
-    .map_err(Into::into)
+    gc::geodesy::intersection_spherical(a.try_into()?, bearing_a_deg, b.try_into()?, bearing_b_deg)
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// Signed perpendicular distance (meters) from `point` to the geodesic path
@@ -115,7 +110,7 @@ pub fn cross_track_distance_m(
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::cross_track_distance(&point, &start, &end)
+    gc::geodesy::cross_track_distance(point, start, end)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
@@ -135,7 +130,7 @@ pub fn along_track_distance_m(
 ) -> Result<f64, GeoError> {
     let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
         (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::along_track_distance(&point, &start, &end)
+    gc::geodesy::along_track_distance(point, start, end)
         .map(|length| length.meters())
         .map_err(Into::into)
 }
@@ -188,7 +183,7 @@ pub fn intersection(
     b: Coordinate,
     bearing_b_deg: f64,
 ) -> Result<GeodesicIntersectionResult, GeoError> {
-    gc::geodesy::intersection(&a.try_into()?, bearing_a_deg, &b.try_into()?, bearing_b_deg)
+    gc::geodesy::intersection(a.try_into()?, bearing_a_deg, b.try_into()?, bearing_b_deg)
         .map(Into::into)
         .map_err(Into::into)
 }

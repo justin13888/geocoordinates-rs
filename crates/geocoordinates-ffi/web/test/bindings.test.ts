@@ -31,6 +31,7 @@ import geocoordinatesFfi, {
   formatFix,
   formatOptionsDefault,
   fromNmeaSentence,
+  gcj02IsOutsideChina,
   gcj02ToBd09,
   gcj02ToWgs84Fast,
   gcj02ToWgs84Refined,
@@ -39,10 +40,10 @@ import geocoordinatesFfi, {
   h3Encode,
   mgrsFromCoordinate,
   mgrsToCoordinate,
-  outOfChina,
   parseCoordinate,
   utmCentralMeridianDeg,
   utmFromCoordinate,
+  wgs84IsOutsideChina,
   wgs84ToBd09,
   wgs84ToGcj02,
 } from "../src/generated/web/geocoordinates_ffi";
@@ -105,8 +106,9 @@ describe("China datum conversions", () => {
   });
 
   it("gates on the China bounding area", () => {
-    assert.equal(outOfChina(51.5074, -0.1278), true);
-    assert.equal(outOfChina(WGS.lat, WGS.lon), false);
+    assert.equal(wgs84IsOutsideChina({ lat: 51.5074, lon: -0.1278 }), true);
+    assert.equal(wgs84IsOutsideChina(WGS), false);
+    assert.equal(gcj02IsOutsideChina(GCJ), false);
   });
 });
 

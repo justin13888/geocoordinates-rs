@@ -1,6 +1,6 @@
 //! China datums (GCJ-02, BD-09) and CRS dispatch through `convert`.
 
-use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84, out_of_china};
+use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 use geocoordinates::convert::convert;
 use geocoordinates::{Approx, Coordinate, Crs, Height, Length};
 
@@ -31,16 +31,16 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
     let fast_wgs = gcj.to_wgs84_fast();
     let refined_wgs = gcj.to_wgs84_refined();
     assert!(fast_wgs.max_error() > refined_wgs.max_error());
-    assert_within_meters(fast_wgs.value(), &wgs, fast_wgs.max_error().meters());
-    assert_within_meters(refined_wgs.value(), &wgs, refined_wgs.max_error().meters());
+    assert_within_meters(*fast_wgs.value(), wgs, fast_wgs.max_error().meters());
+    assert_within_meters(*refined_wgs.value(), wgs, refined_wgs.max_error().meters());
     let fast_gcj = bd.try_to_gcj02_fast()?;
     let refined_gcj = bd.try_to_gcj02_refined()?;
-    assert_within_meters(fast_gcj.value(), &gcj, fast_gcj.max_error().meters());
-    assert_within_meters(refined_gcj.value(), &gcj, refined_gcj.max_error().meters());
+    assert_within_meters(*fast_gcj.value(), gcj, fast_gcj.max_error().meters());
+    assert_within_meters(*refined_gcj.value(), gcj, refined_gcj.max_error().meters());
     let refined_from_bd = bd.try_to_wgs84_refined()?;
     assert_within_meters(
-        refined_from_bd.value(),
-        &wgs,
+        *refined_from_bd.value(),
+        wgs,
         refined_from_bd.max_error().meters(),
     );
     // A crate building its own approximation wraps it the same way, with a
@@ -56,8 +56,8 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
     // inverse finds *a* preimage: its forward image lands on the input.
     let back = east_edge.try_to_gcj02_refined()?;
     assert_within_meters(
-        &back.value().try_to_bd09()?,
-        &east_edge,
+        back.value().try_to_bd09()?,
+        east_edge,
         back.max_error().meters(),
     );
 
@@ -68,14 +68,15 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
     );
     let mercator_from = BaiduMercator::try_from(bd)?;
     assert_eq!(mercator_from, mercator);
-    assert_within_meters(&mercator.try_to_bd09()?, &bd, 1.0);
+    assert_within_meters(mercator.try_to_bd09()?, bd, 1.0);
     let tagged = mercator.try_to_coordinate()?;
     assert_eq!(tagged.crs(), Crs::Bd09);
     assert_mercator_close(BaiduMercator::try_from_coordinate(tagged)?, mercator, 0.02);
     assert_mercator_close(BaiduMercator::try_from(tagged)?, mercator, 0.02);
 
     let london = Wgs84::new(51.5074, -0.1278)?;
-    assert!(out_of_china(london.lat(), london.lon()));
+    assert!(london.is_outside_china());
+    assert!(london.to_gcj02().is_outside_china());
     assert_eq!(london.to_gcj02(), Gcj02::new(london.lat(), london.lon())?);
 
     let systems = [

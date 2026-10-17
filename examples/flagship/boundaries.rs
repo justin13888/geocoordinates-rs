@@ -26,12 +26,12 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert_eq!(wrap_longitude(-181.0), 179.0);
 
     let antimeridian_distance = geodesic_distance(
-        &Coordinate::wgs84(0.0, 179.9)?,
-        &Coordinate::wgs84(0.0, -179.9)?,
+        Coordinate::wgs84(0.0, 179.9)?,
+        Coordinate::wgs84(0.0, -179.9)?,
     )?;
     assert!(antimeridian_distance.meters() < 25_000.0);
     let reflected = rhumb_destination(
-        &Coordinate::wgs84(80.0, 0.0)?,
+        Coordinate::wgs84(80.0, 0.0)?,
         0.0,
         Length::from_meters(1_668_000.0),
     )?;
@@ -41,7 +41,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     // without arriving, so a distance that would reach the pole is rejected.
     assert!(matches!(
         rhumb_destination(
-            &Coordinate::wgs84(80.0, 0.0)?,
+            Coordinate::wgs84(80.0, 0.0)?,
             45.0,
             Length::from_meters(2_000_000.0),
         ),
@@ -122,7 +122,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert!(serde_json::from_str::<Dms>(&bad_dms_json).is_err());
     assert!(
         format(
-            &new_york(),
+            new_york(),
             &FormatOptions {
                 representation: Representation::DecimalDegrees {
                     decimals: Some(16),
@@ -156,17 +156,8 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         BaiduMercator::try_from_bd09(Bd09::new(80.0, 0.0)?),
         Err(Error::OutsideDomain { .. })
     ));
-    assert!(
-        geodesic_distance(&Coordinate::wgs84(0.0, 0.0)?, &Coordinate::gcj02(0.0, 1.0)?).is_err()
-    );
-    assert!(
-        destination(
-            &Coordinate::gcj02(0.0, 0.0)?,
-            90.0,
-            Length::from_meters(1.0)
-        )
-        .is_err()
-    );
+    assert!(geodesic_distance(Coordinate::wgs84(0.0, 0.0)?, Coordinate::gcj02(0.0, 1.0)?).is_err());
+    assert!(destination(Coordinate::gcj02(0.0, 0.0)?, 90.0, Length::from_meters(1.0)).is_err());
     assert!(
         Ecef::try_from_coordinate(
             Coordinate::wgs84(0.0, 0.0)?.with_height(Height::Orthometric(10.0))?
@@ -293,7 +284,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     let across = Utm::new(1, UtmHemisphere::North, 150_000.0, 0.0)?.to_coordinate();
     assert!(across.lon() > 179.8);
     assert!(matches!(
-        utm_zone_for(&Coordinate::wgs84(84.0, 9.0)?),
+        utm_zone_for(Coordinate::wgs84(84.0, 9.0)?),
         Err(Error::OutsideDomain {
             operation: "UTM",
             ..

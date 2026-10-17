@@ -419,22 +419,22 @@ pub(crate) mod sealed {
 
 /// Shared read access to a latitude/longitude pair.
 ///
-/// Implemented by [`Coordinate`] and by the per-datum newtypes so generic code
-/// (formatters, geodesics) can operate over any positioned type. The trait is
-/// **sealed**: only this crate's types implement it, so a function taking
-/// `&impl LatLon` only ever sees one of them.
+/// Implemented by [`Coordinate`] and the per-datum newtypes, so the
+/// [`geodesy`](crate::geodesy) measurements (distances, bearings, cross- and
+/// along-track) accept any of them by value, as sugar over `Coordinate`.
+/// Everything else ([`format`](crate::format::format), the position producers,
+/// the grid encoders) takes a `Coordinate`: pass a newtype's `to_coordinate()`.
+/// The trait is **sealed** (a function taking `impl LatLon` only ever sees this
+/// crate's types) and requires `Copy`.
 ///
 /// ```
-/// use geocoordinates::china::{Gcj02, Wgs84};
-/// use geocoordinates::{Coordinate, Crs, LatLon};
+/// use geocoordinates::china::Wgs84;
+/// use geocoordinates::{Coordinate, LatLon, geodesy::geodesic_distance};
 ///
-/// fn describe(p: &impl LatLon) -> String {
-///     format!("{} {:.4},{:.4}", p.crs(), p.lat(), p.lon())
-/// }
-///
-/// assert_eq!(describe(&Coordinate::wgs84(1.0, 2.0)?), "WGS84 1.0000,2.0000");
-/// let gcj: Gcj02 = Wgs84::new(39.915, 116.404)?.to_gcj02();
-/// assert_eq!(gcj.crs(), Crs::Gcj02);
+/// fn describe(p: impl LatLon) -> String { format!("{} {:.4},{:.4}", p.crs(), p.lat(), p.lon()) }
+/// assert_eq!(describe(Coordinate::wgs84(1.0, 2.0)?), "WGS84 1.0000,2.0000");
+/// let origin = Wgs84::new(0.0, 0.0)?; // a newtype and a Coordinate, mixed
+/// assert!(geodesic_distance(origin, Coordinate::wgs84(0.0, 1.0)?)?.meters() > 0.0);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 ///
@@ -448,7 +448,7 @@ pub(crate) mod sealed {
 ///     fn crs(&self) -> geocoordinates::Crs { geocoordinates::Crs::Wgs84 }
 /// }
 /// ```
-pub trait LatLon: sealed::Sealed {
+pub trait LatLon: sealed::Sealed + Copy {
     /// Latitude in decimal degrees.
     ///
     /// ```
@@ -586,7 +586,7 @@ mod tests {
     #[test]
     fn text_round_trip_goes_through_explicit_routes() {
         let c = wgs(40.7128, -74.006);
-        let rendered = crate::format::format(&c, &crate::format::FormatOptions::default());
+        let rendered = crate::format::format(c, &crate::format::FormatOptions::default());
         assert_eq!(rendered.as_deref(), Ok("40.712800, -74.006000"));
         let back = crate::parse::parse_coordinate(&rendered.unwrap()).unwrap();
         assert_eq!(back.coord, c);

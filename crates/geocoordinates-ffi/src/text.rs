@@ -365,7 +365,7 @@ pub fn decimal_separator_for_locale(tag: String) -> DecimalSeparator {
 pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<String, GeoError> {
     let coord: gc::Coordinate = coord.try_into()?;
     let options: gc::format::FormatOptions = options.into();
-    gc::format::format(&coord, &options).map_err(GeoError::from)
+    gc::format::format(coord, &options).map_err(GeoError::from)
 }
 
 /// Render a [`Fix`] to a string, deriving the decimal count from its accuracy

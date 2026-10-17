@@ -31,6 +31,7 @@ import uniffi.geocoordinates_ffi.fixFromCoord
 import uniffi.geocoordinates_ffi.formatFix
 import uniffi.geocoordinates_ffi.formatOptionsDefault
 import uniffi.geocoordinates_ffi.fromNmeaSentence
+import uniffi.geocoordinates_ffi.gcj02IsOutsideChina
 import uniffi.geocoordinates_ffi.gcj02ToBd09
 import uniffi.geocoordinates_ffi.gcj02ToWgs84Fast
 import uniffi.geocoordinates_ffi.gcj02ToWgs84Refined
@@ -39,10 +40,10 @@ import uniffi.geocoordinates_ffi.h3Decode
 import uniffi.geocoordinates_ffi.h3Encode
 import uniffi.geocoordinates_ffi.mgrsFromCoordinate
 import uniffi.geocoordinates_ffi.mgrsToCoordinate
-import uniffi.geocoordinates_ffi.outOfChina
 import uniffi.geocoordinates_ffi.parseCoordinate
 import uniffi.geocoordinates_ffi.utmCentralMeridianDeg
 import uniffi.geocoordinates_ffi.utmFromCoordinate
+import uniffi.geocoordinates_ffi.wgs84IsOutsideChina
 import uniffi.geocoordinates_ffi.wgs84ToBd09
 import uniffi.geocoordinates_ffi.wgs84ToGcj02
 
@@ -86,8 +87,9 @@ class BindingsTest {
         val bd = wgs84ToBd09(WGS)
         assertEquals(BD.lat, bd.lat, 1e-9)
         assertEquals(BD.lon, bd.lon, 1e-9)
-        assertTrue(outOfChina(51.5074, -0.1278))
-        assertFalse(outOfChina(WGS.lat, WGS.lon))
+        assertTrue(wgs84IsOutsideChina(Wgs84(51.5074, -0.1278)))
+        assertFalse(wgs84IsOutsideChina(WGS))
+        assertFalse(gcj02IsOutsideChina(GCJ))
     }
 
     @Test
