@@ -265,8 +265,9 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
             ..
         })
     ));
-    // Utm / Ups are valid by construction: an out-of-domain part is rejected
-    // up front, so decoding is infallible.
+    // Utm / Ups are valid by construction: only a position the forward
+    // projection produces is accepted, so decoding is infallible and
+    // round-trips.
     assert!(matches!(
         Utm::new(0, UtmHemisphere::North, 500_000.0, 0.0),
         Err(Error::InvalidValue { field: "zone", .. })
@@ -286,9 +287,17 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
             ..
         })
     ));
-    // Zone 1 west of the antimeridian decodes to a wrapped longitude.
-    let across = Utm::new(1, UtmHemisphere::North, 150_000.0, 0.0)?.to_coordinate();
-    assert!(across.lon() > 179.8);
+    // Zone 1 west of the antimeridian is zone 60's longitude, not zone 1's.
+    assert!(matches!(
+        Utm::new(1, UtmHemisphere::North, 150_000.0, 0.0),
+        Err(Error::InvalidValue {
+            field: "easting",
+            ..
+        })
+    ));
+    // Zone 60's 180° edge decodes just west of 180°, so it stays in zone 60.
+    let edge = Utm::try_from_coordinate(Coordinate::wgs84(0.0, 180.0)?)?;
+    assert_eq!(Utm::try_from_coordinate(edge.to_coordinate())?.zone(), 60);
     assert!(matches!(
         utm_zone_for(Coordinate::wgs84(84.0, 9.0)?),
         Err(Error::OutsideDomain {

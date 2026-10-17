@@ -3,7 +3,8 @@
 //! An MGRS string (e.g. `4QFJ12345678`) is a grid-zone designator, 100 km
 //! square ID, and easting/northing digits. It is validated at construction
 //! ([`Mgrs::parse`], its `TryFrom<&str>` / [`FromStr`] sugar, and serde deserialization),
-//! which can fail on invalid grid letters or digits. Because the reference is
+//! which fails on invalid grid letters or digits and on a square wholly outside
+//! its grid-zone designator. Because the reference is
 //! then valid by construction, decoding is infallible; it yields a square with
 //! extent, so [`Mgrs::to_coordinate`] returns [`Approx`]. The square size is
 //! the closed set [`MgrsPrecision`].
@@ -219,9 +220,8 @@ impl Mgrs {
     /// gives this reference back. The bound is then the grid
     /// distance from that point to the square's farthest corner over
     /// `k_min`, at most twice the half-diagonal bound, and it covers every
-    /// point of the owned part. A reference the parser accepts but whose
-    /// square holds no point of its designator (e.g. a zone-32X square, which
-    /// the Svalbard exception drops) keeps the center and half-diagonal bound.
+    /// point of the owned part. A square holding no point of its designator
+    /// never gets this far: [`Mgrs::parse`] rejects it.
     ///
     /// ```
     /// use geocoordinates::grids::{Mgrs, MgrsPrecision};
@@ -297,12 +297,17 @@ impl Mgrs {
     ///
     /// assert_eq!(Mgrs::parse("4q fj 1234 5678")?.as_str(), "04QFJ12345678");
     /// assert!(matches!(Mgrs::parse("4QFJ123"), Err(Error::InvalidGridRef(_))));
+    /// // Well-formed, but the Svalbard exception drops zone 32 from band X.
+    /// assert!(matches!(Mgrs::parse("32XNJ"), Err(Error::InvalidGridRef(_))));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
     /// # Errors
     /// Returns [`crate::Error::InvalidGridRef`] on a bad grid-zone designator,
-    /// 100 km square id, or digit group.
+    /// 100 km square id, or digit group, and on a square that holds no point
+    /// of its grid-zone designator (no coordinate encodes to it), such as a
+    /// UPS square wholly equatorward of the polar cap or a UTM column wholly
+    /// outside its zone. A square the designator only truncates is accepted.
     pub fn parse(s: &str) -> Result<Self> {
         let Decoded {
             center: nominal,
@@ -320,13 +325,9 @@ impl Mgrs {
         if bytes[0].is_ascii_digit() && !bytes[1].is_ascii_digit() {
             text.insert(0, '0');
         }
-        let (center, max_error_m) = clip::settle(
-            &text,
-            precision.digits(),
-            nominal,
-            precision.side().meters(),
-            gzd,
-        );
+        let side = precision.side().meters();
+        let (center, max_error_m) = clip::settle(&text, precision.digits(), nominal, side, gzd)
+            .ok_or_else(|| Error::InvalidGridRef(s.to_string()))?;
         Ok(Mgrs {
             text,
             precision,
@@ -598,7 +599,7 @@ fn decode_utm(s: &str, bad: impl Fn() -> Error + Copy) -> Result<Decoded> {
     // band/row mismatch, which is an invalid grid reference.
     for block in 0..11u32 {
         let northing = (row_val as f64 + 20.0 * f64::from(block)) * 100_000.0 + n_base;
-        let Ok(utm) = Utm::new(zone, hemisphere, easting, northing) else {
+        let Ok(utm) = Utm::from_grid(zone, hemisphere, easting, northing) else {
             continue;
         };
         let coord = utm.to_coordinate();
@@ -643,7 +644,7 @@ fn decode_ups(s: &str, bad: impl Fn() -> Error + Copy) -> Result<Decoded> {
         UtmHemisphere::South
     };
     Ok(Decoded {
-        center: Center::Ups(Ups::new(hemisphere, easting, northing)?),
+        center: Center::Ups(Ups::from_grid(hemisphere, easting, northing).map_err(|_| bad())?),
         precision,
         gzd: Gzd::Ups { north },
     })

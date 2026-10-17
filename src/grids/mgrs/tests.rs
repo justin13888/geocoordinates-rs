@@ -373,28 +373,30 @@ fn multibyte_inputs_never_panic() {
 }
 
 #[test]
-fn squares_across_the_antimeridian_decode_wrapped() {
-    // C6: zone 1's westmost column (easting 100–200 km) at the equator lies
-    // east of 180°. It decodes to a wrapped longitude instead of falling
-    // through to `InvalidGridRef`.
-    let west = Mgrs::try_from("1NAA5000050000").expect("valid");
-    let west = west.to_coordinate();
-    assert_close(west.value().lat(), 0.452, 1e-3);
-    assert!(west.value().lon() > 179.8, "{:?}", west.value());
-    // The mirror square in zone 60's eastmost column wraps west.
-    let east = Mgrs::try_from("60NZF5000050000").expect("valid");
-    let east = east.to_coordinate();
-    assert!(east.value().lon() < -179.8, "{:?}", east.value());
-    // Neither square holds a point its own zone owns, so there is nothing to
-    // clip to: each keeps the nominal center and half-diagonal bound. So does
-    // a square of zone 32X, which the Svalbard exception drops.
-    let dropped = Mgrs::try_from("32XNJ").expect("valid").to_coordinate();
-    for (square, side) in [(west, 1.0), (east, 1.0), (dropped, 100_000.0)] {
-        assert_close(
-            square.max_error().meters(),
-            side * core::f64::consts::FRAC_1_SQRT_2 / 0.9996,
-            1e-12,
-        );
+fn squares_wholly_outside_their_designator_are_invalid() {
+    // #183: a square holding no point of its grid-zone designator names
+    // nothing the encoder emits, so it cannot round-trip and is rejected.
+    for s in [
+        // C6: 1 m squares at the equator east of 180° in zone 1's westmost
+        // column, and the mirror square west of 180° in zone 60's eastmost.
+        "1NAA5000050000",
+        "60NZF5000050000",
+        // The Svalbard exception drops zone 32 from band X.
+        "32XNJ",
+        // A UPS south square entirely equatorward of 80°S (around 75°S).
+        "AJA",
+        // At 80°N zone 18 is ≈ 116 km wide, so its westmost column (easting
+        // 100–200 km) lies wholly in zone 17.
+        "18XSQ",
+    ] {
+        assert_invalid_grid_ref(Mgrs::try_from(s));
+    }
+    // The 100 km squares those 1 m squares sit in are only truncated, and
+    // decode inside their zone.
+    for s in ["01NAA", "60NZF", "18XVQ"] {
+        let m = Mgrs::try_from(s).unwrap_or_else(|e| panic!("{s}: {e}"));
+        let again = Mgrs::try_from_coordinate(*m.to_coordinate().value(), m.precision());
+        assert_eq!(again.unwrap(), m);
     }
 }
 
@@ -573,6 +575,39 @@ proptest::proptest! {
         let lat = (-80.0 + 8.0 * f64::from(band) + dlat * scale).clamp(-90.0, 90.0);
         let lon = (meridian + dlon * scale).clamp(-180.0, 180.0);
         assert_round_trips(c(lat, lon), precision);
+    }
+}
+
+proptest::proptest! {
+    // About one draw in six parses, so run enough to reach a few hundred.
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(2048))]
+
+    /// #183: every reference that parses — drawn from the whole grammar,
+    /// most of it malformed or naming a square outside its designator —
+    /// decodes to a point that encodes back to it at the same precision.
+    #[test]
+    fn every_parseable_reference_round_trips(
+        gzd in prop_oneof![
+            (1u8..=60, proptest::sample::select(BAND.chars().collect::<Vec<_>>()))
+                .prop_map(|(zone, band)| format!("{zone:02}{band}")),
+            proptest::sample::select(vec!["A", "B", "Y", "Z"]).prop_map(String::from),
+        ],
+        col in proptest::sample::select(UPS_ROW.chars().collect::<Vec<_>>()),
+        row in proptest::sample::select(UPS_ROW.chars().collect::<Vec<_>>()),
+        digits in 0usize..=5,
+        e in 0u32..100_000,
+        n in 0u32..100_000,
+    ) {
+        let shift = 10u32.pow(5 - digits as u32);
+        let pair = if digits == 0 {
+            String::new()
+        } else {
+            format!("{:0digits$}{:0digits$}", e / shift, n / shift)
+        };
+        if let Ok(m) = Mgrs::parse(&format!("{gzd}{col}{row}{pair}")) {
+            let again = Mgrs::try_from_coordinate(*m.to_coordinate().value(), m.precision());
+            assert_eq!(again.unwrap(), m);
+        }
     }
 }
 
