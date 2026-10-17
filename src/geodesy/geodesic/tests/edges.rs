@@ -170,6 +170,18 @@ fn a_zero_distance_destination_is_the_start() {
             assert_eq!(p, start, "from {start:?} on bearing {bearing}");
         }
     }
+    // A start on the antimeridian keeps its latitude exactly; its longitude is
+    // wrapped into [-180, 180) like every producer's, so 180 comes back as -180.
+    for start in [c(33.75, 180.0), c(90.0, 180.0), c(-90.0, 180.0)] {
+        for bearing in [0.0, 30.0, 180.0, 270.0] {
+            let p = rhumb_destination(start, bearing, Length::from_meters(0.0)).unwrap();
+            assert_eq!(
+                (p.lat(), p.lon(), p.crs()),
+                (start.lat(), -180.0, start.crs()),
+                "from {start:?} on bearing {bearing}"
+            );
+        }
+    }
 }
 
 #[test]
