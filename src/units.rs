@@ -1,4 +1,4 @@
-//! Length units and conversions.
+//! Length units and conversions, and the surface-tagged [`Height`].
 //!
 //! Angle normalization helpers (longitude wrap, latitude clamp, degree
 //! normalization) live in [`crate::angle`], alongside the DD/DMS/DDM encodings.
@@ -106,7 +106,7 @@ impl Length {
 /// assert_eq!(Length::from_unit(1.0, LengthUnit::Mile).meters(), 1609.344);
 /// assert_eq!(Length::from_unit(1.0, LengthUnit::Yard).meters(), 0.9144);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LengthUnit {
     /// Meter (SI).
@@ -129,8 +129,15 @@ pub enum LengthUnit {
 impl LengthUnit {
     /// Meters in one of this unit. The US survey foot keeps its defining
     /// `1200/3937` ratio rather than a pre-divided literal.
+    ///
+    /// ```
+    /// use geocoordinates::LengthUnit;
+    ///
+    /// assert_eq!(LengthUnit::NauticalMile.meters_per_unit(), 1852.0);
+    /// assert_eq!(LengthUnit::UsSurveyFoot.meters_per_unit(), 1200.0 / 3937.0);
+    /// ```
     #[must_use]
-    fn meters_per_unit(self) -> f64 {
+    pub const fn meters_per_unit(self) -> f64 {
         match self {
             LengthUnit::Meter => 1.0,
             LengthUnit::Kilometer => 1000.0,
@@ -139,6 +146,52 @@ impl LengthUnit {
             LengthUnit::NauticalMile => 1852.0,
             LengthUnit::Mile => 1609.344,
             LengthUnit::Yard => 0.9144,
+        }
+    }
+}
+
+/// A height value, tagged by the surface it is measured from.
+///
+/// GNSS reports **ellipsoidal** height natively; humans expect **orthometric**
+/// height (above the geoid / "sea level"). Converting between them requires a
+/// geoid model — deferred behind the `geoid` feature (see
+/// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
+///
+/// Only these two surfaces are modeled; tidal datums (MSL, MLLW, …) are out of
+/// scope.
+///
+/// ```
+/// use geocoordinates::{Coordinate, Height};
+///
+/// let summit = Coordinate::wgs84(27.9881, 86.925)?.with_height(Height::Orthometric(8848.86))?;
+/// assert_eq!(summit.height(), Some(Height::Orthometric(8848.86)));
+/// // The surface is part of the value: the same number above the ellipsoid differs.
+/// assert_ne!(Height::Orthometric(8848.86), Height::Ellipsoidal(8848.86));
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Height {
+    /// Meters above the reference ellipsoid.
+    Ellipsoidal(f64),
+    /// Meters above the geoid (mean sea level).
+    Orthometric(f64),
+}
+
+impl Height {
+    /// The height as a [`Length`], whichever surface it is measured from;
+    /// match on the variant to keep the surface.
+    ///
+    /// ```
+    /// use geocoordinates::{Height, Length};
+    ///
+    /// assert_eq!(Height::Ellipsoidal(46.9).meters(), Length::from_meters(46.9));
+    /// assert_eq!(Height::Orthometric(-28.0).meters().meters(), -28.0);
+    /// ```
+    #[must_use]
+    pub const fn meters(self) -> Length {
+        match self {
+            Height::Ellipsoidal(value) | Height::Orthometric(value) => Length::from_meters(value),
         }
     }
 }

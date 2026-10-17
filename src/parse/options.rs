@@ -20,10 +20,7 @@ use crate::format::DecimalSeparator;
 ///
 /// // A bare geohash is not detected: it is not valid coordinate text either.
 /// assert!(parse_coordinate("ezs42").is_err());
-/// let options = ParseOptions {
-///     expect_grid: Some(GridKind::Geohash),
-///     ..ParseOptions::default()
-/// };
+/// let options = ParseOptions::default().with_expect_grid(Some(GridKind::Geohash));
 /// let fix = parse_coordinate_with("ezs42", &options)?;
 /// assert!((fix.coord.lat() - 42.6).abs() < 0.03 && (fix.coord.lon() + 5.6).abs() < 0.03);
 /// # Ok::<(), geocoordinates::Error>(())
@@ -54,23 +51,30 @@ pub enum GridKind {
 /// [`DecimalSeparator`] in [`format`](crate::format); the
 /// [`prelude`](crate::prelude) brings all three.
 ///
+/// `#[non_exhaustive]`, so a field (such as a datum to tag parsed text with)
+/// can be added without a breaking release: outside this crate, start from
+/// [`default`](Self::default) and chain the `with_*` builders (or assign the
+/// public fields of a `mut` binding). Under `serde`, a missing field
+/// deserializes to its default, so data written before a field existed still
+/// reads.
+///
 /// ```
 /// use geocoordinates::fix::AxisOrder;
 /// use geocoordinates::format::DecimalSeparator;
 /// use geocoordinates::parse::{ParseOptions, parse_coordinate_with};
 ///
 /// // `2,3522 48,8566` with decimal commas, longitude first.
-/// let options = ParseOptions {
-///     default_axis_order: AxisOrder::LonLat,
-///     decimal_separator: DecimalSeparator::Comma,
-///     expect_grid: None,
-/// };
+/// let options = ParseOptions::default()
+///     .with_default_axis_order(AxisOrder::LonLat)
+///     .with_decimal_separator(DecimalSeparator::Comma);
 /// let fix = parse_coordinate_with("2,3522 48,8566", &options)?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[non_exhaustive]
 pub struct ParseOptions {
     /// Axis order to assume for free text when neither a hemisphere letter
     /// nor the `|value| > 90` range rule decides it.
@@ -87,6 +91,67 @@ pub struct ParseOptions {
     /// first. Input that is not a valid reference of this kind still parses
     /// by the other routes.
     pub expect_grid: Option<GridKind>,
+}
+
+impl ParseOptions {
+    /// These options with `default_axis_order` as the
+    /// [`default_axis_order`](Self::default_axis_order).
+    ///
+    /// ```
+    /// use geocoordinates::fix::AxisOrder;
+    /// use geocoordinates::parse::{ParseOptions, parse_coordinate_with};
+    ///
+    /// let options = ParseOptions::default().with_default_axis_order(AxisOrder::LonLat);
+    /// assert_eq!(options.default_axis_order, AxisOrder::LonLat);
+    /// let fix = parse_coordinate_with("2.3522, 48.8566", &options)?;
+    /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn with_default_axis_order(mut self, default_axis_order: AxisOrder) -> Self {
+        self.default_axis_order = default_axis_order;
+        self
+    }
+
+    /// These options with `decimal_separator` as the
+    /// [`decimal_separator`](Self::decimal_separator).
+    ///
+    /// ```
+    /// use geocoordinates::format::DecimalSeparator;
+    /// use geocoordinates::parse::{ParseOptions, parse_coordinate_with};
+    ///
+    /// let options = ParseOptions::default().with_decimal_separator(DecimalSeparator::Comma);
+    /// assert_eq!(options.decimal_separator, DecimalSeparator::Comma);
+    /// let fix = parse_coordinate_with("48,8566 2,3522", &options)?;
+    /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn with_decimal_separator(mut self, decimal_separator: DecimalSeparator) -> Self {
+        self.decimal_separator = decimal_separator;
+        self
+    }
+
+    /// These options with `expect_grid` as the
+    /// [`expect_grid`](Self::expect_grid); `None` expects no particular
+    /// grid again.
+    ///
+    /// ```
+    /// use geocoordinates::parse::{GridKind, ParseOptions, parse_coordinate_with};
+    ///
+    /// let options = ParseOptions::default().with_expect_grid(Some(GridKind::Maidenhead));
+    /// assert_eq!(options.expect_grid, Some(GridKind::Maidenhead));
+    /// let fix = parse_coordinate_with("FN20", &options)?;
+    /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.5, -75.0));
+    /// // Without it, a bare locator is not detected.
+    /// assert!(parse_coordinate_with("FN20", &options.with_expect_grid(None)).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn with_expect_grid(mut self, expect_grid: Option<GridKind>) -> Self {
+        self.expect_grid = expect_grid;
+        self
+    }
 }
 
 impl Default for ParseOptions {

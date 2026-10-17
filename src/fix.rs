@@ -375,7 +375,7 @@ impl RawSource {
 /// assert_eq!(fix.source.and_then(|s| s.axis_order), Some(AxisOrder::LatLon));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AxisOrder {
     /// Latitude first (human/EPSG convention).
@@ -402,7 +402,7 @@ pub enum AxisOrder {
 /// assert_eq!(source.datum_ambiguity, Some(DatumAmbiguity::PossiblyGcj02));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DatumAmbiguity {
     /// Coordinate is in China's bounding box; datum may be GCJ-02, not WGS-84.

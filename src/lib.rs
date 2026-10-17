@@ -119,9 +119,9 @@ pub(crate) mod test_support;
 // implementation module; it is their only path. The broader common working
 // set is in [`prelude`]; every other item lives in its subsystem module.
 pub use approx::Approx;
-pub use coord::{Coordinate, Crs, Height, LatLon};
+pub use coord::{Coordinate, Crs, LatLon};
 pub use error::{Error, ParseErrorKind, Result};
-pub use units::{Length, LengthUnit};
+pub use units::{Height, Length, LengthUnit};
 
 /// Common imports for typical use: `use geocoordinates::prelude::*;`.
 ///

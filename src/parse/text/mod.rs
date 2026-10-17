@@ -100,10 +100,7 @@ pub fn parse_text(input: &str) -> Result<Fix> {
 /// use geocoordinates::format::DecimalSeparator;
 /// use geocoordinates::parse::{GridKind, ParseOptions, parse_text_with};
 ///
-/// let comma = ParseOptions {
-///     decimal_separator: DecimalSeparator::Comma,
-///     ..ParseOptions::default()
-/// };
+/// let comma = ParseOptions::default().with_decimal_separator(DecimalSeparator::Comma);
 /// let fix = parse_text_with("48,8566; 2,3522", &comma)?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
 ///
@@ -111,10 +108,7 @@ pub fn parse_text(input: &str) -> Result<Fix> {
 /// assert!(matches!(parse_text_with("100, 200", &comma), Err(Error::Parse { .. })));
 ///
 /// // Expecting a grid reference is a request free text cannot honour.
-/// let grid = ParseOptions {
-///     expect_grid: Some(GridKind::Geohash),
-///     ..ParseOptions::default()
-/// };
+/// let grid = ParseOptions::default().with_expect_grid(Some(GridKind::Geohash));
 /// assert!(matches!(
 ///     parse_text_with("48.8566, 2.3522", &grid),
 ///     Err(Error::InvalidValue { field: "expect_grid", .. })

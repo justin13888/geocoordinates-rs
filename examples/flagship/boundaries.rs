@@ -3,7 +3,7 @@
 use geocoordinates::angle::{Axis, Ddm, Dms, Hemisphere as AngleHemisphere, wrap_longitude};
 use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
 use geocoordinates::dgg::{H3Cell, S2CellId};
-use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, format};
+use geocoordinates::format::{FormatOptions, HemisphereStyle, Representation, SymbolStyle, format};
 use geocoordinates::geodesy::{
     DatumTransform, Ecef, Ellipsoid, Enu, Helmert, destination, geodesic_distance,
     rhumb_destination,
@@ -120,19 +120,25 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     let bad_dms_json = dms_json.replace("59", "60");
     assert_ne!(bad_dms_json, dms_json);
     assert!(serde_json::from_str::<Dms>(&bad_dms_json).is_err());
-    assert!(
-        format(
-            new_york(),
-            &FormatOptions {
-                representation: Representation::DecimalDegrees {
-                    decimals: Some(16),
-                    hemisphere: HemisphereStyle::Signed,
-                },
-                ..FormatOptions::default()
-            }
-        )
-        .is_err()
-    );
+    // A decimal count past the most that round-trips is refused.
+    let too_fine_dd =
+        FormatOptions::default().with_representation(Representation::DecimalDegrees {
+            decimals: Some(Representation::MAX_DD_DECIMALS + 1),
+            hemisphere: HemisphereStyle::Signed,
+        });
+    assert!(format(new_york(), &too_fine_dd).is_err());
+    let too_fine_dms = FormatOptions::default().with_representation(Representation::Dms {
+        second_decimals: Some(Representation::MAX_DMS_SECOND_DECIMALS + 1),
+        symbols: SymbolStyle::Unicode,
+        hemisphere: HemisphereStyle::Cardinal,
+    });
+    assert!(matches!(
+        format(new_york(), &too_fine_dms),
+        Err(Error::InvalidValue {
+            field: "second_decimals",
+            ..
+        })
+    ));
     assert_eq!(
         BaiduMercator::try_from_coordinate(Coordinate::wgs84(39.915, 116.404)?),
         Err(Error::CrsMismatch {

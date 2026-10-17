@@ -6,13 +6,10 @@ Exercises the curated FFI surface against the crate's own reference vectors
 (checking the `max_error_m` bound), the Baidu Mercator round trip, the
 `*_is_outside_china` gate, the fallible try-conversion (error path), and distance.
 
-Run from the repo root after building + generating:
+Run from the repo root after generating, as CI does:
 
-    cargo build --release -p geocoordinates-ffi
-    cargo run -p geocoordinates-ffi --bin uniffi-bindgen -- \
-        generate --library target/release/libgeocoordinates_ffi.dylib \
-        --language python --out-dir bindings/python
-    cp target/release/libgeocoordinates_ffi.* bindings/python/   # .so on Linux
+    mise run bindings-python
+    cp target/release/libgeocoordinates_ffi.* bindings/python/
     python crates/geocoordinates-ffi/tests/smoke.py
 """
 
@@ -166,6 +163,9 @@ assert approx(gc.length_from_unit(1.0, gc.LengthUnit.KILOMETER), 1000.0, 1e-9)
 assert approx(gc.length_to_unit(1852.0, gc.LengthUnit.NAUTICAL_MILE), 1.0, 1e-9)
 assert gc.length_from_unit(1.0, gc.LengthUnit.MILE) == 1609.344
 assert gc.length_from_unit(1.0, gc.LengthUnit.YARD) == 0.9144
+assert gc.length_unit_meters_per_unit(gc.LengthUnit.NAUTICAL_MILE) == 1852.0
+assert gc.height_meters(gc.Height.ELLIPSOIDAL(meters=46.9)) == 46.9
+assert gc.height_meters(gc.Height.ORTHOMETRIC(meters=-28.0)) == -28.0
 
 # --- Coordinate validation + Null Island ---
 gc.coordinate_validate(wgs84_coord(40.0, -74.0))  # in range -> no raise

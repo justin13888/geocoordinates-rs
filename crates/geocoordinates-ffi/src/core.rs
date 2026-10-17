@@ -467,6 +467,19 @@ pub fn length_to_unit(meters: f64, unit: LengthUnit) -> f64 {
     gc::Length::from_meters(meters).to_unit(unit.into())
 }
 
+/// Meters in one of `unit` — mirror of [`gc::LengthUnit::meters_per_unit`].
+#[uniffi::export]
+pub fn length_unit_meters_per_unit(unit: LengthUnit) -> f64 {
+    gc::LengthUnit::from(unit).meters_per_unit()
+}
+
+/// The height in meters, whichever surface it is measured from — mirror of
+/// [`gc::Height::meters`] (`Length` is flattened to `f64` meters).
+#[uniffi::export]
+pub fn height_meters(height: Height) -> f64 {
+    gc::Height::from(height).meters().meters()
+}
+
 // --- Coordinate validation ---
 
 /// Validate a (possibly hand-built) coordinate record: latitude in

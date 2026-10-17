@@ -15,10 +15,7 @@
 /// use geocoordinates::format::{DecimalSeparator, FormatOptions, format};
 /// use geocoordinates::parse::parse_coordinate_with;
 ///
-/// let options = FormatOptions {
-///     decimal_separator: DecimalSeparator::Comma,
-///     ..FormatOptions::default()
-/// };
+/// let options = FormatOptions::default().with_decimal_separator(DecimalSeparator::Comma);
 /// let text = format(Coordinate::wgs84(48.8566, 2.3522)?, &options)?;
 /// assert_eq!(text, "48,856600 2,352200");
 /// let fix = parse_coordinate_with(&text, &options.parse_options())?;

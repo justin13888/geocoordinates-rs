@@ -162,10 +162,7 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// use geocoordinates::Error;
 /// use geocoordinates::parse::{GridKind, ParseOptions, parse_coordinate_with};
 ///
-/// let options = ParseOptions {
-///     expect_grid: Some(GridKind::Maidenhead),
-///     ..ParseOptions::default()
-/// };
+/// let options = ParseOptions::default().with_expect_grid(Some(GridKind::Maidenhead));
 /// let fix = parse_coordinate_with("FN20", &options)?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.5, -75.0));
 ///

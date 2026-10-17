@@ -16,14 +16,15 @@ use crate::{AxisOrder, Coordinate, Fix, GeoError, MgrsPrecision};
 pub enum Representation {
     /// Decimal degrees (`40.712800, -74.006000`).
     DecimalDegrees {
-        /// Decimal places of degrees, at most 15.
+        /// Decimal places of degrees, at most 15 (the most that round-trips).
         decimals: Option<u8>,
         /// Sign or cardinal letter.
         hemisphere: HemisphereStyle,
     },
     /// Degrees-minutes-seconds (`40°42′46.08″N 74°00′21.60″W`).
     Dms {
-        /// Decimal places of arcseconds, at most 15.
+        /// Decimal places of arcseconds, at most 9 (the most that
+        /// round-trips; a tenth digit can drift by one through a re-parse).
         second_decimals: Option<u8>,
         /// Degree / minute / second glyphs.
         symbols: SymbolStyle,
@@ -32,7 +33,9 @@ pub enum Representation {
     },
     /// Degrees-decimal-minutes (`40°42.768′N 74°00.360′W`).
     Ddm {
-        /// Decimal places of arcminutes, at most 15.
+        /// Decimal places of arcminutes, at most 12 (the most that
+        /// round-trips; a thirteenth digit can drift by one through a
+        /// re-parse).
         minute_decimals: Option<u8>,
         /// Degree / minute glyphs.
         symbols: SymbolStyle,
@@ -282,10 +285,9 @@ impl From<gc::format::FormatOptions> for FormatOptions {
 
 impl From<FormatOptions> for gc::format::FormatOptions {
     fn from(o: FormatOptions) -> Self {
-        gc::format::FormatOptions {
-            representation: o.representation.into(),
-            decimal_separator: o.decimal_separator.into(),
-        }
+        gc::format::FormatOptions::default()
+            .with_representation(o.representation.into())
+            .with_decimal_separator(o.decimal_separator.into())
     }
 }
 
@@ -323,11 +325,10 @@ impl From<gc::parse::ParseOptions> for ParseOptions {
 
 impl From<ParseOptions> for gc::parse::ParseOptions {
     fn from(o: ParseOptions) -> Self {
-        gc::parse::ParseOptions {
-            default_axis_order: o.default_axis_order.into(),
-            decimal_separator: o.decimal_separator.into(),
-            expect_grid: o.expect_grid.map(Into::into),
-        }
+        gc::parse::ParseOptions::default()
+            .with_default_axis_order(o.default_axis_order.into())
+            .with_decimal_separator(o.decimal_separator.into())
+            .with_expect_grid(o.expect_grid.map(Into::into))
     }
 }
 
@@ -357,8 +358,9 @@ pub fn decimal_separator_for_locale(tag: String) -> DecimalSeparator {
 ///
 /// # Errors
 /// - `GeoError::OutOfRange` for an out-of-range coordinate record.
-/// - `GeoError::InvalidValue` when a decimal count exceeds 15, or a grid
-///   representation's size is outside the range its variant documents.
+/// - `GeoError::InvalidValue` when a decimal count exceeds the most that
+///   round-trips (DD 15, DMS 9, DDM 12), or a grid representation's size is
+///   outside the range its variant documents.
 /// - `GeoError::CrsMismatch` when a grid representation is asked to render a
 ///   non-WGS-84 coordinate.
 #[uniffi::export]

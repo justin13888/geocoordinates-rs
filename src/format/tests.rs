@@ -445,25 +445,30 @@ fn geohash_maidenhead_and_mgrs_representations() {
 #[test]
 fn too_many_decimals_is_an_error_naming_the_field() {
     let c = wgs(40.7128, -74.006);
+    let (u, s) = (SymbolStyle::Unicode, HemisphereStyle::Signed);
     let cases = [
-        (dd(Some(16), HemisphereStyle::Signed), "decimals"),
-        (
-            dms(Some(16), SymbolStyle::Unicode, HemisphereStyle::Signed),
-            "second_decimals",
-        ),
-        (
-            ddm(Some(16), SymbolStyle::Unicode, HemisphereStyle::Signed),
-            "minute_decimals",
-        ),
+        (dd(Some(16), s), "decimals"),
+        (dms(Some(10), u, s), "second_decimals"),
+        (dms(Some(u8::MAX), u, s), "second_decimals"),
+        (ddm(Some(13), u, s), "minute_decimals"),
+        (ddm(Some(16), u, s), "minute_decimals"),
     ];
     for (representation, expected) in cases {
         match format(c, &opts(representation)) {
-            Err(Error::InvalidValue { field, .. }) => assert_eq!(field, expected),
+            Err(Error::InvalidValue { field, detail }) => {
+                assert_eq!(field, expected);
+                assert!(detail.contains("round-trips"), "{detail}");
+            }
             other => panic!("expected InvalidValue for {representation:?}, got {other:?}"),
         }
     }
-    // Fifteen is the limit, and it renders.
-    assert!(format(c, &opts(dd(Some(15), HemisphereStyle::Signed))).is_ok());
+    // Each cap is the limit, and it renders.
+    assert_eq!(
+        format(c, &opts(dd(Some(15), s))).unwrap(),
+        "40.712800000000001, -74.006000000000000"
+    );
+    assert!(format(c, &opts(dms(Some(9), u, s))).is_ok());
+    assert!(format(c, &opts(ddm(Some(12), u, s))).is_ok());
     // `format_fix` applies the same limit to a set count.
     let fix = fix_with_accuracy(c, Some(1.0));
     assert!(format_fix(&fix, &opts(dd(Some(16), HemisphereStyle::Signed))).is_err());
@@ -534,4 +539,79 @@ fn format_options_serde_round_trips() {
     });
     let json = serde_json::to_string(&mgrs).unwrap();
     assert_eq!(serde_json::from_str::<FormatOptions>(&json).unwrap(), mgrs);
+}
+
+/// A field absent from the serialized form takes its default, so options
+/// written before a field existed still deserialize once one is added.
+#[cfg(feature = "serde")]
+#[test]
+fn options_serde_fills_missing_fields_from_default() {
+    use crate::fix::AxisOrder;
+    use crate::parse::{GridKind, ParseOptions};
+
+    assert_eq!(
+        serde_json::from_str::<FormatOptions>("{}").unwrap(),
+        FormatOptions::default()
+    );
+    assert_eq!(
+        serde_json::from_str::<FormatOptions>(r#"{"decimal_separator":"Comma"}"#).unwrap(),
+        FormatOptions::default().with_decimal_separator(DecimalSeparator::Comma)
+    );
+    assert_eq!(
+        serde_json::from_str::<ParseOptions>("{}").unwrap(),
+        ParseOptions::default()
+    );
+    let parse = ParseOptions::default()
+        .with_default_axis_order(AxisOrder::LonLat)
+        .with_expect_grid(Some(GridKind::Mgrs));
+    assert_eq!(
+        serde_json::from_str::<ParseOptions>(
+            r#"{"default_axis_order":"LonLat","expect_grid":"Mgrs"}"#
+        )
+        .unwrap(),
+        parse
+    );
+}
+
+/// The builders set exactly their own field, and the options hash by value.
+#[test]
+fn builders_set_their_field_and_options_hash_by_value() {
+    use std::collections::HashSet;
+
+    use crate::fix::AxisOrder;
+    use crate::parse::{GridKind, ParseOptions};
+
+    let geohash = Representation::Geohash { length: 5 };
+    let format_options = FormatOptions::default()
+        .with_representation(geohash)
+        .with_decimal_separator(DecimalSeparator::Comma);
+    assert_eq!(
+        format_options,
+        FormatOptions {
+            representation: geohash,
+            decimal_separator: DecimalSeparator::Comma,
+        }
+    );
+    let parse_options = ParseOptions::default()
+        .with_default_axis_order(AxisOrder::LonLat)
+        .with_decimal_separator(DecimalSeparator::Comma)
+        .with_expect_grid(Some(GridKind::Geohash));
+    assert_eq!(
+        parse_options,
+        ParseOptions {
+            default_axis_order: AxisOrder::LonLat,
+            decimal_separator: DecimalSeparator::Comma,
+            expect_grid: Some(GridKind::Geohash),
+        }
+    );
+    assert_eq!(parse_options.with_expect_grid(None).expect_grid, None);
+
+    let set: HashSet<FormatOptions> = [format_options, format_options, FormatOptions::default()]
+        .into_iter()
+        .collect();
+    assert_eq!(set.len(), 2);
+    let set: HashSet<ParseOptions> = [parse_options, parse_options, ParseOptions::default()]
+        .into_iter()
+        .collect();
+    assert_eq!(set.len(), 2);
 }
