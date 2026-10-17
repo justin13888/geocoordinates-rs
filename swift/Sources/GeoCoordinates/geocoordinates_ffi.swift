@@ -6989,9 +6989,9 @@ public func fromGeojson(input: String)throws  -> [Fix]  {
  * horizontal accuracy of `HDOP × 5 m`.
  *
  * # Errors
- * `GeoError::Parse` on malformed GPX, or naming the index of the first point
- * with an invalid `<hdop>`; `GeoError::OutOfRange` for the first point out of
- * range.
+ * `GeoError::Parse` (kind `Syntax`) on malformed GPX or a `lat` / `lon` out
+ * of range (the GPX reader range-checks both before any point is built), or
+ * naming the index of the first point with an invalid `<hdop>`.
  */
 public func fromGpx(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -7606,7 +7606,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 43031) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 13293) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 58524) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 32477) {
