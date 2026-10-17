@@ -5771,6 +5771,19 @@ public func h3Encode(coord: Coordinate, resolution: UInt8)throws  -> H3Cell  {
 })
 }
 /**
+ * The resolution (0–15) of an H3 cell.
+ *
+ * The record carries an unvalidated `u64`, so it is validated here first:
+ * an index H3 does not define fails with `InvalidCellId`.
+ */
+public func h3Resolution(cell: H3Cell)throws  -> UInt8  {
+    return try  FfiConverterUInt8.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_h3_resolution(
+        FfiConverterTypeH3Cell_lower(cell),$0
+    )
+})
+}
+/**
  * Decode an S2 cell to its center, with the maximum corner-distance bound.
  *
  * The record carries an unvalidated `u64`, so it is validated here first:
@@ -5791,6 +5804,19 @@ public func s2Encode(coord: Coordinate, level: UInt8)throws  -> S2CellId  {
     uniffi_geocoordinates_ffi_fn_func_s2_encode(
         FfiConverterTypeCoordinate_lower(coord),
         FfiConverterUInt8.lower(level),$0
+    )
+})
+}
+/**
+ * The level (0–30) of an S2 cell.
+ *
+ * The record carries an unvalidated `u64`, so it is validated here first:
+ * an id S2 does not define fails with `InvalidCellId`.
+ */
+public func s2Level(cell: S2CellId)throws  -> UInt8  {
+    return try  FfiConverterUInt8.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_s2_level(
+        FfiConverterTypeS2CellId_lower(cell),$0
     )
 })
 }
@@ -6363,7 +6389,7 @@ public func rhumbDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
 }
 /**
  * Validate a 1–12 character geohash and return its canonical (trimmed,
- * lowercase) form — the FFI form of `Geohash`'s `TryFrom<&str>` and
+ * lowercase) form — the FFI form of `Geohash::parse` and
  * `Display`.
  *
  * # Errors
@@ -6409,7 +6435,7 @@ public func geohashEncode(coord: Coordinate, length: UInt8)throws  -> String  {
 /**
  * Validate a 2-, 4-, or 6-character Maidenhead locator and return its
  * canonical form (uppercase field, digit square, lowercase subsquare) — the
- * FFI form of `Maidenhead`'s `TryFrom<&str>` and `Display`.
+ * FFI form of `Maidenhead::parse` and `Display`.
  *
  * # Errors
  * Returns [`GeoError::InvalidGridRef`] for a malformed locator.
@@ -6448,6 +6474,20 @@ public func maidenheadEncode(coord: Coordinate, pairs: UInt8)throws  -> String  
     uniffi_geocoordinates_ffi_fn_func_maidenhead_encode(
         FfiConverterTypeCoordinate_lower(coord),
         FfiConverterUInt8.lower(pairs),$0
+    )
+})
+}
+/**
+ * Validate an MGRS reference and return its canonical form (uppercase, no
+ * whitespace, two-digit zone) — the FFI form of `Mgrs::parse` and `Display`.
+ *
+ * # Errors
+ * `GeoError::InvalidGridRef` when the string is not a valid MGRS reference.
+ */
+public func mgrsCanonicalize(mgrs: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_mgrs_canonicalize(
+        FfiConverterString.lower(mgrs),$0
     )
 })
 }
@@ -6511,7 +6551,7 @@ public func mgrsToCoordinate(mgrs: String)throws  -> ApproxCoordinate  {
 }
 /**
  * Validate a full Open Location Code and return its canonical (trimmed,
- * uppercase) form — the FFI form of `PlusCode`'s `TryFrom<&str>` and
+ * uppercase) form — the FFI form of `PlusCode::parse` and
  * `Display`.
  *
  * # Errors
@@ -7065,10 +7105,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_h3_encode() != 35871) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_h3_resolution() != 58375) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_s2_decode() != 19680) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_s2_encode() != 10687) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_s2_level() != 41713) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 9329) {
@@ -7197,7 +7243,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_rhumb_distance_m() != 825) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geohash_canonicalize() != 64160) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geohash_canonicalize() != 44917) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_geohash_decode() != 13060) {
@@ -7206,13 +7252,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_geohash_encode() != 13509) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_canonicalize() != 1246) {
+    if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_canonicalize() != 49698) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_decode() != 57786) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_maidenhead_encode() != 53257) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_mgrs_canonicalize() != 56185) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_mgrs_from_coordinate() != 32862) {
@@ -7227,7 +7276,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_mgrs_to_coordinate() != 28651) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_canonicalize() != 31071) {
+    if (uniffi_geocoordinates_ffi_checksum_func_plus_code_canonicalize() != 48086) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_plus_code_decode() != 46951) {

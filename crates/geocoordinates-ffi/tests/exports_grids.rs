@@ -73,10 +73,15 @@ fn canonicalize_returns_the_canonical_code_or_rejects() {
         maidenhead_canonicalize("jn58TD".to_string()).unwrap(),
         "JN58td"
     );
+    assert_eq!(
+        mgrs_canonicalize("4q fj 1234 5678".to_string()).unwrap(),
+        "04QFJ12345678"
+    );
     for rejected in [
         plus_code_canonicalize("X2VV+2V".to_string()),
         geohash_canonicalize("ezs42ezs42ezs".to_string()),
         maidenhead_canonicalize("SN20".to_string()),
+        mgrs_canonicalize("4QFJ123".to_string()),
     ] {
         assert!(
             matches!(rejected, Err(GeoError::InvalidGridRef { .. })),
@@ -441,6 +446,11 @@ fn h3_encodes_the_canonical_index_and_decodes_its_center() {
         h3_decode(H3Cell { value: 0 }),
         Err(GeoError::InvalidCellId { value: 0, .. })
     ));
+    assert_eq!(h3_resolution(cell).unwrap(), 9);
+    assert!(matches!(
+        h3_resolution(H3Cell { value: 0 }),
+        Err(GeoError::InvalidCellId { value: 0, .. })
+    ));
 }
 
 #[test]
@@ -454,5 +464,10 @@ fn s2_encodes_the_canonical_id_and_decodes_its_center() {
     assert!(matches!(
         s2_encode(bd09(40.7128, -74.006), 20),
         Err(GeoError::CrsMismatch { .. })
+    ));
+    assert_eq!(s2_level(cell).unwrap(), 20);
+    assert!(matches!(
+        s2_level(S2CellId { value: 0 }),
+        Err(GeoError::InvalidCellId { value: 0, .. })
     ));
 }

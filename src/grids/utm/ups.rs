@@ -4,6 +4,7 @@ use super::{A_AXIS, F, UtmHemisphere, check_range};
 use crate::angle::{clamp_latitude, wrap_longitude};
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
+use crate::grids::require_wgs84;
 
 /// Largest valid UPS easting or northing (meters); the smallest is 0.
 const UPS_MAX: f64 = 4_000_000.0;
@@ -152,12 +153,7 @@ impl Ups {
     /// [`Error::OutsideDomain`] (operation `"UPS"`) for latitudes outside the
     /// polar zones (strictly between 80°S and 84°N, which is UTM territory).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Ups> {
-        if coord.crs() != Crs::Wgs84 {
-            return Err(Error::CrsMismatch {
-                expected: Crs::Wgs84,
-                found: coord.crs(),
-            });
-        }
+        require_wgs84(&coord)?;
         let (lat, lon) = (coord.lat(), coord.lon());
         let north = lat >= 0.0;
         if (north && lat < 84.0) || (!north && lat > -80.0) {
@@ -215,20 +211,30 @@ impl TryFrom<Coordinate> for Ups {
     }
 }
 
-/// First eccentricity `e` of WGS-84.
-fn wgs84_e() -> f64 {
-    (F * (2.0 - F)).sqrt()
+/// The WGS-84 constants of the UPS projection, computed once: `f64::sqrt`
+/// and `f64::powf` are not `const fn`.
+struct PolarConstants {
+    /// First eccentricity `e`.
+    e: f64,
+    /// `2·a·k₀ / √((1+e)^(1+e)·(1−e)^(1−e))`: the polar radius `ρ` per unit
+    /// of Snyder's `t` (Snyder 21-33).
+    big_a: f64,
 }
+
+static POLAR: std::sync::LazyLock<PolarConstants> = std::sync::LazyLock::new(|| {
+    let e = (F * (2.0 - F)).sqrt();
+    let big_a = 2.0 * A_AXIS * UPS_K0 / ((1.0 + e).powf(1.0 + e) * (1.0 - e).powf(1.0 - e)).sqrt();
+    PolarConstants { e, big_a }
+});
 
 /// Polar stereographic forward (geodetic → UPS easting/northing).
 fn ups_forward(lat: f64, lon: f64, north: bool) -> (f64, f64) {
-    let e = wgs84_e();
+    let PolarConstants { e, big_a } = *POLAR;
     let phi = lat.abs().to_radians();
     let lam = lon.to_radians();
     // Conformal radius from the pole (Snyder 21-33 / 21-34).
     let t = ((core::f64::consts::FRAC_PI_4 - phi / 2.0).tan())
         / ((1.0 - e * phi.sin()) / (1.0 + e * phi.sin())).powf(e / 2.0);
-    let big_a = 2.0 * A_AXIS * UPS_K0 / ((1.0 + e).powf(1.0 + e) * (1.0 - e).powf(1.0 - e)).sqrt();
     let r = big_a * t;
     let (e_off, n_off) = if north {
         (r * lam.sin(), -r * lam.cos())
@@ -240,10 +246,9 @@ fn ups_forward(lat: f64, lon: f64, north: bool) -> (f64, f64) {
 
 /// Polar stereographic inverse (UPS easting/northing → geodetic lat/lon).
 fn ups_inverse(easting: f64, northing: f64, north: bool) -> (f64, f64) {
-    let e = wgs84_e();
+    let PolarConstants { e, big_a } = *POLAR;
     let x = easting - UPS_FALSE;
     let y = northing - UPS_FALSE;
-    let big_a = 2.0 * A_AXIS * UPS_K0 / ((1.0 + e).powf(1.0 + e) * (1.0 - e).powf(1.0 - e)).sqrt();
     let r = (x * x + y * y).sqrt();
     let t = r / big_a;
     // Conformal latitude, then series back to geodetic (Snyder 3-5).

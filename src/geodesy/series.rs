@@ -104,6 +104,35 @@ impl KrugerSeries {
     pub(crate) fn conformal_from_rectifying(&self, mu: f64) -> f64 {
         mu - sum_sin(&self.beta, mu)
     }
+
+    /// Transverse Mercator forward series (Karney 2011, eq. 11): the
+    /// rectifying-plane `(ξ, η)` of the conformal-sphere `(ξ', η')`, with
+    /// `ξ = ξ' + Σⱼ αⱼ sin(2jξ') cosh(2jη')` and
+    /// `η = η' + Σⱼ αⱼ cos(2jξ') sinh(2jη')`.
+    pub(crate) fn tm_from_conformal(&self, xi_p: f64, eta_p: f64) -> (f64, f64) {
+        sum_complex(&self.alpha, 1.0, xi_p, eta_p)
+    }
+
+    /// Transverse Mercator inverse series (Karney 2011, eq. 15): the
+    /// conformal-sphere `(ξ', η')` of the rectifying-plane `(ξ, η)`, with
+    /// `ξ' = ξ − Σⱼ βⱼ sin(2jξ) cosh(2jη)` and
+    /// `η' = η − Σⱼ βⱼ cos(2jξ) sinh(2jη)`.
+    pub(crate) fn conformal_from_tm(&self, xi: f64, eta: f64) -> (f64, f64) {
+        sum_complex(&self.beta, -1.0, xi, eta)
+    }
+}
+
+/// `(ξ + s·Σⱼ cⱼ sin(2jξ) cosh(2jη), η + s·Σⱼ cⱼ cos(2jξ) sinh(2jη))` for
+/// `j = 1..=4`, accumulated term by term onto `(ξ, η)`; `sign` (`s`) is `±1`.
+fn sum_complex(coefficients: &[f64; 4], sign: f64, xi: f64, eta: f64) -> (f64, f64) {
+    let (mut out_xi, mut out_eta) = (xi, eta);
+    for (j, c) in (1..=4u8).zip(coefficients) {
+        let k = 2.0 * f64::from(j);
+        let c = sign * c;
+        out_xi += c * (k * xi).sin() * (k * eta).cosh();
+        out_eta += c * (k * xi).cos() * (k * eta).sinh();
+    }
+    (out_xi, out_eta)
 }
 
 /// `Σⱼ cⱼ · sin(2jx)` for `j = 1..=4`.

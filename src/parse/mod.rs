@@ -195,10 +195,10 @@ pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix>
 /// center and error bound.
 fn decode_grid(kind: GridKind, trimmed: &str) -> Result<Approx<Coordinate>> {
     match kind {
-        GridKind::PlusCode => PlusCode::try_from(trimmed).map(|c| c.decode()),
-        GridKind::Geohash => Geohash::try_from(trimmed).map(|g| g.decode()),
-        GridKind::Maidenhead => Maidenhead::try_from(trimmed).map(|m| m.decode()),
-        GridKind::Mgrs => Mgrs::try_from(trimmed).map(|m| m.to_coordinate()),
+        GridKind::PlusCode => PlusCode::parse(trimmed).map(|c| c.decode()),
+        GridKind::Geohash => Geohash::parse(trimmed).map(|g| g.decode()),
+        GridKind::Maidenhead => Maidenhead::parse(trimmed).map(|m| m.decode()),
+        GridKind::Mgrs => Mgrs::parse(trimmed).map(|m| m.to_coordinate()),
     }
 }
 
