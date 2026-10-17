@@ -276,6 +276,59 @@ fn cross_and_along_track_distances_are_pinned() {
 }
 
 #[test]
+fn ellipsoidal_cross_and_along_track_distances_are_pinned() {
+    let (start, end, point) = (wgs84(0.0, 0.0), wgs84(0.0, 10.0), wgs84(1.0, 5.0));
+    // Meridians meet the equator square: the foot is (0, 5), the cross-track
+    // distance its meridian arc (to the left), the along-track a · 5°.
+    let arc = geodesic_distance_m(wgs84(0.0, 5.0), point).unwrap();
+    close(arc, 110_574.388_557_799_2, 1e-6);
+    close(
+        cross_track_distance_m(point, start, end).unwrap(),
+        -arc,
+        1e-6,
+    );
+    close(
+        along_track_distance_m(point, start, end).unwrap(),
+        556_597.453_966_367_9,
+        1e-6,
+    );
+    assert!(cross_track_distance_m(point, start, start).is_err());
+    match along_track_distance_m(wgs84(90.0, 0.0), start, end) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "point"),
+        other => panic!("expected InvalidValue for `point`, got {other:?}"),
+    }
+    let tokyo = coordinate_new(1.0, 5.0, Crs::Tokyo).unwrap();
+    assert!(matches!(
+        cross_track_distance_m(tokyo, start, end),
+        Err(GeoError::CrsMismatch { .. })
+    ));
+}
+
+#[test]
+fn ellipsoidal_intersection_names_each_outcome() {
+    let GeodesicIntersectionResult::Crossing { point } =
+        intersection(wgs84(0.0, 0.0), 90.0, wgs84(-10.0, 10.0), 0.0).unwrap()
+    else {
+        panic!("the equator and the 10° E meridian cross");
+    };
+    close(point.lat, 0.0, 1e-12);
+    close(point.lon, 10.0, 1e-12);
+    assert_eq!(point.crs, Crs::Wgs84);
+    assert_eq!(
+        intersection(wgs84(0.0, 0.0), 90.0, wgs84(0.0, 30.0), 270.0).unwrap(),
+        GeodesicIntersectionResult::SameGeodesic
+    );
+    assert_eq!(
+        intersection(wgs84(0.0, 0.0), 0.0, wgs84(0.0, 30.0), 180.0).unwrap(),
+        GeodesicIntersectionResult::NoForwardCrossing
+    );
+    match intersection(wgs84(0.0, 0.0), f64::NAN, wgs84(0.0, 30.0), 0.0) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "bearing"),
+        other => panic!("expected InvalidValue for `bearing`, got {other:?}"),
+    }
+}
+
+#[test]
 fn intersection_of_the_equator_and_the_prime_meridian_is_null_island() {
     let IntersectionResult::Crossing { point: hit } =
         intersection_spherical(wgs84(0.0, -10.0), 90.0, wgs84(-10.0, 0.0), 0.0).unwrap()

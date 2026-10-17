@@ -1,9 +1,13 @@
 //! Geodesy: ellipsoids, ECEF and local tangent frames, distances and bearings,
-//! with the classic-datum Helmert transforms in `datum`.
+//! with the cross/along-track and intersection routines in `track` and the
+//! classic-datum Helmert transforms in `datum`.
 
 use geocoordinates as gc;
 
 use crate::{Coordinate, Crs, GeoError};
+
+mod track; // cross/along-track and intersection, spherical and ellipsoidal
+pub use track::*;
 
 /// Cheap spherical (haversine) distance between two coordinates, in **meters**.
 ///
@@ -555,99 +559,6 @@ pub fn rhumb_destination(
         &start.try_into()?,
         bearing_deg,
         gc::Length::from_meters(distance_m),
-    )
-    .map(Into::into)
-    .map_err(Into::into)
-}
-
-/// Signed perpendicular distance (meters) from `point` to the great-circle
-/// path `start` → `end` on the mean sphere (positive to the right).
-/// Approximate: the sphere is not the ellipsoid.
-///
-/// Errors when `start` and `end` are the same place or antipodal (no single
-/// great circle runs through them).
-#[uniffi::export]
-pub fn cross_track_distance_spherical_m(
-    point: Coordinate,
-    start: Coordinate,
-    end: Coordinate,
-) -> Result<f64, GeoError> {
-    let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
-        (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::cross_track_distance_spherical(&point, &start, &end)
-        .map(|length| length.meters())
-        .map_err(Into::into)
-}
-
-/// Along-track distance (meters) from `start` to the foot of the perpendicular
-/// from `point` onto the great-circle path `start` → `end` on the mean sphere.
-/// Approximate; errors as [`cross_track_distance_spherical_m`] does, and with
-/// `GeoError::InvalidValue` (field `point`) when `point` is a pole of the
-/// path's great circle, where no along-track distance is defined.
-#[uniffi::export]
-pub fn along_track_distance_spherical_m(
-    point: Coordinate,
-    start: Coordinate,
-    end: Coordinate,
-) -> Result<f64, GeoError> {
-    let (point, start, end): (gc::Coordinate, gc::Coordinate, gc::Coordinate) =
-        (point.try_into()?, start.try_into()?, end.try_into()?);
-    gc::geodesy::along_track_distance_spherical(&point, &start, &end)
-        .map(|length| length.meters())
-        .map_err(Into::into)
-}
-
-/// The outcome of [`intersection_spherical`] — mirror of
-/// [`gc::geodesy::Intersection`].
-///
-/// `gc::geodesy::Intersection` is exhaustive, so the `From` impl below is an
-/// exhaustive match: a new outcome upstream fails this crate's build until
-/// mirrored here.
-#[derive(Debug, Clone, Copy, PartialEq, uniffi::Enum)]
-pub enum IntersectionResult {
-    /// The paths cross at `point`, less than half a great circle ahead of each
-    /// start (in the inputs' CRS, with no height).
-    Crossing {
-        /// The crossing point.
-        point: Coordinate,
-    },
-    /// Both paths run along the same great circle, so no single crossing
-    /// exists.
-    SameGreatCircle,
-    /// Neither crossing of the two great circles lies ahead of both starts.
-    NoForwardCrossing,
-}
-
-impl From<gc::geodesy::Intersection> for IntersectionResult {
-    fn from(x: gc::geodesy::Intersection) -> Self {
-        match x {
-            gc::geodesy::Intersection::Crossing(point) => Self::Crossing {
-                point: point.into(),
-            },
-            gc::geodesy::Intersection::SameGreatCircle => Self::SameGreatCircle,
-            gc::geodesy::Intersection::NoForwardCrossing => Self::NoForwardCrossing,
-        }
-    }
-}
-
-/// Where two great-circle paths (each a start point and an initial bearing in
-/// degrees) cross ahead of both starts, on the mean sphere. Approximate: the
-/// sphere is not the ellipsoid.
-///
-/// At a pole a bearing follows the meridian of the start's own longitude.
-/// Errors for GCJ-02 / BD-09 inputs, mixed CRSs, or a non-finite bearing.
-#[uniffi::export]
-pub fn intersection_spherical(
-    a: Coordinate,
-    bearing_a_deg: f64,
-    b: Coordinate,
-    bearing_b_deg: f64,
-) -> Result<IntersectionResult, GeoError> {
-    gc::geodesy::intersection_spherical(
-        &a.try_into()?,
-        bearing_a_deg,
-        &b.try_into()?,
-        bearing_b_deg,
     )
     .map(Into::into)
     .map_err(Into::into)

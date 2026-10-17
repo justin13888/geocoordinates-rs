@@ -450,14 +450,14 @@ assert res.is_CROSSING() and approx(res.point.lon, 10.0, 1e-9), res
 # Two eastbound paths along the equator share one great circle.
 res = gc.intersection_spherical(wgs84_coord(0.0, 0.0), 90.0, wgs84_coord(0.0, 5.0), 90.0)
 assert res.is_SAME_GREAT_CIRCLE(), res
-xt = gc.cross_track_distance_spherical_m(
-    wgs84_coord(1.0, 5.0), wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 10.0)
-)
-assert approx(xt, -111_195.080_233, 1e-3), xt
-at = gc.along_track_distance_spherical_m(
-    wgs84_coord(1.0, 5.0), wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 10.0)
-)
-assert approx(at, 555_975.401_168, 1e-3), at
+path = (wgs84_coord(1.0, 5.0), wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 10.0))
+assert approx(gc.cross_track_distance_spherical_m(*path), -111_195.080_233, 1e-3)
+assert approx(gc.along_track_distance_spherical_m(*path), 555_975.401_168, 1e-3)
+# On the ellipsoid the foot is (0, 5): a meridian arc to the left, a * 5 deg along.
+assert approx(gc.cross_track_distance_m(*path), -110_574.388_558, 1e-3)
+assert approx(gc.along_track_distance_m(*path), 556_597.453_966, 1e-3)
+res = gc.intersection(wgs84_coord(0.0, 0.0), 90.0, wgs84_coord(-10.0, 10.0), 0.0)
+assert res.is_CROSSING() and approx(res.point.lon, 10.0, 1e-9), res
 # Geodesics run on the CRS's own ellipsoid and reject the obfuscated datums.
 tokyo = gc.Coordinate(lat=35.0, lon=139.0, height=None, crs=gc.Crs.TOKYO)
 assert gc.destination(tokyo, 0.0, 1_000.0).crs == gc.Crs.TOKYO
