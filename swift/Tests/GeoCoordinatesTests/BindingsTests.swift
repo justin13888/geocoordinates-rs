@@ -180,15 +180,26 @@ final class TypedErrorTests: XCTestCase {
     }
 
     func testParseRejectsAmbiguousTextAndNoFixNmea() {
-        for input in ["1234.5, 10", "ezs42"] {
-            guard case .Parse? = geoError({ try parseCoordinate(input: input) }) else {
+        for (input, expected) in [("1234.5, 10", ParseErrorKind.ambiguous), ("ezs42", .syntax)] {
+            guard case let .Parse(kind, _)? = geoError({ try parseCoordinate(input: input) }) else {
                 return XCTFail("expected Parse for \(input)")
             }
+            XCTAssertEqual(kind, expected, input)
         }
-        guard case let .Parse(detail)? = geoError({
+        guard case let .Parse(voidKind, detail)? = geoError({
             try fromNmeaSentence(
                 sentence: "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
         }) else { return XCTFail("expected Parse for a void RMC") }
+        XCTAssertEqual(voidKind, .noFix)
         XCTAssertTrue(detail.contains("void"), detail)
+        guard case let .Parse(checksumKind, _)? = geoError({
+            try fromNmeaSentence(sentence: "$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
+        }) else { return XCTFail("expected Parse for a bad checksum") }
+        XCTAssertEqual(checksumKind, .checksum)
+        let deepWkt = String(repeating: "GEOMETRYCOLLECTION(", count: 200)
+        guard case let .Parse(deepKind, _)? = geoError({
+            try fromWkt(input: deepWkt, axisOrder: .lonLat)
+        }) else { return XCTFail("expected Parse for deep WKT") }
+        XCTAssertEqual(deepKind, .tooDeep)
     }
 }

@@ -3422,9 +3422,13 @@ public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
          */value: UInt64
     )
     /**
-     * Free-text / structured input could not be parsed into a coordinate.
+     * Free-text, sensor, or interchange input could not be parsed into a
+     * coordinate. Branch on `kind`; `detail` is for humans.
      */
     case Parse(
+        /**
+         * Why the input was rejected.
+         */kind: ParseErrorKind, 
         /**
          * What was wrong with the input.
          */detail: String
@@ -3505,6 +3509,7 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
             value: try FfiConverterUInt64.read(from: &buf)
             )
         case 5: return .Parse(
+            kind: try FfiConverterTypeParseErrorKind.read(from: &buf), 
             detail: try FfiConverterString.read(from: &buf)
             )
         case 6: return .CrsMismatch(
@@ -3554,8 +3559,9 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
             FfiConverterUInt64.write(value, into: &buf)
             
         
-        case let .Parse(detail):
+        case let .Parse(kind,detail):
             writeInt(&buf, Int32(5))
+            FfiConverterTypeParseErrorKind.write(kind, into: &buf)
             FfiConverterString.write(detail, into: &buf)
             
         
@@ -4391,6 +4397,128 @@ public func FfiConverterTypeMgrsPrecision_lift(_ buf: RustBuffer) throws -> Mgrs
 #endif
 public func FfiConverterTypeMgrsPrecision_lower(_ value: MgrsPrecision) -> RustBuffer {
     return FfiConverterTypeMgrsPrecision.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why a [`GeoError::Parse`] rejected its input — mirror of
+ * [`gc::ParseErrorKind`].
+ */
+
+public enum ParseErrorKind: Equatable, Hashable {
+    
+    /**
+     * The input does not follow the format's grammar, or a field holds a
+     * value the format does not allow.
+     */
+    case syntax
+    /**
+     * An NMEA `*HH` checksum is malformed or does not match the sentence.
+     */
+    case checksum
+    /**
+     * A well-formed NMEA sentence that reports no position (status `V`,
+     * mode `N`, or `GGA` fix quality `0`); a stream can skip it.
+     */
+    case noFix
+    /**
+     * Free text with no single reading (bare `DDMM.mmm`, a fraction before
+     * the last field, exponent notation).
+     */
+    case ambiguous
+    /**
+     * Well-formed input of a type this crate does not handle (an NMEA
+     * sentence other than `GGA` / `RMC` / `GLL`, a `geo:` `crs` other than
+     * `wgs84`).
+     */
+    case unsupported
+    /**
+     * A document nested deeper than its format's limit.
+     */
+    case tooDeep
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ParseErrorKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeParseErrorKind: FfiConverterRustBuffer {
+    typealias SwiftType = ParseErrorKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ParseErrorKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .syntax
+        
+        case 2: return .checksum
+        
+        case 3: return .noFix
+        
+        case 4: return .ambiguous
+        
+        case 5: return .unsupported
+        
+        case 6: return .tooDeep
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ParseErrorKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .syntax:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .checksum:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .noFix:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .ambiguous:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .unsupported:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .tooDeep:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeParseErrorKind_lift(_ buf: RustBuffer) throws -> ParseErrorKind {
+    return try FfiConverterTypeParseErrorKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeParseErrorKind_lower(_ value: ParseErrorKind) -> RustBuffer {
+    return FfiConverterTypeParseErrorKind.lower(value)
 }
 
 
@@ -6844,8 +6972,9 @@ public func utmZoneFor(coord: Coordinate)throws  -> UInt8  {
  * A document with no positions yields an empty list.
  *
  * # Errors
- * `GeoError` on malformed GeoJSON, or naming the index of the first position
- * that is out of range or has fewer than two numbers.
+ * `GeoError::Parse` on malformed GeoJSON (kind `TooDeep` past 128 levels of
+ * nesting), or naming the index of the first position with fewer than two
+ * numbers; `GeoError::OutOfRange` for the first position out of range.
  */
 public func fromGeojson(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6860,8 +6989,9 @@ public func fromGeojson(input: String)throws  -> [Fix]  {
  * horizontal accuracy of `HDOP × 5 m`.
  *
  * # Errors
- * `GeoError` on malformed GPX, or naming the index of the first point with an
- * invalid `<hdop>`.
+ * `GeoError::Parse` on malformed GPX, or naming the index of the first point
+ * with an invalid `<hdop>`; `GeoError::OutOfRange` for the first point out of
+ * range.
  */
 public func fromGpx(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6875,8 +7005,10 @@ public func fromGpx(input: String)throws  -> [Fix]  {
  * orthometric (above sea level).
  *
  * # Errors
- * `GeoError` on malformed KML, on elements nested deeper than 32 levels, or
- * naming the index of the first out-of-range position.
+ * `GeoError::Parse` on malformed KML (kind `TooDeep` on elements nested
+ * deeper than 32 levels); `GeoError::OutOfRange` for the first position out
+ * of range; `GeoError::InvalidValue`, naming the position's index, for a
+ * non-finite altitude.
  */
 public func fromKml(input: String)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6894,10 +7026,12 @@ public func fromKml(input: String)throws  -> [Fix]  {
  * `GGA` and `GLL` carry no date, so theirs is `None`.
  *
  * # Errors
- * `GeoError::Parse` on an unrecognized/invalid sentence or a checksum
- * mismatch; on a sentence reporting no fix (`RMC`/`GLL` status `V` or mode
- * `N`, `GGA` quality `0`); on a coordinate whose minutes are not two integer
- * digits; and on a `GGA` altitude whose unit is not `M`.
+ * `GeoError::Parse`, whose `kind` is `Checksum` on a malformed or mismatched
+ * checksum; `Unsupported` on a sentence other than `GGA` / `RMC` / `GLL`;
+ * `NoFix` on a sentence reporting no fix (`RMC`/`GLL` status `V` or mode
+ * `N`, `GGA` quality `0`); and `Syntax` on any other invalid field, such as
+ * a coordinate whose minutes are not two integer digits or a `GGA` altitude
+ * whose unit is not `M`.
  */
 public func fromNmeaSentence(sentence: String)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -6914,8 +7048,9 @@ public func fromNmeaSentence(sentence: String)throws  -> Fix  {
  * ellipsoidal height, with a note on the fix that WKT leaves it unspecified.
  *
  * # Errors
- * `GeoError` on malformed WKT, on parentheses nested deeper than 128 levels,
- * or naming the index of the first out-of-range position.
+ * `GeoError::Parse` on malformed WKT (kind `TooDeep` on parentheses nested
+ * deeper than 128 levels); `GeoError::OutOfRange` for the first position out
+ * of range.
  */
 public func fromWkt(input: String, axisOrder: AxisOrder)throws  -> [Fix]  {
     return try  FfiConverterSequenceTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -7468,19 +7603,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_utm_zone_for() != 21952) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 51404) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_geojson() != 43031) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 6636) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 13293) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 20236) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 32477) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 7977) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 45855) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 19035) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_wkt() != 30123) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 30884) {

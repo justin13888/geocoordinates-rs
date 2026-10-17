@@ -18,6 +18,7 @@ import geocoordinatesFfi, {
   Crs,
   GeoError,
   MgrsPrecision,
+  ParseErrorKind,
   accuracyNew,
   baiduMercatorFromBd09,
   baiduMercatorFromCoordinate,
@@ -234,14 +235,23 @@ describe("typed GeoError variants", () => {
   });
 
   it("Parse rejects ambiguous text and no-fix NMEA", () => {
-    for (const input of ["1234.5, 10", "ezs42"]) {
+    const cases: [string, ParseErrorKind][] = [
+      ["1234.5, 10", ParseErrorKind.Ambiguous],
+      ["ezs42", ParseErrorKind.Syntax],
+    ];
+    for (const [input, kind] of cases) {
       const e = thrown(() => parseCoordinate(input));
       assert.ok(GeoError.Parse.instanceOf(e), `${input}: ${String(e)}`);
+      assert.equal(e.inner.kind, kind, input);
     }
     const voidFix = thrown(() =>
       fromNmeaSentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
     );
     assert.ok(GeoError.Parse.instanceOf(voidFix), String(voidFix));
+    assert.equal(voidFix.inner.kind, ParseErrorKind.NoFix);
     assert.match(voidFix.inner.detail, /void/);
+    const corrupt = thrown(() => fromNmeaSentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"));
+    assert.ok(GeoError.Parse.instanceOf(corrupt), String(corrupt));
+    assert.equal(corrupt.inner.kind, ParseErrorKind.Checksum);
   });
 });
