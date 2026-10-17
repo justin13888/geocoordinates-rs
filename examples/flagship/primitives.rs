@@ -1,5 +1,6 @@
 //! Angle encodings, coordinate primitives, and serde coverage of value types.
 
+use std::hash::Hash;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use geocoordinates::angle::{
@@ -80,6 +81,28 @@ fn all_public_value_types_are_serde() {
     assert_serde::<S2CellId>();
 }
 
+fn assert_hash<T: Eq + Hash>() {}
+
+/// Every value enum and options type whose equality is total also hashes, so
+/// it can key a `HashMap` or fill a `HashSet`.
+fn eq_value_types_are_hashable() {
+    assert_hash::<AngleHemisphere>();
+    assert_hash::<Axis>();
+    assert_hash::<Crs>();
+    assert_hash::<AxisOrder>();
+    assert_hash::<DatumAmbiguity>();
+    assert_hash::<AccuracyKind>();
+    assert_hash::<LengthUnit>();
+    assert_hash::<Representation>();
+    assert_hash::<SymbolStyle>();
+    assert_hash::<HemisphereStyle>();
+    assert_hash::<DecimalSeparator>();
+    assert_hash::<FormatOptions>();
+    assert_hash::<ParseOptions>();
+    assert_hash::<GridKind>();
+    assert_hash::<UtmHemisphere>();
+}
+
 pub(crate) fn primitives_and_serde() -> DemoResult {
     // Construction validates, so a `Coordinate` in hand is always in range.
     let coordinate = Coordinate::wgs84(40.7128, -74.006)?.with_height(Height::Ellipsoidal(12.5))?;
@@ -87,6 +110,11 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
     assert!(Coordinate::wgs84(0.0, 0.0)?.is_null_island());
     assert_eq!(coordinate.crs().to_string(), "WGS84");
     assert_eq!(coordinate.height(), Some(Height::Ellipsoidal(12.5)));
+    // Either surface reads back as a `Length`.
+    assert_eq!(
+        coordinate.height().map(Height::meters),
+        Some(Length::from_meters(12.5))
+    );
     assert_close(coordinate.lat(), 40.7128, 1e-12);
     assert_close(coordinate.lon(), -74.006, 1e-12);
     // Lon-first input (GeoJSON / WKT order) has its own named constructor.
@@ -143,6 +171,7 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
     ] {
         let one = Length::from_unit(1.0, unit);
         assert_close(one.to_unit(unit), 1.0, 1e-12);
+        assert_eq!(one.meters(), unit.meters_per_unit());
     }
     assert_eq!(Length::ZERO.meters(), 0.0);
     assert_eq!(
@@ -172,6 +201,7 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
     assert_eq!(Fix::from_coord(coordinate).coord, coordinate);
 
     all_public_value_types_are_serde();
+    eq_value_types_are_hashable();
     let json = serde_json::to_string(&fix)?;
     let decoded: Fix = serde_json::from_str(&json)?;
     assert_eq!(decoded, fix);

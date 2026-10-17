@@ -31,31 +31,37 @@ fn longitude() -> impl Strategy<Value = f64> {
     ]
 }
 
-/// The highest DMS second decimal count the module docs promise is stable.
-const DMS_STABLE_DECIMALS: u8 = 9;
-/// The highest DDM minute decimal count the module docs promise is stable.
-const DDM_STABLE_DECIMALS: u8 = 12;
+const DD_MAX: u8 = Representation::MAX_DD_DECIMALS;
+const DMS_MAX: u8 = Representation::MAX_DMS_SECOND_DECIMALS;
+const DDM_MAX: u8 = Representation::MAX_DDM_MINUTE_DECIMALS;
 
-/// Every representation, each with every value of its own settings that the
-/// module docs promise is stable: DD up to [`MAX_DECIMALS`], DMS and DDM up to
-/// their limits above. The drift past those limits is pinned in
-/// `angle_decimals_past_f64_resolution_drift_by_one_digit`.
+fn symbols() -> impl Strategy<Value = SymbolStyle> {
+    prop::sample::select(vec![
+        SymbolStyle::Unicode,
+        SymbolStyle::Ascii,
+        SymbolStyle::Letters,
+    ])
+}
+
+fn hemisphere() -> impl Strategy<Value = HemisphereStyle> {
+    prop::sample::select(vec![HemisphereStyle::Signed, HemisphereStyle::Cardinal])
+}
+
+fn separator() -> impl Strategy<Value = DecimalSeparator> {
+    prop::sample::select(vec![DecimalSeparator::Point, DecimalSeparator::Comma])
+}
+
+/// Every representation, each with every value of its own settings that
+/// [`format`] accepts: the angle representations up to their capped decimal
+/// counts. Why the caps sit where they do is pinned in
+/// `angle_decimal_caps_are_the_last_counts_that_round_trip`.
 fn representation() -> impl Strategy<Value = Representation> {
     let decimals = |max: u8| prop::option::of(0..=max);
-    let symbols = || {
-        prop::sample::select(vec![
-            SymbolStyle::Unicode,
-            SymbolStyle::Ascii,
-            SymbolStyle::Letters,
-        ])
-    };
-    let hemisphere =
-        || prop::sample::select(vec![HemisphereStyle::Signed, HemisphereStyle::Cardinal]);
     prop_oneof![
-        (decimals(MAX_DECIMALS), hemisphere())
+        (decimals(DD_MAX), hemisphere())
             .prop_map(|(decimals, hemisphere)| dd(decimals, hemisphere)),
-        (decimals(DMS_STABLE_DECIMALS), symbols(), hemisphere()).prop_map(|(p, s, h)| dms(p, s, h)),
-        (decimals(DDM_STABLE_DECIMALS), symbols(), hemisphere()).prop_map(|(p, s, h)| ddm(p, s, h)),
+        (decimals(DMS_MAX), symbols(), hemisphere()).prop_map(|(p, s, h)| dms(p, s, h)),
+        (decimals(DDM_MAX), symbols(), hemisphere()).prop_map(|(p, s, h)| ddm(p, s, h)),
         prop::sample::select(vec![2_u8, 4, 6, 8, 10, 11, 12, 13, 14, 15])
             .prop_map(|length| Representation::PlusCode { length }),
         (1..=12_u8).prop_map(|length| Representation::Geohash { length }),
@@ -73,14 +79,26 @@ fn representation() -> impl Strategy<Value = Representation> {
 }
 
 fn options() -> impl Strategy<Value = FormatOptions> {
-    (
-        representation(),
-        prop::sample::select(vec![DecimalSeparator::Point, DecimalSeparator::Comma]),
-    )
-        .prop_map(|(representation, decimal_separator)| FormatOptions {
-            representation,
-            decimal_separator,
-        })
+    (representation(), separator()).prop_map(|(representation, decimal_separator)| {
+        FormatOptions::default()
+            .with_representation(representation)
+            .with_decimal_separator(decimal_separator)
+    })
+}
+
+/// The angle representations at exactly their capped decimal count, the
+/// finest rendering [`format`] accepts and so the one most likely to drift.
+fn capped_options() -> impl Strategy<Value = FormatOptions> {
+    let representation = prop_oneof![
+        hemisphere().prop_map(|h| dd(Some(DD_MAX), h)),
+        (symbols(), hemisphere()).prop_map(|(s, h)| dms(Some(DMS_MAX), s, h)),
+        (symbols(), hemisphere()).prop_map(|(s, h)| ddm(Some(DDM_MAX), s, h)),
+    ];
+    (representation, separator()).prop_map(|(representation, decimal_separator)| {
+        FormatOptions::default()
+            .with_representation(representation)
+            .with_decimal_separator(decimal_separator)
+    })
 }
 
 /// Parse a rendering back to a coordinate through `parse_coordinate_with`
@@ -110,6 +128,18 @@ proptest! {
         lat in latitude(),
         lon in longitude(),
         options in options(),
+    ) {
+        let (first, second) = trip(lat, lon, &options);
+        prop_assert_eq!(first, second, "options {:?}", options);
+    }
+
+    /// The round trip holds at each angle representation's capped decimal
+    /// count, not only somewhere below it.
+    #[test]
+    fn format_parse_format_is_stable_at_the_decimal_caps(
+        lat in latitude(),
+        lon in longitude(),
+        options in capped_options(),
     ) {
         let (first, second) = trip(lat, lon, &options);
         prop_assert_eq!(first, second, "options {:?}", options);
@@ -173,42 +203,52 @@ fn rounding_to_zero_renders_unsigned() {
     assert_eq!(first, "0.00, 0.00");
 }
 
-/// Past the stable limits the module docs state, the last digit lies below
-/// what an `f64` keeps through the sexagesimal split and the re-parse, so a
-/// round trip can move it by one. Pinned so the narrowed guarantee is
-/// visible, and so the same points at the limits stay stable.
+/// One count past each sexagesimal cap, the last digit lies below what an
+/// `f64` keeps through the split and the re-parse, so a round trip moves it
+/// by one: the renderer itself (below [`format`]'s check) shows the drift the
+/// cap exists to prevent. [`format`] rejects that count, and renders the same
+/// points stably at the cap.
 #[test]
-fn angle_decimals_past_f64_resolution_drift_by_one_digit() {
-    let dms_at = |p| {
-        opts(dms(
-            Some(p),
-            SymbolStyle::Unicode,
-            HemisphereStyle::Cardinal,
-        ))
-    };
-    let ddm_at = |p| {
-        opts(ddm(
-            Some(p),
-            SymbolStyle::Unicode,
-            HemisphereStyle::Cardinal,
-        ))
+fn angle_decimal_caps_are_the_last_counts_that_round_trip() {
+    let symbols = SymbolStyle::Unicode;
+    let hemisphere = HemisphereStyle::Cardinal;
+    let point = DecimalSeparator::Point;
+    // Render through the unchecked renderer, re-parse, and render again.
+    let raw_trip = |lat: f64, lon: f64, kind: AngleKind, p: u8| {
+        let raw = |c: Coordinate| {
+            render::angle_pair(c, kind, p, symbols, hemisphere, point).expect("renders")
+        };
+        let first = raw(wgs(lat, lon));
+        let parsed = reparse(&first, &FormatOptions::default());
+        (first, raw(parsed))
     };
     let (dms_lat, dms_lon) = (-29.716_708_966_973_357, -160.137_993_148_233_65);
     let (ddm_lat, ddm_lon) = (-8.954_557_882_120_639, 83.849_377_444_689_25);
 
-    // KNOWN LIMIT: DMS at 10 second decimals.
-    let (first, second) = trip(dms_lat, dms_lon, &dms_at(DMS_STABLE_DECIMALS + 1));
+    // DMS at 10 second decimals drifts.
+    let (first, second) = raw_trip(dms_lat, dms_lon, AngleKind::Dms, DMS_MAX + 1);
     assert_eq!(first, "29°43′00.1522811041″S 160°08′16.7753336411″W");
     assert_eq!(second, "29°43′00.1522811041″S 160°08′16.7753336410″W");
-    // KNOWN LIMIT: DDM at 13 minute decimals.
-    let (first, second) = trip(ddm_lat, ddm_lon, &ddm_at(DDM_STABLE_DECIMALS + 1));
+    // DDM at 13 minute decimals drifts.
+    let (first, second) = raw_trip(ddm_lat, ddm_lon, AngleKind::Ddm, DDM_MAX + 1);
     assert_eq!(first, "8°57.2734729272384′S 83°50.9626466813552′E");
     assert_eq!(second, "8°57.2734729272385′S 83°50.9626466813552′E");
 
-    // The same points are stable at the limits.
-    let (first, second) = trip(dms_lat, dms_lon, &dms_at(DMS_STABLE_DECIMALS));
+    // `format` refuses those counts.
+    let dms_at = |p| opts(dms(Some(p), symbols, hemisphere));
+    let ddm_at = |p| opts(ddm(Some(p), symbols, hemisphere));
+    for options in [dms_at(DMS_MAX + 1), ddm_at(DDM_MAX + 1)] {
+        let refused = format(wgs(dms_lat, dms_lon), &options);
+        assert!(
+            matches!(refused, Err(Error::InvalidValue { .. })),
+            "{options:?}: {refused:?}"
+        );
+    }
+
+    // The same points are stable at the caps.
+    let (first, second) = trip(dms_lat, dms_lon, &dms_at(DMS_MAX));
     assert_eq!(first, second);
-    let (first, second) = trip(ddm_lat, ddm_lon, &ddm_at(DDM_STABLE_DECIMALS));
+    let (first, second) = trip(ddm_lat, ddm_lon, &ddm_at(DDM_MAX));
     assert_eq!(first, second);
 }
 

@@ -70,7 +70,7 @@ const POLE_NORTHING: f64 = K0 * RECT_A * core::f64::consts::FRAC_PI_2;
 /// assert_eq!(sydney.hemisphere(), UtmHemisphere::South);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum UtmHemisphere {
     /// Northern hemisphere.

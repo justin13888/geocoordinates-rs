@@ -14,6 +14,7 @@
 use core::fmt;
 
 use crate::error::{Error, Result};
+pub(crate) use crate::units::Height;
 
 /// A coordinate reference system / datum tag used for runtime dispatch.
 ///
@@ -55,43 +56,6 @@ pub enum Crs {
     // transform — see [`crate::geodesy::datum`]. NAD83, ETRS89, ITRF
     // realizations, national grids, and the full EPSG long tail are delegated
     // to the deferred `proj` feature (see STABILIZATION.md).
-}
-
-/// A height value, tagged by the surface it is measured from.
-///
-/// GNSS reports **ellipsoidal** height natively; humans expect **orthometric**
-/// height (above the geoid / "sea level"). Converting between them requires a
-/// geoid model — deferred behind the `geoid` feature (see
-/// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
-///
-/// Only these two surfaces are modeled; tidal datums (MSL, MLLW, …) are out of
-/// scope.
-///
-/// ```
-/// use geocoordinates::{Coordinate, Height};
-///
-/// let summit = Coordinate::wgs84(27.9881, 86.925)?.with_height(Height::Orthometric(8848.86))?;
-/// assert_eq!(summit.height(), Some(Height::Orthometric(8848.86)));
-/// // The surface is part of the value: the same number above the ellipsoid differs.
-/// assert_ne!(Height::Orthometric(8848.86), Height::Ellipsoidal(8848.86));
-/// # Ok::<(), geocoordinates::Error>(())
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Height {
-    /// Meters above the reference ellipsoid.
-    Ellipsoidal(f64),
-    /// Meters above the geoid (mean sea level).
-    Orthometric(f64),
-}
-
-impl Height {
-    /// The height in meters, whichever surface it is measured from.
-    pub(crate) fn meters(self) -> f64 {
-        match self {
-            Height::Ellipsoidal(value) | Height::Orthometric(value) => value,
-        }
-    }
 }
 
 /// The lean canonical coordinate: position, optional height, and its CRS.
@@ -289,7 +253,7 @@ impl Coordinate {
             "Coordinate::from_valid out of range: lat={lat}, lon={lon}"
         );
         debug_assert!(
-            height.is_none_or(|h| h.meters().is_finite()),
+            height.is_none_or(|h| h.meters().meters().is_finite()),
             "Coordinate::from_valid non-finite height: {height:?}"
         );
         Self {
@@ -319,7 +283,7 @@ impl Coordinate {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn with_height(self, height: Height) -> Result<Self> {
-        if !height.meters().is_finite() {
+        if !height.meters().meters().is_finite() {
             return Err(Error::InvalidValue {
                 field: "height",
                 detail: "must be finite".to_string(),

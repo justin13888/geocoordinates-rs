@@ -23,7 +23,7 @@ use crate::error::{Error, Result};
 /// assert_eq!(Dms::from_degrees(-33.9, Axis::Longitude)?.hemisphere(), Hemisphere::West);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Hemisphere {
     /// North (latitude, positive).
@@ -536,7 +536,7 @@ fn validate_components(degrees: u16, minutes: f64, seconds: f64, axis: Axis) -> 
 /// assert_eq!(Ddm::from_degrees(45.0, Axis::Longitude)?.hemisphere(), Hemisphere::East);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Axis {
     /// Latitude (N/S).
