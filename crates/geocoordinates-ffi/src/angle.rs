@@ -231,15 +231,18 @@ pub fn hemisphere_sign(hemisphere: Hemisphere) -> f64 {
 
 // --- Angle normalization helpers ---
 
-/// Wrap a longitude into the half-open range `[-180, 180)` (so `180` → `-180`).
+/// Wrap a longitude in degrees into the half-open range `[-180, 180)` (so
+/// `180` → `-180`) — the FFI form of the core `angle::wrap_longitude`,
+/// suffixed `_deg` as every angle this surface returns is.
 #[uniffi::export]
-pub fn wrap_longitude(lon_deg: f64) -> f64 {
+pub fn wrap_longitude_deg(lon_deg: f64) -> f64 {
     gc::angle::wrap_longitude(lon_deg)
 }
 
-/// Clamp a latitude into the closed range `[-90, 90]`.
+/// Clamp a latitude in degrees into the closed range `[-90, 90]` — the FFI
+/// form of the core `angle::clamp_latitude`.
 #[uniffi::export]
-pub fn clamp_latitude(lat_deg: f64) -> f64 {
+pub fn clamp_latitude_deg(lat_deg: f64) -> f64 {
     gc::angle::clamp_latitude(lat_deg)
 }
 

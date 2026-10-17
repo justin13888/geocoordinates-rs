@@ -362,10 +362,10 @@ fn hemisphere_sign_is_negative_only_for_south_and_west() {
 
 #[test]
 fn normalization_helpers_handle_antimeridian_and_poles() {
-    assert_eq!(wrap_longitude(180.0), -180.0);
-    assert_eq!(wrap_longitude(190.0), -170.0);
-    assert_eq!(clamp_latitude(91.0), 90.0);
-    assert_eq!(clamp_latitude(-95.0), -90.0);
+    assert_eq!(wrap_longitude_deg(180.0), -180.0);
+    assert_eq!(wrap_longitude_deg(190.0), -170.0);
+    assert_eq!(clamp_latitude_deg(91.0), 90.0);
+    assert_eq!(clamp_latitude_deg(-95.0), -90.0);
     assert_eq!(normalize_degrees(-1.0), 359.0);
     assert_eq!(normalize_degrees(720.0), 0.0);
     // Half-open: a tiny negative never rounds up to 360, and -0.0 becomes +0.0.

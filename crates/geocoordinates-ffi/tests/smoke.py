@@ -154,8 +154,8 @@ except gc.GeoError.InvalidValue as e:
     assert e.field == "degrees", e.field
 
 # --- Angle normalization (antimeridian / poles) ---
-assert approx(gc.wrap_longitude(180.0), -180.0, 1e-9)  # half-open
-assert approx(gc.clamp_latitude(91.0), 90.0, 1e-9)
+assert approx(gc.wrap_longitude_deg(180.0), -180.0, 1e-9)  # half-open
+assert approx(gc.clamp_latitude_deg(91.0), 90.0, 1e-9)
 assert approx(gc.normalize_degrees(-1.0), 359.0, 1e-9)
 assert gc.normalize_degrees(-1e-20) == 0.0  # never the excluded bound 360
 
