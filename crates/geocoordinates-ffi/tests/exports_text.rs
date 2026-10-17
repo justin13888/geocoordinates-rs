@@ -195,6 +195,32 @@ fn parse_coordinate_with_and_parse_text_with_read_a_decimal_comma() {
 }
 
 #[test]
+fn parse_text_reads_free_text_with_the_default_options_and_rejects_grids() {
+    let fix = parse_text("40°42′46″N 74°00′22″W".to_string()).unwrap();
+    assert!((fix.coord.lat - 40.712_78).abs() < 1e-5, "{fix:?}");
+    assert!((fix.coord.lon + 74.006_11).abs() < 1e-5, "{fix:?}");
+    let fix = parse_text("40.7128, -74.006".to_string()).unwrap();
+    assert_eq!(fix.coord, wgs84(40.7128, -74.006));
+    assert_eq!(fix.source.unwrap().axis_order, Some(AxisOrder::LatLon));
+    assert!(matches!(
+        parse_text("4042.768, -7400.36".to_string()),
+        Err(GeoError::Parse {
+            kind: ParseErrorKind::Ambiguous,
+            ..
+        })
+    ));
+    // A grid reference is not free text, though `parse_coordinate` reads it.
+    assert!(matches!(
+        parse_text("87G7PX7V+4J".to_string()),
+        Err(GeoError::Parse {
+            kind: ParseErrorKind::Syntax,
+            ..
+        })
+    ));
+    assert!(parse_coordinate("87G7PX7V+4J".to_string()).is_ok());
+}
+
+#[test]
 fn parse_text_with_rejects_an_expected_grid_instead_of_ignoring_it() {
     let options = ParseOptions {
         expect_grid: Some(GridKind::Geohash),
@@ -227,8 +253,8 @@ fn parse_coordinate_detects_mgrs_and_decodes_an_expected_geohash() {
 }
 
 #[test]
-fn from_geo_uri_reads_altitude_and_uncertainty() {
-    let fix = from_geo_uri("geo:48.2,16.3,183;u=40".to_string()).unwrap();
+fn parse_geo_uri_reads_altitude_and_uncertainty() {
+    let fix = parse_geo_uri("geo:48.2,16.3,183;u=40".to_string()).unwrap();
     assert_eq!(
         fix.coord,
         Coordinate {
@@ -250,7 +276,7 @@ fn from_geo_uri_reads_altitude_and_uncertainty() {
     assert_eq!(source.axis_order, Some(AxisOrder::LatLon));
     assert_eq!(source.confidence.value, 1.0);
     assert!(matches!(
-        from_geo_uri("40.7128, -74.006".to_string()),
+        parse_geo_uri("40.7128, -74.006".to_string()),
         Err(GeoError::Parse {
             kind: ParseErrorKind::Syntax,
             ..

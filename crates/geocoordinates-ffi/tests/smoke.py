@@ -15,6 +15,7 @@ Run from the repo root after generating, as CI does:
 
 import math
 import pathlib
+import runpy
 import sys
 
 sys.path.insert(0, str(pathlib.Path("bindings/python")))
@@ -153,8 +154,8 @@ except gc.GeoError.InvalidValue as e:
     assert e.field == "degrees", e.field
 
 # --- Angle normalization (antimeridian / poles) ---
-assert approx(gc.wrap_longitude(180.0), -180.0, 1e-9)  # half-open
-assert approx(gc.clamp_latitude(91.0), 90.0, 1e-9)
+assert approx(gc.wrap_longitude_deg(180.0), -180.0, 1e-9)  # half-open
+assert approx(gc.clamp_latitude_deg(91.0), 90.0, 1e-9)
 assert approx(gc.normalize_degrees(-1.0), 359.0, 1e-9)
 assert gc.normalize_degrees(-1e-20) == 0.0  # never the excluded bound 360
 
@@ -169,6 +170,8 @@ assert gc.height_meters(gc.Height.ORTHOMETRIC(meters=-28.0)) == -28.0
 
 # --- Coordinate validation + Null Island ---
 gc.coordinate_validate(wgs84_coord(40.0, -74.0))  # in range -> no raise
+# GeoJSON / WKT X,Y order, spelled by the function name.
+assert gc.coordinate_from_lon_lat(-74.0, 40.0, gc.Crs.WGS84) == wgs84_coord(40.0, -74.0)
 try:
     gc.coordinate_new(91.0, 0.0, gc.Crs.WGS84)
     raise AssertionError("expected OutOfRange from coordinate_new for latitude 91")
@@ -306,6 +309,14 @@ comma_opts = gc.ParseOptions(
     decimal_separator=gc.DecimalSeparator.COMMA,
     expect_grid=None,
 )
+free = gc.parse_text("40.7128, -74.006")  # free text, default options
+assert approx(free.coord.lat, 40.7128, 1e-9) and approx(free.coord.lon, -74.006, 1e-9)
+assert free.source.axis_order == gc.AxisOrder.LAT_LON
+try:
+    gc.parse_text("87G7PX7V+4J")  # a grid reference is not free text
+    raise AssertionError("expected parse_text to reject a Plus Code")
+except gc.GeoError.Parse as e:
+    assert e.kind == gc.ParseErrorKind.SYNTAX, e.kind
 for comma_text in ["40,7128 -74,006", "40,7128, -74,006"]:
     comma = gc.parse_text_with(comma_text, comma_opts)
     assert approx(comma.coord.lat, 40.7128, 1e-9)
@@ -432,7 +443,10 @@ ny_london = gc.geodesic_distance_m(
 )
 assert approx(ny_london, 5_585_233.578_931, 1e-3), ny_london  # Karney on WGS-84
 assert approx(
-    gc.initial_bearing(wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 1.0)), 90.0, 1e-6
+    gc.initial_bearing_deg(wgs84_coord(0.0, 0.0), wgs84_coord(0.0, 1.0)), 90.0, 1e-6
+)
+assert approx(
+    gc.rhumb_bearing_deg(wgs84_coord(60.0, -10.0), wgs84_coord(60.0, 30.0)), 90.0, 1e-9
 )
 dest = gc.destination(wgs84_coord(0.0, 0.0), 90.0, 111_319.49)
 assert approx(dest.lon, 1.0, 1e-4)
@@ -526,6 +540,12 @@ for e_m, n_m, field in [(150_000.0, 0.0, "easting"), (500_000.0, 9_999_000.0, "n
         raise AssertionError(f"expected InvalidValue for {e_m}, {n_m}")
     except gc.GeoError.InvalidValue as e:
         assert e.field == field
+gc.utm_validate(u)  # a record this library returned is valid
+try:
+    gc.utm_validate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=150_000.0, northing=0.0))
+    raise AssertionError("expected utm_validate to reject zone 1 west of 180°")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "easting"
 assert gc.utm_zone_for(wgs84_coord(60.0, 5.0)) == 32  # Norway exception
 assert gc.utm_central_meridian_deg(18) == -75.0
 try:
@@ -535,6 +555,13 @@ except gc.GeoError.InvalidValue as e:
     assert e.field == "zone"
 ups = gc.ups_from_coordinate(wgs84_coord(85.0, 0.0))
 assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_000.0, 1e-3)
+gc.ups_validate(ups)
+try:
+    gc.ups_validate(gc.Ups(hemisphere=gc.UtmHemisphere.NORTH, easting=0.0, northing=0.0))
+    raise AssertionError("expected ups_validate to reject a corner outside the polar cap")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "northing"
+assert gc.mgrs_canonicalize("4q fj 1234 5678") == "04QFJ12345678"
 assert gc.mgrs_from_coordinate(wgs84_coord(40.0, -75.0), gc.MgrsPrecision.M1) == "18TWK0000027757"
 assert gc.mgrs_precision("18TWK000277") == gc.MgrsPrecision.M100
 assert gc.mgrs_precision_meters(gc.MgrsPrecision.KM10) == 10_000
@@ -548,76 +575,8 @@ for code in ["not-an-mgrs", "AJA"]:  # AJA is well-formed, but wholly outside th
     except gc.GeoError.InvalidGridRef as e:
         assert e.detail == code, e.detail
 
-# --- Interchange formats (GeoJSON / WKT / GPX / KML) ---
-gj = gc.from_geojson('{"type":"Point","coordinates":[2.0,9.0,100.0]}')
-assert len(gj) == 1 and approx(gj[0].coord.lat, 9.0, 1e-9) and approx(gj[0].coord.lon, 2.0, 1e-9)
-assert gj[0].source.axis_order == gc.AxisOrder.LON_LAT
-assert gj[0].coord.height == gc.Height.ELLIPSOIDAL(100.0)
-# Each fix's raw source is its own position, not the whole document.
-assert gj[0].source.raw == '{"type":"Point","coordinates":[2.0,9.0,100.0]}', gj[0].source.raw
-# WKT defines no axis order, so the caller states it.
-wktfixes = gc.from_wkt("LINESTRING(0 0, 10 20)", gc.AxisOrder.LON_LAT)
-assert len(wktfixes) == 2 and approx(wktfixes[1].coord.lat, 20.0, 1e-9)
-assert wktfixes[1].source.raw == "POINT(10 20)"
-latlon = gc.from_wkt("POINT(20 10)", gc.AxisOrder.LAT_LON)
-assert approx(latlon[0].coord.lat, 20.0, 1e-9) and latlon[0].source.axis_order == gc.AxisOrder.LAT_LON
-gpxfixes = gc.from_gpx(
-    '<?xml version="1.0"?><gpx version="1.1" creator="t"'
-    ' xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="48.2" lon="16.3"><ele>183</ele>'
-    "<time>2024-03-01T12:00:05Z</time><hdop>1.5</hdop></wpt></gpx>"
-)
-assert len(gpxfixes) == 1 and approx(gpxfixes[0].coord.lat, 48.2, 1e-9)
-assert gpxfixes[0].source.axis_order is None  # GPX labels its axes
-assert gpxfixes[0].coord.height == gc.Height.ORTHOMETRIC(183.0)
-assert gpxfixes[0].timestamp is not None
-assert approx(gpxfixes[0].accuracy.horizontal_m, 1.5 * 5.0, 1e-9)  # HDOP x nominal UERE
-assert gpxfixes[0].accuracy.kind == gc.AccuracyKind.ONE_SIGMA
-kmlfixes = gc.from_kml(
-    '<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
-    "<Placemark><Point><coordinates>16.3,48.2,183</coordinates></Point></Placemark></Document></kml>"
-)
-assert len(kmlfixes) == 1 and approx(kmlfixes[0].coord.lon, 16.3, 1e-9)
-assert kmlfixes[0].coord.height == gc.Height.ORTHOMETRIC(183.0)
-try:
-    gc.from_geojson('{"type":"LineString","coordinates":[[0,0],[181,0]]}')
-    raise AssertionError("expected an out-of-range position to be rejected")
-except gc.GeoError.OutOfRange as e:
-    assert e.lat == 0.0 and e.lon == 181.0, (e.lat, e.lon)
-try:
-    gc.from_geojson("not json")
-    raise AssertionError("expected a parse error")
-except gc.GeoError.Parse as e:
-    assert e.kind == gc.ParseErrorKind.SYNTAX, e.kind
-
-# --- NMEA 0183 sentences ---
-nmea = gc.from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
-assert approx(nmea.coord.lat, 48.0 + 7.038 / 60.0, 1e-9)
-assert approx(nmea.coord.lon, 11.0 + 31.0 / 60.0, 1e-9)
-assert nmea.source.axis_order == gc.AxisOrder.LAT_LON  # NMEA lists lat first
-assert approx(nmea.accuracy.horizontal_m, 0.9 * 5.0, 1e-9)  # HDOP x nominal UERE
-assert nmea.accuracy.kind == gc.AccuracyKind.ONE_SIGMA
-assert nmea.source.geoid_separation_m == 46.9  # h = H + N
-assert nmea.source.notes == []
-assert nmea.timestamp is None  # GGA has a time of day but no date
-rmc = gc.from_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
-assert rmc.timestamp is not None
-assert rmc.timestamp.timestamp() == 764_426_119  # 1994-03-23T12:35:19Z
-# A sentence reporting no fix is an error, never a position.
-for no_fix, reason in [
-    ("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07", "void"),
-    ("$GPGLL,4916.45,N,12311.12,W,225444,V", "void"),
-    ("$GPGGA,123519,,,,,0,00,,,M,,M,,", "quality 0"),
-]:
-    try:
-        gc.from_nmea_sentence(no_fix)
-        raise AssertionError(f"expected {no_fix!r} to be rejected")
-    except gc.GeoError.Parse as e:
-        assert e.kind == gc.ParseErrorKind.NO_FIX and reason in e.detail, (e.kind, e.detail)
-try:
-    gc.from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")  # bad checksum
-    raise AssertionError("expected a checksum error")
-except gc.GeoError.Parse as e:
-    assert e.kind == gc.ParseErrorKind.CHECKSUM, (e.kind, e.detail)
+# --- Interchange formats and NMEA 0183, kept in their own file for length ---
+runpy.run_path(str(pathlib.Path(__file__).with_name("smoke_ingest.py")), init_globals=globals())
 
 # --- H3 and S2 discrete global grids ---
 h3 = gc.h3_encode(wgs84_coord(40.7128, -74.006), 9)
@@ -650,5 +609,16 @@ try:
     raise AssertionError("expected InvalidCellId for H3 index 0")
 except gc.GeoError.InvalidCellId as e:
     assert e.grid == "H3" and e.value == 0, (e.grid, e.value)
+gc.h3_validate(h3)
+gc.s2_validate(s2)
+for validate, record, grid in [
+    (gc.h3_validate, gc.H3Cell(value=0), "H3"),
+    (gc.s2_validate, gc.S2CellId(value=0), "S2"),
+]:
+    try:
+        validate(record)
+        raise AssertionError(f"expected InvalidCellId for {grid} id 0")
+    except gc.GeoError.InvalidCellId as e:
+        assert e.grid == grid and e.value == 0, (e.grid, e.value)
 
 print("python smoke OK")

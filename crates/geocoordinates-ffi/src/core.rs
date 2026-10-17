@@ -453,6 +453,19 @@ pub fn coordinate_new(lat: f64, lon: f64, crs: Crs) -> Result<Coordinate, GeoErr
     Ok(gc::Coordinate::new(lat, lon, crs.into())?.into())
 }
 
+/// Construct a [`Coordinate`] from longitude and latitude in decimal degrees
+/// (**longitude first**, the GeoJSON / WKT X,Y order) in `crs`, with no
+/// height — the FFI form of `Coordinate::from_lon_lat`. Use it where the
+/// source is X,Y, so the swap is spelled by the function name rather than by
+/// argument order at the call site.
+///
+/// # Errors
+/// As [`coordinate_new`].
+#[uniffi::export]
+pub fn coordinate_from_lon_lat(lon: f64, lat: f64, crs: Crs) -> Result<Coordinate, GeoError> {
+    Ok(gc::Coordinate::from_lon_lat(lon, lat, crs.into())?.into())
+}
+
 // --- Length unit conversions (`Length` is flattened to `f64` meters) ---
 
 /// Convert `value` expressed in `unit` to meters.

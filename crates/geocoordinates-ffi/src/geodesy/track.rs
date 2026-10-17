@@ -10,8 +10,12 @@ use crate::{Coordinate, GeoError};
 /// path `start` → `end` on the mean sphere (positive to the right).
 /// Approximate: the sphere is not the ellipsoid.
 ///
-/// Errors when `start` and `end` are the same place or antipodal (no single
-/// great circle runs through them).
+/// # Errors
+/// `GeoError::CrsMismatch` when the three coordinates are not all in one
+/// reference system; `GeoError::InvalidValue` (field `path`) when `start` and
+/// `end` are the same place or antipodal (no single great circle runs through
+/// them); `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
+/// coordinate record.
 #[uniffi::export]
 pub fn cross_track_distance_spherical_m(
     point: Coordinate,
@@ -27,9 +31,12 @@ pub fn cross_track_distance_spherical_m(
 
 /// Along-track distance (meters) from `start` to the foot of the perpendicular
 /// from `point` onto the great-circle path `start` → `end` on the mean sphere.
-/// Approximate; errors as [`cross_track_distance_spherical_m`] does, and with
-/// `GeoError::InvalidValue` (field `point`) when `point` is a pole of the
-/// path's great circle, where no along-track distance is defined.
+/// Approximate: the sphere is not the ellipsoid.
+///
+/// # Errors
+/// As [`cross_track_distance_spherical_m`], and `GeoError::InvalidValue`
+/// (field `point`) when `point` is a pole of the path's great circle, where no
+/// along-track distance is defined.
 #[uniffi::export]
 pub fn along_track_distance_spherical_m(
     point: Coordinate,
@@ -81,7 +88,12 @@ impl From<gc::geodesy::Intersection> for IntersectionResult {
 /// sphere is not the ellipsoid.
 ///
 /// At a pole a bearing follows the meridian of the start's own longitude.
-/// Errors for GCJ-02 / BD-09 inputs, mixed CRSs, or a non-finite bearing.
+///
+/// # Errors
+/// `GeoError::CrsMismatch` for mixed reference systems or GCJ-02 / BD-09
+/// inputs; `GeoError::InvalidValue` (field `bearing`) for a non-finite
+/// bearing; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
+/// coordinate record.
 #[uniffi::export]
 pub fn intersection_spherical(
     a: Coordinate,
@@ -99,9 +111,12 @@ pub fn intersection_spherical(
 /// right). Exact to well under a micrometre, unlike
 /// [`cross_track_distance_spherical_m`].
 ///
-/// Errors (`GeoError::CrsMismatch`) for mixed CRSs or GCJ-02 / BD-09 inputs,
-/// and (`GeoError::InvalidValue`, field `path`) when `start` and `end` are the
-/// same place or antipodal.
+/// # Errors
+/// `GeoError::CrsMismatch` for mixed reference systems or GCJ-02 / BD-09
+/// inputs; `GeoError::InvalidValue` with field `path` when `start` and `end`
+/// are the same place or antipodal, and field `point` when the foot search
+/// does not settle; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an
+/// invalid coordinate record.
 #[uniffi::export]
 pub fn cross_track_distance_m(
     point: Coordinate,
@@ -117,11 +132,13 @@ pub fn cross_track_distance_m(
 
 /// Along-track distance (meters) from `start` to the foot of the perpendicular
 /// from `point` onto the geodesic path `start` → `end`, on the ellipsoid of
-/// their shared CRS (negative behind `start`). Errors as
-/// [`cross_track_distance_m`] does, and with `GeoError::InvalidValue` (field
-/// `point`) where every foot is equally near (a pole, for an equatorial path).
-/// Near such a point the foot is defined only to about `1e-9 m / M`, `M` the
+/// their shared CRS (negative behind `start`). Near a point where every foot
+/// is equally near, the foot is defined only to about `1e-9 m / M`, `M` the
 /// geodesic scale of `point` relative to its foot.
+///
+/// # Errors
+/// As [`cross_track_distance_m`], and `GeoError::InvalidValue` (field `point`)
+/// where every foot is equally near (a pole, for an equatorial path).
 #[uniffi::export]
 pub fn along_track_distance_m(
     point: Coordinate,
@@ -173,9 +190,11 @@ impl From<gc::geodesy::GeodesicIntersection> for GeodesicIntersectionResult {
 /// Exact to well under a micrometre, unlike [`intersection_spherical`].
 ///
 /// At a pole a bearing follows the meridian of the start's own longitude.
-/// Errors for GCJ-02 / BD-09 inputs, mixed CRSs, a non-finite bearing, or
-/// (`GeoError::InvalidValue`, field `paths`) when the iteration cannot locate
-/// a crossing the mean sphere places ahead of both starts.
+///
+/// # Errors
+/// As [`intersection_spherical`], and `GeoError::InvalidValue` (field
+/// `paths`) when the iteration cannot locate a crossing the mean sphere places
+/// ahead of both starts.
 #[uniffi::export]
 pub fn intersection(
     a: Coordinate,

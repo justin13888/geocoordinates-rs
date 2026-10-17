@@ -1,5 +1,6 @@
 //! Guards that every `#[uniffi::export]` function is called by at least one
-//! Rust test in this directory, so a new export cannot land untested.
+//! Rust test in this directory, so a new export cannot land untested, and that
+//! every export returning a `Result` documents its failures under `# Errors`.
 //!
 //! The scan is textual: it reads every `.rs` file under `src/`, takes the
 //! function that follows each `#[uniffi::export]` attribute, and requires a
@@ -37,6 +38,68 @@ fn exported_functions(source: &str) -> Vec<String> {
         }
     }
     names
+}
+
+/// The `#[uniffi::export]` functions in `source` that return a `Result`, each
+/// with whether its doc comment has an `# Errors` section.
+fn fallible_exports(source: &str) -> Vec<(String, bool)> {
+    let lines: Vec<&str> = source.lines().map(str::trim).collect();
+    let mut found = Vec::new();
+    for (i, line) in lines.iter().enumerate() {
+        if *line != "#[uniffi::export]" {
+            continue;
+        }
+        let doc = lines[..i]
+            .iter()
+            .rev()
+            .take_while(|l| l.starts_with("///"))
+            .any(|l| l.trim_start_matches('/').trim() == "# Errors");
+        // The signature runs from the attribute to the body's opening brace.
+        let signature: String = lines[i + 1..]
+            .iter()
+            .scan(false, |done, l| {
+                (!*done).then(|| {
+                    *done = l.contains('{');
+                    *l
+                })
+            })
+            .collect();
+        if signature.contains("-> Result<") {
+            let name = signature
+                .trim_start_matches("pub fn ")
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            found.push((name, doc));
+        }
+    }
+    found
+}
+
+#[test]
+fn every_fallible_export_documents_its_errors() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut sources = Vec::new();
+    rust_files(&root.join("src"), &mut sources);
+    let fallible: Vec<(String, bool)> = sources
+        .iter()
+        .flat_map(|path| fallible_exports(&fs::read_to_string(path).unwrap()))
+        .collect();
+    // A sanity floor, so a broken scan cannot pass vacuously.
+    assert!(
+        fallible.len() >= 100,
+        "found only {} fallible exports",
+        fallible.len()
+    );
+    let missing: Vec<&String> = fallible
+        .iter()
+        .filter(|(_, documented)| !documented)
+        .map(|(name, _)| name)
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "fallible exports with no `# Errors` section: {missing:?}"
+    );
 }
 
 #[test]

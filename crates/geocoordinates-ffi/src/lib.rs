@@ -9,15 +9,51 @@
 //!
 //! | Rust idiom | FFI form here |
 //! |---|---|
-//! | `Approx<T>` (generic wrapper) | flat records [`ApproxWgs84`] / [`ApproxGcj02`] carrying `max_error_m` |
+//! | `Approx<T>` (generic wrapper) | flat records [`ApproxWgs84`] / [`ApproxGcj02`] (China inverses) and [`ApproxCoordinate`] ([`convert`] and every grid / cell decoder), each carrying `max_error_m` |
 //! | `LatLon` trait / `impl LatLon` | functions take the concrete [`Coordinate`] record |
 //! | `Wgs84::is_outside_china` / `Gcj02::is_outside_china` methods | [`wgs84_is_outside_china`] / [`gcj02_is_outside_china`] |
 //! | `Length` + operator overloads | distance returned as `f64` meters ([`haversine_distance_m`]) |
 //! | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
+//! | Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
 //! return a bare datum record, while approximate inverses return an `Approx*`
 //! record and keep the `_fast` / `_refined` suffix.
+//!
+//! Every export follows one naming scheme, so a name reads the same in every
+//! language:
+//!
+//! - **Units in the name.** A function returning a bare length names its
+//!   unit (`_m`: [`geodesic_distance_m`]; [`height_meters`]), and one
+//!   returning an angle ends in `_deg` ([`initial_bearing_deg`],
+//!   [`wrap_longitude_deg`], [`utm_central_meridian_deg`]) or names degrees
+//!   as its target ([`dms_to_degrees`], [`normalize_degrees`]). Length and
+//!   angle parameters carry the same suffix (`distance_m`, `bearing_deg`).
+//!   Two exceptions, where the unit is already fixed elsewhere: a
+//!   constructor's parameters take the names of the record fields they fill,
+//!   so [`coordinate_new`] and [`coordinate_from_lon_lat`] take `lat` / `lon`
+//!   like the [`Coordinate`] record (decimal degrees); and the `Length`
+//!   converters name the unit they convert between, with meters always the
+//!   other side ([`length_from_unit`] returns meters, [`length_to_unit`]
+//!   takes them).
+//! - **Ingestion is `parse_*`.** Every function that reads text into a
+//!   [`Fix`] is named for what it does: [`parse_coordinate`], [`parse_text`],
+//!   [`parse_geo_uri`], [`parse_geojson`], [`parse_wkt`], [`parse_gpx`],
+//!   [`parse_kml`], [`parse_nmea_sentence`]. (The core crate's readers are
+//!   `from_geojson` and so on, inside a module that says what they produce; a
+//!   top-level foreign function has no such module.)
+//! - **`*_validate` for every invariant record.** A record whose core type is
+//!   valid by construction has a `<record>_validate` that checks a hand-built
+//!   one ([`coordinate_validate`], [`utm_validate`], [`h3_validate`],
+//!   [`datum_transform_validate`], …). No `<record>_new` is added that would
+//!   only copy its arguments into the record and validate them; one exists
+//!   where construction derives or normalizes a field ([`aer_new`] normalizes
+//!   the azimuth, [`raw_source_new`] fills the optional fields), and the
+//!   constructors that predate this rule ([`coordinate_new`],
+//!   [`ellipsoid_new`], [`accuracy_new`], [`confidence_new`],
+//!   [`datum_transform_new`]) fail at construction rather than at first use.
+//! - **`*_canonicalize` for grid codes.** A string grid code validates and
+//!   normalizes through `<grid>_canonicalize` ([`mgrs_canonicalize`], …).
 //!
 //! The angle encodings (`Dms` / `Ddm`), their conversions and the
 //! normalization helpers, the `Length` / `LengthUnit` unit helpers, coordinate

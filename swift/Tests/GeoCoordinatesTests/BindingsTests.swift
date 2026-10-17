@@ -98,8 +98,23 @@ final class ConversionTests: XCTestCase {
         XCTAssertEqual(d, 5_585_233.578_931, accuracy: 1e-3)
     }
 
+    func testNormalizedNamesCarryTheirUnitAndAxisOrder() throws {
+        let east = try initialBearingDeg(a: wgs84(0.0, 0.0), b: wgs84(0.0, 1.0))
+        XCTAssertEqual(east, 90.0, accuracy: 1e-6)
+        let parallel = try rhumbBearingDeg(a: wgs84(60.0, -10.0), b: wgs84(60.0, 30.0))
+        XCTAssertEqual(parallel, 90.0, accuracy: 1e-9)
+        let lonFirst = try coordinateFromLonLat(lon: -74.0, lat: 40.0, crs: .wgs84)
+        XCTAssertEqual(lonFirst.lat, 40.0)
+        XCTAssertEqual(lonFirst.lon, -74.0)
+        let text = try parseText(input: "40.7128, -74.006")
+        XCTAssertEqual(text.coord.lat, 40.7128, accuracy: 1e-9)
+        XCTAssertEqual(text.coord.lon, -74.006, accuracy: 1e-9)
+        try utmValidate(utm: utmFromCoordinate(coord: wgs84(40.0, -75.0)))
+        try h3Validate(cell: h3Encode(coord: wgs84(40.7128, -74.006), resolution: 9))
+    }
+
     func testNmeaRmcCarriesItsDate() throws {
-        let rmc = try fromNmeaSentence(
+        let rmc = try parseNmeaSentence(
             sentence: "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
         XCTAssertEqual(rmc.timestamp, Date(timeIntervalSince1970: 764_426_119))
     }
@@ -138,10 +153,14 @@ final class TypedErrorTests: XCTestCase {
             try utmCentralMeridianDeg(zone: 0)
         }) else { return XCTFail("expected InvalidValue") }
         XCTAssertEqual(field, "zone")
+        guard case let .InvalidValue(capField, _)? = geoError({
+            try upsValidate(ups: Ups(hemisphere: .north, easting: 0.0, northing: 0.0))
+        }) else { return XCTFail("expected InvalidValue from upsValidate") }
+        XCTAssertEqual(capField, "northing")
     }
 
     func testFixAccuracyIsTaggedAndValidated() throws {
-        let gga = try fromNmeaSentence(
+        let gga = try parseNmeaSentence(
             sentence: "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
         XCTAssertEqual(gga.accuracy?.kind, .oneSigma)
         XCTAssertEqual(gga.source?.geoidSeparationM, 46.9)
@@ -171,6 +190,10 @@ final class TypedErrorTests: XCTestCase {
         }) else { return XCTFail("expected InvalidCellId") }
         XCTAssertEqual(grid, "H3")
         XCTAssertEqual(value, 0)
+        guard case let .InvalidCellId(s2Grid, _)? = geoError({
+            try s2Validate(cell: S2CellId(value: 0))
+        }) else { return XCTFail("expected InvalidCellId from s2Validate") }
+        XCTAssertEqual(s2Grid, "S2")
     }
 
     func testInvalidGridRefCarriesTheReference() {
@@ -188,18 +211,18 @@ final class TypedErrorTests: XCTestCase {
             XCTAssertEqual(kind, expected, input)
         }
         guard case let .Parse(voidKind, detail)? = geoError({
-            try fromNmeaSentence(
+            try parseNmeaSentence(
                 sentence: "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
         }) else { return XCTFail("expected Parse for a void RMC") }
         XCTAssertEqual(voidKind, .noFix)
         XCTAssertTrue(detail.contains("void"), detail)
         guard case let .Parse(checksumKind, _)? = geoError({
-            try fromNmeaSentence(sentence: "$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
+            try parseNmeaSentence(sentence: "$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
         }) else { return XCTFail("expected Parse for a bad checksum") }
         XCTAssertEqual(checksumKind, .checksum)
         let deepWkt = String(repeating: "GEOMETRYCOLLECTION(", count: 200)
         guard case let .Parse(deepKind, _)? = geoError({
-            try fromWkt(input: deepWkt, axisOrder: .lonLat)
+            try parseWkt(input: deepWkt, axisOrder: .lonLat)
         }) else { return XCTFail("expected Parse for deep WKT") }
         XCTAssertEqual(deepKind, .tooDeep)
     }

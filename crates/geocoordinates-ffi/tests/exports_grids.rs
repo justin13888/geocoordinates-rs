@@ -153,7 +153,12 @@ fn utm_to_coordinate_accepts_only_the_forward_image() {
             matches!(&utm_to_coordinate(utm), Err(GeoError::InvalidValue { field: f, .. }) if f == field),
             "{field}"
         );
+        assert!(
+            matches!(&utm_validate(utm), Err(GeoError::InvalidValue { field: f, .. }) if f == field),
+            "{field}"
+        );
     }
+    assert_eq!(utm_validate(edge), Ok(()));
 }
 
 #[test]
@@ -210,6 +215,14 @@ fn ups_covers_the_poles_and_round_trips() {
         ups_to_coordinate(off_cap),
         Err(GeoError::InvalidValue { field, .. }) if field == "northing"
     ));
+    // `ups_validate` applies the same rules without decoding.
+    assert_eq!(ups_validate(ups), Ok(()));
+    for bad in [off_grid, off_cap] {
+        assert!(matches!(
+            ups_validate(bad),
+            Err(GeoError::InvalidValue { field, .. }) if field == "northing"
+        ));
+    }
 }
 
 #[test]
@@ -287,9 +300,9 @@ fn mgrs_encodes_decodes_and_reports_precision() {
 // --- Interchange formats ---
 
 #[test]
-fn from_geojson_reads_lon_lat_order() {
+fn parse_geojson_reads_lon_lat_order() {
     let fixes =
-        from_geojson(r#"{"type":"Point","coordinates":[2.0,9.0,100.0]}"#.to_string()).unwrap();
+        parse_geojson(r#"{"type":"Point","coordinates":[2.0,9.0,100.0]}"#.to_string()).unwrap();
     assert_eq!(fixes.len(), 1);
     assert_eq!((fixes[0].coord.lat, fixes[0].coord.lon), (9.0, 2.0));
     assert_eq!(fixes[0].coord.crs, Crs::Wgs84);
@@ -298,15 +311,15 @@ fn from_geojson_reads_lon_lat_order() {
         Some(AxisOrder::LonLat)
     );
     assert!(matches!(
-        from_geojson("not json".to_string()),
+        parse_geojson("not json".to_string()),
         Err(GeoError::Parse { .. })
     ));
 }
 
 #[test]
-fn from_wkt_reads_every_vertex_in_the_stated_axis_order() {
+fn parse_wkt_reads_every_vertex_in_the_stated_axis_order() {
     let points = |order| -> Vec<(f64, f64)> {
-        from_wkt("LINESTRING(0 0, 10 20)".to_string(), order)
+        parse_wkt("LINESTRING(0 0, 10 20)".to_string(), order)
             .unwrap()
             .iter()
             .map(|f| (f.coord.lat, f.coord.lon))
@@ -314,7 +327,7 @@ fn from_wkt_reads_every_vertex_in_the_stated_axis_order() {
     };
     assert_eq!(points(AxisOrder::LonLat), vec![(0.0, 0.0), (20.0, 10.0)]);
     assert_eq!(points(AxisOrder::LatLon), vec![(0.0, 0.0), (10.0, 20.0)]);
-    let fixes = from_wkt("POINT Z(1 2 3)".to_string(), AxisOrder::LatLon).unwrap();
+    let fixes = parse_wkt("POINT Z(1 2 3)".to_string(), AxisOrder::LatLon).unwrap();
     let source = fixes[0].source.as_ref().unwrap();
     assert_eq!(source.axis_order, Some(AxisOrder::LatLon));
     assert_eq!(source.raw, "POINT Z(1 2 3)");
@@ -325,8 +338,8 @@ fn from_wkt_reads_every_vertex_in_the_stated_axis_order() {
 }
 
 #[test]
-fn from_gpx_reads_a_waypoint() {
-    let fixes = from_gpx(
+fn parse_gpx_reads_a_waypoint() {
+    let fixes = parse_gpx(
         concat!(
             r#"<?xml version="1.0"?><gpx version="1.1" creator="t" "#,
             r#"xmlns="http://www.topografix.com/GPX/1/1"><wpt lat="48.2" lon="16.3">"#,
@@ -351,8 +364,8 @@ fn from_gpx_reads_a_waypoint() {
 }
 
 #[test]
-fn from_kml_reads_a_placemark() {
-    let fixes = from_kml(
+fn parse_kml_reads_a_placemark() {
+    let fixes = parse_kml(
         concat!(
             r#"<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>"#,
             "<Placemark><Point><coordinates>16.3,48.2,183</coordinates></Point></Placemark>",
@@ -384,7 +397,7 @@ fn parse_error<T: std::fmt::Debug>(r: Result<T, GeoError>) -> (ParseErrorKind, S
 #[test]
 fn interchange_parsers_reject_short_positions_and_deep_nesting() {
     // A one-number GeoJSON position is rejected at its own document index.
-    let (kind, detail) = parse_error(from_geojson(
+    let (kind, detail) = parse_error(parse_geojson(
         r#"{"type":"LineString","coordinates":[[0,0],[5],[0,200]]}"#.to_string(),
     ));
     assert_eq!(kind, ParseErrorKind::Syntax);
@@ -394,7 +407,7 @@ fn interchange_parsers_reject_short_positions_and_deep_nesting() {
     );
     // An out-of-range position crosses as its own typed error.
     assert_eq!(
-        from_geojson(r#"{"type":"Point","coordinates":[0,200]}"#.to_string()),
+        parse_geojson(r#"{"type":"Point","coordinates":[0,200]}"#.to_string()),
         Err(GeoError::OutOfRange {
             lat: 200.0,
             lon: 0.0
@@ -406,18 +419,18 @@ fn interchange_parsers_reject_short_positions_and_deep_nesting() {
         ParseErrorKind::TooDeep,
         "wkt: nesting deeper than 128 levels".to_string(),
     );
-    assert_eq!(parse_error(from_wkt(wkt, AxisOrder::LonLat)), too_deep);
+    assert_eq!(parse_error(parse_wkt(wkt, AxisOrder::LonLat)), too_deep);
     let kml = "<Folder>".repeat(100_000) + &"</Folder>".repeat(100_000);
-    let (kind, detail) = parse_error(from_kml(kml));
+    let (kind, detail) = parse_error(parse_kml(kml));
     assert_eq!(kind, ParseErrorKind::TooDeep);
     assert_eq!(detail, "kml: nesting deeper than 32 levels");
     // A truncated document returns a syntax error rather than never returning.
-    let (kind, detail) = parse_error(from_kml("<kml><Point>".to_string()));
+    let (kind, detail) = parse_error(parse_kml("<kml><Point>".to_string()));
     assert_eq!(kind, ParseErrorKind::Syntax);
     assert_eq!(detail, "kml: element <Point> is not closed");
     // A `Point` with no coordinates returns a syntax error rather than
     // panicking inside the KML reader.
-    let (kind, detail) = parse_error(from_kml("<Point></Point>".to_string()));
+    let (kind, detail) = parse_error(parse_kml("<Point></Point>".to_string()));
     assert_eq!(kind, ParseErrorKind::Syntax);
     assert_eq!(detail, "kml: <Point> at byte 0 has no coordinates");
 }
@@ -425,8 +438,8 @@ fn interchange_parsers_reject_short_positions_and_deep_nesting() {
 // --- NMEA 0183 ---
 
 #[test]
-fn from_nmea_sentence_reads_a_gga_fix() {
-    let fix = from_nmea_sentence(
+fn parse_nmea_sentence_reads_a_gga_fix() {
+    let fix = parse_nmea_sentence(
         "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47".to_string(),
     )
     .unwrap();
@@ -445,17 +458,17 @@ fn from_nmea_sentence_reads_a_gga_fix() {
     // The geoid separation N is typed: h = H + N.
     assert_eq!(source.geoid_separation_m, Some(46.9));
     assert!(source.notes.is_empty());
-    let (kind, _) = parse_error(from_nmea_sentence(
+    let (kind, _) = parse_error(parse_nmea_sentence(
         "$GPGLL,4916.45,N,12311.12,W,225444,A,*1E".to_string(),
     ));
     assert_eq!(kind, ParseErrorKind::Checksum);
-    let (kind, _) = parse_error(from_nmea_sentence("$GPVTG,054.7,T".to_string()));
+    let (kind, _) = parse_error(parse_nmea_sentence("$GPVTG,054.7,T".to_string()));
     assert_eq!(kind, ParseErrorKind::Unsupported);
 }
 
 #[test]
-fn from_nmea_sentence_timestamps_rmc_and_rejects_no_fix() {
-    let rmc = from_nmea_sentence(
+fn parse_nmea_sentence_timestamps_rmc_and_rejects_no_fix() {
+    let rmc = parse_nmea_sentence(
         "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10".to_string(),
     )
     .unwrap();
@@ -468,7 +481,7 @@ fn from_nmea_sentence_timestamps_rmc_and_rejects_no_fix() {
         "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07",
         "$GPGGA,123519,,,,,0,00,,,M,,M,,",
     ] {
-        let (kind, _) = parse_error(from_nmea_sentence(no_fix.to_string()));
+        let (kind, _) = parse_error(parse_nmea_sentence(no_fix.to_string()));
         assert_eq!(kind, ParseErrorKind::NoFix);
     }
 }
@@ -496,6 +509,11 @@ fn h3_encodes_the_canonical_index_and_decodes_its_center() {
         h3_resolution(H3Cell { value: 0 }),
         Err(GeoError::InvalidCellId { value: 0, .. })
     ));
+    assert_eq!(h3_validate(cell), Ok(()));
+    assert!(matches!(
+        h3_validate(H3Cell { value: 0 }),
+        Err(GeoError::InvalidCellId { ref grid, value: 0 }) if grid == "H3"
+    ));
 }
 
 #[test]
@@ -514,5 +532,10 @@ fn s2_encodes_the_canonical_id_and_decodes_its_center() {
     assert!(matches!(
         s2_level(S2CellId { value: 0 }),
         Err(GeoError::InvalidCellId { value: 0, .. })
+    ));
+    assert_eq!(s2_validate(cell), Ok(()));
+    assert!(matches!(
+        s2_validate(S2CellId { value: 0 }),
+        Err(GeoError::InvalidCellId { ref grid, value: 0 }) if grid == "S2"
     ));
 }

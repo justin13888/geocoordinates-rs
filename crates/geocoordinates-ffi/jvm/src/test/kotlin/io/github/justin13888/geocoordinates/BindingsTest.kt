@@ -17,6 +17,7 @@ import uniffi.geocoordinates_ffi.GeoException
 import uniffi.geocoordinates_ffi.H3Cell
 import uniffi.geocoordinates_ffi.MgrsPrecision
 import uniffi.geocoordinates_ffi.ParseErrorKind
+import uniffi.geocoordinates_ffi.S2CellId
 import uniffi.geocoordinates_ffi.Ups
 import uniffi.geocoordinates_ffi.Utm
 import uniffi.geocoordinates_ffi.UtmHemisphere
@@ -27,12 +28,12 @@ import uniffi.geocoordinates_ffi.bd09ToWgs84Fast
 import uniffi.geocoordinates_ffi.baiduMercatorFromCoordinate
 import uniffi.geocoordinates_ffi.confidenceNew
 import uniffi.geocoordinates_ffi.convert
+import uniffi.geocoordinates_ffi.coordinateFromLonLat
 import uniffi.geocoordinates_ffi.coordinateNew
 import uniffi.geocoordinates_ffi.datumTransformCatalogToWgs84
 import uniffi.geocoordinates_ffi.fixFromCoord
 import uniffi.geocoordinates_ffi.formatFix
 import uniffi.geocoordinates_ffi.formatOptionsDefault
-import uniffi.geocoordinates_ffi.fromNmeaSentence
 import uniffi.geocoordinates_ffi.gcj02IsOutsideChina
 import uniffi.geocoordinates_ffi.gcj02ToBd09
 import uniffi.geocoordinates_ffi.gcj02ToWgs84Fast
@@ -40,13 +41,21 @@ import uniffi.geocoordinates_ffi.gcj02ToWgs84Refined
 import uniffi.geocoordinates_ffi.geodesicDistanceM
 import uniffi.geocoordinates_ffi.h3Decode
 import uniffi.geocoordinates_ffi.h3Encode
+import uniffi.geocoordinates_ffi.h3Validate
+import uniffi.geocoordinates_ffi.initialBearingDeg
 import uniffi.geocoordinates_ffi.mgrsFromCoordinate
 import uniffi.geocoordinates_ffi.mgrsToCoordinate
 import uniffi.geocoordinates_ffi.parseCoordinate
+import uniffi.geocoordinates_ffi.parseNmeaSentence
+import uniffi.geocoordinates_ffi.parseText
+import uniffi.geocoordinates_ffi.rhumbBearingDeg
+import uniffi.geocoordinates_ffi.s2Validate
 import uniffi.geocoordinates_ffi.upsToCoordinate
+import uniffi.geocoordinates_ffi.upsValidate
 import uniffi.geocoordinates_ffi.utmCentralMeridianDeg
 import uniffi.geocoordinates_ffi.utmFromCoordinate
 import uniffi.geocoordinates_ffi.utmToCoordinate
+import uniffi.geocoordinates_ffi.utmValidate
 import uniffi.geocoordinates_ffi.wgs84IsOutsideChina
 import uniffi.geocoordinates_ffi.wgs84ToBd09
 import uniffi.geocoordinates_ffi.wgs84ToGcj02
@@ -154,13 +163,13 @@ class BindingsTest {
 
     @Test
     fun nmeaRmcCarriesItsInstant() {
-        val rmc = fromNmeaSentence("\$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
+        val rmc = parseNmeaSentence("\$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
         assertEquals(Instant.parse("1994-03-23T12:35:19Z"), rmc.timestamp)
     }
 
     @Test
     fun fixAccuracyIsTaggedAndValidated() {
-        val gga = fromNmeaSentence("\$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
+        val gga = parseNmeaSentence("\$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
         assertEquals(AccuracyKind.ONE_SIGMA, gga.accuracy?.kind)
         assertEquals(46.9, gga.source!!.geoidSeparationM!!, 1e-12)
         assertEquals(AccuracyKind.BOUND, parseCoordinate("18TWK0000027757").accuracy?.kind)
@@ -210,6 +219,16 @@ class BindingsTest {
             upsToCoordinate(Ups(UtmHemisphere.NORTH, 0.0, 0.0))
         }
         assertEquals("northing", offCap.field)
+        // The `*_validate` functions apply the same rules without decoding.
+        utmValidate(utmFromCoordinate(wgs84(40.0, -75.0)))
+        val westRecord = throwsVariant<GeoException.InvalidValue> {
+            utmValidate(Utm(1u, UtmHemisphere.NORTH, 150_000.0, 0.0))
+        }
+        assertEquals("easting", westRecord.field)
+        val capRecord = throwsVariant<GeoException.InvalidValue> {
+            upsValidate(Ups(UtmHemisphere.NORTH, 0.0, 0.0))
+        }
+        assertEquals("northing", capRecord.field)
     }
 
     @Test
@@ -217,6 +236,21 @@ class BindingsTest {
         val e = throwsVariant<GeoException.InvalidCellId> { h3Decode(H3Cell(0uL)) }
         assertEquals("H3", e.grid)
         assertEquals(0uL, e.value)
+        h3Validate(h3Encode(wgs84(40.7128, -74.006), 9u))
+        assertEquals("H3", throwsVariant<GeoException.InvalidCellId> { h3Validate(H3Cell(0uL)) }.grid)
+        assertEquals("S2", throwsVariant<GeoException.InvalidCellId> { s2Validate(S2CellId(0uL)) }.grid)
+    }
+
+    @Test
+    fun normalizedNamesCarryTheirUnitAndAxisOrder() {
+        assertEquals(90.0, initialBearingDeg(wgs84(0.0, 0.0), wgs84(0.0, 1.0)), 1e-6)
+        assertEquals(90.0, rhumbBearingDeg(wgs84(60.0, -10.0), wgs84(60.0, 30.0)), 1e-9)
+        assertEquals(wgs84(40.0, -74.0), coordinateFromLonLat(-74.0, 40.0, Crs.WGS84))
+        val text = parseText("40.7128, -74.006")
+        assertEquals(40.7128, text.coord.lat, 1e-9)
+        assertEquals(-74.006, text.coord.lon, 1e-9)
+        val grid = throwsVariant<GeoException.Parse> { parseText("87G7PX7V+4J") }
+        assertEquals(ParseErrorKind.SYNTAX, grid.kind)
     }
 
     @Test
@@ -236,13 +270,13 @@ class BindingsTest {
         assertEquals(ParseErrorKind.SYNTAX, syntax.kind)
         val void =
             throwsVariant<GeoException.Parse> {
-                fromNmeaSentence("\$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
+                parseNmeaSentence("\$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
             }
         assertEquals(ParseErrorKind.NO_FIX, void.kind)
         assertTrue(void.detail.contains("void"), void.detail)
         val corrupt =
             throwsVariant<GeoException.Parse> {
-                fromNmeaSentence("\$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
+                parseNmeaSentence("\$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
             }
         assertEquals(ParseErrorKind.CHECKSUM, corrupt.kind)
     }
