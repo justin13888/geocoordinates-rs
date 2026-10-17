@@ -241,9 +241,6 @@ Unscheduled. Promoted only when a concrete consumer appears.
   Blocked: needs the system `libproj` C library.
 - **`geoid`** — EGM96/EGM2008/EGM2020 height undulation. Blocked: needs
   multi-megabyte external grid data files.
-- **Automatic Maven Central release** (#131) — the JVM workflow uploads each
-  release, but the deployment waits in the Central Portal for a manual release
-  (see `PUBLISHING.md`).
 
 `proj` and `geoid` have no source in-tree: #140 deleted the `todo!()` stubs (git
 history keeps them). Each survives only as a commented-out Cargo feature, so neither can

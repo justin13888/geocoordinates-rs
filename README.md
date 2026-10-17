@@ -127,7 +127,7 @@ print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
 ### Published packages
 
 Each language's bindings are uploaded to its registry on every `v*` release, using
-that ecosystem's native tooling; Maven Central does not list them yet (see † below). See [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md) for the release
+that ecosystem's native tooling (for Maven Central, see † below). See [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md) for the release
 workflows and registry setup.
 
 | Language | Registry | Package | Install |
@@ -138,10 +138,10 @@ workflows and registry setup.
 | Swift | [GitHub Releases](https://github.com/justin13888/geocoordinates-rs/releases) | `GeoCoordinates` | `.package(url: "https://github.com/justin13888/geocoordinates-rs", .upToNextMinor(from: "0.15.0"))` |
 
 > † **Maven Central:** the JVM workflow uploads each release to the Central Portal with the
-> configured token and GPG key, but no version has appeared on Maven Central yet — most
-> likely because the build does not request automatic release, so each uploaded deployment
-> waits in the portal for a manual release (see [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md)).
-> Until it is, build the JAR locally as PUBLISHING.md describes.
+> configured token and GPG key and requests automatic release, so the portal publishes it to
+> Maven Central once it passes validation. Releases up to v0.14.1 were uploaded without
+> automatic release and are not on Maven Central (see [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md));
+> for a version the registry does not list, build the JAR locally as PUBLISHING.md describes.
 
 > The Swift requirement pins the minor version on purpose: while the API is `0.x`, a minor
 > release may break it, and a plain `from:` would accept every later `0.x`.

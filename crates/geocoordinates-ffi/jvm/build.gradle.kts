@@ -59,7 +59,10 @@ tasks.test {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    // automaticRelease: once the Central Portal validates the uploaded deployment,
+    // it publishes to Maven Central on its own; without it, every deployment waits
+    // in the portal for a manual Publish.
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
     signAllPublications()
     coordinates("io.github.justin13888", "geocoordinates", version.toString())
     pom {
