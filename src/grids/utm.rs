@@ -560,6 +560,10 @@ impl Utm {
         let (xi_p, eta_p) = SERIES.conformal_from_tm(xi, eta);
 
         let chi = (xi_p.sin() / eta_p.cosh()).asin();
+        // The shared helper sums the series in a different order from the
+        // term-by-term loop this function once ran. The latitude may change
+        // in its last bit (a few ulps, see `geodetic_from_conformal`). That
+        // is accepted so the series lives in one place.
         let lat = SERIES.geodetic_from_conformal(chi);
         let lon = lon0 + eta_p.sinh().atan2(xi_p.cos()).to_degrees();
         (clamp_latitude(lat.to_degrees()), lon)
