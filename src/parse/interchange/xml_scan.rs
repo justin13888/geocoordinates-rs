@@ -43,6 +43,19 @@ const MAX_KML_DEPTH: usize = 32;
 /// do not end one), a processing instruction or `<?xml …?>` declaration ends
 /// at the first `?>` after `<?` (so `<?>` is not terminated), and a `<!DOCTYPE …>` ends at the `>` that balances every `<`
 /// inside it.
+///
+/// **Points.** Every `Point` element (any prefix, not self-closing) must hold
+/// a coordinate, or the scan returns a `Syntax` error: `kml` 0.13 builds a
+/// `Point` from the first position its geometry reader collected and panics
+/// when there is none. That reader runs from the `<Point>` to the first end
+/// tag named `Point` (any prefix), so a nested `<Point>…</Point>` ends the
+/// outer one early, and keeps only the last `<coordinates>` start tag (any
+/// prefix, at any depth) inside that span, taking the event after it: text,
+/// which holds a coordinate when anything but whitespace lies outside its
+/// entity references, or a CDATA section, which holds one when anything but
+/// whitespace lies in it. Each `Point` is held to its own span, whatever the
+/// element around it, so a coordinate-less `Point` the parser would skip is
+/// rejected too.
 pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     /// The offset of the `>` ending the tag `tag` starts, skipping quotes.
     fn tag_end(tag: &str) -> Option<usize> {
@@ -81,12 +94,48 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     fn is_space(c: char) -> bool {
         matches!(c, ' ' | '\t' | '\r' | '\n')
     }
+    /// A tag name without its namespace prefix.
+    fn local(name: &str) -> &str {
+        name.split_once(':').map_or(name, |(_, local)| local)
+    }
+    /// Whether the content `after` a `<coordinates>` start tag holds a
+    /// position for `kml`'s `read_str`, which reads only the next event and
+    /// trims `quick-xml` whitespace from text. Text holds one when a
+    /// character outside its entity references is not whitespace: unescaping
+    /// replaces only those references, and the `kml` reader splits on
+    /// Unicode whitespace, so a reference such as `&#160;` may stand for
+    /// none. Any other next event yields no position, or an error, which
+    /// rejecting here also turns into an error.
+    fn holds_position(after: &str) -> bool {
+        let text = &after[..after.find('<').unwrap_or(after.len())];
+        if !text.trim_matches(is_space).is_empty() {
+            let mut in_reference = false;
+            return text.chars().any(|c| {
+                match c {
+                    '&' => in_reference = true,
+                    ';' if in_reference => in_reference = false,
+                    c if !in_reference && !c.is_whitespace() => return true,
+                    _ => {}
+                }
+                false
+            });
+        }
+        after[text.len()..]
+            .strip_prefix("<![CDATA[")
+            .and_then(|cdata| cdata.find("]]>").map(|end| &cdata[..end]))
+            .is_some_and(|cdata| cdata.chars().any(|c| !c.is_whitespace()))
+    }
 
     let mut depth = 0usize;
     // The names of the open elements, innermost last. Never longer than
     // `depth`, which only `</kml>` keeps from falling with it, so it holds at
     // most `MAX_KML_DEPTH` names.
     let mut open: Vec<&str> = Vec::new();
+    // The byte offset of each `<Point>` whose geometry reader is still
+    // running, and whether the last `<coordinates>` in its span so far holds
+    // a position. Every entry is an open element, so it too holds at most
+    // `MAX_KML_DEPTH`.
+    let mut points: Vec<(usize, bool)> = Vec::new();
     let mut rest = input;
     while let Some(start) = rest.find('<') {
         rest = &rest[start..];
@@ -144,9 +193,19 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
                 // `</Document>`, or the end of input, so it ignores `</kml>`
                 // and the reader the `<kml>` opened stays on the stack: that
                 // level never closes.
-                let local = name.split_once(':').map_or(name, |(_, local)| local);
-                if local != "kml" {
-                    depth = depth.saturating_sub(1);
+                match local(name) {
+                    "kml" => {}
+                    "Point" => {
+                        // The first `Point` end tag ends every running reader.
+                        if let Some(&(point, _)) = points.iter().find(|&&(_, held)| !held) {
+                            return Err(syntax(format!(
+                                "kml: <Point> at byte {point} has no coordinates"
+                            )));
+                        }
+                        points.clear();
+                        depth = depth.saturating_sub(1);
+                    }
+                    _ => depth = depth.saturating_sub(1),
                 }
             }
             end
@@ -157,7 +216,16 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
                 if depth > MAX_KML_DEPTH {
                     return Err(too_deep("kml", MAX_KML_DEPTH));
                 }
-                open.push(rest[1..i].split(is_space).next().unwrap_or_default());
+                let name = rest[1..i].split(is_space).next().unwrap_or_default();
+                match local(name) {
+                    "Point" => points.push((at, false)),
+                    "coordinates" => {
+                        let held = holds_position(&rest[i + 1..]);
+                        points.iter_mut().for_each(|(_, h)| *h = held);
+                    }
+                    _ => {}
+                }
+                open.push(name);
             }
             end
         };

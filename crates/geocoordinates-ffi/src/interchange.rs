@@ -62,7 +62,8 @@ pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
 /// # Errors
 /// `GeoError::Parse` on malformed KML (kind `TooDeep` on elements nested
 /// deeper than 32 levels, `Syntax` otherwise, including a truncated document
-/// with an element left unclosed); `GeoError::OutOfRange` for the first position out
+/// with an element left unclosed or a `Point` with no coordinates);
+/// `GeoError::OutOfRange` for the first position out
 /// of range; `GeoError::InvalidValue`, naming the position's index, for a
 /// non-finite altitude.
 #[uniffi::export]
