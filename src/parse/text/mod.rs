@@ -14,11 +14,13 @@
 //! Input that has no single reading is rejected rather than guessed at:
 //! concatenated `DDMM.mmm` without a hemisphere letter (`1234.5` is no degree
 //! value), a fraction on any field but the last (`40.5 30`), and exponent
-//! notation (`4e1`).
+//! notation (`4e1`). Each of those is
+//! [`ParseErrorKind::Ambiguous`](crate::ParseErrorKind::Ambiguous); every other
+//! rejection is [`ParseErrorKind::Syntax`](crate::ParseErrorKind::Syntax).
 
-use super::ParseOptions;
+use super::{ParseOptions, syntax};
 use crate::coord::Coordinate;
-use crate::error::{Error, Result};
+use crate::error::{Error, ParseErrorKind, Result};
 use crate::fix::{Fix, RawSource};
 use crate::format::DecimalSeparator;
 
@@ -46,10 +48,13 @@ use resolve::resolve;
 /// field but the last (`40.5 30`), and exponent notation (`4e1`).
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when the input cannot be interpreted.
+/// Returns [`crate::Error::Parse`] when the input cannot be interpreted: of
+/// kind [`Ambiguous`](ParseErrorKind::Ambiguous) when it has no single reading,
+/// and [`Syntax`](ParseErrorKind::Syntax) otherwise (including a reading that
+/// is out of range).
 ///
 /// ```
-/// use geocoordinates::Error;
+/// use geocoordinates::{Error, ParseErrorKind};
 /// use geocoordinates::fix::AxisOrder;
 /// use geocoordinates::parse::parse_text;
 ///
@@ -62,9 +67,15 @@ use resolve::resolve;
 /// assert_eq!(fix.source.and_then(|s| s.axis_order), Some(AxisOrder::LatLon));
 ///
 /// // Concatenated DDMM.mmm needs a hemisphere letter.
-/// assert!(matches!(parse_text("4042.768, -7400.36"), Err(Error::Parse(_))));
+/// assert!(matches!(
+///     parse_text("4042.768, -7400.36"),
+///     Err(Error::Parse { kind: ParseErrorKind::Ambiguous, .. })
+/// ));
 /// // A grid reference is not free text.
-/// assert!(matches!(parse_text("87G7PX7V+4J"), Err(Error::Parse(_))));
+/// assert!(matches!(
+///     parse_text("87G7PX7V+4J"),
+///     Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })
+/// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn parse_text(input: &str) -> Result<Fix> {
@@ -97,7 +108,7 @@ pub fn parse_text(input: &str) -> Result<Fix> {
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
 ///
 /// // Neither reading of 100, 200 is in range.
-/// assert!(matches!(parse_text_with("100, 200", &comma), Err(Error::Parse(_))));
+/// assert!(matches!(parse_text_with("100, 200", &comma), Err(Error::Parse { .. })));
 ///
 /// // Expecting a grid reference is a request free text cannot honour.
 /// let grid = ParseOptions {
@@ -131,15 +142,13 @@ pub(super) fn parse_free_text(input: &str, options: &ParseOptions) -> Result<Fix
     let decimal_comma = options.decimal_separator == DecimalSeparator::Comma;
     let normalized = normalize(input, decimal_comma);
     let (first, second) = split_two(&normalized, decimal_comma)
-        .ok_or_else(|| Error::Parse(format!("could not split into two components: {input}")))?;
-    let a = parse_component(&first)
-        .ok_or_else(|| Error::Parse(format!("could not parse component: {first}")))?;
-    let b = parse_component(&second)
-        .ok_or_else(|| Error::Parse(format!("could not parse component: {second}")))?;
+        .ok_or_else(|| syntax(format!("could not split into two components: {input}")))?;
+    let a = parse_component(&first).map_err(|kind| component_error(kind, &first))?;
+    let b = parse_component(&second).map_err(|kind| component_error(kind, &second))?;
 
     let resolved = resolve(a, b, options.default_axis_order)?;
     let coord = Coordinate::wgs84(resolved.lat, resolved.lon).map_err(|_| {
-        Error::Parse(format!(
+        syntax(format!(
             "coordinate out of range: {}, {}",
             resolved.lat, resolved.lon
         ))
@@ -151,4 +160,13 @@ pub(super) fn parse_free_text(input: &str, options: &ParseOptions) -> Result<Fix
     let mut fix = Fix::from_coord(coord);
     fix.source = Some(source);
     Ok(fix)
+}
+
+/// The error for a component rejected with `kind`.
+fn component_error(kind: ParseErrorKind, component: &str) -> Error {
+    let detail = match kind {
+        ParseErrorKind::Ambiguous => format!("component has no single reading: {component}"),
+        _ => format!("could not parse component: {component}"),
+    };
+    Error::parse(kind, detail)
 }

@@ -641,6 +641,9 @@ fn from_geo_uri_reads_altitude_and_uncertainty() {
     assert_eq!(source.confidence.value, 1.0);
     assert!(matches!(
         from_geo_uri("40.7128, -74.006".to_string()),
-        Err(GeoError::Parse { .. })
+        Err(GeoError::Parse {
+            kind: ParseErrorKind::Syntax,
+            ..
+        })
     ));
 }

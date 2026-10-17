@@ -6,7 +6,7 @@
 //! to it is a deliberate, visible edit.
 
 use geocoordinates as gc;
-use geocoordinates_ffi::{Crs, GeoError};
+use geocoordinates_ffi::{Crs, GeoError, ParseErrorKind};
 
 /// Map a core error through the FFI conversion.
 fn map(e: gc::Error) -> GeoError {
@@ -113,13 +113,27 @@ fn invalid_cell_id_keeps_its_grid_and_value() {
 }
 
 #[test]
-fn parse_keeps_its_detail() {
-    assert_maps(
-        gc::Error::Parse("no coordinate found".to_string()),
-        GeoError::Parse {
-            detail: "no coordinate found".to_string(),
-        },
-    );
+fn parse_keeps_its_kind_and_detail() {
+    let kinds = [
+        (gc::ParseErrorKind::Syntax, ParseErrorKind::Syntax),
+        (gc::ParseErrorKind::Checksum, ParseErrorKind::Checksum),
+        (gc::ParseErrorKind::NoFix, ParseErrorKind::NoFix),
+        (gc::ParseErrorKind::Ambiguous, ParseErrorKind::Ambiguous),
+        (gc::ParseErrorKind::Unsupported, ParseErrorKind::Unsupported),
+        (gc::ParseErrorKind::TooDeep, ParseErrorKind::TooDeep),
+    ];
+    for (core, mirror) in kinds {
+        assert_maps(
+            gc::Error::Parse {
+                kind: core,
+                detail: "no coordinate found".to_string(),
+            },
+            GeoError::Parse {
+                kind: mirror,
+                detail: "no coordinate found".to_string(),
+            },
+        );
+    }
 }
 
 #[test]
@@ -190,7 +204,10 @@ fn geo_error_display_matches_the_core_message() {
         range.to_string(),
         "coordinate out of valid range: lat=91, lon=0"
     );
-    let parse = map(gc::Error::Parse("x".to_string()));
+    let parse = map(gc::Error::Parse {
+        kind: gc::ParseErrorKind::NoFix,
+        detail: "x".to_string(),
+    });
     assert_eq!(parse.to_string(), "could not parse coordinate: x");
     let other = GeoError::Other {
         detail: "anything".to_string(),

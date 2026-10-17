@@ -57,7 +57,9 @@ fn ambiguous_grids_and_utm_are_not_detected_by_default() {
     // both are valid geohashes.
     for input in ["ezs42", "FN20", "18N 500000 4427757", "42", "bed"] {
         let r = parse_coordinate(input);
-        assert!(matches!(r, Err(Error::Parse(_))), "{input:?}: {r:?}");
+        let syntax =
+            matches!(&r, Err(Error::Parse { kind, .. }) if *kind == ParseErrorKind::Syntax);
+        assert!(syntax, "{input:?}: {r:?}");
     }
 }
 
@@ -124,19 +126,30 @@ fn input_that_is_not_the_expected_grid_still_parses_by_the_other_routes() {
 #[test]
 fn a_failed_expected_grid_explains_both_readings() {
     let r = parse_coordinate_with("zz99", &expecting(GridKind::Maidenhead));
-    let Err(Error::Parse(message)) = r else {
+    let Err(Error::Parse { kind, detail }) = r else {
         panic!("{r:?}");
     };
+    assert_eq!(kind, ParseErrorKind::Syntax);
     assert!(
-        message.starts_with("not a Maidenhead reference ("),
-        "{message}"
+        detail.starts_with("not a Maidenhead reference ("),
+        "{detail}"
     );
-    assert!(message.contains("two components"), "{message}");
+    assert!(detail.contains("two components"), "{detail}");
     // Without an expected grid the text error stands alone.
-    let Err(Error::Parse(plain)) = parse_coordinate("zz99") else {
+    let Err(Error::Parse { detail: plain, .. }) = parse_coordinate("zz99") else {
         panic!("zz99 parsed");
     };
     assert!(!plain.contains("reference"), "{plain}");
+    // The combined error keeps the free-text rejection's kind.
+    let r = parse_coordinate_with("40.5 30, 10", &expecting(GridKind::Maidenhead));
+    let Err(Error::Parse { kind, detail }) = r else {
+        panic!("{r:?}");
+    };
+    assert_eq!(kind, ParseErrorKind::Ambiguous);
+    assert!(
+        detail.starts_with("not a Maidenhead reference ("),
+        "{detail}"
+    );
 }
 
 #[test]

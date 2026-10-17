@@ -18,9 +18,13 @@
 //! unambiguous. Its [`RawSource::raw`] holds that position alone, re-rendered
 //! in the source format's syntax — never the whole document. A document with no
 //! positions (a null-geometry GeoJSON feature, `POINT EMPTY`, an empty GPX file)
-//! yields `Ok(vec![])`. One invalid position rejects the whole document, and the
-//! error names its zero-based index in document order. Each format is behind
-//! its own cargo feature.
+//! yields `Ok(vec![])`. Each format is behind its own cargo feature.
+//!
+//! **Errors:** malformed input is an [`Error::Parse`] of kind `Syntax`, or
+//! `TooDeep` past the nesting limits below. One invalid position rejects the
+//! whole document with its own error: [`Error::OutOfRange`] carrying the
+//! offending values, or (a non-finite height, a bad GPX `<hdop>`, a GeoJSON
+//! position of one number) an error whose `detail` names its zero-based index.
 //!
 //! **Untrusted input:** every parser returns or errors on any input; none
 //! recurses without bound. GeoJSON nesting is capped at 128 levels by
@@ -28,7 +32,7 @@
 //! elements nested deeper than 32 are rejected before they are parsed; and the
 //! walks over the parsed geometry are iterative.
 
-use super::hdop_accuracy;
+use super::{hdop_accuracy, syntax};
 use crate::coord::{Coordinate, Crs, Height};
 use crate::error::{Error, Result};
 use crate::fix::{AxisOrder, Confidence, Fix, RawSource};
@@ -86,14 +90,20 @@ impl Position {
 }
 
 /// Validate every position in document order, failing on the first invalid
-/// one with its zero-based index and the format's name.
+/// one with its own error, its `detail` (if any) naming the format and index.
 fn into_fixes(format: &str, positions: Vec<Position>) -> Result<Vec<Fix>> {
     positions
         .into_iter()
         .enumerate()
         .map(|(index, position)| {
-            position.into_fix().map_err(|e| {
-                Error::Parse(format!("{format}: invalid position at index {index}: {e}"))
+            let at = |detail| format!("{format}: invalid position at index {index}: {detail}");
+            position.into_fix().map_err(|e| match e {
+                Error::InvalidValue { field, detail } => Error::InvalidValue {
+                    field,
+                    detail: at(detail),
+                },
+                Error::Parse { kind, detail } => Error::parse(kind, at(detail)),
+                other => other,
             })
         })
         .collect()
@@ -117,9 +127,12 @@ const MAX_WKT_DEPTH: usize = 128;
 const MAX_KML_DEPTH: usize = 32;
 
 /// The error for a document nested deeper than `limit` levels.
-#[cfg(any(feature = "wkt", feature = "kml"))]
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "kml"))]
 fn too_deep(format: &str, limit: usize) -> Error {
-    Error::Parse(format!("{format}: nesting deeper than {limit} levels"))
+    Error::parse(
+        crate::error::ParseErrorKind::TooDeep,
+        format!("{format}: nesting deeper than {limit} levels"),
+    )
 }
 
 /// Reject WKT whose parentheses nest deeper than [`MAX_WKT_DEPTH`].
@@ -249,12 +262,11 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
 /// `Point` geometry, which this function parses back to the same fix.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] on malformed GeoJSON, or naming the
-/// zero-based index of the first position that is out of range or has fewer
-/// than two numbers.
+/// [`Error::Parse`] on malformed GeoJSON (`TooDeep` past 128 levels), or the
+/// first invalid position's error, as the [module docs](self) describe.
 ///
 /// ```
-/// use geocoordinates::{Error, Height};
+/// use geocoordinates::{Error, Height, ParseErrorKind};
 /// use geocoordinates::fix::AxisOrder;
 /// use geocoordinates::parse::interchange::from_geojson;
 ///
@@ -265,12 +277,17 @@ pub(super) fn check_xml_depth(input: &str) -> Result<()> {
 /// let axis_order = fix.source.as_ref().and_then(|s| s.axis_order);
 /// assert_eq!(axis_order, Some(AxisOrder::LonLat));
 ///
-/// // Latitude 200 is out of range: the error names the position's index.
+/// // Latitude 200 is out of range, and the error carries it.
 /// let line = r#"{"type":"LineString","coordinates":[[0,0],[0,200]]}"#;
-/// let Err(Error::Parse(message)) = from_geojson(line) else {
+/// assert_eq!(from_geojson(line), Err(Error::OutOfRange { lat: 200.0, lon: 0.0 }));
+///
+/// // A position needs two numbers: the error names the position's index.
+/// let short = r#"{"type":"LineString","coordinates":[[0,0],[5]]}"#;
+/// let Err(Error::Parse { kind, detail }) = from_geojson(short) else {
 ///     panic!("expected a parse error");
 /// };
-/// assert!(message.contains("index 1"));
+/// assert_eq!(kind, ParseErrorKind::Syntax);
+/// assert!(detail.contains("index 1"));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "geojson")]
@@ -282,7 +299,7 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
     /// `geojson` crate length-checks only a `Point`'s) at its document index.
     fn position(p: &GeoJsonPosition, out: &mut Vec<Position>) -> Result<()> {
         if p.len() < 2 {
-            return Err(Error::Parse(format!(
+            return Err(syntax(format!(
                 "geojson: invalid position at index {}: \
                  a position needs at least 2 numbers, got {}",
                 out.len(),
@@ -326,9 +343,15 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
         Ok(())
     }
 
-    let parsed: GeoJson = input
-        .parse()
-        .map_err(|e| Error::Parse(format!("geojson: {e}")))?;
+    // `serde_json` stops at 128 levels and says so only in its message.
+    let parsed: GeoJson = input.parse().map_err(|e: geojson::Error| match &e {
+        geojson::Error::MalformedGeoJson(json)
+            if json.to_string().starts_with("recursion limit exceeded") =>
+        {
+            too_deep("geojson", 128)
+        }
+        _ => syntax(format!("geojson: {e}")),
+    })?;
     let mut out = Vec::new();
     let walked = match &parsed {
         GeoJson::Geometry(g) => geometry(g, &mut out),
@@ -360,9 +383,9 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
 /// `POINT`, which this function parses back to the same fix.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] on malformed WKT, on parentheses nested
-/// deeper than 128 levels, or naming the zero-based index of the first
-/// position that is out of range.
+/// [`Error::Parse`] on malformed WKT (`TooDeep` past 128 levels of
+/// parentheses), or the first invalid position's error, as the
+/// [module docs](self) describe.
 ///
 /// ```
 /// use geocoordinates::Error;
@@ -375,7 +398,8 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
 /// assert_eq!((fixes[1].coord.lat(), fixes[1].coord.lon()), (48.8566, 2.3522));
 ///
 /// // Read lat-first, the same text puts -122.4194 on the latitude axis.
-/// assert!(matches!(from_wkt(line, AxisOrder::LatLon), Err(Error::Parse(_))));
+/// let transposed = Error::OutOfRange { lat: -122.4194, lon: 37.7749 };
+/// assert_eq!(from_wkt(line, AxisOrder::LatLon), Err(transposed));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "wkt")]
@@ -445,7 +469,7 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
     }
 
     check_wkt_depth(input)?;
-    let parsed = Wkt::<f64>::from_str(input).map_err(|e| Error::Parse(format!("wkt: {e}")))?;
+    let parsed = Wkt::<f64>::from_str(input).map_err(|e| syntax(format!("wkt: {e}")))?;
     let mut out = Vec::new();
     geometry(&parsed, axis_order, &mut out);
     into_fixes("wkt", out)
@@ -463,12 +487,12 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// element (`<wpt>`, `<trkpt>`, or `<rtept>`) with its `<ele>`.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] on malformed GPX, or naming the zero-based
-/// index of the first point that is out of range or has a negative or
-/// non-finite `<hdop>`.
+/// [`Error::Parse`] on malformed GPX, or the first invalid point's error (a
+/// negative or non-finite `<hdop>` included), as the [module docs](self)
+/// describe.
 ///
 /// ```
-/// use geocoordinates::{Error, Height};
+/// use geocoordinates::{Error, Height, ParseErrorKind};
 /// use geocoordinates::parse::interchange::from_gpx;
 ///
 /// let gpx = r#"<?xml version="1.0"?>
@@ -481,7 +505,8 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// let horizontal = fix.accuracy.and_then(|a| a.horizontal()).map(|h| h.meters());
 /// assert_eq!(horizontal, Some(10.0)); // HDOP 2 × 5 m
 ///
-/// assert!(matches!(from_gpx("<gpx>"), Err(Error::Parse(_))));
+/// let truncated = from_gpx("<gpx>");
+/// assert!(matches!(truncated, Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "gpx")]
@@ -503,7 +528,7 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
         out.push(position);
     }
 
-    let data = gpx::read(input.as_bytes()).map_err(|e| Error::Parse(format!("gpx: {e}")))?;
+    let data = gpx::read(input.as_bytes()).map_err(|e| syntax(format!("gpx: {e}")))?;
     let mut out = Vec::new();
     for wp in &data.waypoints {
         push("wpt", wp, &mut out);
@@ -533,9 +558,8 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// back to the same fix.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] on malformed KML, on elements nested
-/// deeper than 32 levels, or naming the zero-based index of the first
-/// position that is out of range.
+/// [`Error::Parse`] on malformed KML (`TooDeep` past 32 levels of elements),
+/// or the first invalid position's error, as the [module docs](self) describe.
 ///
 /// ```
 /// use geocoordinates::{Error, Height};
@@ -549,7 +573,7 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// assert_eq!(fix.coord.height(), Some(Height::Orthometric(10.0)));
 ///
 /// let off_the_map = "<Point><coordinates>-74.006,95</coordinates></Point>";
-/// assert!(matches!(from_kml(off_the_map), Err(Error::Parse(_))));
+/// assert_eq!(from_kml(off_the_map), Err(Error::OutOfRange { lat: 95.0, lon: -74.006 }));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "kml")]
@@ -623,7 +647,7 @@ pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
     }
 
     check_xml_depth(input)?;
-    let parsed = Kml::<f64>::from_str(input).map_err(|e| Error::Parse(format!("kml: {e}")))?;
+    let parsed = Kml::<f64>::from_str(input).map_err(|e| syntax(format!("kml: {e}")))?;
     let mut out = Vec::new();
     walk(&parsed, &mut out);
     into_fixes("kml", out)

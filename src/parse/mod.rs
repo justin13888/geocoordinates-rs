@@ -69,7 +69,7 @@ const NOMINAL_UERE_M: f64 = 5.0;
 ))]
 fn hdop_accuracy(hdop: f64) -> Result<Accuracy> {
     if !hdop.is_finite() || hdop < 0.0 {
-        return Err(Error::Parse(format!(
+        return Err(syntax(format!(
             "hdop must be finite and nonnegative, got {hdop}"
         )));
     }
@@ -77,16 +77,22 @@ fn hdop_accuracy(hdop: f64) -> Result<Accuracy> {
     let scaled = hdop * NOMINAL_UERE_M;
     let horizontal = Length::from_meters(scaled);
     Accuracy::new(AccuracyKind::OneSigma, Some(horizontal), None).map_err(|_| {
-        Error::Parse(format!(
+        syntax(format!(
             "hdop {hdop} scales to a horizontal accuracy out of range \
              ({hdop} × {NOMINAL_UERE_M} m = {scaled} m)"
         ))
     })
 }
 
+/// A [`ParseErrorKind::Syntax`] error: input the format's grammar does not
+/// allow, or a field holding a value the format does not allow.
+fn syntax(detail: impl Into<String>) -> Error {
+    Error::parse(ParseErrorKind::Syntax, detail)
+}
+
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Height};
-use crate::error::{Error, Result};
+use crate::error::{Error, ParseErrorKind, Result};
 use crate::fix::{Accuracy, AccuracyKind, AxisOrder, Confidence, Fix, RawSource};
 use crate::grids::{Geohash, Maidenhead, Mgrs, PlusCode};
 use crate::units::Length;
@@ -108,10 +114,12 @@ pub use text::{parse_text, parse_text_with};
 /// confidence and the assumed [`AxisOrder`] in its [`RawSource`].
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when no interpretation is found.
+/// Returns [`crate::Error::Parse`] when no interpretation is found, with the
+/// [`ParseErrorKind`] of the route that rejected it:
+/// [`from_geo_uri`]'s for a `geo:` URI, otherwise [`parse_text`]'s.
 ///
 /// ```
-/// use geocoordinates::Error;
+/// use geocoordinates::{Error, ParseErrorKind};
 /// use geocoordinates::parse::parse_coordinate;
 ///
 /// let fix = parse_coordinate("40.7128, -74.006")?;
@@ -122,7 +130,14 @@ pub use text::{parse_text, parse_text_with};
 /// assert!((fix.coord.lat() - 40.7128).abs() < 1e-3);
 /// assert!(fix.accuracy.and_then(|a| a.horizontal()).is_some());
 ///
-/// assert!(matches!(parse_coordinate("somewhere"), Err(Error::Parse(_))));
+/// assert!(matches!(
+///     parse_coordinate("somewhere"),
+///     Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })
+/// ));
+/// assert!(matches!(
+///     parse_coordinate("geo:48.2,16.3;crs=epsg:3857"),
+///     Err(Error::Parse { kind: ParseErrorKind::Unsupported, .. })
+/// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn parse_coordinate(input: &str) -> Result<Fix> {
@@ -139,9 +154,9 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// [`FormatOptions::parse_options`](crate::format::FormatOptions::parse_options).
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when no interpretation is found. When
-/// `expect_grid` is set, the message also gives why the input is not a valid
-/// reference of that kind.
+/// Returns [`crate::Error::Parse`] when no interpretation is found, with the
+/// kind [`parse_coordinate`] gives. When `expect_grid` is set, the detail also
+/// gives why the input is not a valid reference of that kind.
 ///
 /// ```
 /// use geocoordinates::Error;
@@ -155,10 +170,10 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.5, -75.0));
 ///
 /// // Neither a locator nor coordinate text: the error gives both reasons.
-/// let Err(Error::Parse(message)) = parse_coordinate_with("FN2", &options) else {
+/// let Err(Error::Parse { detail, .. }) = parse_coordinate_with("FN2", &options) else {
 ///     panic!("expected a parse error");
 /// };
-/// assert!(message.starts_with("not a Maidenhead reference"));
+/// assert!(detail.starts_with("not a Maidenhead reference"));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix> {
@@ -184,9 +199,10 @@ pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix>
         return grid_fix(area, input);
     }
     text::parse_free_text(input, options).map_err(|text_error| match (expected, text_error) {
-        (Some(Err((kind, grid_error))), Error::Parse(detail)) => {
-            Error::Parse(format!("not a {kind:?} reference ({grid_error}); {detail}"))
-        }
+        (Some(Err((grid, grid_error))), Error::Parse { kind, detail }) => Error::Parse {
+            kind,
+            detail: format!("not a {grid:?} reference ({grid_error}); {detail}"),
+        },
         (_, text_error) => text_error,
     })
 }
@@ -223,12 +239,15 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 /// [`AccuracyKind::Unspecified`].
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when the input is not a well-formed `geo:`
-/// URI.
+/// Returns [`crate::Error::Parse`] of kind
+/// [`Unsupported`](crate::ParseErrorKind::Unsupported) when the `crs`
+/// parameter names a reference system other than `wgs84`, and of kind
+/// [`Syntax`](crate::ParseErrorKind::Syntax) when the input is otherwise not a
+/// well-formed `geo:` URI or its position is out of range.
 ///
 /// ```
 /// use geocoordinates::fix::AccuracyKind;
-/// use geocoordinates::{Error, Height};
+/// use geocoordinates::{Error, Height, ParseErrorKind};
 /// use geocoordinates::parse::from_geo_uri;
 ///
 /// let fix = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
@@ -238,14 +257,21 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 /// assert_eq!(accuracy.horizontal().map(|h| h.meters()), Some(40.0));
 /// assert_eq!(accuracy.kind(), AccuracyKind::Unspecified);
 ///
-/// assert!(matches!(from_geo_uri("geo:48.2"), Err(Error::Parse(_))));
+/// assert!(matches!(
+///     from_geo_uri("geo:48.2"),
+///     Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })
+/// ));
+/// assert!(matches!(
+///     from_geo_uri("geo:48.2,16.3;crs=nad27"),
+///     Err(Error::Parse { kind: ParseErrorKind::Unsupported, .. })
+/// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn from_geo_uri(input: &str) -> Result<Fix> {
     let trimmed = input.trim();
     let scheme = trimmed.get(..4);
     if scheme.is_none_or(|s| !s.eq_ignore_ascii_case("geo:")) {
-        return Err(Error::Parse(format!("not a geo: URI: {input}")));
+        return Err(syntax(format!("not a geo: URI: {input}")));
     }
     let rest = &trimmed[4..];
 
@@ -261,7 +287,7 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
         None => None,
     };
     if numbers.next().is_some() {
-        return Err(Error::Parse(format!("too many coordinate fields: {input}")));
+        return Err(syntax(format!("too many coordinate fields: {input}")));
     }
 
     let mut horizontal_m = None;
@@ -271,34 +297,34 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
     for param in parts {
         let param = param.trim();
         if param.is_empty() {
-            return Err(Error::Parse(format!("empty geo: parameter: {input}")));
+            return Err(syntax(format!("empty geo: parameter: {input}")));
         }
         let (key, value) = param.split_once('=').unwrap_or((param, ""));
         match key.trim().to_ascii_lowercase().as_str() {
             "crs" => {
                 if seen_crs || seen_u {
-                    return Err(Error::Parse(format!(
+                    return Err(syntax(format!(
                         "crs must appear once and before u: {input}"
                     )));
                 }
                 seen_crs = true;
                 if !value.trim().eq_ignore_ascii_case("wgs84") {
-                    return Err(Error::Parse(format!(
-                        "unsupported geo: CRS '{}': {input}",
-                        value.trim()
-                    )));
+                    return Err(Error::parse(
+                        ParseErrorKind::Unsupported,
+                        format!("unsupported geo: CRS '{}': {input}", value.trim()),
+                    ));
                 }
             }
             "u" => {
                 if seen_u {
-                    return Err(Error::Parse(format!(
+                    return Err(syntax(format!(
                         "duplicate geo: uncertainty parameter: {input}"
                     )));
                 }
                 seen_u = true;
                 let u = parse_number(Some(value), input)?;
                 if u < 0.0 {
-                    return Err(Error::Parse(format!(
+                    return Err(syntax(format!(
                         "geo: uncertainty must be nonnegative: {input}"
                     )));
                 }
@@ -308,7 +334,7 @@ pub fn from_geo_uri(input: &str) -> Result<Fix> {
         }
     }
 
-    let out_of_range = |_| Error::Parse(format!("geo: coordinate out of range: {input}"));
+    let out_of_range = |_| syntax(format!("geo: coordinate out of range: {input}"));
     let mut coord = Coordinate::wgs84(lat, lon).map_err(out_of_range)?;
     if let Some(alt) = altitude {
         coord = coord
@@ -340,9 +366,9 @@ fn parse_number(field: Option<&str>, input: &str) -> Result<f64> {
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .and_then(|s| s.parse::<f64>().ok())
-        .ok_or_else(|| Error::Parse(format!("invalid geo: URI: {input}")))?;
+        .ok_or_else(|| syntax(format!("invalid geo: URI: {input}")))?;
     if !value.is_finite() {
-        return Err(Error::Parse(format!(
+        return Err(syntax(format!(
             "geo: numeric fields must be finite: {input}"
         )));
     }

@@ -330,12 +330,31 @@ fn is_isolated_excludes_word_letters() {
     assert!(!is_isolated(&flanked, 1)); // N between letters
 }
 
+/// Whether `input` is rejected as free text with no single reading.
+fn is_ambiguous(input: &str) -> bool {
+    matches!(
+        parse_text(input),
+        Err(Error::Parse {
+            kind: ParseErrorKind::Ambiguous,
+            ..
+        })
+    )
+}
+
 #[test]
 fn concatenated_ddmm_needs_a_hemisphere_letter() {
     // C12: four or more integer digits are DDMM only beside a hemisphere
     // letter; bare, `1234.5` is no degree value at all, not 12°34.5′.
-    assert!(parse_text("1234.5, 10").is_err());
-    assert!(parse_text("10, 01234.5").is_err());
+    assert!(is_ambiguous("1234.5, 10"));
+    assert!(is_ambiguous("10, 01234.5"));
+    // Beside a hemisphere, minutes past 59 are a syntax error instead.
+    assert!(matches!(
+        parse_text("4060.0N 07400.0W"),
+        Err(Error::Parse {
+            kind: ParseErrorKind::Syntax,
+            ..
+        })
+    ));
     let fix = parse_text("1234.5N, 10E").unwrap();
     assert_close(fix.coord.lat(), 12.0 + 34.5 / 60.0, 1e-9);
 }
@@ -344,10 +363,10 @@ fn concatenated_ddmm_needs_a_hemisphere_letter() {
 fn a_fractional_field_must_be_the_last_one() {
     // C12: `40.5 30` is not 40.5° plus 30′; fractional degrees with minutes,
     // or fractional minutes with seconds, are rejected rather than summed.
-    assert!(parse_text("40.5 30, 10").is_err());
-    assert!(parse_text("40.5 30 0, 10").is_err());
-    assert!(parse_text("40 30.5 10, 74").is_err());
-    assert!(parse_text("40.5°30′N 74°W").is_err());
+    assert!(is_ambiguous("40.5 30, 10"));
+    assert!(is_ambiguous("40.5 30 0, 10"));
+    assert!(is_ambiguous("40 30.5 10, 74"));
+    assert!(is_ambiguous("40.5°30′N 74°W"));
     // The last field may carry the fraction.
     let fix = parse_text("40 30.5, 10").unwrap();
     assert_close(fix.coord.lat(), 40.0 + 30.5 / 60.0, 1e-9);
@@ -359,9 +378,23 @@ fn a_fractional_field_must_be_the_last_one() {
 fn exponent_notation_is_rejected() {
     // C12: the `e` of `4e1` is neither East nor an exponent a coordinate is
     // written with.
-    for input in ["4e1 3e1", "4E1 3E1", "4e1, 3e1", "40, 7e1", "4e1N 3e1W"] {
+    for input in [
+        "4e1 3e1",
+        "4E1 3E1",
+        "4e1, 3e1",
+        "40, 7e1",
+        "4e1N 3e1W",
+        "4e+1, 3",
+        "4.5E-1, 3",
+    ] {
+        assert!(is_ambiguous(input), "{input:?}: {:?}", parse_text(input));
+    }
+    // A trailing `e` with no exponent digits is no number at all.
+    for input in ["4e, 3e1x", "4e-, 3", "4ee1, 3"] {
         let r = parse_text(input);
-        assert!(r.is_err(), "{input:?}: {r:?}");
+        let syntax =
+            matches!(&r, Err(Error::Parse { kind, .. }) if *kind == ParseErrorKind::Syntax);
+        assert!(syntax, "{input:?}: {r:?}");
     }
 }
 

@@ -15,11 +15,11 @@ use std::time::{Duration, SystemTime};
 
 use crate::angle::{Ddm, Hemisphere};
 use crate::coord::{Coordinate, Height};
-use crate::error::{Error, Result};
+use crate::error::{Error, ParseErrorKind, Result};
 use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
 use crate::units::Length;
 
-use super::hdop_accuracy;
+use super::{hdop_accuracy, syntax};
 
 /// Parse a single NMEA 0183 sentence (GGA/RMC/GLL) into a [`Fix`].
 ///
@@ -44,21 +44,25 @@ use super::hdop_accuracy;
 /// date, so their timestamp is always `None`.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when:
-/// - the sentence type is not `GGA`, `RMC`, or `GLL`, or the `*HH` checksum is
+/// Returns [`crate::Error::Parse`], whose [`ParseErrorKind`] is:
+/// - [`Checksum`](ParseErrorKind::Checksum) when the `*HH` checksum is
 ///   malformed or does not match;
-/// - the sentence reports no fix: `RMC`/`GLL` status `V` (void), `RMC`/`GLL`
-///   mode indicator `N` (data not valid), or `GGA` fix quality `0`;
-/// - a coordinate field is not `ddmm[.m…]` (latitude) or `dddmm[.m…]`
-///   (longitude) — exactly two minute digits before the decimal point — or its
-///   hemisphere letter is missing or wrong for the axis;
-/// - the `GGA` altitude or geoid separation is present but its unit field is
-///   not `M` (meters);
-/// - a numeric field (altitude, geoid separation, HDOP) is malformed or
+/// - [`Unsupported`](ParseErrorKind::Unsupported) when the sentence type is
+///   not `GGA`, `RMC`, or `GLL`;
+/// - [`NoFix`](ParseErrorKind::NoFix) when the sentence reports no fix:
+///   `RMC`/`GLL` status `V` (void), `RMC`/`GLL` mode indicator `N` (data not
+///   valid), or `GGA` fix quality `0`;
+/// - [`Syntax`](ParseErrorKind::Syntax) when a coordinate field is not
+///   `ddmm[.m…]` (latitude) or `dddmm[.m…]` (longitude) — exactly two minute
+///   digits before the decimal point — or its hemisphere letter is missing or
+///   wrong for the axis (or the position it reads is out of range), the `GGA`
+///   altitude or geoid
+///   separation is present but its unit field is not `M` (meters), or a
+///   numeric field (altitude, geoid separation, HDOP) is malformed or
 ///   non-finite, or HDOP is negative.
 ///
 /// ```
-/// use geocoordinates::Error;
+/// use geocoordinates::{Error, ParseErrorKind};
 /// use geocoordinates::parse::sensors::from_nmea_sentence;
 ///
 /// let gga = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47";
@@ -73,7 +77,16 @@ use super::hdop_accuracy;
 ///
 /// // Status `V`: the receiver has no fix, so there is no position.
 /// let void = "$GPRMC,123519,V,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W";
-/// assert!(matches!(from_nmea_sentence(void), Err(Error::Parse(_))));
+/// assert!(matches!(
+///     from_nmea_sentence(void),
+///     Err(Error::Parse { kind: ParseErrorKind::NoFix, .. })
+/// ));
+/// // A corrupted byte fails the checksum instead.
+/// let corrupt = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*48";
+/// assert!(matches!(
+///     from_nmea_sentence(corrupt),
+///     Err(Error::Parse { kind: ParseErrorKind::Checksum, .. })
+/// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "nmea")]
@@ -85,14 +98,22 @@ pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
         None => (body, None),
     };
     if let Some(cs) = checksum {
+        let bad_field = || {
+            Error::parse(
+                ParseErrorKind::Checksum,
+                format!("bad NMEA checksum field: {sentence}"),
+            )
+        };
         if cs.len() != 2 || !cs.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(Error::Parse(format!("bad NMEA checksum field: {sentence}")));
+            return Err(bad_field());
         }
-        let expected = u8::from_str_radix(cs, 16)
-            .map_err(|_| Error::Parse(format!("bad NMEA checksum field: {sentence}")))?;
+        let expected = u8::from_str_radix(cs, 16).map_err(|_| bad_field())?;
         let actual = data.bytes().fold(0u8, |acc, b| acc ^ b);
         if actual != expected {
-            return Err(Error::Parse(format!("NMEA checksum mismatch: {sentence}")));
+            return Err(Error::parse(
+                ParseErrorKind::Checksum,
+                format!("NMEA checksum mismatch: {sentence}"),
+            ));
         }
     }
 
@@ -103,9 +124,10 @@ pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
         "GGA" => parse_gga(&fields, sentence),
         "RMC" => parse_rmc(&fields, sentence),
         "GLL" => parse_gll(&fields, sentence),
-        _ => Err(Error::Parse(format!(
-            "unsupported NMEA sentence type: {kind}"
-        ))),
+        _ => Err(Error::parse(
+            ParseErrorKind::Unsupported,
+            format!("unsupported NMEA sentence type: {kind}"),
+        )),
     }
 }
 
@@ -120,7 +142,7 @@ fn all_digits(s: &str) -> bool {
 /// NMEA always writes the minutes with two integer digits, so `807.038` is
 /// malformed rather than 80° 7.038′; signs and exponents are rejected too.
 fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f64> {
-    let malformed = || Error::Parse(format!("malformed NMEA coordinate: {raw}"));
+    let malformed = || syntax(format!("malformed NMEA coordinate: {raw}"));
     let value = value.trim();
     if !value.is_char_boundary(deg_digits) {
         return Err(malformed());
@@ -144,22 +166,21 @@ fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f6
         (3, "E") => Hemisphere::East,
         (3, "W") => Hemisphere::West,
         other => {
-            return Err(Error::Parse(format!(
+            return Err(syntax(format!(
                 "bad NMEA axis/hemisphere '{other:?}': {raw}"
             )));
         }
     };
     Ddm::new(degrees, minutes, hemisphere)
         .map(Ddm::to_degrees)
-        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))
+        .map_err(|error| syntax(format!("bad NMEA coordinate: {error}")))
 }
 
 /// Latitude (2 degree digits) + longitude (3 degree digits) → coordinate.
 fn coordinate(lat: &str, ns: &str, lon: &str, ew: &str, raw: &str) -> Result<Coordinate> {
     let lat = parse_ddm(lat, ns, 2, raw)?;
     let lon = parse_ddm(lon, ew, 3, raw)?;
-    Coordinate::wgs84(lat, lon)
-        .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))
+    Coordinate::wgs84(lat, lon).map_err(|error| syntax(format!("bad NMEA coordinate: {error}")))
 }
 
 /// The `i`-th comma-separated field, or `""` when absent.
@@ -174,9 +195,9 @@ fn optional_number(value: &str, name: &str, raw: &str) -> Result<Option<f64>> {
     }
     let parsed = value
         .parse::<f64>()
-        .map_err(|_| Error::Parse(format!("bad NMEA {name}: {raw}")))?;
+        .map_err(|_| syntax(format!("bad NMEA {name}: {raw}")))?;
     if !parsed.is_finite() {
-        return Err(Error::Parse(format!("non-finite NMEA {name}: {raw}")));
+        return Err(syntax(format!("non-finite NMEA {name}: {raw}")));
     }
     Ok(Some(parsed))
 }
@@ -204,25 +225,26 @@ fn base_fix(
 /// `GGA`: position fix with HDOP, altitude (MSL/orthometric), and geoid separation.
 fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
     if field(f, 6).trim() == "0" {
-        return Err(Error::Parse(format!(
-            "NMEA GGA reports no fix (quality 0): {raw}"
-        )));
+        return Err(Error::parse(
+            ParseErrorKind::NoFix,
+            format!("NMEA GGA reports no fix (quality 0): {raw}"),
+        ));
     }
     let mut coord = coordinate(field(f, 2), field(f, 3), field(f, 4), field(f, 5), raw)?;
     if let Some(alt) = optional_number(field(f, 9), "altitude", raw)? {
         if field(f, 10).trim() != "M" {
-            return Err(Error::Parse(format!(
+            return Err(syntax(format!(
                 "NMEA GGA altitude unit is not M (meters): {raw}"
             )));
         }
         coord = coord
             .with_height(Height::Orthometric(alt))
-            .map_err(|error| Error::Parse(format!("bad NMEA coordinate: {error}")))?;
+            .map_err(|error| syntax(format!("bad NMEA coordinate: {error}")))?;
     }
     let geoid_separation = optional_number(field(f, 11), "geoid separation", raw)?
         .map(|n| {
             if field(f, 12).trim() != "M" {
-                return Err(Error::Parse(format!(
+                return Err(syntax(format!(
                     "NMEA GGA geoid separation unit is not M (meters): {raw}"
                 )));
             }
@@ -232,7 +254,7 @@ fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
     let accuracy = optional_number(field(f, 8), "HDOP", raw)?
         .map(|hdop| {
             if hdop < 0.0 {
-                return Err(Error::Parse(format!("negative NMEA HDOP: {raw}")));
+                return Err(syntax(format!("negative NMEA HDOP: {raw}")));
             }
             hdop_accuracy(hdop)
         })
@@ -248,14 +270,16 @@ fn parse_gga(f: &[&str], raw: &str) -> Result<Fix> {
 /// indicator is `N` (data not valid). Either field may be absent.
 fn require_valid(kind: &str, status: &str, mode: &str, raw: &str) -> Result<()> {
     if status.trim() == "V" {
-        return Err(Error::Parse(format!(
-            "NMEA {kind} reports a void (non-valid) fix: {raw}"
-        )));
+        return Err(Error::parse(
+            ParseErrorKind::NoFix,
+            format!("NMEA {kind} reports a void (non-valid) fix: {raw}"),
+        ));
     }
     if mode.trim() == "N" {
-        return Err(Error::Parse(format!(
-            "NMEA {kind} reports mode N (data not valid): {raw}"
-        )));
+        return Err(Error::parse(
+            ParseErrorKind::NoFix,
+            format!("NMEA {kind} reports mode N (data not valid): {raw}"),
+        ));
     }
     Ok(())
 }

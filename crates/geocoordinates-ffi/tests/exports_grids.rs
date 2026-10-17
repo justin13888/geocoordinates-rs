@@ -350,10 +350,10 @@ fn from_kml_reads_a_placemark() {
     );
 }
 
-/// The detail of a `GeoError::Parse`, panicking on anything else.
-fn parse_detail(r: Result<Vec<Fix>, GeoError>) -> String {
+/// The kind and detail of a `GeoError::Parse`, panicking on anything else.
+fn parse_error<T: std::fmt::Debug>(r: Result<T, GeoError>) -> (ParseErrorKind, String) {
     match r {
-        Err(GeoError::Parse { detail }) => detail,
+        Err(GeoError::Parse { kind, detail }) => (kind, detail),
         other => panic!("expected a parse error, got {other:?}"),
     }
 }
@@ -361,19 +361,32 @@ fn parse_detail(r: Result<Vec<Fix>, GeoError>) -> String {
 #[test]
 fn interchange_parsers_reject_short_positions_and_deep_nesting() {
     // A one-number GeoJSON position is rejected at its own document index.
-    let detail = parse_detail(from_geojson(
+    let (kind, detail) = parse_error(from_geojson(
         r#"{"type":"LineString","coordinates":[[0,0],[5],[0,200]]}"#.to_string(),
     ));
+    assert_eq!(kind, ParseErrorKind::Syntax);
     assert!(
         detail.starts_with("geojson: invalid position at index 1: "),
         "{detail}"
     );
+    // An out-of-range position crosses as its own typed error.
+    assert_eq!(
+        from_geojson(r#"{"type":"Point","coordinates":[0,200]}"#.to_string()),
+        Err(GeoError::OutOfRange {
+            lat: 200.0,
+            lon: 0.0
+        })
+    );
     // 100 000 levels of nesting is an error, not a stack overflow.
     let wkt = "GEOMETRYCOLLECTION(".repeat(100_000);
-    let detail = parse_detail(from_wkt(wkt, AxisOrder::LonLat));
-    assert_eq!(detail, "wkt: nesting deeper than 128 levels");
+    let too_deep = (
+        ParseErrorKind::TooDeep,
+        "wkt: nesting deeper than 128 levels".to_string(),
+    );
+    assert_eq!(parse_error(from_wkt(wkt, AxisOrder::LonLat)), too_deep);
     let kml = "<Folder>".repeat(100_000) + &"</Folder>".repeat(100_000);
-    let detail = parse_detail(from_kml(kml));
+    let (kind, detail) = parse_error(from_kml(kml));
+    assert_eq!(kind, ParseErrorKind::TooDeep);
     assert_eq!(detail, "kml: nesting deeper than 32 levels");
 }
 
@@ -400,10 +413,12 @@ fn from_nmea_sentence_reads_a_gga_fix() {
     // The geoid separation N is typed: h = H + N.
     assert_eq!(source.geoid_separation_m, Some(46.9));
     assert!(source.notes.is_empty());
-    assert!(matches!(
-        from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E".to_string()),
-        Err(GeoError::Parse { .. })
+    let (kind, _) = parse_error(from_nmea_sentence(
+        "$GPGLL,4916.45,N,12311.12,W,225444,A,*1E".to_string(),
     ));
+    assert_eq!(kind, ParseErrorKind::Checksum);
+    let (kind, _) = parse_error(from_nmea_sentence("$GPVTG,054.7,T".to_string()));
+    assert_eq!(kind, ParseErrorKind::Unsupported);
 }
 
 #[test]
@@ -421,10 +436,8 @@ fn from_nmea_sentence_timestamps_rmc_and_rejects_no_fix() {
         "$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07",
         "$GPGGA,123519,,,,,0,00,,,M,,M,,",
     ] {
-        assert!(matches!(
-            from_nmea_sentence(no_fix.to_string()),
-            Err(GeoError::Parse { .. })
-        ));
+        let (kind, _) = parse_error(from_nmea_sentence(no_fix.to_string()));
+        assert_eq!(kind, ParseErrorKind::NoFix);
     }
 }
 

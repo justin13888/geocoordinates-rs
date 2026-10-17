@@ -1,9 +1,9 @@
 //! Axis-order resolution for the free-text parser: deciding which of two
 //! parsed components is latitude, and how confident that decision is.
 
-use super::super::AxisOrder;
+use super::super::{AxisOrder, syntax};
 use crate::angle::Axis;
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::fix::Confidence;
 
 /// Confidence when both hemisphere letters are present (axis order is certain).
@@ -53,9 +53,7 @@ pub(super) fn resolve(a: Component, b: Component, default_order: AxisOrder) -> R
         return match (ax, bx) {
             (Axis::Latitude, Axis::Longitude) => Ok(explicit(a_val, b_val)),
             (Axis::Longitude, Axis::Latitude) => Ok(explicit(b_val, a_val)),
-            _ => Err(Error::Parse(
-                "two hemisphere letters name the same axis".to_string(),
-            )),
+            _ => Err(syntax("two hemisphere letters name the same axis")),
         };
     }
 
@@ -74,9 +72,7 @@ pub(super) fn resolve(a: Component, b: Component, default_order: AxisOrder) -> R
     let a_lon_only = a_val.abs() > 90.0;
     let b_lon_only = b_val.abs() > 90.0;
     match (a_lon_only, b_lon_only) {
-        (true, true) => Err(Error::Parse(
-            "both components exceed the latitude range".to_string(),
-        )),
+        (true, true) => Err(syntax("both components exceed the latitude range")),
         (true, false) => Ok(range_forced(b_val, a_val, AxisOrder::LonLat)),
         (false, true) => Ok(range_forced(a_val, b_val, AxisOrder::LatLon)),
         (false, false) => Ok(match default_order {

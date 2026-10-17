@@ -3,6 +3,7 @@
 
 use super::resolve::Component;
 use crate::angle::{Axis, Hemisphere};
+use crate::error::ParseErrorKind;
 
 /// Canonicalize typography: Unicode primes → `'`/`"`, masculine ordinal → `°`,
 /// exotic spaces → ASCII space; apply the decimal-comma rewrite when requested,
@@ -158,8 +159,9 @@ pub(super) fn is_isolated(chars: &[char], i: usize) -> bool {
     before && after
 }
 
-/// Parse one component into a magnitude, sign, and (optional) axis.
-pub(super) fn parse_component(component: &str) -> Option<Component> {
+/// Parse one component into a magnitude, sign, and (optional) axis, or the
+/// kind of its rejection.
+pub(super) fn parse_component(component: &str) -> Result<Component, ParseErrorKind> {
     let (body, hemi) = extract_hemisphere(component.trim());
     let mut negative = false;
     let mut axis = None;
@@ -174,12 +176,12 @@ pub(super) fn parse_component(component: &str) -> Option<Component> {
     };
     if signed_negative {
         if matches!(hemi, Some(Hemisphere::North | Hemisphere::East)) {
-            return None;
+            return Err(ParseErrorKind::Syntax);
         }
         negative = true;
     }
     let magnitude = parse_magnitude(body, hemi.is_some())?;
-    Some(Component {
+    Ok(Component {
         magnitude,
         negative,
         axis,
@@ -214,30 +216,54 @@ fn extract_hemisphere(s: &str) -> (&str, Option<Hemisphere>) {
 /// Every field must be a plain unsigned decimal (no sign, exponent, `inf` or
 /// `NaN`), and only the last field may carry a fraction: `40.5 30` has no
 /// single reading, so it is rejected rather than summed to 41°.
-fn parse_magnitude(body: &str, has_hemisphere: bool) -> Option<f64> {
+///
+/// A rejection is [`ParseErrorKind::Ambiguous`] where the text has no single
+/// reading (a leading fraction, exponent notation, bare `DDMM`), and
+/// [`ParseErrorKind::Syntax`] otherwise.
+fn parse_magnitude(body: &str, has_hemisphere: bool) -> Result<f64, ParseErrorKind> {
     let fields: Vec<&str> = body
         .split(|c: char| matches!(c, '°' | '\'' | '"') || c.is_whitespace())
         .filter(|t| !t.is_empty())
         .collect();
-    let (last, leading) = fields.split_last()?;
-    if !fields.iter().all(|f| is_plain_decimal(f)) || leading.iter().any(|f| f.contains('.')) {
-        return None;
+    let (last, leading) = fields.split_last().ok_or(ParseErrorKind::Syntax)?;
+    if fields.iter().any(|f| is_exponent(f)) {
+        return Err(ParseErrorKind::Ambiguous);
+    }
+    if !fields.iter().all(|f| is_plain_decimal(f)) {
+        return Err(ParseErrorKind::Syntax);
+    }
+    if leading.iter().any(|f| f.contains('.')) {
+        return Err(ParseErrorKind::Ambiguous);
     }
     match fields.as_slice() {
         [single] => {
-            let value: f64 = single.parse().ok()?;
+            let value: f64 = single.parse().map_err(|_| ParseErrorKind::Syntax)?;
             if integer_digits(single) < 4 {
-                Some(value)
+                Ok(value)
             } else if has_hemisphere {
-                nmea_decode(value) // concatenated DDMM.mmm
+                nmea_decode(value).ok_or(ParseErrorKind::Syntax) // concatenated DDMM.mmm
             } else {
-                None // no degree value has four integer digits
+                // No degree value has four integer digits, and DDMM needs a
+                // hemisphere letter to be read as one.
+                Err(ParseErrorKind::Ambiguous)
             }
         }
-        [deg, min] => components_to_degrees(deg, min, None),
-        [deg, min, _] => components_to_degrees(deg, min, Some(last)),
-        _ => None,
+        [deg, min] => components_to_degrees(deg, min, None).ok_or(ParseErrorKind::Syntax),
+        [deg, min, _] => components_to_degrees(deg, min, Some(last)).ok_or(ParseErrorKind::Syntax),
+        _ => Err(ParseErrorKind::Syntax),
     }
+}
+
+/// Whether `s` is a number in exponent notation (`4e1`, `2.5E-3`): a plain
+/// decimal mantissa, an `e` / `E`, and an optionally signed integer exponent.
+fn is_exponent(s: &str) -> bool {
+    s.split_once(['e', 'E'])
+        .is_some_and(|(mantissa, exponent)| {
+            let digits = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
+            is_plain_decimal(mantissa)
+                && !digits.is_empty()
+                && digits.bytes().all(|b| b.is_ascii_digit())
+        })
 }
 
 /// Whether `s` is an unsigned decimal of ASCII digits with at most one `.`.
