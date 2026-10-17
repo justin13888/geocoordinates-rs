@@ -133,16 +133,34 @@ pub enum Error {
         value: u64,
     },
 
-    /// Free-text / structured input could not be parsed into a coordinate.
+    /// Free-text, sensor, or interchange input could not be parsed into a
+    /// coordinate.
+    ///
+    /// [`kind`](Error::Parse::kind) says why, so a caller branches on it
+    /// rather than on the message: a streaming NMEA reader skips
+    /// [`ParseErrorKind::NoFix`] sentences but reports
+    /// [`ParseErrorKind::Checksum`] ones. `detail` is for humans and its
+    /// wording is not stable.
+    ///
+    /// A position that parsed but is not a valid coordinate is not a parse
+    /// error everywhere: the interchange parsers report it as
+    /// [`Error::OutOfRange`] or [`Error::InvalidValue`] instead, except a GPX
+    /// `lat` / `lon` out of range, which the `gpx` reader rejects as `Syntax`.
     ///
     /// ```
-    /// use geocoordinates::Error;
     /// use geocoordinates::parse::parse_coordinate;
+    /// use geocoordinates::{Error, ParseErrorKind};
     ///
-    /// assert!(matches!(parse_coordinate("somewhere north"), Err(Error::Parse(_))));
+    /// let err = parse_coordinate("somewhere north").unwrap_err();
+    /// assert!(matches!(err, Error::Parse { kind: ParseErrorKind::Syntax, .. }));
     /// ```
-    #[error("could not parse coordinate: {0}")]
-    Parse(String),
+    #[error("could not parse coordinate: {detail}")]
+    Parse {
+        /// Why the input was rejected.
+        kind: ParseErrorKind,
+        /// Human-readable description of what was wrong with the input.
+        detail: String,
+    },
 
     /// A coordinate was used where a different reference system was required —
     /// e.g. converting a [`Coordinate`](crate::Coordinate) tagged one [`Crs`]
@@ -181,6 +199,67 @@ pub enum Error {
     InvalidGridRef(String),
 }
 
+impl Error {
+    /// An [`Error::Parse`] of the given kind.
+    pub(crate) fn parse(kind: ParseErrorKind, detail: impl Into<String>) -> Self {
+        Error::Parse {
+            kind,
+            detail: detail.into(),
+        }
+    }
+}
+
+/// Why an [`Error::Parse`] rejected its input.
+///
+/// Every parser in this crate picks one of these for each rejection:
+///
+/// | Parser | Kinds it produces |
+/// |---|---|
+/// | Free text ([`parse_text`](crate::parse::parse_text), [`parse_coordinate`](crate::parse::parse_coordinate)) | [`Syntax`](Self::Syntax), [`Ambiguous`](Self::Ambiguous) |
+/// | `geo:` URI ([`from_geo_uri`](crate::parse::from_geo_uri)) | [`Syntax`](Self::Syntax), [`Unsupported`](Self::Unsupported) (a `crs` other than `wgs84`) |
+/// | NMEA 0183 (`parse::sensors::from_nmea_sentence`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum), [`NoFix`](Self::NoFix), [`Unsupported`](Self::Unsupported) (a sentence other than `GGA` / `RMC` / `GLL`) |
+/// | GeoJSON, WKT, GPX, KML (`parse::interchange`) | [`Syntax`](Self::Syntax), [`TooDeep`](Self::TooDeep) |
+///
+/// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every
+/// variant, so adding one here is a deliberate, compile-forcing change on both
+/// sides.
+///
+/// ```
+/// use geocoordinates::parse::parse_text;
+/// use geocoordinates::{Error, ParseErrorKind};
+///
+/// // `40.5 30` is neither 40.5° nor 40° 30′ with certainty, so it is rejected.
+/// let Err(Error::Parse { kind, .. }) = parse_text("40.5 30, 10") else {
+///     panic!("expected a parse error");
+/// };
+/// assert_eq!(kind, ParseErrorKind::Ambiguous);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ParseErrorKind {
+    /// The input does not follow the format's grammar, or a field holds a
+    /// value the format does not allow (minutes of 60, a negative HDOP, a
+    /// latitude past 90° in free text).
+    Syntax,
+    /// An NMEA `*HH` checksum is malformed or does not match the sentence.
+    Checksum,
+    /// A well-formed sentence that reports no position: NMEA `RMC` / `GLL`
+    /// status `V`, mode indicator `N`, or `GGA` fix quality `0`. A streaming
+    /// reader can skip it rather than treat it as corrupt input.
+    NoFix,
+    /// Free text with no single reading: concatenated `DDMM.mmm` without a
+    /// hemisphere letter, a fraction on a field before the last (`40.5 30`),
+    /// or exponent notation (`4e1`).
+    Ambiguous,
+    /// Well-formed input of a type or option this crate does not handle: an
+    /// NMEA sentence other than `GGA` / `RMC` / `GLL`, or a `geo:` URI `crs`
+    /// other than `wgs84`.
+    Unsupported,
+    /// A document nested deeper than its format's limit: 128 levels of WKT
+    /// parentheses or GeoJSON arrays and objects, 32 levels of KML elements.
+    TooDeep,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,6 +291,39 @@ mod tests {
                 found: Crs::Bd09,
             }
         );
-        assert_ne!(Error::Parse("a".into()), Error::InvalidGridRef("a".into()));
+        let parse = |kind| Error::Parse {
+            kind,
+            detail: "a".into(),
+        };
+        assert_ne!(
+            parse(ParseErrorKind::Syntax),
+            Error::InvalidGridRef("a".into())
+        );
+        assert_ne!(parse(ParseErrorKind::Syntax), parse(ParseErrorKind::NoFix));
+        // The kind is not in the message: `detail` alone is.
+        assert_eq!(
+            parse(ParseErrorKind::TooDeep).to_string(),
+            "could not parse coordinate: a"
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn parse_error_kind_round_trips_through_serde() {
+        for kind in [
+            ParseErrorKind::Syntax,
+            ParseErrorKind::Checksum,
+            ParseErrorKind::NoFix,
+            ParseErrorKind::Ambiguous,
+            ParseErrorKind::Unsupported,
+            ParseErrorKind::TooDeep,
+        ] {
+            let json = serde_json::to_string(&kind).unwrap();
+            assert_eq!(serde_json::from_str::<ParseErrorKind>(&json).unwrap(), kind);
+        }
+        assert_eq!(
+            serde_json::to_string(&ParseErrorKind::NoFix).unwrap(),
+            r#""NoFix""#
+        );
     }
 }

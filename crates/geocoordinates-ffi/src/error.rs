@@ -50,9 +50,12 @@ pub enum GeoError {
         /// Offending numeric identifier.
         value: u64,
     },
-    /// Free-text / structured input could not be parsed into a coordinate.
+    /// Free-text, sensor, or interchange input could not be parsed into a
+    /// coordinate. Branch on `kind`; `detail` is for humans.
     #[error("could not parse coordinate: {detail}")]
     Parse {
+        /// Why the input was rejected.
+        kind: ParseErrorKind,
         /// What was wrong with the input.
         detail: String,
     },
@@ -87,6 +90,42 @@ pub enum GeoError {
     },
 }
 
+/// Why a [`GeoError::Parse`] rejected its input — mirror of
+/// [`gc::ParseErrorKind`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum ParseErrorKind {
+    /// The input does not follow the format's grammar, or a field holds a
+    /// value the format does not allow.
+    Syntax,
+    /// An NMEA `*HH` checksum is malformed or does not match the sentence.
+    Checksum,
+    /// A well-formed NMEA sentence that reports no position (status `V`,
+    /// mode `N`, or `GGA` fix quality `0`); a stream can skip it.
+    NoFix,
+    /// Free text with no single reading (bare `DDMM.mmm`, a fraction before
+    /// the last field, exponent notation).
+    Ambiguous,
+    /// Well-formed input of a type this crate does not handle (an NMEA
+    /// sentence other than `GGA` / `RMC` / `GLL`, a `geo:` `crs` other than
+    /// `wgs84`).
+    Unsupported,
+    /// A document nested deeper than its format's limit.
+    TooDeep,
+}
+
+impl From<gc::ParseErrorKind> for ParseErrorKind {
+    fn from(kind: gc::ParseErrorKind) -> Self {
+        match kind {
+            gc::ParseErrorKind::Syntax => ParseErrorKind::Syntax,
+            gc::ParseErrorKind::Checksum => ParseErrorKind::Checksum,
+            gc::ParseErrorKind::NoFix => ParseErrorKind::NoFix,
+            gc::ParseErrorKind::Ambiguous => ParseErrorKind::Ambiguous,
+            gc::ParseErrorKind::Unsupported => ParseErrorKind::Unsupported,
+            gc::ParseErrorKind::TooDeep => ParseErrorKind::TooDeep,
+        }
+    }
+}
+
 impl From<gc::Error> for GeoError {
     fn from(e: gc::Error) -> Self {
         match e {
@@ -108,7 +147,10 @@ impl From<gc::Error> for GeoError {
                 grid: grid.to_string(),
                 value,
             },
-            gc::Error::Parse(detail) => GeoError::Parse { detail },
+            gc::Error::Parse { kind, detail } => GeoError::Parse {
+                kind: kind.into(),
+                detail,
+            },
             gc::Error::CrsMismatch { expected, found } => GeoError::CrsMismatch {
                 expected: expected.into(),
                 found: found.into(),

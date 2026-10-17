@@ -14,7 +14,7 @@ use geocoordinates::grids::{
 };
 use geocoordinates::parse::sensors::from_nmea_sentence;
 use geocoordinates::parse::{from_geo_uri, parse_coordinate, parse_text};
-use geocoordinates::{Coordinate, Crs, Error, Height, Length};
+use geocoordinates::{Coordinate, Crs, Error, Height, Length, ParseErrorKind};
 
 use crate::support::{DemoResult, new_york};
 
@@ -246,7 +246,10 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     assert!(serde_json::from_str::<S2CellId>("0").is_err());
     assert!(matches!(
         parse_coordinate("not a coordinate"),
-        Err(Error::Parse(_))
+        Err(Error::Parse {
+            kind: ParseErrorKind::Syntax,
+            ..
+        })
     ));
     assert!(from_geo_uri("geo:1,2;u=-1").is_err());
     assert!(from_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
@@ -302,17 +305,26 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     ));
     assert!(matches!(
         from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"),
-        Err(Error::Parse(_))
+        Err(Error::Parse {
+            kind: ParseErrorKind::Checksum,
+            ..
+        })
     ));
     // A sentence reporting no fix is an error, never a position: RMC status V
-    // (void) and GGA fix quality 0.
+    // (void) and GGA fix quality 0. Its kind lets a stream skip it.
     assert!(matches!(
         from_nmea_sentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
-        Err(Error::Parse(_))
+        Err(Error::Parse {
+            kind: ParseErrorKind::NoFix,
+            ..
+        })
     ));
     assert!(matches!(
         from_nmea_sentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"),
-        Err(Error::Parse(_))
+        Err(Error::Parse {
+            kind: ParseErrorKind::NoFix,
+            ..
+        })
     ));
 
     Ok("boundaries and typed errors")

@@ -3,7 +3,7 @@
 
 use super::interchange::*;
 use crate::coord::Height;
-use crate::error::{Error, Result};
+use crate::error::{Error, ParseErrorKind, Result};
 #[cfg(any(feature = "geojson", feature = "wkt", feature = "kml"))]
 use crate::fix::AxisOrder;
 use crate::fix::{Fix, RawSource};
@@ -25,15 +25,32 @@ fn source(fix: &Fix) -> &RawSource {
 // The two assertion helpers are macros rather than functions: a `()`-returning
 // helper is a mutation target whose deletion no test can observe.
 
-/// A rejection is `Parse` whose message starts with `prefix`.
+/// A rejection is `Parse` of `kind` (`Syntax` when omitted) whose detail
+/// starts with `prefix`.
 macro_rules! assert_parse_err {
-    ($r:expr, $prefix:expr $(,)?) => {{
+    ($r:expr, $prefix:expr $(,)?) => {
+        assert_parse_err!($r, $prefix, ParseErrorKind::Syntax)
+    };
+    ($r:expr, $prefix:expr, $kind:expr) => {{
         let r: Result<Vec<Fix>> = $r;
-        assert!(
-            matches!(&r, Err(Error::Parse(m)) if m.starts_with($prefix)),
-            "{r:?}"
-        );
+        let ok = matches!(&r, Err(Error::Parse { kind, detail })
+            if *kind == $kind && detail.starts_with($prefix));
+        assert!(ok, "{r:?}");
     }};
+}
+
+/// The typed rejection of a position at (`lat`, `lon`), out of range.
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "kml"))]
+fn out_of_range(lat: f64, lon: f64) -> Result<Vec<Fix>> {
+    Err(Error::OutOfRange { lat, lon })
+}
+
+/// A rejection is a `TooDeep` parse error whose detail starts with `prefix`.
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "kml"))]
+macro_rules! assert_too_deep {
+    ($r:expr, $prefix:expr $(,)?) => {
+        assert_parse_err!($r, $prefix, ParseErrorKind::TooDeep)
+    };
 }
 
 /// Every fix's raw fragment parses back, alone, to that same fix.
@@ -143,14 +160,18 @@ fn geojson_features_with_and_without_geometry() {
 #[test]
 fn geojson_rejections_are_parse_errors() {
     assert_parse_err!(from_geojson("not json"), "geojson: ");
-    assert_parse_err!(
-        from_geojson(r#"{"type":"Point","coordinates":[2.0,91.0]}"#),
-        "geojson: invalid position at index 0: ",
-    );
-    // One bad vertex rejects the whole line, and the error names its index.
-    assert_parse_err!(
-        from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[1,1],[181,0]]}"#),
-        "geojson: invalid position at index 2: ",
+    // An out-of-range position keeps its typed error and offending values.
+    let point = from_geojson(r#"{"type":"Point","coordinates":[2.0,91.0]}"#);
+    assert_eq!(point, out_of_range(91.0, 2.0));
+    // One bad vertex rejects the whole line.
+    let line = from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[1,1],[181,0]]}"#);
+    assert_eq!(line, out_of_range(0.0, 181.0));
+    // `serde_json`'s 128-level recursion limit is a `TooDeep` rejection.
+    let deep = format!("{}{}", "[".repeat(200), "]".repeat(200));
+    let doc = format!(r#"{{"type":"MultiPoint","coordinates":{deep}}}"#);
+    assert_too_deep!(
+        from_geojson(&doc),
+        "geojson: nesting deeper than 128 levels"
     );
 }
 
@@ -185,10 +206,8 @@ fn geojson_short_positions_are_rejected_at_their_document_index() {
         "geojson: invalid position at index 1: ",
     );
     // An out-of-range position before the short one is still the first error.
-    assert_parse_err!(
-        from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[0,200],[5]]}"#),
-        "geojson: invalid position at index 1: coordinate out of valid range",
-    );
+    let r = from_geojson(r#"{"type":"LineString","coordinates":[[0,0],[0,200],[5]]}"#);
+    assert_eq!(r, out_of_range(200.0, 0.0));
 }
 
 /// `depth` copies of `open`, then `inner`, then `depth` copies of `close`.
@@ -207,7 +226,7 @@ fn wkt_nesting_is_bounded_at_128_levels() {
     assert_eq!(lat_lons(&fixes), [(2.0, 1.0)]);
     // One more level is rejected before the parser sees it.
     let too_deep = nested("GEOMETRYCOLLECTION(", "POINT(1 2)", ")", 128);
-    assert_parse_err!(
+    assert_too_deep!(
         from_wkt(&too_deep, AxisOrder::LonLat),
         "wkt: nesting deeper than 128 levels",
     );
@@ -221,9 +240,9 @@ fn wkt_nesting_is_bounded_at_128_levels() {
 fn wkt_100k_deep_nesting_errors_instead_of_overflowing() {
     let start = std::time::Instant::now();
     let unclosed = "GEOMETRYCOLLECTION(".repeat(100_000);
-    assert_parse_err!(from_wkt(&unclosed, AxisOrder::LonLat), "wkt: nesting");
+    assert_too_deep!(from_wkt(&unclosed, AxisOrder::LonLat), "wkt: nesting");
     let closed = nested("GEOMETRYCOLLECTION(", "POINT(1 2)", ")", 100_000);
-    assert_parse_err!(from_wkt(&closed, AxisOrder::LonLat), "wkt: nesting");
+    assert_too_deep!(from_wkt(&closed, AxisOrder::LonLat), "wkt: nesting");
     assert!(start.elapsed() < std::time::Duration::from_secs(5));
 }
 
@@ -238,11 +257,11 @@ fn kml_nesting_is_bounded_at_32_levels() {
     assert_eq!(fixes.len(), 1);
     assert_eq!((fixes[0].coord.lat(), fixes[0].coord.lon()), (2.0, 1.0));
     let too_deep = format!("<kml>{}</kml>", nested("<Folder>", point, "</Folder>", 30));
-    assert_parse_err!(from_kml(&too_deep), "kml: nesting deeper than 32 levels");
+    assert_too_deep!(from_kml(&too_deep), "kml: nesting deeper than 32 levels");
     // An end tag inside an `<?xml …?>` declaration, which `kml` skips even
     // inside elements, closes no level: 40 such folders are 40 levels.
     let hidden = nested("<Folder><?xml ></Folder>?>", point, "</Folder>", 40);
-    assert_parse_err!(
+    assert_too_deep!(
         from_kml(&format!("<kml>{hidden}</kml>")),
         "kml: nesting deeper than 32 levels"
     );
@@ -254,69 +273,19 @@ fn kml_nesting_is_bounded_at_32_levels() {
 }
 
 #[cfg(feature = "kml")]
-#[test]
-fn xml_depth_scan_counts_only_open_elements() {
-    let ok = |inner: &str| check_xml_depth(&nested("<a>", inner, "</a>", 32)).is_ok();
-    // 32 open elements is the limit; one more start tag is too deep.
-    assert!(ok(""));
-    assert!(!ok("<b>"));
-    // Constructs that open no element, each hiding a start tag that would
-    // be counted if the scan misread it.
-    assert!(ok("<b/>"));
-    assert!(ok(r#"<b x="1>2"/>"#));
-    assert!(ok("<b x='1>2'/>"));
-    // A closed quote ends the attribute value, so the `>` after it ends the
-    // start tag.
-    assert!(!ok(r#"<b x="1>2">"#));
-    assert!(ok("<!-- > <b> -->"));
-    assert!(ok("<![CDATA[ > <b> ]]>"));
-    assert!(ok("<?pi x?>"));
-    assert!(ok("<!DOCTYPE d>"));
-    // Each construct ends where `quick-xml` ends it, so an end tag hidden
-    // inside one closes no level and the `<b>` after it is one too many.
-    assert!(!ok("<?xml ></a>?><b>"));
-    assert!(!ok("<!--></a>--><b>"));
-    assert!(!ok("<!---></a>--><b>"));
-    assert!(!ok(r#"<!DOCTYPE d [<!ENTITY e "x"></a>]><b>"#));
-    assert!(!ok(r#"</a x="></a>"><b><c>"#));
-    // `quick-xml` 0.37 balances only `<` and `>` inside a `<!DOCTYPE …>`,
-    // ignoring quotes and `[`, so a quoted `>` counts: the declaration ends
-    // after `'>'>` and the `<b>` that follows is a start tag the parser reads.
-    assert!(!ok("<!DOCTYPE d [<!ENTITY e '>'><b>]>"));
-    // The shortest closed forms: the `?` opening `<?>` also ends it.
-    assert!(ok("<?></a><b>"));
-    assert!(ok("<!----></a><b>"));
-    assert!(ok("<!DOCTYPE d></a><b>"));
-    // `kml` ignores `</kml>`, so it closes no level, whatever its prefix:
-    // under 30 levels, `<kml></kml>` leaves 31 open and two more start tags
-    // are one too many, where any other closed element leaves room for both.
-    let ok30 = |inner: &str| check_xml_depth(&nested("<a>", inner, "</a>", 30)).is_ok();
-    assert!(ok30("<kml></kml><b>"));
-    assert!(!ok30("<kml></kml><b><c>"));
-    assert!(!ok30("<k:kml></k:kml ><b><c>"));
-    assert!(ok30("<kmlx></kmlx><b><c>"));
-    assert!(ok30("<x:kmlx></x:kmlx><b><c>"));
-    // End tags close levels, so siblings never add up.
-    let siblings = nested("<a>", &"<b></b>".repeat(100), "</a>", 31);
-    assert!(check_xml_depth(&siblings).is_ok());
-    // An unterminated construct ends the scan; the parser rejects it.
-    for tail in ["<b", "<!-- <b>", "<![CDATA[ <b>", "<?pi", "<!x", "</b"] {
-        let truncated = format!("{}{tail}", "<a>".repeat(32));
-        assert!(check_xml_depth(&truncated).is_ok(), "{tail}");
-    }
-}
+mod xml_depth;
 
 #[cfg(feature = "kml")]
 #[test]
 fn kml_100k_deep_nesting_errors_instead_of_overflowing() {
     let start = std::time::Instant::now();
     let closed = nested("<Folder>", "", "</Folder>", 100_000);
-    assert_parse_err!(from_kml(&closed), "kml: nesting");
+    assert_too_deep!(from_kml(&closed), "kml: nesting");
     let geometry = nested("<MultiGeometry>", "", "</MultiGeometry>", 100_000);
-    assert_parse_err!(from_kml(&geometry), "kml: nesting");
+    assert_too_deep!(from_kml(&geometry), "kml: nesting");
     // Unclosed: the depth check rejects it before the parser, which never
     // returns on a truncated document (#135).
-    assert_parse_err!(from_kml(&"<Folder>".repeat(100_000)), "kml: nesting");
+    assert_too_deep!(from_kml(&"<Folder>".repeat(100_000)), "kml: nesting");
     // End tags hidden inside constructs the parser skips close no level: an
     // `<?xml …?>` declaration (ignored by `kml` even inside elements) ends
     // at `?>`, and a `<!DOCTYPE …>` at its balancing `>`.
@@ -326,13 +295,13 @@ fn kml_100k_deep_nesting_errors_instead_of_overflowing() {
     ] {
         let level = format!("<Folder>{hidden}");
         let input = nested(&level, "", "</Folder>", 100_000);
-        assert_parse_err!(from_kml(&input), "kml: nesting");
+        assert_too_deep!(from_kml(&input), "kml: nesting");
     }
     // `kml` ignores `</kml>`, so each repeat nests its reader one level
     // deeper even though the XML is flat.
     for repeats in [40, 100_000] {
         let flat = "<kml></kml>".repeat(repeats);
-        assert_parse_err!(from_kml(&flat), "kml: nesting");
+        assert_too_deep!(from_kml(&flat), "kml: nesting");
     }
     assert!(start.elapsed() < std::time::Duration::from_secs(5));
 }
@@ -351,10 +320,8 @@ fn wkt_reads_x_y_in_the_stated_axis_order() {
     // A latitude-range check follows the stated order: 120 is a valid
     // longitude but not a valid latitude.
     assert!(from_wkt("POINT(120 10)", AxisOrder::LonLat).is_ok());
-    assert_parse_err!(
-        from_wkt("POINT(120 10)", AxisOrder::LatLon),
-        "wkt: invalid position at index 0: ",
-    );
+    let r = from_wkt("POINT(120 10)", AxisOrder::LatLon);
+    assert_eq!(r, out_of_range(120.0, 10.0));
     let line = from_wkt("LINESTRING(0 0, 10 20, 30 40)", AxisOrder::LonLat).unwrap();
     assert_eq!(line.len(), 3);
     assert_close(line[1].coord.lat(), 20.0, 1e-12);
@@ -423,14 +390,10 @@ fn wkt_empty_and_dimensioned_geometries() {
 #[test]
 fn wkt_rejections_are_parse_errors() {
     assert_parse_err!(from_wkt("CIRCLE(0 0 5)", AxisOrder::LonLat), "wkt: ");
-    assert_parse_err!(
-        from_wkt("POINT(181 0)", AxisOrder::LonLat),
-        "wkt: invalid position at index 0: ",
-    );
-    assert_parse_err!(
-        from_wkt("LINESTRING(0 0, 0 -91)", AxisOrder::LonLat),
-        "wkt: invalid position at index 1: ",
-    );
+    let point = from_wkt("POINT(181 0)", AxisOrder::LonLat);
+    assert_eq!(point, out_of_range(0.0, 181.0));
+    let line = from_wkt("LINESTRING(0 0, 0 -91)", AxisOrder::LonLat);
+    assert_eq!(line, out_of_range(-91.0, 0.0));
 }
 
 #[cfg(feature = "gpx")]
@@ -550,7 +513,8 @@ fn gpx_rejections_are_parse_errors() {
     ] {
         let r = from_gpx(doc);
         let prefix = format!("gpx: invalid position at index {index}: ");
-        let ok = matches!(&r, Err(Error::Parse(m)) if m.starts_with(&prefix)
+        let ok = matches!(&r, Err(Error::Parse { kind: ParseErrorKind::Syntax, detail: m })
+            if m.starts_with(&prefix)
             && m.contains(finite_msg) == bad_hdop && m.contains("out of range") != bad_hdop);
         assert!(ok, "{r:?}");
     }
@@ -645,5 +609,11 @@ fn kml_polygon_inner_rings_and_rejections() {
     assert_parse_err!(from_kml("not xml"), "kml: ");
     let off_globe = r#"<kml xmlns="http://www.opengis.net/kml/2.2">
         <Placemark><LineString><coordinates>0,0 0,95</coordinates></LineString></Placemark></kml>"#;
-    assert_parse_err!(from_kml(off_globe), "kml: invalid position at index 1: ");
+    let r = from_kml(off_globe);
+    assert_eq!(r, out_of_range(95.0, 0.0));
+    // A non-finite altitude keeps its typed error, and names the index.
+    let r = from_kml("<LineString><coordinates>0,0,0 1,1,NaN</coordinates></LineString>");
+    let ok = matches!(&r, Err(Error::InvalidValue { field: "height", detail })
+        if detail.starts_with("kml: invalid position at index 1: "));
+    assert!(ok, "{r:?}");
 }

@@ -16,6 +16,7 @@ import uniffi.geocoordinates_ffi.Gcj02
 import uniffi.geocoordinates_ffi.GeoException
 import uniffi.geocoordinates_ffi.H3Cell
 import uniffi.geocoordinates_ffi.MgrsPrecision
+import uniffi.geocoordinates_ffi.ParseErrorKind
 import uniffi.geocoordinates_ffi.UtmHemisphere
 import uniffi.geocoordinates_ffi.Wgs84
 import uniffi.geocoordinates_ffi.accuracyNew
@@ -210,12 +211,20 @@ class BindingsTest {
 
     @Test
     fun parseRejectsAmbiguousTextAndNoFixNmea() {
-        throwsVariant<GeoException.Parse> { parseCoordinate("1234.5, 10") }
-        throwsVariant<GeoException.Parse> { parseCoordinate("ezs42") }
+        val ambiguous = throwsVariant<GeoException.Parse> { parseCoordinate("1234.5, 10") }
+        assertEquals(ParseErrorKind.AMBIGUOUS, ambiguous.kind)
+        val syntax = throwsVariant<GeoException.Parse> { parseCoordinate("ezs42") }
+        assertEquals(ParseErrorKind.SYNTAX, syntax.kind)
         val void =
             throwsVariant<GeoException.Parse> {
                 fromNmeaSentence("\$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07")
             }
+        assertEquals(ParseErrorKind.NO_FIX, void.kind)
         assertTrue(void.detail.contains("void"), void.detail)
+        val corrupt =
+            throwsVariant<GeoException.Parse> {
+                fromNmeaSentence("\$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
+            }
+        assertEquals(ParseErrorKind.CHECKSUM, corrupt.kind)
     }
 }

@@ -42,7 +42,8 @@
 //!
 //! Every public item has exactly one path, plus its [`prelude`] entry. The
 //! crate root holds the core types ([`Coordinate`], [`Crs`], [`Height`],
-//! [`LatLon`], [`Approx`], [`Length`], [`LengthUnit`], [`Error`], [`Result`]);
+//! [`LatLon`], [`Approx`], [`Length`], [`LengthUnit`], [`Error`],
+//! [`ParseErrorKind`], [`Result`]);
 //! every other item lives flat in its subsystem module: [`angle`], [`china`],
 //! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
 //! [`parse`], and `dgg` (behind the `h3` / `s2` features). Implementation
@@ -119,7 +120,7 @@ pub(crate) mod test_support;
 // set is in [`prelude`]; every other item lives in its subsystem module.
 pub use approx::Approx;
 pub use coord::{Coordinate, Crs, Height, LatLon};
-pub use error::{Error, Result};
+pub use error::{Error, ParseErrorKind, Result};
 pub use units::{Length, LengthUnit};
 
 /// Common imports for typical use: `use geocoordinates::prelude::*;`.

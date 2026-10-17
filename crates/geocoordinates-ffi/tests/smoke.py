@@ -320,8 +320,8 @@ for ambiguous in ["1234.5, 10", "40.5 30, 10", "4e1 3e1"]:
     try:
         gc.parse_coordinate(ambiguous)
         raise AssertionError(f"expected {ambiguous!r} to be rejected")
-    except gc.GeoError.Parse:
-        pass
+    except gc.GeoError.Parse as e:
+        assert e.kind == gc.ParseErrorKind.AMBIGUOUS, (ambiguous, e.kind)
 # MGRS is always detected; a geohash only when the options expect one.
 mgrs_fix = gc.parse_coordinate("18TWK0000027757")
 assert mgrs_fix.source.axis_order is None
@@ -330,8 +330,8 @@ assert mgrs_fix.accuracy.kind == gc.AccuracyKind.BOUND  # the cell bounds the er
 try:
     gc.parse_coordinate("ezs42")
     raise AssertionError("a geohash must not be detected unasked")
-except gc.GeoError.Parse:
-    pass
+except gc.GeoError.Parse as e:
+    assert e.kind == gc.ParseErrorKind.SYNTAX, e.kind
 for representation, (lat, lon), expected in grid_cases:
     grid_opts = gc.FormatOptions(
         representation=representation, decimal_separator=gc.DecimalSeparator.POINT
@@ -581,13 +581,13 @@ assert kmlfixes[0].coord.height == gc.Height.ORTHOMETRIC(183.0)
 try:
     gc.from_geojson('{"type":"LineString","coordinates":[[0,0],[181,0]]}')
     raise AssertionError("expected an out-of-range position to be rejected")
-except gc.GeoError.Parse as e:
-    assert "invalid position at index 1" in e.detail, e.detail
+except gc.GeoError.OutOfRange as e:
+    assert e.lat == 0.0 and e.lon == 181.0, (e.lat, e.lon)
 try:
     gc.from_geojson("not json")
     raise AssertionError("expected a parse error")
-except gc.GeoError.Parse:
-    pass
+except gc.GeoError.Parse as e:
+    assert e.kind == gc.ParseErrorKind.SYNTAX, e.kind
 
 # --- NMEA 0183 sentences ---
 nmea = gc.from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
@@ -612,12 +612,12 @@ for no_fix, reason in [
         gc.from_nmea_sentence(no_fix)
         raise AssertionError(f"expected {no_fix!r} to be rejected")
     except gc.GeoError.Parse as e:
-        assert reason in e.detail, e.detail
+        assert e.kind == gc.ParseErrorKind.NO_FIX and reason in e.detail, (e.kind, e.detail)
 try:
     gc.from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")  # bad checksum
     raise AssertionError("expected a checksum error")
 except gc.GeoError.Parse as e:
-    assert e.detail.startswith("NMEA checksum mismatch"), e.detail
+    assert e.kind == gc.ParseErrorKind.CHECKSUM, (e.kind, e.detail)
 
 # --- H3 and S2 discrete global grids ---
 h3 = gc.h3_encode(wgs84_coord(40.7128, -74.006), 9)
