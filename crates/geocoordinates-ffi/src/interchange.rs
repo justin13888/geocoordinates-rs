@@ -46,9 +46,9 @@ pub fn from_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoErr
 /// horizontal accuracy of `HDOP × 5 m`.
 ///
 /// # Errors
-/// `GeoError::Parse` on malformed GPX, or naming the index of the first point
-/// with an invalid `<hdop>`; `GeoError::OutOfRange` for the first point out of
-/// range.
+/// `GeoError::Parse` (kind `Syntax`) on malformed GPX or a `lat` / `lon` out
+/// of range (the GPX reader range-checks both before any point is built), or
+/// naming the index of the first point with an invalid `<hdop>`.
 #[uniffi::export]
 pub fn from_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
     gc::parse::interchange::from_gpx(&input)

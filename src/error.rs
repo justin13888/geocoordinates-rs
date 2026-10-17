@@ -144,7 +144,8 @@ pub enum Error {
     ///
     /// A position that parsed but is not a valid coordinate is not a parse
     /// error everywhere: the interchange parsers report it as
-    /// [`Error::OutOfRange`] or [`Error::InvalidValue`] instead.
+    /// [`Error::OutOfRange`] or [`Error::InvalidValue`] instead, except a GPX
+    /// `lat` / `lon` out of range, which the `gpx` reader rejects as `Syntax`.
     ///
     /// ```
     /// use geocoordinates::parse::parse_coordinate;

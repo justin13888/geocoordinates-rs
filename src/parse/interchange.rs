@@ -22,9 +22,9 @@
 //!
 //! **Errors:** malformed input is an [`Error::Parse`] of kind `Syntax`, or
 //! `TooDeep` past the nesting limits below. One invalid position rejects the
-//! whole document with its own error: [`Error::OutOfRange`] carrying the
-//! offending values, or (a non-finite height, a bad GPX `<hdop>`, a GeoJSON
-//! position of one number) an error whose `detail` names its zero-based index.
+//! whole document: [`Error::OutOfRange`] with its values (GPX's reader rejects
+//! one itself, as `Syntax`), or, for a non-finite height, a bad GPX `<hdop>`,
+//! or a GeoJSON position of one number, an error naming its zero-based index.
 //!
 //! **Untrusted input:** every parser returns or errors on any input; none
 //! recurses without bound. GeoJSON nesting is capped at 128 levels by
@@ -487,9 +487,9 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// element (`<wpt>`, `<trkpt>`, or `<rtept>`) with its `<ele>`.
 ///
 /// # Errors
-/// [`Error::Parse`] on malformed GPX, or the first invalid point's error (a
-/// negative or non-finite `<hdop>` included), as the [module docs](self)
-/// describe.
+/// [`Error::Parse`] of kind `Syntax` on malformed GPX or a `lat` / `lon` out
+/// of range (the `gpx` reader checks both itself), and for a bad `<hdop>`,
+/// naming the first such point's index (see the [module docs](self)).
 ///
 /// ```
 /// use geocoordinates::{Error, Height, ParseErrorKind};
