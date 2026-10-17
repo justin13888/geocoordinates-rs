@@ -273,6 +273,8 @@ fn kml_nesting_is_bounded_at_32_levels() {
 }
 
 #[cfg(feature = "kml")]
+mod kml_point;
+#[cfg(feature = "kml")]
 mod xml_depth;
 
 #[cfg(feature = "kml")]

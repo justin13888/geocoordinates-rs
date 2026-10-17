@@ -392,6 +392,11 @@ fn interchange_parsers_reject_short_positions_and_deep_nesting() {
     let (kind, detail) = parse_error(from_kml("<kml><Point>".to_string()));
     assert_eq!(kind, ParseErrorKind::Syntax);
     assert_eq!(detail, "kml: element <Point> is not closed");
+    // A `Point` with no coordinates returns a syntax error rather than
+    // panicking inside the KML reader.
+    let (kind, detail) = parse_error(from_kml("<Point></Point>".to_string()));
+    assert_eq!(kind, ParseErrorKind::Syntax);
+    assert_eq!(detail, "kml: <Point> at byte 0 has no coordinates");
 }
 
 // --- NMEA 0183 ---

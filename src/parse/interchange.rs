@@ -460,7 +460,8 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// # Errors
 /// [`Error::Parse`] on malformed KML: `TooDeep` past 32 levels of elements,
 /// `Syntax` for anything else, including an element left unclosed or an end
-/// tag that does not close the innermost open element. Otherwise the first
+/// tag that does not close the innermost open element, and a `Point` with no
+/// coordinates (which the `kml` parser would panic on). Otherwise the first
 /// invalid position's error, as the [module docs](self) describe.
 ///
 /// ```
@@ -483,6 +484,13 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// };
 /// assert_eq!(kind, ParseErrorKind::Syntax);
 /// assert_eq!(detail, "kml: element <Point> is not closed");
+///
+/// // So is a `Point` with no coordinates.
+/// let Err(Error::Parse { kind, detail }) = from_kml("<Point></Point>") else {
+///     panic!("expected a parse error");
+/// };
+/// assert_eq!(kind, ParseErrorKind::Syntax);
+/// assert_eq!(detail, "kml: <Point> at byte 0 has no coordinates");
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "kml")]

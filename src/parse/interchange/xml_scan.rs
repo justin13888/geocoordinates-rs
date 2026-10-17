@@ -43,6 +43,21 @@ const MAX_KML_DEPTH: usize = 32;
 /// do not end one), a processing instruction or `<?xml …?>` declaration ends
 /// at the first `?>` after `<?` (so `<?>` is not terminated), and a `<!DOCTYPE …>` ends at the `>` that balances every `<`
 /// inside it.
+///
+/// **Points.** Every `Point` element (any prefix, not self-closing) must hold
+/// a coordinate, or the scan returns a `Syntax` error: `kml` 0.13 builds a
+/// `Point` from the first position its geometry reader collected and panics
+/// when there is none. That reader runs from the `<Point>` to the first end
+/// tag named `Point` (any prefix), so a nested `<Point>…</Point>` ends the
+/// outer one early, and keeps only the last `<coordinates>` start tag (any
+/// prefix, at any depth) inside that span, taking the event after it: text,
+/// which holds a coordinate when anything but whitespace remains once its
+/// references are unescaped as `quick-xml` unescapes them (where that fails,
+/// `kml` keeps the raw text, `&` included), or a CDATA section, which holds
+/// one when anything but
+/// whitespace lies in it. Each `Point` is held to its own span, whatever the
+/// element around it, so a coordinate-less `Point` the parser would skip is
+/// rejected too.
 pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     /// The offset of the `>` ending the tag `tag` starts, skipping quotes.
     fn tag_end(tag: &str) -> Option<usize> {
@@ -81,12 +96,100 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     fn is_space(c: char) -> bool {
         matches!(c, ' ' | '\t' | '\r' | '\n')
     }
+    /// A tag name without its namespace prefix.
+    fn local(name: &str) -> &str {
+        name.split_once(':').map_or(name, |(_, local)| local)
+    }
+    /// Whether `quick-xml` 0.37's `unescape` may put whitespace in place of
+    /// the reference named `name` (between `&` and `;`). None of the five
+    /// predefined entities is whitespace. Any other named entity may be:
+    /// `kml` asks for no `escape-html` table, but Cargo builds one
+    /// `quick-xml` with every feature any crate in the program requests, and
+    /// with that table `&nbsp;`, `&emsp;`, `&ensp;`, or `&thinsp;` unescapes
+    /// to Unicode whitespace. Without it the reference fails to unescape and
+    /// `kml` keeps the raw text, which has no digit and so no position
+    /// either way. A numeric reference is whitespace only where it decodes
+    /// to whitespace; where it fails, the raw `&` is not.
+    fn may_be_whitespace(name: &str) -> bool {
+        if name.starts_with('#') {
+            return numeric_reference(name).is_some_and(char::is_whitespace);
+        }
+        !matches!(name, "lt" | "gt" | "amp" | "apos" | "quot")
+    }
+    /// The character `quick-xml` 0.37's `unescape` puts in place of the
+    /// numeric reference named `name` (between `&` and `;`): `#` then
+    /// decimal, or `#x` then hex. `None` for any other name, or where
+    /// unescaping fails. Only a whitespace result matters to the caller, so
+    /// a failed reference to U+0000 (not whitespace) needs no case of its
+    /// own. A leading `+`, which `quick-xml` rejects and `from_str_radix`
+    /// accepts, does.
+    fn numeric_reference(name: &str) -> Option<char> {
+        let number = name.strip_prefix('#')?;
+        let (digits, radix) = number
+            .strip_prefix('x')
+            .map_or((number, 10), |hex| (hex, 16));
+        if digits.starts_with('+') {
+            return None;
+        }
+        u32::from_str_radix(digits, radix)
+            .ok()
+            .and_then(char::from_u32)
+    }
+    /// Whether the text `kml`'s `read_str` returns for `text` holds a
+    /// character that is not Unicode whitespace, on which `kml` splits it
+    /// into positions. `read_str` unescapes the text as `quick-xml` does,
+    /// ending each reference at the next `&` or `;` after its `&` (it must
+    /// be a `;`); where unescaping fails it returns the raw text, whose `&`
+    /// is not whitespace. A reference that [`may_be_whitespace`] counts as
+    /// whitespace, so the answer holds whatever `quick-xml` features the
+    /// program enables.
+    fn unescapes_to_position(text: &str) -> bool {
+        let mut rest = text;
+        while let Some(amp) = rest.find('&') {
+            if rest[..amp].chars().any(|c| !c.is_whitespace()) {
+                return true;
+            }
+            let reference = &rest[amp + 1..];
+            let Some(end) = reference
+                .find(['&', ';'])
+                .filter(|&i| reference.as_bytes()[i] == b';')
+            else {
+                return true;
+            };
+            if !may_be_whitespace(&reference[..end]) {
+                return true;
+            }
+            rest = &reference[end + 1..];
+        }
+        rest.chars().any(|c| !c.is_whitespace())
+    }
+    /// Whether the content `after` a `<coordinates>` start tag holds a
+    /// position for `kml`'s `read_str`, which reads only the next event and
+    /// trims `quick-xml` whitespace from text. Text holds one when its
+    /// unescaped form has a character that is not whitespace (so `&#49;`
+    /// does, and `&#160;` and `&nbsp;` do not). Any other next event yields no
+    /// position, or an error, which rejecting here also turns into an error.
+    fn holds_position(after: &str) -> bool {
+        let text = &after[..after.find('<').unwrap_or(after.len())];
+        if !text.trim_matches(is_space).is_empty() {
+            return unescapes_to_position(text);
+        }
+        after[text.len()..]
+            .strip_prefix("<![CDATA[")
+            .and_then(|cdata| cdata.find("]]>").map(|end| &cdata[..end]))
+            .is_some_and(|cdata| cdata.chars().any(|c| !c.is_whitespace()))
+    }
 
     let mut depth = 0usize;
     // The names of the open elements, innermost last. Never longer than
     // `depth`, which only `</kml>` keeps from falling with it, so it holds at
     // most `MAX_KML_DEPTH` names.
     let mut open: Vec<&str> = Vec::new();
+    // The byte offset of each `<Point>` whose geometry reader is still
+    // running, and whether the last `<coordinates>` in its span so far holds
+    // a position. Every entry is an open element, so it too holds at most
+    // `MAX_KML_DEPTH`.
+    let mut points: Vec<(usize, bool)> = Vec::new();
     let mut rest = input;
     while let Some(start) = rest.find('<') {
         rest = &rest[start..];
@@ -144,9 +247,19 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
                 // `</Document>`, or the end of input, so it ignores `</kml>`
                 // and the reader the `<kml>` opened stays on the stack: that
                 // level never closes.
-                let local = name.split_once(':').map_or(name, |(_, local)| local);
-                if local != "kml" {
-                    depth = depth.saturating_sub(1);
+                match local(name) {
+                    "kml" => {}
+                    "Point" => {
+                        // The first `Point` end tag ends every running reader.
+                        if let Some(&(point, _)) = points.iter().find(|&&(_, held)| !held) {
+                            return Err(syntax(format!(
+                                "kml: <Point> at byte {point} has no coordinates"
+                            )));
+                        }
+                        points.clear();
+                        depth = depth.saturating_sub(1);
+                    }
+                    _ => depth = depth.saturating_sub(1),
                 }
             }
             end
@@ -157,7 +270,16 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
                 if depth > MAX_KML_DEPTH {
                     return Err(too_deep("kml", MAX_KML_DEPTH));
                 }
-                open.push(rest[1..i].split(is_space).next().unwrap_or_default());
+                let name = rest[1..i].split(is_space).next().unwrap_or_default();
+                match local(name) {
+                    "Point" => points.push((at, false)),
+                    "coordinates" => {
+                        let held = holds_position(&rest[i + 1..]);
+                        points.iter_mut().for_each(|(_, h)| *h = held);
+                    }
+                    _ => {}
+                }
+                open.push(name);
             }
             end
         };
