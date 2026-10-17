@@ -154,17 +154,33 @@ fn destination_over_a_pole_and_across_the_antimeridian() {
 }
 
 /// Zero is the smallest valid distance, not an error: going nowhere returns
-/// the start, on the geodesic and on the rhumb line alike (the rhumb line to
-/// within its rectifying-latitude series round-off, a few micrometers).
+/// the start, on the geodesic and on the rhumb line alike. The geodesic goes
+/// through Karney's direct solution, so it agrees to round-off; the rhumb line
+/// returns before any series runs, so it is `start` exactly, from every start
+/// (each start here has no height, which `rhumb_destination` drops).
 #[test]
 fn a_zero_distance_destination_is_the_start() {
     let start = c(12.5, -45.25);
-    for p in [
-        destination(start, 30.0, Length::from_meters(0.0)).unwrap(),
-        rhumb_destination(start, 30.0, Length::from_meters(0.0)).unwrap(),
-    ] {
-        assert_close(p.lat(), start.lat(), 1e-10);
-        assert_close(p.lon(), start.lon(), 1e-10);
+    let p = destination(start, 30.0, Length::from_meters(0.0)).unwrap();
+    assert_close(p.lat(), start.lat(), 1e-10);
+    assert_close(p.lon(), start.lon(), 1e-10);
+    for start in [start, c(90.0, 37.0), c(-90.0, -120.0)] {
+        for bearing in [0.0, 30.0, 180.0, 270.0] {
+            let p = rhumb_destination(start, bearing, Length::from_meters(0.0)).unwrap();
+            assert_eq!(p, start, "from {start:?} on bearing {bearing}");
+        }
+    }
+    // A start on the antimeridian keeps its latitude exactly; its longitude is
+    // wrapped into [-180, 180) like every producer's, so 180 comes back as -180.
+    for start in [c(33.75, 180.0), c(90.0, 180.0), c(-90.0, 180.0)] {
+        for bearing in [0.0, 30.0, 180.0, 270.0] {
+            let p = rhumb_destination(start, bearing, Length::from_meters(0.0)).unwrap();
+            assert_eq!(
+                (p.lat(), p.lon(), p.crs()),
+                (start.lat(), -180.0, start.crs()),
+                "from {start:?} on bearing {bearing}"
+            );
+        }
     }
 }
 
