@@ -115,7 +115,7 @@ These secrets are set, so a publishing run of `release-jvm.yml` runs
 `publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)`, so the
 portal publishes each deployment to Maven Central once its validation passes, with no
 manual step; the artifact then takes a while to appear on `repo1.maven.org` and in
-search. Deployments uploaded before automatic release was enabled (v0.14.1 and earlier)
+search. Deployments uploaded before automatic release was enabled (v0.14.2 and earlier)
 were not released automatically: they stay in the portal's **Deployments** list until
 someone publishes or drops them there. If the secrets are ever removed, the publish step skips with a warning instead, and the other
 registries are unaffected either way. (Desktop JVM only for now; Android AAR is future

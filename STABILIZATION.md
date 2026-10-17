@@ -61,7 +61,7 @@ Measured on `master` at the start of this effort (2026-09-01), and again at the
 | `rustdoc -D missing_docs` | clean | clean, and denied in CI |
 | **Doctests** | **0 executable** — one ` ```ignore ` fence crate-wide | 250 executable |
 | **FFI CI** | **red since 2026-08-05** — fixed by #37 | green; Rust tests for every export plus behavioural tests in all four languages |
-| Open issues | 0 | #131, #135 and #149 besides #129 (each recorded below) |
+| Open issues | 0 | #135 and #149 besides #129 (each recorded below) |
 
 ## Audit ledger
 

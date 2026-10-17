@@ -139,7 +139,7 @@ workflows and registry setup.
 
 > † **Maven Central:** the JVM workflow uploads each release to the Central Portal with the
 > configured token and GPG key and requests automatic release, so the portal publishes it to
-> Maven Central once it passes validation. Releases up to v0.14.1 were uploaded without
+> Maven Central once it passes validation. Releases v0.14.2 and earlier were uploaded without
 > automatic release and are not on Maven Central (see [PUBLISHING.md](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md));
 > for a version the registry does not list, build the JAR locally as PUBLISHING.md describes.
 
