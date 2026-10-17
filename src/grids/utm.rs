@@ -87,8 +87,8 @@ fn snap(v: f64, lo: f64, hi: f64) -> Option<f64> {
 }
 
 /// The point of `zone`'s forward image in `hemisphere` that a decoded
-/// `(lat, lon)` stands for — `lon` unwrapped, measured from the zone's
-/// central meridian — or the [`Utm`] field to blame where it lies more than
+/// `(lat, lon)` stands for — `lon` unwrapped, the zone's central meridian
+/// plus the inverse's offset — or the [`Utm`] field to blame where it lies more than
 /// [`IMAGE_SLACK_DEG`] outside: `"northing"` for a latitude outside the
 /// hemisphere's part of the UTM band, `"easting"` for a longitude outside the
 /// zone. The image is what [`Utm::try_from_coordinate`] produces: latitudes

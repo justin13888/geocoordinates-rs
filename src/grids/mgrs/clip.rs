@@ -145,9 +145,11 @@ pub(super) fn encoder_easting(coord: Coordinate, utm: &Utm) -> f64 {
 /// designator's edges linearized in grid space and re-linearized at each
 /// answer until the encoder maps the point to `text`. The bound is then that
 /// point's grid distance to the farthest corner of the nominal square, which
-/// covers every point of the owned part. `None` where no owned point is
-/// found: the square lies wholly outside its designator (the encoder never
-/// emits it), and the parser rejects it.
+/// covers every point of the owned part. `None` where the search finds no
+/// owned point, and the parser then rejects the reference: the square lies
+/// wholly outside its designator, so the encoder never emits it. (For every
+/// square the encoder does emit, the search finds one; the encoder
+/// round-trip properties in the tests check that down to ulp-wide slivers.)
 ///
 /// Every grid distance becomes a ground distance by dividing by the
 /// projection's minimum scale factor `k_min`.
