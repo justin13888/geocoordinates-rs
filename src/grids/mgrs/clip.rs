@@ -110,6 +110,29 @@ impl Center {
     }
 }
 
+/// The easting the encoder names a square by: `utm`'s, the projection of
+/// `coord`, kept west of the central meridian where `coord` lies west of it.
+///
+/// A longitude within about 1e-15° west of the central meridian projects onto
+/// easting 500 000 m exactly, as its offset is below the easting's f64
+/// resolution, which names a square east of the meridian. Zone 31 in band V
+/// ends at its central meridian (3°E, the Norway edge with 32V), so that
+/// square holds no point of 31V: [`settle`] finds no owned point and keeps
+/// the nominal center, which re-encodes as 32V. Taking the largest easting
+/// below 500 000 m instead names the square on the side the point lies on,
+/// which does hold points of the designator. Elsewhere this moves a point
+/// that close to a central meridian into the square west of it, where it
+/// lies.
+pub(super) fn encoder_easting(coord: Coordinate, utm: &Utm) -> f64 {
+    let central_meridian = f64::from(utm.zone()) * 6.0 - 183.0;
+    if coord.lon() < central_meridian {
+        utm.easting_m()
+            .min(f64::from_bits(500_000f64.to_bits() - 1))
+    } else {
+        utm.easting_m()
+    }
+}
+
 /// The point a reference decodes to, and its error bound in ground meters.
 ///
 /// `center` is the center of the nominal square of side `side`, and `gzd` the

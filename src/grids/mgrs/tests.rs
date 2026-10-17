@@ -460,6 +460,27 @@ fn near_equator_references_round_trip() {
 }
 
 #[test]
+fn just_west_of_a_central_meridian_stays_west_of_it() {
+    // 3°E is zone 31's central meridian and, in band V, its Norway edge with
+    // 32V. One ulp west of it projects onto easting 500 000 m exactly, which
+    // used to emit a 31V square east of 3°E that decoded into 32V (#198).
+    let west = f64::from_bits(3f64.to_bits() - 1);
+    let mgrs = Mgrs::try_from_coordinate(c(60.0, west), MgrsPrecision::M1).unwrap();
+    assert_eq!(mgrs.as_str(), "31VDG9999951411");
+    for lat in [56.0, 60.0, 63.999_999_999_999_99] {
+        for lon in [west, 3.0 - 1e-15, 3.0 - 1e-13, 3.0] {
+            for precision in PRECISIONS {
+                assert_round_trips(c(lat, lon), precision);
+            }
+        }
+    }
+    // Off the Norway edge the square west of the meridian is chosen too.
+    let west = f64::from_bits((-75f64).to_bits() + 1);
+    let mgrs = Mgrs::try_from_coordinate(c(40.0, west), MgrsPrecision::M1).unwrap();
+    assert_eq!(mgrs.as_str(), "18TVK9999927757");
+}
+
+#[test]
 fn band_and_domain_edges_round_trip() {
     // Every band boundary, from either side, and the UTM / UPS seams.
     let mut lats = vec![-90.0, -80.000_000_000_000_01, 84.0, 90.0];
@@ -534,9 +555,9 @@ proptest::proptest! {
     /// #149: points near a grid-zone designator's corner — a band edge
     /// crossed with a zone meridian, or with a Norway / Svalbard exception
     /// edge — where the designator truncates the square to a sliver. Offsets
-    /// stop at about a micrometer: 3°E is zone 31's central meridian, so a
-    /// longitude within ~1e-15° west of it projects onto easting 500 000 m
-    /// exactly, the edge of a square of 31V that holds no point west of 3°E.
+    /// run down to the ulp: at 3°E, zone 31's central meridian and 31V's east
+    /// edge, a longitude an ulp west of it projects onto easting 500 000 m
+    /// exactly, and the encoder still names the square west of 3°E (#198).
     #[test]
     fn references_at_grid_zone_corners_round_trip(
         band in 0i32..=20,
@@ -546,7 +567,7 @@ proptest::proptest! {
         ],
         dlat in -1.0f64..1.0,
         dlon in -1.0f64..1.0,
-        scale in proptest::sample::select(vec![1e-3, 1e-6, 1e-9, 1e-11]),
+        scale in proptest::sample::select(vec![1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-16]),
         precision in proptest::sample::select(PRECISIONS.to_vec()),
     ) {
         let lat = (-80.0 + 8.0 * f64::from(band) + dlat * scale).clamp(-90.0, 90.0);
