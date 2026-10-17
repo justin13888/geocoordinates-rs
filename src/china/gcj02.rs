@@ -310,7 +310,7 @@ mod tests {
     #[test]
     fn wgs84_to_gcj02_matches_references() {
         for v in DATUM_VECTORS {
-            assert_within_meters(&v.wgs84().to_gcj02(), &v.gcj02(), 0.2);
+            assert_within_meters(v.wgs84().to_gcj02(), v.gcj02(), 0.2);
         }
     }
 
@@ -325,7 +325,7 @@ mod tests {
         for v in DATUM_VECTORS {
             let got = v.gcj02().to_wgs84_fast();
             assert_eq!(got.max_error().meters(), FAST_BOUND_M);
-            assert_within_meters(got.value(), &v.wgs84(), got.max_error().meters());
+            assert_within_meters(*got.value(), v.wgs84(), got.max_error().meters());
         }
     }
 
@@ -334,7 +334,7 @@ mod tests {
         for v in DATUM_VECTORS {
             let got = v.gcj02().to_wgs84_refined();
             assert_eq!(got.max_error().meters(), REFINED_BOUND_M);
-            assert_within_meters(got.value(), &v.wgs84(), 0.01);
+            assert_within_meters(*got.value(), v.wgs84(), 0.01);
         }
     }
 
@@ -345,8 +345,8 @@ mod tests {
         use crate::test_support::coordtransform::{GCJ_TO_WGS_FAST, INPUT};
         let got = Gcj02::new(INPUT.0, INPUT.1).unwrap().to_wgs84_fast();
         assert_within_meters(
-            got.value(),
-            &Wgs84::new(GCJ_TO_WGS_FAST.0, GCJ_TO_WGS_FAST.1).unwrap(),
+            *got.value(),
+            Wgs84::new(GCJ_TO_WGS_FAST.0, GCJ_TO_WGS_FAST.1).unwrap(),
             0.05,
         );
     }
@@ -377,7 +377,7 @@ mod tests {
         let target = Gcj02::new(40.0, 72.006).unwrap();
         let got = target.to_wgs84_refined();
         let image = got.value().to_gcj02();
-        let residual = haversine_distance(&image, &target).unwrap().meters();
+        let residual = haversine_distance(image, target).unwrap().meters();
         assert!(residual > 100.0, "the edge must not converge: {residual} m");
         assert!(
             residual <= got.max_error().meters(),
@@ -401,7 +401,7 @@ mod tests {
         let got = target.to_wgs84_fast();
         assert!(got.value().is_outside_china());
         let image = got.value().to_gcj02();
-        let residual = haversine_distance(&image, &target).unwrap().meters();
+        let residual = haversine_distance(image, target).unwrap().meters();
         assert!(residual > 300.0, "{residual} m");
         let bound = got.max_error().meters();
         assert!(residual <= bound, "residual {residual} m exceeds {bound} m");
@@ -414,8 +414,8 @@ mod tests {
         // the fast bound covers the distance to its result too.
         let refined = target.to_wgs84_refined();
         assert_within_meters(
-            got.value(),
-            refined.value(),
+            *got.value(),
+            *refined.value(),
             bound + refined.max_error().meters(),
         );
     }
@@ -438,7 +438,7 @@ mod tests {
                     let got = gcj.to_wgs84_fast();
                     let bound = got.max_error().meters();
                     let image = got.value().to_gcj02();
-                    assert_within_meters(&image, &gcj, bound);
+                    assert_within_meters(image, gcj, bound);
                     if bound > FAST_BOUND_M {
                         widened += 1;
                     }
@@ -446,7 +446,7 @@ mod tests {
                     let carried = origin.to_gcj02();
                     if !carried.is_outside_china() {
                         let back = carried.to_wgs84_fast();
-                        assert_within_meters(back.value(), &origin, back.max_error().meters());
+                        assert_within_meters(*back.value(), origin, back.max_error().meters());
                     }
                 }
             }
@@ -468,7 +468,7 @@ mod tests {
                 (got.value().lat(), got.value().lon()),
                 (gcj.lat(), gcj.lon())
             );
-            let off = haversine_distance(got.value(), &origin).unwrap().meters();
+            let off = haversine_distance(*got.value(), origin).unwrap().meters();
             assert!(off > 600.0, "{off} m");
             assert!(
                 off <= got.max_error().meters(),
@@ -520,7 +520,7 @@ mod tests {
                 }
                 carried += 1;
                 for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-                    assert_within_meters(got.value(), &wgs, got.max_error().meters());
+                    assert_within_meters(*got.value(), wgs, got.max_error().meters());
                 }
             }
             let far = [
@@ -548,9 +548,9 @@ mod tests {
             let wgs = Wgs84::new(lat, lon).unwrap();
             let gcj = wgs.to_gcj02();
             for got in [gcj.to_wgs84_fast(), gcj.to_wgs84_refined()] {
-                assert_within_meters(got.value(), &wgs, got.max_error().meters());
+                assert_within_meters(*got.value(), wgs, got.max_error().meters());
             }
-            let fast = haversine_distance(gcj.to_wgs84_fast().value(), &wgs).unwrap();
+            let fast = haversine_distance(*gcj.to_wgs84_fast().value(), wgs).unwrap();
             worst_fast = worst_fast.max(fast.meters());
             // Away from the edge the measured residual stays within the sweep's bound.
             if near_china_box(lat, lon, -0.1) {

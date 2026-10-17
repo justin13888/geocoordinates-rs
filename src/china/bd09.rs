@@ -311,7 +311,7 @@ mod tests {
         for v in DATUM_VECTORS {
             if let Some(expected) = v.bd09() {
                 let got = v.wgs84().try_to_bd09().unwrap();
-                assert_within_meters(&got, &expected, 0.2);
+                assert_within_meters(got, expected, 0.2);
                 assert_eq!(Bd09::try_from(v.wgs84()).unwrap(), got);
             }
         }
@@ -323,7 +323,7 @@ mod tests {
     fn gcj02_to_bd09_matches_coordtransform() {
         use crate::test_support::coordtransform::{GCJ_TO_BD, INPUT};
         let got = gcj(INPUT.0, INPUT.1).try_to_bd09().unwrap();
-        assert_within_meters(&got, &bd(GCJ_TO_BD.0, GCJ_TO_BD.1), 0.05);
+        assert_within_meters(got, bd(GCJ_TO_BD.0, GCJ_TO_BD.1), 0.05);
         assert_eq!(Bd09::try_from(gcj(INPUT.0, INPUT.1)).unwrap(), got);
     }
 
@@ -331,7 +331,7 @@ mod tests {
     fn bd09_to_gcj02_fast_matches_coordtransform() {
         use crate::test_support::coordtransform::{BD_TO_GCJ, INPUT};
         let got = bd(INPUT.0, INPUT.1).try_to_gcj02_fast().unwrap();
-        assert_within_meters(got.value(), &gcj(BD_TO_GCJ.0, BD_TO_GCJ.1), 0.05);
+        assert_within_meters(*got.value(), gcj(BD_TO_GCJ.0, BD_TO_GCJ.1), 0.05);
     }
 
     /// GCJ-02 → BD-09 is exact; the refined inverse recovers it to sub-meter.
@@ -341,7 +341,7 @@ mod tests {
             let g = v.gcj02();
             let back = g.try_to_bd09().unwrap().try_to_gcj02_refined().unwrap();
             assert_eq!(back.max_error().meters(), REFINED_BOUND_M);
-            assert_within_meters(back.value(), &g, 0.01);
+            assert_within_meters(*back.value(), g, 0.01);
         }
     }
 
@@ -402,11 +402,11 @@ mod tests {
         );
         assert_eq!(refined.max_error().meters(), REFINED_BOUND_M);
         let image = refined.value().try_to_bd09().unwrap();
-        assert_within_meters(&image, &target, 0.01);
+        assert_within_meters(image, target, 0.01);
 
         let fast = target.try_to_gcj02_fast().unwrap();
         assert_eq!(fast.max_error().meters(), ANTIMERIDIAN_FAST_BOUND_M);
-        assert_within_meters(fast.value(), refined.value(), fast.max_error().meters());
+        assert_within_meters(*fast.value(), *refined.value(), fast.max_error().meters());
     }
 
     #[test]
@@ -428,7 +428,7 @@ mod tests {
                 .unwrap()
                 .try_to_wgs84_refined()
                 .unwrap();
-            assert_within_meters(back.value(), &v.wgs84(), 0.01);
+            assert_within_meters(*back.value(), v.wgs84(), 0.01);
             assert_eq!(back.max_error().meters(), 2.0 * REFINED_BOUND_M);
         }
     }
@@ -448,7 +448,7 @@ mod tests {
                 back.max_error().meters(),
                 FAST_BOUND_M + crate::china::gcj02::FAST_BOUND_M
             );
-            assert_within_meters(back.value(), &v.wgs84(), back.max_error().meters());
+            assert_within_meters(*back.value(), v.wgs84(), back.max_error().meters());
         }
         assert!(bd(-90.0, 0.0).try_to_wgs84_fast().is_err());
     }
@@ -460,7 +460,7 @@ mod tests {
         let b = gcj(40.0, 72.006).try_to_bd09().unwrap();
         let got = b.try_to_wgs84_fast().unwrap();
         let image = got.value().try_to_bd09().unwrap();
-        let residual = haversine_distance(&image, &b).unwrap().meters();
+        let residual = haversine_distance(image, b).unwrap().meters();
         assert!(residual > 300.0, "{residual} m");
         assert!(
             residual <= got.max_error().meters(),
@@ -493,10 +493,10 @@ mod tests {
         for (lat, lon) in world.chain(china_box_grid()).chain(edges) {
             let origin = Wgs84::new(lat, lon).unwrap();
             let got = origin.try_to_bd09().unwrap().try_to_wgs84_fast().unwrap();
-            assert_within_meters(got.value(), &origin, got.max_error().meters());
+            assert_within_meters(*got.value(), origin, got.max_error().meters());
             if near_china_box(lat, lon, -0.1) {
                 assert_eq!(got.max_error().meters(), 6.5, "({lat}, {lon})");
-                let off = haversine_distance(got.value(), &origin).unwrap().meters();
+                let off = haversine_distance(*got.value(), origin).unwrap().meters();
                 worst_inside = worst_inside.max(off);
             }
         }
@@ -516,10 +516,10 @@ mod tests {
             let b = g.try_to_bd09().unwrap();
             let fast = b.try_to_gcj02_fast().unwrap();
             let refined = b.try_to_gcj02_refined().unwrap();
-            assert_within_meters(fast.value(), &g, fast.max_error().meters());
-            assert_within_meters(refined.value(), &g, refined.max_error().meters());
+            assert_within_meters(*fast.value(), g, fast.max_error().meters());
+            assert_within_meters(*refined.value(), g, refined.max_error().meters());
             assert_eq!(refined.max_error().meters(), REFINED_BOUND_M);
-            worst_fast = worst_fast.max(haversine_distance(fast.value(), &g).unwrap().meters());
+            worst_fast = worst_fast.max(haversine_distance(*fast.value(), g).unwrap().meters());
         }
         // The bound is set by the worldwide worst case (about 0.41 m, near the
         // poles); inside the box the worst is about 0.21 m.
@@ -545,10 +545,10 @@ mod tests {
                 let g = gcj(f64::from(i), lon);
                 let b = g.try_to_bd09().unwrap();
                 let fast = b.try_to_gcj02_fast().unwrap();
-                assert_within_meters(fast.value(), &g, fast.max_error().meters());
+                assert_within_meters(*fast.value(), g, fast.max_error().meters());
                 let back = b.try_to_gcj02_refined().unwrap();
                 let image = back.value().try_to_bd09().unwrap();
-                assert_within_meters(&image, &b, back.max_error().meters());
+                assert_within_meters(image, b, back.max_error().meters());
             }
         }
     }

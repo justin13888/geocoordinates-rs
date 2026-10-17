@@ -138,7 +138,7 @@ pub use units::{Length, LengthUnit};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let a = Coordinate::wgs84(51.5074, -0.1278)?;
 ///     let b = Coordinate::wgs84(48.8566, 2.3522)?;
-///     let km = geodesic_distance(&a, &b)?.to_unit(LengthUnit::Kilometer);
+///     let km = geodesic_distance(a, b)?.to_unit(LengthUnit::Kilometer);
 ///     assert!((km - 343.9).abs() < 1.0);
 ///     let lat = Dms::from_degrees(a.lat(), Axis::Latitude)?;
 ///     assert_eq!((lat.degrees(), lat.hemisphere()), (51, Hemisphere::North));

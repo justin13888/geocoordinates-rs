@@ -34,9 +34,10 @@
 //! ([`rhumb_distance`] / [`rhumb_bearing`] / [`rhumb_destination`]). Every
 //! multi-point operation rejects mixed CRS values.
 //!
-//! Measurement functions take any [`LatLon`](crate::LatLon), so they work on
-//! `Coordinate` and the per-datum newtypes alike. The producers take
-//! `&Coordinate` and return a coordinate in the input's CRS, with its longitude
+//! Every position is passed by value (each is `Copy`). Measurement functions
+//! take any [`LatLon`](crate::LatLon), so they work on `Coordinate` and the
+//! per-datum newtypes alike. The producers take a `Coordinate` and return a
+//! coordinate in the input's CRS, with its longitude
 //! wrapped into `[-180, 180)` and no height (a surface path has no height to
 //! carry).
 //!
@@ -53,13 +54,13 @@
 //!
 //! let paris = Coordinate::wgs84(48.8566, 2.3522)?;
 //! let london = Coordinate::wgs84(51.5074, -0.1278)?;
-//! let exact = geodesy::geodesic_distance(&paris, &london)?; // ellipsoidal, Karney
-//! let rough = geodesy::haversine_distance(&paris, &london)?; // mean sphere
+//! let exact = geodesy::geodesic_distance(paris, london)?; // ellipsoidal, Karney
+//! let rough = geodesy::haversine_distance(paris, london)?; // mean sphere
 //! assert!((exact.meters() - 343_900.0).abs() < 1_000.0);
 //! assert!((exact.meters() - rough.meters()).abs() < 0.0056 * exact.meters());
 //! // Position producers return a coordinate in the input's CRS.
-//! let next = geodesy::destination(&paris, geodesy::initial_bearing(&paris, &london)?, exact)?;
-//! assert!(geodesy::geodesic_distance(&next, &london)?.meters() < 1e-3);
+//! let next = geodesy::destination(paris, geodesy::initial_bearing(paris, london)?, exact)?;
+//! assert!(geodesy::geodesic_distance(next, london)?.meters() < 1e-3);
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 

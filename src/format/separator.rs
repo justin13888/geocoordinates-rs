@@ -19,7 +19,7 @@
 ///     decimal_separator: DecimalSeparator::Comma,
 ///     ..FormatOptions::default()
 /// };
-/// let text = format(&Coordinate::wgs84(48.8566, 2.3522)?, &options)?;
+/// let text = format(Coordinate::wgs84(48.8566, 2.3522)?, &options)?;
 /// assert_eq!(text, "48,856600 2,352200");
 /// let fix = parse_coordinate_with(&text, &options.parse_options())?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));

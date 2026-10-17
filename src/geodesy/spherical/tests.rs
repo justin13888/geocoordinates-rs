@@ -25,12 +25,12 @@ impl CrossingPoint for Intersection {
 fn cross_and_along_track() {
     // Path east along the equator; a point 1° north at lon 5.
     let (start, end, point) = (c(0.0, 0.0), c(0.0, 10.0), c(1.0, 5.0));
-    let xt = cross_track_distance_spherical(&point, &start, &end)
+    let xt = cross_track_distance_spherical(point, start, end)
         .unwrap()
         .meters();
     assert!(xt < 0.0); // north of an eastward path is to the left
     assert_close(xt.abs(), 111_195.0, 2_000.0);
-    let at = along_track_distance_spherical(&point, &start, &end)
+    let at = along_track_distance_spherical(point, start, end)
         .unwrap()
         .meters();
     assert_close(at, 5.0 * 111_195.0, 2_000.0); // foot at lon 5
@@ -40,7 +40,7 @@ fn cross_and_along_track() {
 fn intersection_of_equator_and_meridian() {
     // Equator (east from (0,-10)) meets the prime meridian (north from
     // (-10,0)) at (0, 0); neither endpoint lies on the other path.
-    let x = intersection_spherical(&c(0.0, -10.0), 90.0, &c(-10.0, 0.0), 0.0)
+    let x = intersection_spherical(c(0.0, -10.0), 90.0, c(-10.0, 0.0), 0.0)
         .unwrap()
         .crossing()
         .expect("intersection exists");
@@ -53,16 +53,16 @@ fn coincident_great_circles_have_no_intersection() {
     // Both paths run east along the equator — the same great circle — and so
     // do two that run along it in opposite directions.
     assert_eq!(
-        intersection_spherical(&c(0.0, 0.0), 90.0, &c(0.0, 5.0), 90.0).unwrap(),
+        intersection_spherical(c(0.0, 0.0), 90.0, c(0.0, 5.0), 90.0).unwrap(),
         Intersection::SameGreatCircle
     );
     assert_eq!(
-        intersection_spherical(&c(0.0, 0.0), 90.0, &c(0.0, 5.0), 270.0).unwrap(),
+        intersection_spherical(c(0.0, 0.0), 90.0, c(0.0, 5.0), 270.0).unwrap(),
         Intersection::SameGreatCircle
     );
     // One start and one bearing twice over is one great circle too.
     assert_eq!(
-        intersection_spherical(&c(5.0, 5.0), 30.0, &c(5.0, 5.0), 30.0).unwrap(),
+        intersection_spherical(c(5.0, 5.0), 30.0, c(5.0, 5.0), 30.0).unwrap(),
         Intersection::SameGreatCircle
     );
 }
@@ -71,23 +71,19 @@ fn coincident_great_circles_have_no_intersection() {
 fn spherical_bearing_rad_reference() {
     // Cardinals are exact.
     assert_close(
-        spherical_bearing_rad(&c(0.0, 0.0), &c(0.0, 1.0)),
+        spherical_bearing_rad(c(0.0, 0.0), c(0.0, 1.0)),
         FRAC_PI_2,
         1e-12,
     ); // east
-    assert_close(
-        spherical_bearing_rad(&c(0.0, 0.0), &c(1.0, 0.0)),
-        0.0,
-        1e-12,
-    ); // north
+    assert_close(spherical_bearing_rad(c(0.0, 0.0), c(1.0, 0.0)), 0.0, 1e-12); // north
     // Off-equator, off-meridian — pins every term of the azimuth formula.
     assert_close(
-        spherical_bearing_rad(&c(10.0, 20.0), &c(20.0, 40.0)),
+        spherical_bearing_rad(c(10.0, 20.0), c(20.0, 40.0)),
         1.052_036_642_170_326,
         1e-12,
     );
     assert_close(
-        spherical_bearing_rad(&c(0.0, 0.0), &c(1.0, 1.0)),
+        spherical_bearing_rad(c(0.0, 0.0), c(1.0, 1.0)),
         0.785_322_005_176_158_1,
         1e-12,
     );
@@ -97,18 +93,18 @@ fn spherical_bearing_rad_reference() {
 fn angular_distance_rad_reference() {
     // 1° of arc, and a quarter turn to the pole.
     assert_close(
-        angular_distance_rad(&c(0.0, 0.0), &c(0.0, 1.0)),
+        angular_distance_rad(c(0.0, 0.0), c(0.0, 1.0)),
         1.0_f64.to_radians(),
         1e-12,
     );
     assert_close(
-        angular_distance_rad(&c(0.0, 0.0), &c(90.0, 0.0)),
+        angular_distance_rad(c(0.0, 0.0), c(90.0, 0.0)),
         FRAC_PI_2,
         1e-9,
     );
     // A slanted leg pins the haversine cross term.
     assert_close(
-        angular_distance_rad(&c(10.0, 20.0), &c(20.0, 40.0)),
+        angular_distance_rad(c(10.0, 20.0), c(20.0, 40.0)),
         0.379_099_414_611_752_2,
         1e-12,
     );
@@ -141,23 +137,23 @@ fn is_forward_spans_the_start_to_just_short_of_the_antipode() {
 fn heading_and_n_vector_reference() {
     // At (0, 0): the n-vector is +x, north is +z and east is +y.
     let o = c(0.0, 0.0);
-    let v = n_vector(&o);
+    let v = n_vector(o);
     assert_close(v[0], 1.0, 1e-15);
     assert_close(v[1], 0.0, 1e-15);
     assert_close(v[2], 0.0, 1e-15);
-    let north = heading(&o, 0.0);
+    let north = heading(o, 0.0);
     assert_close(north[2], 1.0, 1e-15);
-    let east = heading(&o, 90.0);
+    let east = heading(o, 90.0);
     assert_close(east[1], 1.0, 1e-15);
     // At (30, 60), heading 45°: pins every term of the north and east axes.
-    let d = heading(&c(30.0, 60.0), 45.0);
+    let d = heading(c(30.0, 60.0), 45.0);
     let (s, h) = (core::f64::consts::FRAC_1_SQRT_2, 0.5);
     assert_close(d[0], s * (-h * 0.5) + s * -(3.0_f64.sqrt() / 2.0), 1e-15);
     assert_close(d[1], s * (-h * 3.0_f64.sqrt() / 2.0) + s * 0.5, 1e-15);
     assert_close(d[2], s * 3.0_f64.sqrt() / 2.0, 1e-15);
     // Each heading is a unit vector perpendicular to its position.
     let p = c(-35.0, 120.0);
-    let (pv, dv) = (n_vector(&p), heading(&p, 200.0));
+    let (pv, dv) = (n_vector(p), heading(p, 200.0));
     assert_close(dot(pv, pv), 1.0, 1e-15);
     assert_close(dot(dv, dv), 1.0, 1e-15);
     assert_close(dot(pv, dv), 0.0, 1e-15);
@@ -175,12 +171,12 @@ fn cross_and_dot_reference() {
 #[test]
 fn along_angle_is_signed() {
     // From (0, 0) heading east: (0, 10) is 10° ahead, (0, -10) 10° behind.
-    let (p, d) = (n_vector(&c(0.0, 0.0)), heading(&c(0.0, 0.0), 90.0));
+    let (p, d) = (n_vector(c(0.0, 0.0)), heading(c(0.0, 0.0), 90.0));
     let ten = 10.0_f64.to_radians();
-    assert_close(along_angle(p, d, n_vector(&c(0.0, 10.0))), ten, 1e-12);
-    assert_close(along_angle(p, d, n_vector(&c(0.0, -10.0))), -ten, 1e-12);
+    assert_close(along_angle(p, d, n_vector(c(0.0, 10.0))), ten, 1e-12);
+    assert_close(along_angle(p, d, n_vector(c(0.0, -10.0))), -ten, 1e-12);
     assert_close(
-        along_angle(p, d, n_vector(&c(0.0, 120.0))),
+        along_angle(p, d, n_vector(c(0.0, 120.0))),
         12.0 * ten,
         1e-12,
     );
@@ -190,14 +186,14 @@ fn along_angle_is_signed() {
 fn intersection_second_geometry_and_west_branch() {
     // A real great circle (east from (10,0)) meets the λ=10 meridian at a
     // positive latitude — pins the crossing away from the trivial origin.
-    let x = intersection_spherical(&c(10.0, 0.0), 90.0, &c(0.0, 10.0), 0.0)
+    let x = intersection_spherical(c(10.0, 0.0), 90.0, c(0.0, 10.0), 0.0)
         .unwrap()
         .crossing()
         .expect("intersection exists");
     assert_close(x.lat(), 9.851_076_116_583_906, 1e-6);
     assert_close(x.lon(), 10.0, 1e-6);
     // b west of a (Δλ < 0).
-    let w = intersection_spherical(&c(0.0, 10.0), 270.0, &c(-10.0, 0.0), 0.0)
+    let w = intersection_spherical(c(0.0, 10.0), 270.0, c(-10.0, 0.0), 0.0)
         .unwrap()
         .crossing()
         .expect("intersection exists");
@@ -212,7 +208,7 @@ fn intersection_at_a_shared_start_is_that_start_without_its_height() {
     let start = c(5.0, 5.0)
         .with_height(crate::coord::Height::Ellipsoidal(120.0))
         .unwrap();
-    let x = intersection_spherical(&start, 10.0, &start, 80.0)
+    let x = intersection_spherical(start, 10.0, start, 80.0)
         .unwrap()
         .crossing()
         .expect("coincident point");
@@ -226,12 +222,12 @@ fn intersection_behind_a_bearing_is_no_forward_crossing() {
     // The crossing of these great circles lies *behind* the westward path, and
     // its antipode beyond half a great circle along the northward one.
     assert_eq!(
-        intersection_spherical(&c(10.0, 0.0), 270.0, &c(0.0, 10.0), 0.0).unwrap(),
+        intersection_spherical(c(10.0, 0.0), 270.0, c(0.0, 10.0), 0.0).unwrap(),
         Intersection::NoForwardCrossing
     );
     // Antipodal starts: each crossing is a start, half a circle from the other.
     assert_eq!(
-        intersection_spherical(&c(0.0, 0.0), 0.0, &c(0.0, 180.0), 90.0).unwrap(),
+        intersection_spherical(c(0.0, 0.0), 0.0, c(0.0, 180.0), 90.0).unwrap(),
         Intersection::NoForwardCrossing
     );
 }
@@ -241,9 +237,9 @@ fn intersection_with_two_oblique_bearings() {
     // Both paths aim at (15, 25) from off-axis starts, so *both* bearings are
     // oblique (neither cardinal nor zero).
     let p = intersection_spherical(
-        &c(-20.0, 0.0),
+        c(-20.0, 0.0),
         36.954_284_175_619_3,
-        &c(40.0, 60.0),
+        c(40.0, 60.0),
         240.745_319_307_363_2,
     )
     .unwrap()
@@ -257,7 +253,7 @@ fn intersection_with_two_oblique_bearings() {
 fn intersection_with_shared_start_meridian() {
     // Both starts sit on λ = 0. Asymmetric bearings (60° from the equator,
     // 150° from 30°N) pin the forward crossing ≈(7.19°, 12.63°).
-    let p = intersection_spherical(&c(0.0, 0.0), 60.0, &c(30.0, 0.0), 150.0)
+    let p = intersection_spherical(c(0.0, 0.0), 60.0, c(30.0, 0.0), 150.0)
         .unwrap()
         .crossing()
         .expect("crossing exists");
@@ -275,9 +271,9 @@ fn haversine_relative_error_against_the_geodesic_is_bounded() {
         for lat2 in lats.clone() {
             for dlon in (0..=36).map(|k| f64::from(k) * 5.0) {
                 let (a, b) = (c(lat1, 0.0), c(lat2, dlon));
-                let geo = crate::geodesy::geodesic_distance(&a, &b).unwrap().meters();
+                let geo = crate::geodesy::geodesic_distance(a, b).unwrap().meters();
                 if geo > 1_000.0 {
-                    let hav = haversine_distance(&a, &b).unwrap().meters();
+                    let hav = haversine_distance(a, b).unwrap().meters();
                     worst = worst.max(((hav - geo) / geo).abs());
                 }
             }
@@ -290,7 +286,7 @@ fn haversine_relative_error_against_the_geodesic_is_bounded() {
 fn haversine_references() {
     // R·π/180 for one degree of arc on the IUGG mean sphere.
     let one_deg = MEAN_EARTH_RADIUS_M * 1.0_f64.to_radians();
-    let hav = |a: Coordinate, b: Coordinate| haversine_distance(&a, &b).unwrap().meters();
+    let hav = |a: Coordinate, b: Coordinate| haversine_distance(a, b).unwrap().meters();
     assert_close(hav(c(0.0, 0.0), c(0.0, 1.0)), one_deg, 1e-6);
     // Across the antimeridian the short way is 1°, not 359°.
     assert_close(hav(c(0.0, 179.5), c(0.0, -179.5)), one_deg, 1e-6);
@@ -314,21 +310,21 @@ fn intersection_from_a_pole_follows_the_given_meridian() {
     // C1: the meridian south from the north pole along 10°E meets the equator
     // at (0, 10). At a pole the bearing is taken against the meridian of the
     // given longitude, so 180° from (90, 10) runs down 10°E.
-    let x = intersection_spherical(&c(90.0, 10.0), 180.0, &c(0.0, 0.0), 90.0)
+    let x = intersection_spherical(c(90.0, 10.0), 180.0, c(0.0, 0.0), 90.0)
         .unwrap()
         .crossing()
         .expect("an intersection is returned");
     assert_close(x.lat(), 0.0, 1e-9);
     assert_close(x.lon(), 10.0, 1e-9);
     // Bearing 0° from the pole runs down the opposite meridian, 170°W.
-    let x = intersection_spherical(&c(90.0, 10.0), 0.0, &c(0.0, -175.0), 90.0)
+    let x = intersection_spherical(c(90.0, 10.0), 0.0, c(0.0, -175.0), 90.0)
         .unwrap()
         .crossing()
         .expect("an intersection is returned");
     assert_close(x.lat(), 0.0, 1e-9);
     assert_close(x.lon(), -170.0, 1e-9);
     // From the south pole, 0° runs up the given meridian.
-    let x = intersection_spherical(&c(-90.0, -60.0), 0.0, &c(0.0, -70.0), 90.0)
+    let x = intersection_spherical(c(-90.0, -60.0), 0.0, c(0.0, -70.0), 90.0)
         .unwrap()
         .crossing()
         .expect("an intersection is returned");
@@ -339,7 +335,7 @@ fn intersection_from_a_pole_follows_the_given_meridian() {
 #[test]
 fn intersection_at_a_pole() {
     // Two meridians leaving the equator northward cross at the north pole.
-    let x = intersection_spherical(&c(0.0, 20.0), 0.0, &c(0.0, 100.0), 0.0)
+    let x = intersection_spherical(c(0.0, 20.0), 0.0, c(0.0, 100.0), 0.0)
         .unwrap()
         .crossing()
         .expect("the meridians meet at the pole");
@@ -350,14 +346,14 @@ fn intersection_at_a_pole() {
 fn intersection_rejects_obfuscated_datums_and_keeps_classic_ones() {
     let gcj = Coordinate::gcj02(30.0, 110.0).unwrap();
     assert!(matches!(
-        intersection_spherical(&gcj, 90.0, &gcj, 0.0),
+        intersection_spherical(gcj, 90.0, gcj, 0.0),
         Err(Error::CrsMismatch {
             expected: crate::Crs::Wgs84,
             found: crate::Crs::Gcj02,
         })
     ));
     let tokyo = |lat, lon| Coordinate::new(lat, lon, crate::Crs::Tokyo).unwrap();
-    let x = intersection_spherical(&tokyo(0.0, -10.0), 90.0, &tokyo(-10.0, 0.0), 0.0)
+    let x = intersection_spherical(tokyo(0.0, -10.0), 90.0, tokyo(-10.0, 0.0), 0.0)
         .unwrap()
         .crossing()
         .expect("intersection exists");
@@ -375,8 +371,8 @@ fn cross_and_along_track_reject_a_degenerate_path() {
         (c(30.0, 40.0), c(-30.0, -140.0)),
     ] {
         for r in [
-            cross_track_distance_spherical(&point, &start, &end),
-            along_track_distance_spherical(&point, &start, &end),
+            cross_track_distance_spherical(point, start, end),
+            along_track_distance_spherical(point, start, end),
         ] {
             assert!(
                 matches!(&r, Err(Error::InvalidValue { field: "path", .. })),
@@ -399,19 +395,19 @@ fn along_track_rejects_a_pole_of_the_path() {
         ),
     ] {
         for pole in poles {
-            let r = along_track_distance_spherical(&pole, &start, &end);
+            let r = along_track_distance_spherical(pole, start, end);
             assert!(
                 matches!(&r, Err(Error::InvalidValue { field: "point", .. })),
                 "{pole:?} on {start:?} → {end:?}: {r:?}"
             );
             // The cross-track distance there is still defined: a quarter circle.
-            let xt = cross_track_distance_spherical(&pole, &start, &end).unwrap();
+            let xt = cross_track_distance_spherical(pole, start, end).unwrap();
             assert_close(xt.meters().abs(), MEAN_EARTH_RADIUS_M * FRAC_PI_2, 1e-3);
         }
     }
     // A point 1 m from the pole still has an answer.
     let near = c(90.0 - 1.0 / 111_195.0, 30.0);
-    let at = along_track_distance_spherical(&near, &c(0.0, 0.0), &c(0.0, 10.0)).unwrap();
+    let at = along_track_distance_spherical(near, c(0.0, 0.0), c(0.0, 10.0)).unwrap();
     assert_close(
         at.meters(),
         30.0_f64.to_radians() * MEAN_EARTH_RADIUS_M,
@@ -427,7 +423,7 @@ fn along_track_matches_the_foot_all_round_the_circle() {
     for lon in [
         -179.0, -135.0, -91.0, -45.0, -1.0, 1.0, 45.0, 91.0, 135.0, 179.0,
     ] {
-        let at = along_track_distance_spherical(&c(1.0, lon), &start, &end).unwrap();
+        let at = along_track_distance_spherical(c(1.0, lon), start, end).unwrap();
         assert_close(at.meters(), lon.to_radians() * MEAN_EARTH_RADIUS_M, 1e-6);
     }
 }
@@ -443,8 +439,8 @@ fn cross_and_along_track_from_the_start_are_positive_zero() {
             for (d_lat, d_lon) in [(0.0, 10.0), (5.0, 5.0), (-5.0, 5.0), (5.0, 0.0)] {
                 let end = c(lat + d_lat, lon + d_lon);
                 for d in [
-                    cross_track_distance_spherical(&start, &start, &end).unwrap(),
-                    along_track_distance_spherical(&start, &start, &end).unwrap(),
+                    cross_track_distance_spherical(start, start, end).unwrap(),
+                    along_track_distance_spherical(start, start, end).unwrap(),
                 ] {
                     let m = d.meters();
                     assert!(m.abs() < 1e-6, "{lat}, {lon}: {m}");
@@ -460,7 +456,7 @@ fn cross_and_along_track_from_the_start_are_positive_zero() {
 #[test]
 fn intersection_across_the_antimeridian() {
     // The equator east from 170°E meets the 175°W meridian north from 10°S.
-    let x = intersection_spherical(&c(0.0, 170.0), 90.0, &c(-10.0, -175.0), 0.0)
+    let x = intersection_spherical(c(0.0, 170.0), 90.0, c(-10.0, -175.0), 0.0)
         .unwrap()
         .crossing()
         .expect("intersection exists");
@@ -473,16 +469,16 @@ fn cross_and_along_track_across_the_antimeridian() {
     // Path east along the equator from 175°E to 175°W; a point 1° north at 180°.
     let (start, end, point) = (c(0.0, 175.0), c(0.0, -175.0), c(1.0, 180.0));
     let one_deg = MEAN_EARTH_RADIUS_M * 1.0_f64.to_radians();
-    let xt = cross_track_distance_spherical(&point, &start, &end)
+    let xt = cross_track_distance_spherical(point, start, end)
         .unwrap()
         .meters();
     assert_close(xt, -one_deg, 1e-3);
-    let at = along_track_distance_spherical(&point, &start, &end)
+    let at = along_track_distance_spherical(point, start, end)
         .unwrap()
         .meters();
     assert_close(at, 5.0 * one_deg, 1e-3);
     // A foot behind the start is negative.
-    let behind = along_track_distance_spherical(&c(1.0, -5.0), &c(0.0, 0.0), &c(0.0, 10.0))
+    let behind = along_track_distance_spherical(c(1.0, -5.0), c(0.0, 0.0), c(0.0, 10.0))
         .unwrap()
         .meters();
     assert_close(behind, -5.0 * one_deg, 1e-3);

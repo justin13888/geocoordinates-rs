@@ -27,8 +27,8 @@ fn crossing(r: Result<GeodesicIntersection>) -> Coordinate {
 
 /// Whether `p` lies on the geodesic leaving `start` on `bearing`, to 1 µm.
 fn on_path(p: &Coordinate, start: &Coordinate, bearing: f64) -> bool {
-    let ahead = destination(start, bearing, Length::from_meters(1_000_000.0)).unwrap();
-    cross_track_distance(p, start, &ahead)
+    let ahead = destination(*start, bearing, Length::from_meters(1_000_000.0)).unwrap();
+    cross_track_distance(*p, *start, ahead)
         .unwrap()
         .meters()
         .abs()
@@ -51,14 +51,14 @@ fn equatorial_path_feet_are_meridian_arcs() {
         (0.0, 3.0),
     ] {
         let p = c(lat, lon);
-        let arc = geodesic_distance(&c(0.0, lon), &p).unwrap().meters();
-        let xt = cross_track_distance(&p, &start, &end).unwrap().meters();
+        let arc = geodesic_distance(c(0.0, lon), p).unwrap().meters();
+        let xt = cross_track_distance(p, start, end).unwrap().meters();
         // North of an eastward path is to its left.
         assert!(
             (xt + arc.copysign(lat)).abs() < 1e-6,
             "{lat},{lon}: {xt} vs {arc}"
         );
-        let at = along_track_distance(&p, &start, &end).unwrap().meters();
+        let at = along_track_distance(p, start, end).unwrap().meters();
         assert!(
             (at - 6_378_137.0 * lon.to_radians()).abs() < 1e-6,
             "{lat},{lon}: {at}"
@@ -77,8 +77,8 @@ fn the_foot_is_where_the_perpendicular_meets_the_path() {
         c(45.0, 20.0),
         c(-10.0, -100.0),
     ] {
-        let xt = cross_track_distance(&p, &start, &end).unwrap().meters();
-        let at = along_track_distance(&p, &start, &end).unwrap().meters();
+        let xt = cross_track_distance(p, start, end).unwrap().meters();
+        let at = along_track_distance(p, start, end).unwrap().meters();
         let (lat, lon, foot_azi): (f64, f64, f64) = g.direct(start.lat(), start.lon(), azi, at);
         let (s, azi_p, _, _): (f64, f64, f64, f64) = g.inverse(lat, lon, p.lat(), p.lon());
         assert!((s - xt.abs()).abs() < 1e-6, "{p:?}");
@@ -93,8 +93,8 @@ fn the_foot_is_where_the_perpendicular_meets_the_path() {
 fn ellipsoidal_and_spherical_cross_track_agree_to_the_flattening() {
     let (start, end) = (c(10.0, 20.0), c(30.0, 50.0));
     let p = c(35.0, 25.0);
-    let exact = cross_track_distance(&p, &start, &end).unwrap().meters();
-    let sphere = cross_track_distance_spherical(&p, &start, &end)
+    let exact = cross_track_distance(p, start, end).unwrap().meters();
+    let sphere = cross_track_distance_spherical(p, start, end)
         .unwrap()
         .meters();
     assert!(
@@ -107,10 +107,10 @@ fn ellipsoidal_and_spherical_cross_track_agree_to_the_flattening() {
 #[test]
 fn along_track_is_negative_behind_the_start_and_zero_at_it() {
     let (start, end) = (c(0.0, 0.0), c(0.0, 10.0));
-    let behind = along_track_distance(&c(2.0, -3.0), &start, &end).unwrap();
+    let behind = along_track_distance(c(2.0, -3.0), start, end).unwrap();
     assert!((behind.meters() + 6_378_137.0 * 3f64.to_radians()).abs() < 1e-6);
-    let at_start = along_track_distance(&start, &start, &end).unwrap().meters();
-    let xt_start = cross_track_distance(&start, &start, &end).unwrap().meters();
+    let at_start = along_track_distance(start, start, end).unwrap().meters();
+    let xt_start = cross_track_distance(start, start, end).unwrap().meters();
     assert_eq!((at_start, xt_start), (0.0, 0.0));
     assert!(at_start.is_sign_positive() && xt_start.is_sign_positive());
 }
@@ -119,20 +119,20 @@ fn along_track_is_negative_behind_the_start_and_zero_at_it() {
 fn across_the_antimeridian() {
     // A path east from 170° E over the antimeridian; the point is north of 175° W.
     let (start, end) = (c(0.0, 170.0), c(0.0, -170.0));
-    let at = along_track_distance(&c(5.0, -175.0), &start, &end).unwrap();
+    let at = along_track_distance(c(5.0, -175.0), start, end).unwrap();
     assert!((at.meters() - 6_378_137.0 * 15f64.to_radians()).abs() < 1e-6);
 }
 
 #[test]
 fn a_pole_of_an_equatorial_path_has_a_cross_track_but_no_along_track() {
     let (start, end) = (c(0.0, 0.0), c(0.0, 10.0));
-    let quarter = geodesic_distance(&c(0.0, 0.0), &c(90.0, 0.0))
+    let quarter = geodesic_distance(c(0.0, 0.0), c(90.0, 0.0))
         .unwrap()
         .meters();
     for (pole, sign) in [(c(90.0, 0.0), -1.0), (c(-90.0, 77.0), 1.0)] {
-        let xt = cross_track_distance(&pole, &start, &end).unwrap().meters();
+        let xt = cross_track_distance(pole, start, end).unwrap().meters();
         assert!((xt - sign * quarter).abs() < 1e-6, "{pole:?}: {xt}");
-        assert_invalid_value(along_track_distance(&pole, &start, &end), "point");
+        assert_invalid_value(along_track_distance(pole, start, end), "point");
     }
 }
 
@@ -143,7 +143,7 @@ fn a_point_just_off_the_pole_still_finds_its_meridian() {
     // the foot is only defined to about 1e-9 m / M (M ≈ 1.6e-9 per cm).
     let (start, end) = (c(0.0, 0.0), c(0.0, 10.0));
     for (lat, tolerance) in [(90.0 - 1e-7, 2.0), (90.0 - 1e-5, 0.02), (90.0 - 1e-3, 2e-4)] {
-        let at = along_track_distance(&c(lat, 37.0), &start, &end)
+        let at = along_track_distance(c(lat, 37.0), start, end)
             .unwrap()
             .meters();
         let error = (at - 6_378_137.0 * 37f64.to_radians()).abs();
@@ -156,15 +156,15 @@ fn a_meridional_path_reaches_over_the_pole() {
     // North up the prime meridian: a point on the far meridian beyond the pole
     // is ahead, past the quarter meridian.
     let (start, end) = (c(0.0, 0.0), c(45.0, 0.0));
-    let quarter = geodesic_distance(&c(0.0, 0.0), &c(90.0, 0.0))
+    let quarter = geodesic_distance(c(0.0, 0.0), c(90.0, 0.0))
         .unwrap()
         .meters();
     let past = c(80.0, 180.0);
-    let beyond = geodesic_distance(&c(90.0, 0.0), &past).unwrap().meters();
-    let at = along_track_distance(&past, &start, &end).unwrap().meters();
+    let beyond = geodesic_distance(c(90.0, 0.0), past).unwrap().meters();
+    let at = along_track_distance(past, start, end).unwrap().meters();
     assert!((at - quarter - beyond).abs() < 1e-6, "{at}");
     assert!(
-        cross_track_distance(&past, &start, &end)
+        cross_track_distance(past, start, end)
             .unwrap()
             .meters()
             .abs()
@@ -176,22 +176,22 @@ fn a_meridional_path_reaches_over_the_pole() {
 fn degenerate_paths_and_datums_are_rejected() {
     let (p, start) = (c(1.0, 1.0), c(0.0, 0.0));
     for end in [c(0.0, 0.0), c(0.0, 180.0), c(-0.0, -180.0)] {
-        assert_invalid_value(cross_track_distance(&p, &start, &end), "path");
-        assert_invalid_value(along_track_distance(&p, &start, &end), "path");
+        assert_invalid_value(cross_track_distance(p, start, end), "path");
+        assert_invalid_value(along_track_distance(p, start, end), "path");
     }
     let poles = (c(90.0, 0.0), c(-90.0, 45.0));
-    assert_invalid_value(cross_track_distance(&p, &poles.0, &poles.1), "path");
+    assert_invalid_value(cross_track_distance(p, poles.0, poles.1), "path");
 
     let tokyo = Coordinate::new(1.0, 1.0, Crs::Tokyo).unwrap();
     for r in [
-        cross_track_distance(&tokyo, &start, &c(0.0, 10.0)),
-        cross_track_distance(&p, &start, &tokyo),
-        along_track_distance(&p, &tokyo, &c(0.0, 10.0)),
+        cross_track_distance(tokyo, start, c(0.0, 10.0)),
+        cross_track_distance(p, start, tokyo),
+        along_track_distance(p, tokyo, c(0.0, 10.0)),
     ] {
         assert!(matches!(r, Err(Error::CrsMismatch { .. })), "{r:?}");
     }
     let gcj = |lat, lon| Coordinate::new(lat, lon, Crs::Gcj02).unwrap();
-    let r = cross_track_distance(&gcj(31.0, 121.0), &gcj(30.0, 120.0), &gcj(32.0, 122.0));
+    let r = cross_track_distance(gcj(31.0, 121.0), gcj(30.0, 120.0), gcj(32.0, 122.0));
     assert!(matches!(r, Err(Error::CrsMismatch { .. })), "{r:?}");
 }
 
@@ -199,7 +199,7 @@ fn degenerate_paths_and_datums_are_rejected() {
 fn each_datum_is_measured_on_its_own_ellipsoid() {
     let bessel = Ellipsoid::BESSEL_1841;
     let tokyo = |lat, lon| Coordinate::new(lat, lon, Crs::Tokyo).unwrap();
-    let at = along_track_distance(&tokyo(1.0, 5.0), &tokyo(0.0, 0.0), &tokyo(0.0, 10.0))
+    let at = along_track_distance(tokyo(1.0, 5.0), tokyo(0.0, 0.0), tokyo(0.0, 10.0))
         .unwrap()
         .meters();
     assert!((at - bessel.semi_major().meters() * 5f64.to_radians()).abs() < 1e-6);
@@ -209,14 +209,14 @@ fn each_datum_is_measured_on_its_own_ellipsoid() {
 
 #[test]
 fn an_equator_and_a_meridian_cross_exactly() {
-    let p = crossing(intersection(&c(0.0, 0.0), 90.0, &c(-10.0, 10.0), 0.0));
+    let p = crossing(intersection(c(0.0, 0.0), 90.0, c(-10.0, 10.0), 0.0));
     assert!(
         p.lat().abs() < 1e-12 && (p.lon() - 10.0).abs() < 1e-12,
         "{p:?}"
     );
     assert_eq!((p.crs(), p.height()), (Crs::Wgs84, None));
     // Across the antimeridian, wrapped into [-180, 180).
-    let p = crossing(intersection(&c(0.0, 170.0), 90.0, &c(10.0, -175.0), 180.0));
+    let p = crossing(intersection(c(0.0, 170.0), 90.0, c(10.0, -175.0), 180.0));
     assert!(
         p.lat().abs() < 1e-12 && (p.lon() + 175.0).abs() < 1e-12,
         "{p:?}"
@@ -225,7 +225,7 @@ fn an_equator_and_a_meridian_cross_exactly() {
 
 #[test]
 fn meridians_heading_north_cross_at_the_pole() {
-    let p = crossing(intersection(&c(0.0, 0.0), 0.0, &c(0.0, 30.0), 0.0));
+    let p = crossing(intersection(c(0.0, 0.0), 0.0, c(0.0, 30.0), 0.0));
     assert!((p.lat() - 90.0).abs() < 1e-9, "{p:?}");
 }
 
@@ -237,23 +237,23 @@ fn oblique_crossings_lie_on_both_geodesics() {
         (c(60.0, 10.0), 200.0, c(50.0, -30.0), 120.0),
         (c(0.0, 0.0), 45.0, c(0.0, 20.0), 315.0),
     ] {
-        let p = crossing(intersection(&a, ba, &b, bb));
+        let p = crossing(intersection(a, ba, b, bb));
         assert!(on_path(&p, &a, ba) && on_path(&p, &b, bb), "{p:?}");
         // The ellipsoid moves the crossing off the sphere's.
-        let spherical = crate::geodesy::intersection_spherical(&a, ba, &b, bb).unwrap();
+        let spherical = crate::geodesy::intersection_spherical(a, ba, b, bb).unwrap();
         let crate::geodesy::Intersection::Crossing(q) = spherical else {
             panic!("{spherical:?}");
         };
-        assert!(geodesic_distance(&p, &q).unwrap().meters() > 1.0);
+        assert!(geodesic_distance(p, q).unwrap().meters() > 1.0);
     }
     // Mirror-image paths cross on their mirror line.
-    let p = crossing(intersection(&c(0.0, 0.0), 45.0, &c(0.0, 20.0), 315.0));
+    let p = crossing(intersection(c(0.0, 0.0), 45.0, c(0.0, 20.0), 315.0));
     assert!((p.lon() - 10.0).abs() < 1e-12 && p.lat() > 9.0, "{p:?}");
 }
 
 #[test]
 fn a_crossing_at_a_start_counts_as_ahead() {
-    let p = crossing(intersection(&c(0.0, 0.0), 0.0, &c(0.0, 30.0), 270.0));
+    let p = crossing(intersection(c(0.0, 0.0), 0.0, c(0.0, 30.0), 270.0));
     assert!(p.lat().abs() < 1e-9 && p.lon().abs() < 1e-9, "{p:?}");
 }
 
@@ -262,18 +262,18 @@ fn paths_along_one_geodesic_are_the_same_geodesic() {
     use GeodesicIntersection::SameGeodesic;
     // The equator, a meridian, and an oblique geodesic, each walked both ways.
     assert_eq!(
-        intersection(&c(0.0, 0.0), 90.0, &c(0.0, 30.0), 270.0),
+        intersection(c(0.0, 0.0), 90.0, c(0.0, 30.0), 270.0),
         Ok(SameGeodesic)
     );
     assert_eq!(
-        intersection(&c(10.0, 5.0), 0.0, &c(50.0, 5.0), 0.0),
+        intersection(c(10.0, 5.0), 0.0, c(50.0, 5.0), 0.0),
         Ok(SameGeodesic)
     );
     let a = c(20.0, 30.0);
-    let b = destination(&a, 50.0, Length::from_meters(3_000_000.0)).unwrap();
-    let onward = final_bearing(&a, &b).unwrap();
-    assert_eq!(intersection(&a, 50.0, &b, onward), Ok(SameGeodesic));
-    assert_eq!(intersection(&a, 50.0, &b, onward + 180.0), Ok(SameGeodesic));
+    let b = destination(a, 50.0, Length::from_meters(3_000_000.0)).unwrap();
+    let onward = final_bearing(a, b).unwrap();
+    assert_eq!(intersection(a, 50.0, b, onward), Ok(SameGeodesic));
+    assert_eq!(intersection(a, 50.0, b, onward + 180.0), Ok(SameGeodesic));
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn one_great_circle_is_two_geodesics_on_the_ellipsoid() {
         y.atan2(x).to_degrees()
     };
     let (ba, bb) = (sphere(&a, &b), sphere(&b, &a) + 180.0);
-    match intersection(&a, ba, &b, bb) {
+    match intersection(a, ba, b, bb) {
         Ok(GeodesicIntersection::Crossing(p)) => {
             assert!(on_path(&p, &a, ba) && on_path(&p, &b, bb))
         }
@@ -314,12 +314,12 @@ fn backward_crossings_are_not_forward() {
     use GeodesicIntersection::NoForwardCrossing;
     // Meridians, one north and one south.
     assert_eq!(
-        intersection(&c(0.0, 0.0), 0.0, &c(0.0, 30.0), 180.0),
+        intersection(c(0.0, 0.0), 0.0, c(0.0, 30.0), 180.0),
         Ok(NoForwardCrossing)
     );
     // An equator path east and a meridian path north that it already passed.
     assert_eq!(
-        intersection(&c(0.0, 20.0), 90.0, &c(-10.0, 10.0), 0.0),
+        intersection(c(0.0, 20.0), 90.0, c(-10.0, 10.0), 0.0),
         Ok(NoForwardCrossing)
     );
 }
@@ -328,27 +328,22 @@ fn backward_crossings_are_not_forward() {
 fn intersection_rejects_bad_bearings_and_datums() {
     let (a, b) = (c(0.0, 0.0), c(0.0, 10.0));
     for (ba, bb) in [(f64::NAN, 0.0), (0.0, f64::INFINITY)] {
-        assert_invalid_value(intersection(&a, ba, &b, bb), "bearing");
+        assert_invalid_value(intersection(a, ba, b, bb), "bearing");
     }
     let tokyo = Coordinate::new(0.0, 10.0, Crs::Tokyo).unwrap();
     assert!(matches!(
-        intersection(&a, 0.0, &tokyo, 315.0),
+        intersection(a, 0.0, tokyo, 315.0),
         Err(Error::CrsMismatch { .. })
     ));
     let bd = |lat, lon| Coordinate::new(lat, lon, Crs::Bd09).unwrap();
-    let r = intersection(&bd(30.0, 120.0), 0.0, &bd(30.0, 121.0), 315.0);
+    let r = intersection(bd(30.0, 120.0), 0.0, bd(30.0, 121.0), 315.0);
     assert!(matches!(r, Err(Error::CrsMismatch { .. })), "{r:?}");
 }
 
 #[test]
 fn a_classic_datum_crossing_keeps_its_datum() {
     let nad = |lat, lon| Coordinate::new(lat, lon, Crs::Nad27).unwrap();
-    let p = crossing(intersection(
-        &nad(40.0, -100.0),
-        90.0,
-        &nad(35.0, -90.0),
-        0.0,
-    ));
+    let p = crossing(intersection(nad(40.0, -100.0), 90.0, nad(35.0, -90.0), 0.0));
     assert_eq!(p.crs(), Crs::Nad27);
     assert!((p.lon() + 90.0).abs() < 1e-9);
 }
@@ -359,11 +354,11 @@ fn parallel_geodesics_a_millimetre_apart_still_cross() {
     // cross about a quarter meridian away at an angle near 1.6e-10 rad. The
     // crossing slides along them with round-off, but lies on both.
     let a = c(20.0, 30.0);
-    let on_a = destination(&a, 50.0, Length::from_meters(100_000.0)).unwrap();
-    let onward = final_bearing(&a, &on_a).unwrap();
+    let on_a = destination(a, 50.0, Length::from_meters(100_000.0)).unwrap();
+    let onward = final_bearing(a, on_a).unwrap();
     for offset in [1e-3, 1.0] {
-        let b = destination(&on_a, onward + 90.0, Length::from_meters(offset)).unwrap();
-        let p = crossing(intersection(&a, 50.0, &b, onward));
+        let b = destination(on_a, onward + 90.0, Length::from_meters(offset)).unwrap();
+        let p = crossing(intersection(a, 50.0, b, onward));
         assert!(
             on_path(&p, &a, 50.0) && on_path(&p, &b, onward),
             "{offset}: {p:?}"
@@ -388,13 +383,13 @@ fn an_unrefined_seed_ahead_on_the_sphere_is_an_error() {
 #[test]
 fn a_crossing_far_ahead_is_found() {
     // East along the equator to the 120° E meridian, 13,358 km ahead of a.
-    let p = crossing(intersection(&c(0.0, 0.0), 90.0, &c(-60.0, 120.0), 0.0));
+    let p = crossing(intersection(c(0.0, 0.0), 90.0, c(-60.0, 120.0), 0.0));
     assert!(
         p.lat().abs() < 1e-9 && (p.lon() - 120.0).abs() < 1e-9,
         "{p:?}"
     );
     // And due west, from a start whose bearing points the other way round.
-    let p = crossing(intersection(&c(0.0, 0.0), 270.0, &c(60.0, -120.0), 180.0));
+    let p = crossing(intersection(c(0.0, 0.0), 270.0, c(60.0, -120.0), 180.0));
     assert!(
         p.lat().abs() < 1e-9 && (p.lon() + 120.0).abs() < 1e-9,
         "{p:?}"
@@ -407,7 +402,7 @@ fn a_point_on_the_path_has_a_positive_zero_cross_track() {
     // the sign of zero is set explicitly, whichever way the path runs.
     for end in [c(0.0, 10.0), c(0.0, -10.0), c(10.0, 0.0), c(-10.0, 0.0)] {
         let start = c(0.0, 0.0);
-        let xt = cross_track_distance(&start, &start, &end).unwrap().meters();
+        let xt = cross_track_distance(start, start, end).unwrap().meters();
         assert!(xt == 0.0 && xt.is_sign_positive(), "{end:?}: {xt:?}");
     }
 }
@@ -472,7 +467,7 @@ fn a_crossing_near_the_pole_lies_on_both_paths() {
     // along the two paths near the south pole, once stopped 1.03 µm off one.
     let (a, ba) = (c(-22.650585410257776, 68.02949354908361), 174.6008046704343);
     let (b, bb) = (c(0.0, -138.81624026636084), 185.8234302643924);
-    let p = crossing(intersection(&a, ba, &b, bb));
+    let p = crossing(intersection(a, ba, b, bb));
     assert!(on_path(&p, &a, ba) && on_path(&p, &b, bb), "{p:?}");
     assert!(p.lat() < -84.0, "{p:?}");
 }
@@ -492,7 +487,7 @@ proptest! {
         bb in 0.0..360.0_f64,
     ) {
         let (a, b) = (c(lat_a, lon_a), c(lat_b, lon_b));
-        if let Ok(GeodesicIntersection::Crossing(p)) = intersection(&a, ba, &b, bb) {
+        if let Ok(GeodesicIntersection::Crossing(p)) = intersection(a, ba, b, bb) {
             prop_assert!(on_path(&p, &a, ba) && on_path(&p, &b, bb), "{p:?}");
             let g = Geodesic::wgs84();
             for (start, bearing) in [(a, ba), (b, bb)] {
@@ -510,10 +505,10 @@ proptest! {
         (lat_p, lon_p) in (latitude(), -180.0..180.0_f64),
     ) {
         let (start, end, p) = (c(lat_s, lon_s), c(lat_e, lon_e), c(lat_p, lon_p));
-        prop_assume!(geodesic_distance(&start, &end).unwrap().meters() > 1.0);
+        prop_assume!(geodesic_distance(start, end).unwrap().meters() > 1.0);
         if let (Ok(xt), Ok(at)) = (
-            cross_track_distance(&p, &start, &end),
-            along_track_distance(&p, &start, &end),
+            cross_track_distance(p, start, end),
+            along_track_distance(p, start, end),
         ) {
             let g = Geodesic::wgs84();
             let (azi, _, _): (f64, f64, f64) = g.inverse(lat_s, lon_s, lat_e, lon_e);

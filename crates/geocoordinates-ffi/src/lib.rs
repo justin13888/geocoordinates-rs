@@ -10,7 +10,8 @@
 //! | Rust idiom | FFI form here |
 //! |---|---|
 //! | `Approx<T>` (generic wrapper) | flat records [`ApproxWgs84`] / [`ApproxGcj02`] carrying `max_error_m` |
-//! | `LatLon` trait / `&impl LatLon` | functions take the concrete [`Coordinate`] record |
+//! | `LatLon` trait / `impl LatLon` | functions take the concrete [`Coordinate`] record |
+//! | `Wgs84::is_outside_china` / `Gcj02::is_outside_china` methods | [`wgs84_is_outside_china`] / [`gcj02_is_outside_china`] |
 //! | `Length` + operator overloads | distance returned as `f64` meters ([`haversine_distance_m`]) |
 //! | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
 //!

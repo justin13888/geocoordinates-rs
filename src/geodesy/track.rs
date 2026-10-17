@@ -52,19 +52,19 @@ use crate::units::Length;
 /// // point 1° north is a meridian arc to its left.
 /// let (start, end) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 10.0)?);
 /// let point = Coordinate::wgs84(1.0, 5.0)?;
-/// let arc = geodesic_distance(&Coordinate::wgs84(0.0, 5.0)?, &point)?.meters();
-/// let xt = cross_track_distance(&point, &start, &end)?.meters();
+/// let arc = geodesic_distance(Coordinate::wgs84(0.0, 5.0)?, point)?.meters();
+/// let xt = cross_track_distance(point, start, end)?.meters();
 /// assert!((xt + arc).abs() < 1e-6);
 /// assert!(matches!(
-///     cross_track_distance(&point, &start, &start),
+///     cross_track_distance(point, start, start),
 ///     Err(Error::InvalidValue { field: "path", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn cross_track_distance(
-    point: &impl LatLon,
-    start: &impl LatLon,
-    end: &impl LatLon,
+    point: impl LatLon,
+    start: impl LatLon,
+    end: impl LatLon,
 ) -> Result<Length> {
     let foot = foot_on_path(point, start, end)?;
     Ok(Length::from_meters(foot.cross_track_m))
@@ -100,19 +100,19 @@ pub fn cross_track_distance(
 /// // Along the equator, the foot of a point 1° north of 5° E is (0, 5): the
 /// // along-track distance is 5° of the equator, a · 5π/180.
 /// let (start, end) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 10.0)?);
-/// let at = along_track_distance(&Coordinate::wgs84(1.0, 5.0)?, &start, &end)?.meters();
+/// let at = along_track_distance(Coordinate::wgs84(1.0, 5.0)?, start, end)?.meters();
 /// assert!((at - 6_378_137.0 * 5f64.to_radians()).abs() < 1e-6);
 /// // Every meridian meets the equator at a right angle: the pole has no foot.
 /// assert!(matches!(
-///     along_track_distance(&Coordinate::wgs84(90.0, 0.0)?, &start, &end),
+///     along_track_distance(Coordinate::wgs84(90.0, 0.0)?, start, end),
 ///     Err(Error::InvalidValue { field: "point", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn along_track_distance(
-    point: &impl LatLon,
-    start: &impl LatLon,
-    end: &impl LatLon,
+    point: impl LatLon,
+    start: impl LatLon,
+    end: impl LatLon,
 ) -> Result<Length> {
     let foot = foot_on_path(point, start, end)?;
     if perpendiculars_meet(foot.scale) {
@@ -132,7 +132,7 @@ pub fn along_track_distance(
 ///
 /// // East along the equator and north up the 10° E meridian (both geodesics).
 /// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(-10.0, 10.0)?);
-/// match intersection(&a, 90.0, &b, 0.0)? {
+/// match intersection(a,90.0, b,0.0)? {
 ///     GeodesicIntersection::Crossing(p) => {
 ///         assert!(p.lat().abs() < 1e-9 && (p.lon() - 10.0).abs() < 1e-9)
 ///     }
@@ -152,7 +152,7 @@ pub enum GeodesicIntersection {
     ///
     /// // North from (0, 0) and west from (0, 30) meet at the start of the first.
     /// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 30.0)?);
-    /// let GeodesicIntersection::Crossing(p) = intersection(&a, 0.0, &b, 270.0)? else {
+    /// let GeodesicIntersection::Crossing(p) = intersection(a,0.0, b,270.0)? else {
     ///     panic!("expected a crossing");
     /// };
     /// assert!(p.lat().abs() < 1e-9 && p.lon().abs() < 1e-9);
@@ -167,7 +167,7 @@ pub enum GeodesicIntersection {
     ///
     /// // Both paths run along the equator, in opposite directions.
     /// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 30.0)?);
-    /// assert_eq!(intersection(&a, 90.0, &b, 270.0)?, GeodesicIntersection::SameGeodesic);
+    /// assert_eq!(intersection(a,90.0, b,270.0)?, GeodesicIntersection::SameGeodesic);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     SameGeodesic,
@@ -179,7 +179,7 @@ pub enum GeodesicIntersection {
     ///
     /// // Two meridians meet only at the poles; one path heads north, the other south.
     /// let (a, b) = (Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 30.0)?);
-    /// assert_eq!(intersection(&a, 0.0, &b, 180.0)?, GeodesicIntersection::NoForwardCrossing);
+    /// assert_eq!(intersection(a,0.0, b,180.0)?, GeodesicIntersection::NoForwardCrossing);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     NoForwardCrossing,
@@ -224,24 +224,24 @@ pub enum GeodesicIntersection {
 ///
 /// // North-east from New York and north-west from Lisbon cross over the Atlantic.
 /// let (nyc, lisbon) = (Coordinate::wgs84(40.7, -74.0)?, Coordinate::wgs84(38.7, -9.1)?);
-/// let GeodesicIntersection::Crossing(p) = intersection(&nyc, 45.0, &lisbon, 315.0)? else {
+/// let GeodesicIntersection::Crossing(p) = intersection(nyc, 45.0, lisbon, 315.0)? else {
 ///     panic!("expected a crossing");
 /// };
 /// // The crossing lies on both geodesics, to well under a micrometre.
-/// let ahead_a = destination(&nyc, 45.0, Length::from_meters(1e6))?;
-/// let ahead_b = destination(&lisbon, 315.0, Length::from_meters(1e6))?;
-/// assert!(cross_track_distance(&p, &nyc, &ahead_a)?.meters().abs() < 1e-6);
-/// assert!(cross_track_distance(&p, &lisbon, &ahead_b)?.meters().abs() < 1e-6);
+/// let ahead_a = destination(nyc, 45.0, Length::from_meters(1e6))?;
+/// let ahead_b = destination(lisbon, 315.0, Length::from_meters(1e6))?;
+/// assert!(cross_track_distance(p, nyc, ahead_a)?.meters().abs() < 1e-6);
+/// assert!(cross_track_distance(p, lisbon, ahead_b)?.meters().abs() < 1e-6);
 /// assert!(matches!(
-///     intersection(&nyc, f64::NAN, &lisbon, 315.0),
+///     intersection(nyc, f64::NAN, lisbon, 315.0),
 ///     Err(Error::InvalidValue { field: "bearing", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn intersection(
-    a: &Coordinate,
+    a: Coordinate,
     bearing_a_deg: f64,
-    b: &Coordinate,
+    b: Coordinate,
     bearing_b_deg: f64,
 ) -> Result<GeodesicIntersection> {
     let g = geodesic_for_pair(a, b)?;
@@ -366,7 +366,7 @@ fn is_ahead(along_m: f64, lateral_m: f64) -> bool {
 }
 
 impl<'g> Path<'g> {
-    fn new(g: &'g Geodesic, start: &impl LatLon, azi: f64) -> Self {
+    fn new(g: &'g Geodesic, start: impl LatLon, azi: f64) -> Self {
         Self {
             g,
             lat: start.lat(),
@@ -434,7 +434,7 @@ impl<'g> Path<'g> {
     /// Whether the path, extended both ways, runs through `p` along
     /// `bearing_deg` or its reverse: `p` within 10 µm of the path, and the
     /// path's azimuth at the foot within 1e-10 rad of the bearing's line.
-    fn carries(&self, p: &impl LatLon, bearing_deg: f64) -> bool {
+    fn carries(&self, p: impl LatLon, bearing_deg: f64) -> bool {
         let Ok(foot) = self.foot(p.lat(), p.lon()) else {
             return false;
         };
@@ -564,7 +564,7 @@ fn cross3(u: [f64; 3], v: [f64; 3]) -> [f64; 3] {
 
 /// The nearest foot from `point` onto the geodesic path `start` → `end`,
 /// after validating the three positions.
-fn foot_on_path(point: &impl LatLon, start: &impl LatLon, end: &impl LatLon) -> Result<Foot> {
+fn foot_on_path(point: impl LatLon, start: impl LatLon, end: impl LatLon) -> Result<Foot> {
     validate_pair(point, start)?;
     let g = geodesic_for_pair(start, end)?;
     if coincident_or_antipodal(start, end) {

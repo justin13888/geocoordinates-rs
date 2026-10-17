@@ -8,7 +8,7 @@ fn wgs(lat: f64, lon: f64) -> Coordinate {
 
 /// The WGS-84 geodesic distance (meters) from a decoded center to a corner.
 fn corner_distance_m(area: &Approx<Coordinate>, lat: f64, lon: f64) -> f64 {
-    crate::geodesy::geodesic_distance(area.value(), &wgs(lat, lon))
+    crate::geodesy::geodesic_distance(*area.value(), wgs(lat, lon))
         .unwrap()
         .meters()
 }
@@ -66,7 +66,7 @@ fn round_trip_stays_within_bound() {
         for length in [10, 11, 12] {
             let code = PlusCode::encode(c, length).unwrap();
             let area = code.decode();
-            assert_within_geodesic_meters(&c, area.value(), area.max_error().meters());
+            assert_within_geodesic_meters(c, *area.value(), area.max_error().meters());
         }
     }
 }
@@ -284,7 +284,7 @@ fn decode_center_within_absolute_bound() {
     // also inflate the reported bound) can't hide behind it.
     for c in [wgs(40.7128, -74.006), wgs(-33.8688, 151.2093)] {
         let area = PlusCode::encode(c, 10).unwrap().decode();
-        assert_within_meters(&c, area.value(), 20.0);
+        assert_within_meters(c, *area.value(), 20.0);
     }
 }
 
@@ -335,7 +335,7 @@ fn geohash_round_trip_within_bound() {
     ] {
         for len in [6, 8, 10] {
             let area = Geohash::encode(c, len).unwrap().decode();
-            assert_within_geodesic_meters(&c, area.value(), area.max_error().meters());
+            assert_within_geodesic_meters(c, *area.value(), area.max_error().meters());
         }
     }
 }
@@ -345,7 +345,7 @@ fn geohash_decode_matches_known_cell() {
     let area = Geohash::try_from("ezs42").unwrap().decode();
     // Fixed ~5 km bound (the cell is ~5 km): a decode that fails to
     // alternate lon/lat would land thousands of km away.
-    assert_within_meters(&wgs(42.605, -5.603), area.value(), 5000.0);
+    assert_within_meters(wgs(42.605, -5.603), *area.value(), 5000.0);
     assert!(area.max_error().meters() > 0.0);
 }
 
@@ -403,7 +403,7 @@ fn maidenhead_three_pairs_round_trip() {
     let mh = Maidenhead::encode(c, 3).unwrap();
     assert_eq!(mh.as_str().len(), 6);
     let area = mh.decode();
-    assert_within_geodesic_meters(&c, area.value(), area.max_error().meters());
+    assert_within_geodesic_meters(c, *area.value(), area.max_error().meters());
 }
 
 #[test]

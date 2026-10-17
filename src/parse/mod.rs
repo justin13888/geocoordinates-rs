@@ -483,9 +483,9 @@ mod tests {
             wgs(51.5074, -0.1278),
         ];
         for c in coords {
-            let text = format(&c, &FormatOptions::default()).unwrap();
+            let text = format(c, &FormatOptions::default()).unwrap();
             let parsed = parse_coordinate(&text).unwrap();
-            assert_within_meters(&parsed.coord, &c, 0.2);
+            assert_within_meters(parsed.coord, c, 0.2);
         }
     }
 
@@ -538,12 +538,12 @@ mod tests {
                         representation,
                         decimal_separator,
                     };
-                    let text = format(&c, &options).unwrap();
+                    let text = format(c, &options).unwrap();
                     let parsed = parse_coordinate_with(&text, &options.parse_options())
                         .unwrap_or_else(|e| panic!("{text:?} ({options:?}): {e}"));
                     // Default precisions: DD 6 dp (0.11 m), DMS 0.01″
                     // (0.3 m), DDM 0.001′ (1.9 m) — each rounds to half.
-                    assert_within_meters(&parsed.coord, &c, 1.0);
+                    assert_within_meters(parsed.coord, c, 1.0);
                     if locale.is_none() {
                         let plain = parse_coordinate(&text).unwrap();
                         assert_eq!(plain.coord, parsed.coord, "{text:?}");
@@ -594,11 +594,11 @@ mod tests {
             representation: Representation::PlusCode { length: 10 },
             ..FormatOptions::default()
         };
-        let code = format(&c, &options).unwrap();
+        let code = format(c, &options).unwrap();
         let fix = parse_coordinate(&code).unwrap();
         // The original lies within the decoded cell's reported bound.
         let bound = fix.accuracy.unwrap().horizontal().unwrap().meters();
-        assert_within_meters(&fix.coord, &c, bound);
+        assert_within_meters(fix.coord, c, bound);
     }
 
     #[test]

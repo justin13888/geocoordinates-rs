@@ -130,7 +130,7 @@ fn zone_spans_match_the_zone_rules() {
         let lat = if band == 19 { 78.0 } else { lat };
         for step in 0..=720 {
             let lon = -180.0 + 0.5 * f64::from(step);
-            let zone = utm_zone_for(&c(lat, lon)).unwrap();
+            let zone = utm_zone_for(c(lat, lon)).unwrap();
             for z in 1..=60 {
                 let holds = zone_span(z, lat)
                     .is_some_and(|(w, e)| (w..e).contains(&lon) || (z == 60 && lon == 180.0));

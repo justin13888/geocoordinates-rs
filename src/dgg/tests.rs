@@ -22,8 +22,8 @@ fn h3_round_trips_within_its_bound() {
         let approx = H3Cell::encode(c(40.7128, -74.006), res).unwrap().decode();
         assert!(approx.max_error().meters() > 0.0);
         assert_within_geodesic_meters(
-            approx.value(),
-            &c(40.7128, -74.006),
+            *approx.value(),
+            c(40.7128, -74.006),
             approx.max_error().meters(),
         );
     }
@@ -55,10 +55,10 @@ fn h3_round_trips_within_its_bound() {
 fn assert_bound_is_ellipsoidal(center: &Coordinate, vertices: &[Coordinate], bound: f64) {
     use crate::geodesy::{geodesic_distance, haversine_distance};
 
-    let farthest = |distance: fn(&Coordinate, &Coordinate) -> Result<crate::Length>| {
+    let farthest = |distance: fn(Coordinate, Coordinate) -> Result<crate::Length>| {
         vertices
             .iter()
-            .map(|vertex| distance(center, vertex).unwrap().meters())
+            .map(|vertex| distance(*center, *vertex).unwrap().meters())
             .fold(0.0, f64::max)
     };
     let ellipsoidal = farthest(geodesic_distance);
@@ -107,8 +107,8 @@ fn s2_round_trips_within_its_bound() {
             .decode();
         assert!(approx.max_error().meters() > 0.0);
         assert_within_geodesic_meters(
-            approx.value(),
-            &c(40.7128, -74.006),
+            *approx.value(),
+            c(40.7128, -74.006),
             approx.max_error().meters(),
         );
     }
@@ -297,7 +297,7 @@ fn assert_decodes_around(approx: &Approx<Coordinate>, point: &Coordinate) {
     let bound = approx.max_error().meters();
     assert!(bound > 0.0 && bound.is_finite(), "bound {bound}");
     assert_eq!(approx.value().crs(), Crs::Wgs84);
-    assert_within_geodesic_meters(approx.value(), point, bound);
+    assert_within_geodesic_meters(*approx.value(), *point, bound);
 }
 
 #[cfg(feature = "h3")]

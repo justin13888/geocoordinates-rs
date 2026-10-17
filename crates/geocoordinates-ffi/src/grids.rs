@@ -250,7 +250,7 @@ pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
 /// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
 #[uniffi::export]
 pub fn utm_zone_for(coord: Coordinate) -> Result<u8, GeoError> {
-    gc::grids::utm_zone_for(&coord.try_into()?).map_err(GeoError::from)
+    gc::grids::utm_zone_for(coord.try_into()?).map_err(GeoError::from)
 }
 
 /// The central meridian (degrees) of a UTM zone.

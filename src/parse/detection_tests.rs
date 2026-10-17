@@ -206,11 +206,11 @@ fn every_grid_rendering_round_trips_through_parse_options() {
             representation,
             ..FormatOptions::default()
         };
-        let text = format(&c, &options).unwrap();
+        let text = format(c, &options).unwrap();
         let fix = parse_coordinate_with(&text, &options.parse_options())
             .unwrap_or_else(|e| panic!("{text:?}: {e}"));
         // The original lies within the decoded cell's reported bound.
-        assert_within_meters(&fix.coord, &c, accuracy_m(&fix));
+        assert_within_meters(fix.coord, c, accuracy_m(&fix));
     }
 }
 
