@@ -13,7 +13,7 @@ use core::f64::consts::FRAC_1_SQRT_2;
 use super::{Center, encode_text};
 use crate::angle::wrap_longitude;
 use crate::coord::Coordinate;
-use crate::grids::utm::{K0 as UTM_K0, UPS_K0, Ups, Utm};
+use crate::grids::utm::{K0 as UTM_K0, UPS_K0, Ups, Utm, central_meridian};
 
 /// Linearize-and-solve rounds before a truncated square falls back to its
 /// nominal center. Each round re-linearizes the designator's edges at the
@@ -55,7 +55,7 @@ impl Gzd {
                 let (west, east) = span?;
                 // Measured from the central meridian, so a longitude wrapped
                 // across the antimeridian stays on the zone's side of it.
-                let cm = f64::from(zone) * 6.0 - 183.0;
+                let cm = central_meridian(zone);
                 let rel = wrap_longitude(lon - cm);
                 vec![
                     lat - south,
@@ -124,8 +124,7 @@ impl Center {
 /// that close to a central meridian into the square west of it, where it
 /// lies.
 pub(super) fn encoder_easting(coord: Coordinate, utm: &Utm) -> f64 {
-    let central_meridian = f64::from(utm.zone()) * 6.0 - 183.0;
-    if coord.lon() < central_meridian {
+    if coord.lon() < central_meridian(utm.zone()) {
         utm.easting_m()
             .min(f64::from_bits(500_000f64.to_bits() - 1))
     } else {
