@@ -7006,7 +7006,8 @@ public func fromGpx(input: String)throws  -> [Fix]  {
  *
  * # Errors
  * `GeoError::Parse` on malformed KML (kind `TooDeep` on elements nested
- * deeper than 32 levels); `GeoError::OutOfRange` for the first position out
+ * deeper than 32 levels, `Syntax` otherwise, including a truncated document
+ * with an element left unclosed); `GeoError::OutOfRange` for the first position out
  * of range; `GeoError::InvalidValue`, naming the position's index, for a
  * non-finite altitude.
  */
@@ -7609,7 +7610,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_from_gpx() != 58524) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 32477) {
+    if (uniffi_geocoordinates_ffi_checksum_func_from_kml() != 16178) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_from_nmea_sentence() != 45855) {
