@@ -289,7 +289,12 @@ fn kml_truncated_documents_are_rejected_instead_of_spinning() {
         "<kml><SchemaData><SimpleData name='n'>".to_string(),
         format!("<kml><Document><Placemark>{point}"),
     ];
-    for input in truncated {
+    // Closed, but holding a `<!` construct `quick-xml` errors on, which the
+    // `Data` / `SchemaData` readers swallow before spinning on `Eof`.
+    let bangs = "<!x>|<!ELEMENT x>|<!-x>|<![x>|<!Dx>|<!DOCTYPE >".split('|');
+    let data =
+        |b: &str| format!(r#"<kml><Data name="n"><displayName>{b}</displayName></Data></kml>"#);
+    for input in truncated.into_iter().chain(bangs.map(data)) {
         let (tx, rx) = std::sync::mpsc::channel();
         let doc = input.clone();
         std::thread::spawn(move || tx.send(from_kml(&doc)));

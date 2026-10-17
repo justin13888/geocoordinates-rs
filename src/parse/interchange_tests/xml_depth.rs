@@ -99,7 +99,6 @@ fn xml_closure_scan_rejects_every_unclosed_document() {
         "<!-- <b>",
         "<![CDATA[ <b>",
         "<?pi",
-        "<!x",
         "</b",
         "<!DOCTYPE <",
     ] {
@@ -108,6 +107,35 @@ fn xml_closure_scan_rejects_every_unclosed_document() {
         let detail = Err("kml: markup at byte 0 is not terminated".to_string());
         assert_eq!(verdict(tail), detail, "{tail}");
     }
+    // A `<!` construct `quick-xml` errors on is rejected where it starts,
+    // closed or not: only `<!--`, `<![CDATA[`, and `<!DOCTYPE` (any case)
+    // open a construct it reads.
+    for bang in [
+        "<!x>",
+        "<!x",
+        "<!ELEMENT x>",
+        "<!-x>",
+        "<!-",
+        "<![x>",
+        "<![CDATA",
+        "<!Dx>",
+        "<!DOCTYP>",
+        "<!>",
+        "<!",
+    ] {
+        let detail = "kml: markup at byte 3 is not a comment, CDATA section, or DOCTYPE";
+        assert_eq!(
+            verdict(&format!("<a>{bang}</a>")),
+            Err(detail.into()),
+            "{bang}"
+        );
+    }
+    // A DOCTYPE needs a name before its `>`.
+    for nameless in ["<!DOCTYPE>", "<!doctype \n>"] {
+        let detail = "kml: DOCTYPE at byte 0 has no name";
+        assert_eq!(verdict(nameless), Err(detail.into()), "{nameless}");
+    }
+    assert_eq!(verdict("<!doctype d><a></a>"), Ok(()));
     // An end tag must close the innermost open element, by its exact name.
     assert_eq!(
         verdict("<kml></Point></kml>"),

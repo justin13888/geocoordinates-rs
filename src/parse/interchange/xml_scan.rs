@@ -31,7 +31,10 @@ const MAX_KML_DEPTH: usize = 32;
 /// **Closure.** Every end tag must name the innermost open element, exactly
 /// as written (prefix included, trailing whitespace ignored), every element
 /// must be closed by the end of input, and every construct must be
-/// terminated.
+/// terminated. Every `<!` construct must be a comment (`<!--`), a CDATA
+/// section (`<![CDATA[`), or a named `<!DOCTYPE` (any case): `quick-xml`
+/// errors on any other, such as `<!x>` or `<!ELEMENT x>`, and the `Data` /
+/// `SchemaData` readers swallow that error and spin on the end of input.
 ///
 /// Every construct ends exactly where `quick-xml` (the `kml` parser's
 /// tokenizer) ends it, so no tag the parser reads is skipped or invented:
@@ -87,19 +90,33 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
     let mut rest = input;
     while let Some(start) = rest.find('<') {
         rest = &rest[start..];
+        let at = input.len() - rest.len();
         // Resume at the construct's terminator, which holds no `<`, so the
         // next search starts past it.
         let end = if rest.starts_with("<!--") {
             find_from(rest, 4, "-->")
         } else if rest.starts_with("<![CDATA[") {
             rest.find("]]>")
-        } else if rest.starts_with("<!D") || rest.starts_with("<!d") {
-            doctype_end(rest)
+        } else if rest
+            .get(..9)
+            .is_some_and(|s| s.eq_ignore_ascii_case("<!DOCTYPE"))
+        {
+            let end = doctype_end(rest);
+            // `quick-xml` rejects a DOCTYPE with nothing but whitespace
+            // before its `>`.
+            if end.is_some_and(|i| rest[9..i].trim_start_matches(is_space).is_empty()) {
+                return Err(syntax(format!("kml: DOCTYPE at byte {at} has no name")));
+            }
+            end
         } else if rest.starts_with("<?") {
             find_from(rest, 1, "?>")
         } else if rest.starts_with("<!") {
-            // Any other `<!` construct is a parse error at this point.
-            rest.find('>')
+            // `quick-xml` errors on every other `<!` construct, and the
+            // `Data` / `SchemaData` readers swallow that error and then spin
+            // on `Eof`, so it is rejected here whether or not it is closed.
+            return Err(syntax(format!(
+                "kml: markup at byte {at} is not a comment, CDATA section, or DOCTYPE"
+            )));
         } else if rest.starts_with("</") {
             let end = tag_end(rest);
             if let Some(i) = end {
@@ -137,7 +154,6 @@ pub(in crate::parse) fn check_kml_markup(input: &str) -> Result<()> {
             end
         };
         let Some(end) = end else {
-            let at = input.len() - rest.len();
             return Err(syntax(format!(
                 "kml: markup at byte {at} is not terminated"
             )));
