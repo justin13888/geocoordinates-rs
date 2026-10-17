@@ -91,6 +91,13 @@ impl KrugerSeries {
     }
 
     /// Geodetic latitude of conformal latitude `chi` (radians).
+    ///
+    /// The four `δ_j sin 2jχ` terms are summed first and then added to `chi`.
+    /// The UTM inverse used to add each term to `chi` in turn. That order can
+    /// round to a different last bit, at most a few ulps of the latitude
+    /// (`geodetic_from_conformal_matches_the_term_by_term_order` bounds it).
+    /// That is under 1e-15 rad, or a few nanometres on the ground.
+    /// This one shared helper is used instead of keeping the old order.
     pub(crate) fn geodetic_from_conformal(&self, chi: f64) -> f64 {
         chi + sum_sin(&self.delta, chi)
     }
@@ -189,5 +196,29 @@ mod tests {
         let phi = f64::to_radians(52.0);
         let chi = s.conformal_tan(phi).atan();
         assert_close(s.geodetic_from_conformal(chi), phi, 1e-13);
+    }
+
+    #[test]
+    fn geodetic_from_conformal_matches_the_term_by_term_order() {
+        // The UTM inverse used to add each term to `chi` in turn. The shared
+        // helper sums the terms first, so the two may differ in the last
+        // bits, but by no more than a few ulps of the latitude.
+        let s = KrugerSeries::WGS84;
+        let term_by_term = |chi: f64| {
+            let mut lat = chi;
+            for (j, c) in (1..=4u8).zip(&s.delta) {
+                lat += c * (2.0 * f64::from(j) * chi).sin();
+            }
+            lat
+        };
+        for i in -9000..=9000 {
+            let chi = f64::to_radians(f64::from(i) / 100.0);
+            let old = term_by_term(chi);
+            let new = s.geodetic_from_conformal(chi);
+            assert!(
+                (new - old).abs() <= 4.0 * f64::EPSILON * old.abs(),
+                "chi = {chi}: {new} vs {old}"
+            );
+        }
     }
 }
