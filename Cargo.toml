@@ -118,3 +118,16 @@ s2 = ["dep:s2"] # Google S2 indexing
 name = "flagship"
 test = true
 required-features = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2"]
+
+# Full DWARF for every crate is a large share of how fast target/ grows in a
+# quick edit-build loop. Workspace crates keep line tables, so their backtraces
+# and panics still carry file:line (but a debugger shows no locals); dependency
+# frames keep their symbol names but lose file:line. `cargo test` inherits both
+# settings. For full debug info, override per invocation:
+# CARGO_PROFILE_DEV_DEBUG=2 for the workspace, and/or
+# `cargo --config 'profile.dev.package."*".debug=2' ...` for dependencies.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
