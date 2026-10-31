@@ -1,7 +1,11 @@
 //! Pins `expand_by`'s edges to independently computed geodesic solutions, and
 //! the boundary cases of `intersects` beside them.
 
+use proptest::prelude::*;
+
+use super::tests::lon_near_antimeridian;
 use super::*;
+use crate::geodesy::destination;
 
 fn bounds(south: f64, west: f64, north: f64, east: f64) -> GeoBounds {
     GeoBounds::new(south, west, north, east, Crs::Wgs84).unwrap()
@@ -12,14 +16,38 @@ fn geodesic() -> Geodesic {
     Geodesic::new(wgs84.semi_major().meters(), wgs84.flattening())
 }
 
+/// The meridian distance, in meters, from `lat` to its nearer pole.
+fn pole_gap(lat: f64) -> f64 {
+    let pole = if lat >= 0.0 { 90.0 } else { -90.0 };
+    geodesic().inverse(lat, 0.0, pole, 0.0)
+}
+
+/// The best of 18,001 bearings, then of as many again around the best so far,
+/// since the peak narrows and moves towards due north or south near a pole.
 fn sampled_reach(lat: f64, meters: f64) -> f64 {
     let g = geodesic();
-    (0..=18_000)
-        .map(|step| {
-            let (_, lon): (f64, f64) = g.direct(lat, 0.0, f64::from(step) / 100.0, meters);
-            lon
-        })
-        .fold(f64::NEG_INFINITY, f64::max)
+    let (mut low, mut step, mut best) = (0.0_f64, 0.01_f64, (0.0_f64, f64::NEG_INFINITY));
+    for _ in 0..3 {
+        for index in 0..=18_000 {
+            let bearing = (low + f64::from(index) * step).min(180.0);
+            let (_, lon): (f64, f64) = g.direct(lat, 0.0, bearing, meters);
+            if lon > best.1 {
+                best = (bearing, lon);
+            }
+        }
+        low = (best.0 - step).max(0.0);
+        step /= 9_000.0;
+    }
+    best.1
+}
+
+/// Every half degree, plus bearings closing on due north and south, where the
+/// peak of reach sits near the cutoff.
+fn sweep_bearings() -> impl Iterator<Item = f64> {
+    let near = [1e-4, 1e-3, 1e-2, 1e-1]
+        .into_iter()
+        .flat_map(|offset| [offset, 360.0 - offset, 180.0 - offset, 180.0 + offset]);
+    (0..720).map(|step| f64::from(step) / 2.0).chain(near)
 }
 
 #[test]
@@ -42,6 +70,74 @@ fn longitude_reach_finds_the_peak_a_dense_sweep_finds() {
             found <= sampled + 1e-6,
             "{lat} {meters}: {found} > {sampled}"
         );
+    }
+}
+
+#[test]
+fn longitude_reach_finds_the_peak_up_to_the_pole_gap_cutoff() {
+    for lat in [0.0, 30.0, -45.0, 60.0] {
+        for fraction in [0.5, 0.9, 0.999, 0.999_999] {
+            let meters = fraction * pole_gap(lat);
+            let found = longitude_reach(&geodesic(), lat, meters);
+            let sampled = sampled_reach(lat, meters);
+            let close = (found - sampled).abs() < 1e-6;
+            assert!(close, "{lat} {meters}: {found} against {sampled}");
+        }
+    }
+}
+
+#[test]
+fn the_equator_reaches_almost_a_quarter_turn_just_inside_the_cutoff() {
+    let gap = pole_gap(0.0);
+    assert!((10_001_000.0..10_003_000.0).contains(&gap), "{gap}");
+    let grown = bounds(0.0, 0.0, 0.0, 0.0)
+        .expand_by(Length::from_meters(gap - 1.0))
+        .unwrap();
+    assert!(grown.north() < 90.0 && grown.south() > -90.0, "{grown:?}");
+    assert!(grown.east() > 89.0 && grown.east() < 91.0, "{grown:?}");
+    assert!(grown.west() < -89.0 && grown.west() > -91.0, "{grown:?}");
+    // At the cutoff itself the pole is in reach, so the box takes every longitude.
+    let at_cutoff = bounds(0.0, 0.0, 0.0, 0.0)
+        .expand_by(Length::from_meters(gap))
+        .unwrap();
+    assert_eq!((at_cutoff.west(), at_cutoff.east()), (-180.0, 180.0));
+}
+
+proptest! {
+    /// From 3000 km up to the cutoff, with every expanded box still open: past
+    /// the cutoff every longitude is held, so containment would prove nothing.
+    #[test]
+    fn expand_by_holds_every_point_up_to_the_pole_gap_cutoff(
+        south in -60.0..=60.0_f64,
+        height in 0.0..=1.0_f64,
+        west in lon_near_antimeridian(),
+        width in 0.0..=10.0_f64,
+        toward_cutoff in prop_oneof![0.0..=0.999_999_f64, 0.99..=0.999_999_f64],
+        from_lat in 0.0..=1.0_f64,
+        from_lon in 0.0..=1.0_f64,
+    ) {
+        let north = south + height;
+        let b = bounds(south, west, north, wrap_longitude(west + width));
+        let cutoff = pole_gap(north).min(pole_gap(south));
+        let meters = 3_000_000.0 + toward_cutoff * (cutoff - 3_000_000.0);
+        let grown = b.expand_by(Length::from_meters(meters)).unwrap();
+        prop_assert!(grown.north() < 90.0 && grown.south() > -90.0, "{grown:?}");
+        prop_assert!(grown.arc().span() < 360.0, "{grown:?}");
+
+        let start = Coordinate::wgs84(
+            south + from_lat * height,
+            wrap_longitude(west + from_lon * b.arc().span()),
+        )
+        .unwrap();
+        // The corners nearest the pole are where reach is greatest.
+        let edge = if north.abs() >= south.abs() { north } else { south };
+        let corner = |lon| Coordinate::wgs84(edge, lon).unwrap();
+        for from in [start, corner(b.west()), corner(b.east())] {
+            for bearing in sweep_bearings() {
+                let target = destination(from, bearing, Length::from_meters(meters)).unwrap();
+                prop_assert!(grown.contains(target).unwrap(), "{grown:?} misses {target:?}");
+            }
+        }
     }
 }
 
