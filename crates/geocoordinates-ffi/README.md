@@ -24,6 +24,7 @@ explicit `max_error_m`.
 | `Length` + operator overloads | lengths as `f64` meters (`haversine_distance_m`) |
 | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
 | Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
+| `SpatialIndex<T>` (generic, holds its entries) | the object `SpatialIndex` over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
 | A type valid by construction | a plain record, checked as it crosses into Rust, with a `<record>_validate` function to check a hand-built one |
 
 Exact forward conversions return a bare datum record; approximate inverses

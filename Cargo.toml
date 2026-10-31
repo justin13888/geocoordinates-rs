@@ -109,6 +109,10 @@ nmea = [] # NMEA 0183 sentences (GGA/RMC/GLL), hand-rolled — no external dep
 h3 = ["dep:h3o"] # Uber H3 indexing
 s2 = ["dep:s2"] # Google S2 indexing
 #
+# Geographic bounds and geodesic spatial queries, on an in-crate k-d tree (no
+# external dep; STABILIZATION.md records the benchmark behind that choice):
+index = []
+#
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
@@ -118,7 +122,6 @@ s2 = ["dep:s2"] # Google S2 indexing
 # source in-tree yet; each lands after 0.15.0, off by default. These placeholders
 # only record the intended feature names:
 # exif = []            # EXIF/XMP GPS tag values to a `Fix`, with no container parsing
-# index = []           # antimeridian-aware bounds and spatial index queries
 # reverse = []         # offline reverse geocoding behind a trait
 # reverse-bundled = [] # `reverse` with embedded data
 # cluster = []         # geodesic centroid and point clustering
@@ -130,6 +133,15 @@ s2 = ["dep:s2"] # Google S2 indexing
 name = "flagship"
 test = true
 required-features = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2"]
+
+# Query and build timings for the spatial index at 10^5 and 10^6 points: `cargo
+# bench --features index --bench spatial_index`. The comparison against rstar and
+# kiddo that chose the backing tree is a separate crate, `benches/compare-backends`,
+# so neither enters this crate's dependency graph or lockfile.
+[[bench]]
+name = "spatial_index"
+harness = false
+required-features = ["index"]
 
 # Full DWARF for every crate is a large share of how fast target/ grows in a
 # quick edit-build loop. Workspace crates keep line tables, so their backtraces

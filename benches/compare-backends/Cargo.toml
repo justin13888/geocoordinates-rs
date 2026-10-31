@@ -1,0 +1,20 @@
+# The benchmark behind the `index` feature's choice of backing tree: the in-crate
+# k-d tree against rstar and kiddo, on the same points and queries. A standalone
+# crate, so neither candidate enters the published crate's dependency graph or
+# lockfile. Run it from the repository root, keeping build output under `target`:
+#   cargo run --release --manifest-path benches/compare-backends/Cargo.toml \
+#     --target-dir target/compare-backends
+[package]
+name = "compare-backends"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Its own workspace: not a member of the repository's.
+[workspace]
+
+[dependencies]
+geocoordinates = { path = "../..", features = ["index"] }
+geographiclib-rs = { version = "0.2", default-features = false }
+kiddo = "5.3"
+rstar = "0.12"

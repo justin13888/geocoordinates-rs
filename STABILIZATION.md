@@ -352,6 +352,38 @@ per-feature CI job. Until one lands, its name is only a commented-out placeholde
 | #226 | `geotag` | Track-based geotagging | #221 |
 | #227 | `privacy` | Deterministic location coarsening and exclusion zones | #222 |
 
+### `index`: the backing tree
+
+`index` is implemented on master, and #222 chose an in-crate k-d tree over unit vectors
+(`src/index/kdtree.rs`) over `rstar` and `kiddo`. `benches/compare-backends` runs all
+three on the same points and queries, each prefiltering by chord and refining with one
+Karney geodesic, and asserts that their answers agree. Timings below are one release
+run on one machine: 1,000 queries of uniform points on the sphere, read for the gap
+between backends and not as absolute numbers.
+
+| Backend | Points | Build | `within` 50 km, per query | `nearest` 10, per query |
+|---|---|---|---|---|
+| in-crate k-d tree | 10⁵ | 22.7 ms | 1.69 µs | 8.56 µs |
+| `rstar` 0.12 | 10⁵ | 29.3 ms | 1.89 µs | 9.55 µs |
+| `kiddo` 5 (immutable) | 10⁵ | 6.7 ms | 1.39 µs | 13.95 µs |
+| in-crate k-d tree | 10⁶ | 225 ms | 14.96 µs | 10.06 µs |
+| `rstar` 0.12 | 10⁶ | 297 ms | 12.25 µs | 10.78 µs |
+| `kiddo` 5 (immutable) | 10⁶ | 109 ms | 11.29 µs | 13.99 µs |
+
+No backend wins on every column, and the query gaps are small because the geodesic
+refinement dominates a query. So the choice falls to what each one adds:
+
+| Backend | Crates added (`cargo tree`) | Declared `rust-version` | Licence |
+|---|---|---|---|
+| in-crate k-d tree | 0 | the crate's own, 1.85 | the crate's own, MIT OR Apache-2.0 |
+| `rstar` 0.12 | 8 | 1.63 | MIT OR Apache-2.0 |
+| `kiddo` 5 | 43 | 1.85 | MIT OR Apache-2.0 |
+
+None changes the licence or raises the MSRV, so `feature-rust-version` has no `index`
+entry. The tree stays private behind `SpatialIndex`, so swapping it later is not a
+breaking change. `cargo bench --features index --bench spatial_index` times the shipped
+index at both sizes against a brute-force scan.
+
 ## After 0.15.0 — the 1.0 freeze
 
 Once the surface has survived dogfooding, freeze the public API and adopt strict

@@ -35,6 +35,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Projected grids** (`grids`) | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `utm_zone_for`, `utm_central_meridian_deg` | ✅ | ✅ |
 | **Encoded grids** (`grids`) | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
 | **Discrete global grids** *(feature-gated; `dgg`)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
+| **Bounds & spatial index** *(feature-gated; `index`)* | `GeoBounds`, `SpatialIndex`, `Neighbor` | ✅ | ✅ |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
@@ -47,8 +48,7 @@ a system library or multi-megabyte external data.
 
 **Planned after 0.15.0, not yet shipped:** the geo features a photo library needs,
 each behind its own cargo feature that is off by default: already-read EXIF/XMP GPS
-tag values to a `Fix` (`exif`), antimeridian-aware bounds and spatial index queries
-(`index`), offline reverse geocoding behind a trait (`reverse`, plus
+tag values to a `Fix` (`exif`), offline reverse geocoding behind a trait (`reverse`, plus
 `reverse-bundled` for embedded data), a geodesic centroid and point clustering
 (`cluster`), Web Mercator, tile and viewport math with GeoJSON layer output (`map`),
 track-based geotagging (`geotag`), and deterministic location coarsening and

@@ -30,7 +30,7 @@ crate-type = ["cdylib", "staticlib", "lib"]
 # the translation layer only reads public fields and calls inherent methods.
 # No `version` requirement: this crate is never published, and both crates share
 # the workspace version, so a requirement would only go stale at each release.
-geocoordinates = { path = "../..", features = ["geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2"] }
+geocoordinates = { path = "../..", features = ["geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2", "index"] }
 uniffi = { version = "0.31", features = ["cli"] }
 thiserror = "2.0"
 

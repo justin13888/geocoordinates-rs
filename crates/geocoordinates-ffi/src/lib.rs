@@ -15,6 +15,7 @@
 //! | `Length` + operator overloads | distance returned as `f64` meters ([`haversine_distance_m`]) |
 //! | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
 //! | Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
+//! | `SpatialIndex<T>` (generic, holds its entries) | the object [`SpatialIndex`] over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
 //! return a bare datum record, while approximate inverses return an `Approx*`
@@ -97,6 +98,7 @@ mod dgg;
 mod error;
 mod geodesy;
 mod grids;
+mod index;
 mod interchange;
 mod text;
 
@@ -108,5 +110,6 @@ pub use self::dgg::*;
 pub use self::error::*;
 pub use self::geodesy::*;
 pub use self::grids::*;
+pub use self::index::*;
 pub use self::interchange::*;
 pub use self::text::*;

@@ -46,7 +46,8 @@
 //! [`ParseErrorKind`], [`Result`]);
 //! every other item lives flat in its subsystem module: [`angle`], [`china`],
 //! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
-//! [`parse`], and `dgg` (behind the `h3` / `s2` features). Implementation
+//! [`parse`], `dgg` (behind the `h3` / `s2` features), and `index` (behind the
+//! `index` feature). Implementation
 //! submodules are private, so a type is never reachable at both
 //! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
 //!
@@ -111,6 +112,10 @@ pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 #[cfg_attr(docsrs, doc(cfg(any(feature = "h3", feature = "s2"))))]
 pub mod dgg;
 
+#[cfg(feature = "index")]
+#[cfg_attr(docsrs, doc(cfg(feature = "index")))]
+pub mod index;
+
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -173,5 +178,7 @@ pub mod prelude {
     pub use crate::grids::{
         Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
     };
+    #[cfg(feature = "index")]
+    pub use crate::index::{GeoBounds, Neighbor, SpatialIndex};
     pub use crate::parse::{GridKind, ParseOptions, parse_coordinate, parse_coordinate_with};
 }

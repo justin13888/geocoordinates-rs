@@ -21,3 +21,8 @@ lcov.info
 # Release, the generated Swift sources under swift/Sources/ are committed).
 /swift/*.xcframework/
 /swift/*.xcframework.zip
+
+# === Benchmarks ===
+# The standalone backend comparison resolves its own candidates; its lockfile is
+# not part of the repository.
+/benches/compare-backends/Cargo.lock
