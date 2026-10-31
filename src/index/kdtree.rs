@@ -219,3 +219,15 @@ impl Ord for Pending {
         other.chord_sq.total_cmp(&self.chord_sq)
     }
 }
+
+#[cfg(test)]
+impl KdTree {
+    /// Whether frontier entries compare equal exactly when their chords match.
+    pub(super) fn pending_eq_holds() -> bool {
+        let pending = |chord_sq| Pending {
+            chord_sq,
+            item: Item::Node(0),
+        };
+        pending(1.0) == pending(1.0) && pending(1.0) != pending(2.0)
+    }
+}

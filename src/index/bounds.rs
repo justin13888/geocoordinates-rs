@@ -16,10 +16,10 @@ use crate::units::Length;
 /// a point at exactly the requested distance outside the box.
 const EXPAND_MARGIN_DEG: f64 = 1e-9;
 
-/// Golden-section steps that locate the bearing of greatest longitude reach:
+/// Ternary-search steps that locate the bearing of greatest longitude reach:
 /// they narrow the 180° bracket to under 1e-7°, and the reach is flat at its
 /// peak, so its value is then accurate to round-off.
-const REACH_SEARCH_STEPS: usize = 48;
+const REACH_SEARCH_STEPS: usize = 60;
 
 /// A geographic box: south and north latitude edges and west and east longitude
 /// edges, in decimal degrees on one [`Crs`], with every edge inclusive.
@@ -516,35 +516,27 @@ fn meridian_lat(geodesic: &Geodesic, lat: f64, bearing: f64, meters: f64) -> f64
 /// The greatest longitude difference, in degrees, between a point at `lat` and
 /// any point `meters` away, when that circle does not enclose a pole.
 ///
-/// A golden-section search over the initial bearing: longitude reach rises to one
-/// peak between due north and due south.
+/// A ternary search over the initial bearing: longitude reach rises to one peak
+/// between due north and due south.
 fn longitude_reach(geodesic: &Geodesic, lat: f64, meters: f64) -> f64 {
-    const RATIO: f64 = 0.618_033_988_749_894_9;
     let reach = |bearing: f64| -> f64 {
         let (_, lon): (f64, f64) = geodesic.direct(lat, 0.0, bearing, meters);
         lon
     };
     let (mut low, mut high) = (0.0_f64, 180.0_f64);
-    let mut left = high - RATIO * (high - low);
-    let mut right = low + RATIO * (high - low);
-    let (mut left_reach, mut right_reach) = (reach(left), reach(right));
     for _ in 0..REACH_SEARCH_STEPS {
-        if left_reach < right_reach {
+        let third = (high - low) / 3.0;
+        let (left, right) = (low + third, high - third);
+        if reach(left) < reach(right) {
             low = left;
-            left = right;
-            left_reach = right_reach;
-            right = low + RATIO * (high - low);
-            right_reach = reach(right);
         } else {
             high = right;
-            right = left;
-            right_reach = left_reach;
-            left = high - RATIO * (high - low);
-            left_reach = reach(left);
         }
     }
-    left_reach.max(right_reach)
+    reach(low + (high - low) / 2.0)
 }
 
+#[cfg(test)]
+mod expand_tests;
 #[cfg(test)]
 mod tests;

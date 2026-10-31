@@ -23,4 +23,30 @@ exclude_re = [
     # offset_point maps the answer back through the same reflection, so the
     # physical point, and everything observable about it, is unchanged.
     'src/grids/mgrs/clip\.rs:.*: replace \+ with - in offset_point',
+    # index::kdtree::build_node chooses where to split, not what is stored: every
+    # point lands in exactly one leaf whatever the leaf size or split axis, and
+    # the box around each node is computed from its points. So these change the
+    # tree's shape and a query's speed, never an answer.
+    'src/index/kdtree\.rs:.*: replace > with (>=|==) in KdTree::build_node',
+    'src/index/kdtree\.rs:.*: replace - with (\+|/) in KdTree::build_node',
+    # index::kdtree::for_each_within's box test only skips subtrees early. The
+    # leaf loop still tests each point against the limit, and a limit always
+    # carries positive slack past any real answer, so a box exactly at it holds
+    # no answer. `>=` and `==` differ only in how much of the tree is visited.
+    'src/index/kdtree\.rs:.*: replace > with (>=|==) in KdTree::for_each_within',
+    # index::spatial::nearest's early exit: the same slack means a candidate at
+    # exactly the limit cannot beat the k-th entry, so `>=` drops nothing, and
+    # `==` only walks further before stopping.
+    'src/index/spatial\.rs:.*: replace > with (>=|==) in SpatialIndex<T>::nearest',
+    # Every candidate has a distinct insertion index, so `candidate < worst` and
+    # `candidate <= worst` cannot differ: the two are never equal.
+    'src/index/spatial\.rs:.*: replace < with <= in SpatialIndex<T>::nearest',
+    # index::bounds::arc::LonArc::union, when each arc holds the other: at equal
+    # spellings `self` and `other` are the same value, so `<` and `<=` agree.
+    'src/index/bounds/arc\.rs:.*: replace < with <= in LonArc::union',
+    # LonArc::union past its nesting check: a candidate running from one arc's
+    # west edge to the other's east edge that holds one arc but not the other
+    # would need that other arc to start before the first and end after it, which
+    # is the nesting already returned above. So `&&` and `||` agree there.
+    'src/index/bounds/arc\.rs:.*: replace && with \|\| in LonArc::union',
 ]

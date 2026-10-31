@@ -237,6 +237,32 @@ fn the_chord_limit_never_excludes_an_entry_at_that_distance() {
 }
 
 #[test]
+fn the_chord_limit_exceeds_the_exact_chord_by_only_its_slack() {
+    let model = Model::for_crs(Crs::Wgs84).unwrap();
+    let meters = 1_000_000.0;
+    let exact = (2.0 * (meters / model.semi_minor_m / 2.0).sin()).powi(2);
+    let limit = model.chord_sq_limit(meters);
+    assert!(
+        limit > exact * (1.0 + CHORD_SLACK_REL / 2.0),
+        "{limit} {exact}"
+    );
+    assert!(
+        limit < exact * (1.0 + 2.0 * CHORD_SLACK_REL),
+        "{limit} {exact}"
+    );
+    assert_eq!(model.chord_sq_limit(0.0), CHORD_SLACK_ABS);
+}
+
+#[test]
+fn heap_entries_compare_equal_only_when_they_match() {
+    let refined = |meters, index| Refined { meters, index };
+    assert!(refined(1.0, 2) == refined(1.0, 2));
+    assert!(refined(1.0, 2) != refined(1.0, 3));
+    assert!(refined(1.0, 2) != refined(2.0, 2));
+    assert!(KdTree::pending_eq_holds());
+}
+
+#[test]
 fn unit_vectors_are_unit_length_and_use_the_reduced_latitude() {
     let model = Model::for_crs(Crs::Wgs84).unwrap();
     let [x, y, z] = model.unit_vector(wgs84(45.0, 90.0));

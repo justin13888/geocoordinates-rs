@@ -391,24 +391,10 @@ fn expand_by_moves_each_edge_by_the_geodesic_distance() {
     let south = geodesic_distance(wgs84(10.0, 21.0), wgs84(grown.south(), 21.0)).unwrap();
     assert!((north.meters() - 100_000.0).abs() < 0.001, "{north:?}");
     assert!((south.meters() - 100_000.0).abs() < 0.001, "{south:?}");
-    // The widest longitude reach is at the edge nearest the pole: 11° N. There
-    // the tangent point is exactly the distance away, with nothing further out.
     let reach = grown.east() - 21.0;
     assert!((reach - (20.0 - grown.west())).abs() < 1e-9);
-    let tangent = longitude_reach(
-        &Geodesic::new(
-            Ellipsoid::for_crs(Crs::Wgs84)
-                .unwrap()
-                .semi_major()
-                .meters(),
-            Ellipsoid::for_crs(Crs::Wgs84).unwrap().flattening(),
-        ),
-        11.0,
-        100_000.0,
-    );
-    assert!((reach - tangent).abs() < 2e-9, "{reach} vs {tangent}");
     // About 100 km over a degree of 109 km at that latitude.
-    assert!((tangent - 0.9).abs() < 0.1, "{tangent}");
+    assert!((reach - 0.9).abs() < 0.1, "{reach}");
 }
 
 #[test]
