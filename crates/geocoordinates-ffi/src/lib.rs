@@ -17,6 +17,8 @@
 //! | Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
 //! | `[ExifRational; 3]` (a tag of three rationals) | the named records [`ExifDms`] and [`ExifTime`] |
 //! | `SpatialIndex<T>` (generic, holds its entries) | the object [`SpatialIndex`] over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
+//! | `ClusterIndex` (`insert` / `remove` take `&mut self`) | the object [`ClusterIndex`], whose updates take a lock |
+//! | `Approx<Coordinate>` inside a cluster | flat `centroid` and `centroid_max_error_m` fields on [`Cluster`] and [`MapCluster`] |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
 //! return a bare datum record, while approximate inverses return an `Approx*`
@@ -55,9 +57,9 @@
 //!   [`ellipsoid_new`], [`accuracy_new`], [`confidence_new`],
 //!   [`datum_transform_new`]) fail at construction rather than at first use.
 //!   The `Approx*` records are the exception: every export that returns one
-//!   is a decoder, [`convert`] or a China inverse, and no export takes one as
-//!   input, so they have no `_new` or `_validate` and `Approx::new` has no
-//!   FFI form.
+//!   is a decoder, [`convert`], [`centroid`] or a China inverse, and no export
+//!   takes one as input, so they have no `_new` or `_validate` and `Approx::new`
+//!   has no FFI form.
 //! - **`*_canonicalize` for grid codes.** A string grid code validates and
 //!   normalizes through `<grid>_canonicalize` ([`mgrs_canonicalize`], …).
 //!
@@ -93,6 +95,7 @@ uniffi::setup_scaffolding!();
 
 mod angle;
 mod china;
+mod cluster;
 mod core;
 mod datum;
 mod dgg;
@@ -106,6 +109,7 @@ mod text;
 
 pub use self::angle::*;
 pub use self::china::*;
+pub use self::cluster::*;
 pub use self::core::*;
 pub use self::datum::*;
 pub use self::dgg::*;

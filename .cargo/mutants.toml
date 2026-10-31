@@ -52,4 +52,58 @@ exclude_re = [
     # would need that other arc to start before the first and end after it, which
     # is the nesting already returned above. So `&&` and `||` agree there.
     'src/index/bounds/arc\.rs:.*: replace && with \|\| in LonArc::union',
+    # cluster: a grid key packs a column above the 32nd bit and a row below it, and
+    # a cluster id packs a level above a 32-bit point id. Columns and rows stay under
+    # 2^31, so the two sides share no bit, and `|` and `^` agree on them.
+    'src/cluster/hierarchy/forest\.rs:.*: replace \| with \^ in pack',
+    'src/cluster/hierarchy/pin\.rs:.*: replace \| with \^ in encode_id',
+    # cluster::hierarchy::forest grid sizing chooses how points are bucketed, not
+    # what a search answers: every search filters by exact distance or `contains`,
+    # and any cell at least one radius wide (which all of these leave, by coarsening
+    # or by piling every point into one cell) still covers its neighbors. So these
+    # change a search's speed, never an answer, like the k-d tree's splits above.
+    'src/cluster/hierarchy/forest\.rs:.*: replace \* with (\+|/) in cells_for',
+    'src/cluster/hierarchy/forest\.rs:.*: replace / with (%|\*) in cells_for',
+    'src/cluster/hierarchy/forest\.rs:.*: replace \* with (\+|/) in cell_of',
+    # world_x's `lon - 180` only shifts every x by one whole world, which wrapped
+    # distances cannot see, and piles every point into column 0, as above.
+    'src/cluster/hierarchy/forest\.rs:.*: replace \+ with - in world_x',
+    # The entries below name a line where one function holds both harmless mutants
+    # and answer-changing ones, so a broader regex would hide the latter. An edit that
+    # moves such a line brings its mutants back as missed, which is the safe failure:
+    # re-anchor the entry to the same expression.
+    #
+    # The upper row limit of a search: a row past the grid's end holds nothing, so
+    # raising `cells - 1` (`for_each_near`, `candidates`) adds no candidate. Dropping
+    # `candidates`' one row of slack below the box keeps `cell_of(bottom)`, and a point
+    # inside the box maps through the same monotonic function to no later a row.
+    'src/cluster/hierarchy/forest\.rs:349:.*: replace - with (\+|/) in Forest::for_each_near',
+    'src/cluster/hierarchy/forest\.rs:584:.*: replace - with (\+|/) in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:584:.*: replace \+ with \* in Forest::candidates',
+    # `start`'s `% cells`: the loop reduces `start + step` by `cells` again, so leaving
+    # `start` unreduced walks the same columns.
+    'src/cluster/hierarchy/forest\.rs:582:.*: replace % with \+ in Forest::candidates',
+    # Forest::candidates may always return more than the box holds, because
+    # `ClusterIndex::clusters` filters by `contains`. Raising the column count, or
+    # choosing the full walk (even at every query), changes speed, never an answer.
+    'src/cluster/hierarchy/forest\.rs:576:.*: replace \* with \+ in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:576:.*: replace / with \* in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:579:.*: replace < with (==|<=|>) in Forest::candidates',
+    # ClusterIndex::clusters' `rows` of `None` is the full walk, so a mutant that
+    # makes it `None` for every box changes speed, never an answer.
+    'src/cluster/hierarchy\.rs:420:.*: replace < with > in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:420:.*: replace > with < in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:420:.*: delete - in ClusterIndex::clusters',
+    # Forest::seed_for compares keys unique by id, and a node equal to `best` is the
+    # node itself, which `best` already names.
+    'src/cluster/hierarchy/forest\.rs:.*: replace < with <= in Forest::seed_for',
+    # Forest::update_level pushing the node itself reprocesses it, which is
+    # idempotent, within the loop's bound: the second pass finds nothing to change.
+    'src/cluster/hierarchy/forest\.rs:.*: replace > with >= in Forest::update_level',
+    # cluster::centroid::from_sum at exactly the threshold: both sides are products
+    # of round-off, and no input lands a resultant on `1e-9 * count` to the bit.
+    'src/cluster/centroid\.rs:.*: replace < with <= in from_sum',
+    # ClusterIndex::insert's id counter is only read against the 2^32 - 1 id limit,
+    # so it differs only after four billion inserts, which no test can make.
+    'src/cluster/hierarchy\.rs:.*: replace \+ with \* in ClusterIndex::insert',
 ]
