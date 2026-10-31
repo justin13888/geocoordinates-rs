@@ -6,8 +6,8 @@
 //!   across `geo:` URIs, grid references, and free text.
 //! - [`from_geo_uri`] — `geo:` URIs per RFC 5870 (always available).
 //! - `interchange` — GeoJSON, WKT, GPX, KML (each behind a cargo feature).
-//! - `sensors` — NMEA 0183 (feature-gated). EXIF is out of scope — a
-//!   separate library handles it, consuming this crate's primitives.
+//! - `sensors` — NMEA 0183 (feature-gated). Reading EXIF out of a file is out of
+//!   scope — a separate library handles it, consuming this crate's primitives.
 //!
 //! ## Axis order is first-class
 //!
