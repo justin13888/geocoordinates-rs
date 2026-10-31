@@ -636,4 +636,6 @@ try:
 except gc.GeoError.InvalidValue as e:
     assert e.field == "radius", e.field
 
+runpy.run_path(str(pathlib.Path(__file__).with_name("smoke_cluster.py")), init_globals=globals())
+
 print("python smoke OK")

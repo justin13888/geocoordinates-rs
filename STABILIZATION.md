@@ -396,6 +396,38 @@ entry. The tree stays private behind `SpatialIndex`, so swapping it later is not
 breaking change. `cargo bench --features index --bench spatial_index` times the shipped
 index at both sizes against a brute-force scan.
 
+### `cluster`: what is canonical, and what an update costs
+
+`cluster` is implemented on master, on `index`. `ClusterIndex` seeds each zoom with the
+lexicographically first maximal independent set of the level below, ordered by latitude,
+longitude and id. A child's fate reads only earlier neighbors, so the clusters are a
+function of the set of points and never of arrival order, and `insert` / `remove` walk
+just the children a changed seed can reach. Property tests hold both to a plain
+quadratic model of the definition and to a rebuild, bit for bit, at every zoom, so no
+rebuild threshold is needed. `dbscan` gives a border point to its nearest core point,
+because textbook DBSCAN's first-come rule depends on input order.
+
+Timings below are one release run on one machine: `cargo bench --features cluster
+--bench cluster`, 200 synthetic cities of photos scattered over about 20 km, read for
+scaling and not as absolute numbers. Peak memory at 10⁶ was 1.86 GB, about 80 bytes per
+point per zoom, for the whole run with the index at its largest.
+
+| Points | `centroid` | `bucket_by_geohash(6)` | `dbscan(30 m, 4)` | `segment_visits` | `ClusterIndex` build | `insert` | `remove` | `clusters`, 10° × 15° box |
+|---|---|---|---|---|---|---|---|---|
+| 10⁴ | 1.1 ms | 8.2 ms | 13.5 ms | 14.9 ms | 57 ms | 41 µs | 25 µs | 67 µs |
+| 10⁵ | 10.8 ms | 76 ms | 143 ms | 122 ms | 526 ms | 86 µs | 30 µs | 361 µs |
+| 10⁶ | 83 ms | 443 ms | 1.82 s | 1.06 s | 6.03 s | 73 µs | 53 µs | 2.69 ms |
+
+So one update costs what about 1,400 (10⁴) to 83,000 (10⁶) points cost to rebuild, and
+updates stay flat with size. Above 10⁶, memory is what argues for `bucket_by_geohash`.
+
+Two limits are stated rather than hidden. Distance in `ClusterIndex` is on the Web
+Mercator square, because its radius is a promise about pixels, so points past ±85.05°
+flatten onto the map's edge and neighbors over a pole stay apart; `dbscan` and
+`segment_visits` are geodesic and have no such limit. And removing the seed of `k` points
+at one spot costs `O(k²)` at the deepest level, which a large burst of identical
+coordinates could feel; the benchmark does not exercise that shape.
+
 ## After 0.15.0 — the 1.0 freeze
 
 Once the surface has survived dogfooding, freeze the public API and adopt strict

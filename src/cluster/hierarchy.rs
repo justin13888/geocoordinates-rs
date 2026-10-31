@@ -102,7 +102,7 @@ impl ClusterIndexOptions {
 ///
 /// **Cost.** Building makes about `3 × 23` tree lookups per point, and an update
 /// costs the same order times the neighbors a changed seed disturbs. Memory is
-/// about 60 bytes per point per zoom. STABILIZATION.md records measurements; above
+/// about 80 bytes per point per zoom. STABILIZATION.md records measurements; above
 /// about 10⁶ points, prefer [`bucket_by_geohash`](super::bucket_by_geohash).
 ///
 /// Heights are ignored, and every point shares a CRS with an ellipsoid.

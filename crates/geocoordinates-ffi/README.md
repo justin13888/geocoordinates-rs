@@ -25,6 +25,8 @@ explicit `max_error_m`.
 | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
 | Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
 | `SpatialIndex<T>` (generic, holds its entries) | the object `SpatialIndex` over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
+| `ClusterIndex` (`insert` / `remove` take `&mut self`) | the object `ClusterIndex`, whose updates take a lock |
+| `Approx<Coordinate>` inside a cluster | flat `centroid` and `centroid_max_error_m` fields on `Cluster` and `MapCluster` |
 | `[ExifRational; 3]` (a tag of three rationals) | the named records `ExifDms` and `ExifTime` |
 | A type valid by construction | a plain record, checked as it crosses into Rust, with a `<record>_validate` function to check a hand-built one |
 

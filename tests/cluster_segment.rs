@@ -5,7 +5,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use geocoordinates::cluster::{
-    ClusterIndex, PointLabel, Trip, Visit, bucket_by_geohash, centroid, dbscan, segment_trips,
+    ClusterIndex, PointLabel, Visit, bucket_by_geohash, centroid, dbscan, segment_trips,
     segment_visits,
 };
 use geocoordinates::fix::Fix;
@@ -278,16 +278,16 @@ fn visits_and_trips_serde_rejects_impossible_times() {
     let trip = segment_trips(&visits, Duration::ZERO).unwrap()[0].clone();
     let trip_json = serde_json::to_value(&trip).unwrap();
     assert_eq!(
-        serde_json::from_value::<Trip>(trip_json.clone()).unwrap(),
+        serde_json::from_value::<geocoordinates::cluster::Trip>(trip_json.clone()).unwrap(),
         trip
     );
     let mut empty = trip_json.clone();
     empty["visits"] = serde_json::json!([]);
-    assert!(serde_json::from_value::<Trip>(empty).is_err());
+    assert!(serde_json::from_value::<geocoordinates::cluster::Trip>(empty).is_err());
     let mut flipped = trip_json.clone();
     flipped["start"] = trip_json["end"].clone();
     flipped["end"] = trip_json["start"].clone();
-    assert!(serde_json::from_value::<Trip>(flipped).is_err());
+    assert!(serde_json::from_value::<geocoordinates::cluster::Trip>(flipped).is_err());
 }
 
 /// Six days of photos in Paris, Tokyo, Suva across ±180°, and Longyearbyen far
