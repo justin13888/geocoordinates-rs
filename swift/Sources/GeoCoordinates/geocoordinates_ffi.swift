@@ -600,6 +600,253 @@ fileprivate struct FfiConverterTimestamp: FfiConverterRustBuffer {
 }
 
 
+
+
+/**
+ * A static spatial index answering exact geodesic radius and k-nearest queries —
+ * the object form of [`gc::index::SpatialIndex`].
+ *
+ * Built once and immutable, so it is safe to share between threads. Results are
+ * ordered by distance, then by position in the build list.
+ */
+public protocol SpatialIndexProtocol: AnyObject, Sendable {
+    
+    /**
+     * The reference system of the entries, or `None` for an empty index.
+     */
+    func crs()  -> Crs?
+    
+    /**
+     * Whether the index has no entries.
+     */
+    func isEmpty()  -> Bool
+    
+    /**
+     * The number of entries.
+     */
+    func len()  -> UInt64
+    
+    /**
+     * The `k` entries nearest `center` by geodesic distance, or every entry when
+     * there are fewer than `k`.
+     *
+     * # Errors
+     * `GeoError::CrsMismatch` when `center` is on GCJ-02 / BD-09 or on another
+     * reference system than the entries; `GeoError::OutOfRange` /
+     * `GeoError::InvalidValue` for an invalid coordinate record.
+     */
+    func nearest(center: Coordinate, k: UInt32) throws  -> [SpatialNeighbor]
+    
+    /**
+     * Every entry within geodesic `radius_m` meters of `center`, the radius
+     * included.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `radius`) when `radius_m` is negative or
+     * non-finite; `GeoError::CrsMismatch` when `center` is on GCJ-02 / BD-09 or on
+     * another reference system than the entries; `GeoError::OutOfRange` /
+     * `GeoError::InvalidValue` for an invalid coordinate record.
+     */
+    func within(center: Coordinate, radiusM: Double) throws  -> [SpatialNeighbor]
+    
+}
+/**
+ * A static spatial index answering exact geodesic radius and k-nearest queries —
+ * the object form of [`gc::index::SpatialIndex`].
+ *
+ * Built once and immutable, so it is safe to share between threads. Results are
+ * ordered by distance, then by position in the build list.
+ */
+open class SpatialIndex: SpatialIndexProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_geocoordinates_ffi_fn_clone_spatialindex(self.handle, $0) }
+    }
+    /**
+     * Builds the index from `points`, all on one reference system. An empty list
+     * is a valid index whose queries return nothing.
+     *
+     * # Errors
+     * `GeoError::CrsMismatch` when the points' reference systems differ or are
+     * GCJ-02 / BD-09; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an
+     * invalid coordinate record.
+     */
+public convenience init(points: [Coordinate])throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_constructor_spatialindex_new(
+        FfiConverterSequenceTypeCoordinate.lower(points),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_geocoordinates_ffi_fn_free_spatialindex(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * The reference system of the entries, or `None` for an empty index.
+     */
+open func crs() -> Crs?  {
+    return try!  FfiConverterOptionTypeCrs.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_spatialindex_crs(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Whether the index has no entries.
+     */
+open func isEmpty() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_spatialindex_is_empty(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The number of entries.
+     */
+open func len() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_spatialindex_len(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The `k` entries nearest `center` by geodesic distance, or every entry when
+     * there are fewer than `k`.
+     *
+     * # Errors
+     * `GeoError::CrsMismatch` when `center` is on GCJ-02 / BD-09 or on another
+     * reference system than the entries; `GeoError::OutOfRange` /
+     * `GeoError::InvalidValue` for an invalid coordinate record.
+     */
+open func nearest(center: Coordinate, k: UInt32)throws  -> [SpatialNeighbor]  {
+    return try  FfiConverterSequenceTypeSpatialNeighbor.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_method_spatialindex_nearest(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCoordinate_lower(center),
+        FfiConverterUInt32.lower(k),$0
+    )
+})
+}
+    
+    /**
+     * Every entry within geodesic `radius_m` meters of `center`, the radius
+     * included.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `radius`) when `radius_m` is negative or
+     * non-finite; `GeoError::CrsMismatch` when `center` is on GCJ-02 / BD-09 or on
+     * another reference system than the entries; `GeoError::OutOfRange` /
+     * `GeoError::InvalidValue` for an invalid coordinate record.
+     */
+open func within(center: Coordinate, radiusM: Double)throws  -> [SpatialNeighbor]  {
+    return try  FfiConverterSequenceTypeSpatialNeighbor.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_method_spatialindex_within(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCoordinate_lower(center),
+        FfiConverterDouble.lower(radiusM),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSpatialIndex: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = SpatialIndex
+
+    public static func lift(_ handle: UInt64) throws -> SpatialIndex {
+        return SpatialIndex(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: SpatialIndex) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SpatialIndex {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: SpatialIndex, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSpatialIndex_lift(_ handle: UInt64) throws -> SpatialIndex {
+    return try FfiConverterTypeSpatialIndex.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSpatialIndex_lower(_ value: SpatialIndex) -> UInt64 {
+    return FfiConverterTypeSpatialIndex.lower(value)
+}
+
+
+
+
 /**
  * A positional accuracy estimate — mirror of [`gc::fix::Accuracy`].
  *
@@ -2068,6 +2315,109 @@ public func FfiConverterTypeGcj02_lower(_ value: Gcj02) -> RustBuffer {
 
 
 /**
+ * A geographic box — mirror of [`gc::index::GeoBounds`].
+ *
+ * Decimal degrees on `crs`, every edge inclusive. A `west` greater than `east`
+ * crosses the antimeridian. Plain data: every export taking one applies the core
+ * crate's rules, and [`geo_bounds_validate`] checks a hand-built one.
+ */
+public struct GeoBounds: Equatable, Hashable {
+    /**
+     * South edge, degrees.
+     */
+    public var south: Double
+    /**
+     * West edge, degrees.
+     */
+    public var west: Double
+    /**
+     * North edge, degrees.
+     */
+    public var north: Double
+    /**
+     * East edge, degrees.
+     */
+    public var east: Double
+    /**
+     * The reference system of the edges.
+     */
+    public var crs: Crs
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * South edge, degrees.
+         */south: Double, 
+        /**
+         * West edge, degrees.
+         */west: Double, 
+        /**
+         * North edge, degrees.
+         */north: Double, 
+        /**
+         * East edge, degrees.
+         */east: Double, 
+        /**
+         * The reference system of the edges.
+         */crs: Crs) {
+        self.south = south
+        self.west = west
+        self.north = north
+        self.east = east
+        self.crs = crs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GeoBounds: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGeoBounds: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GeoBounds {
+        return
+            try GeoBounds(
+                south: FfiConverterDouble.read(from: &buf), 
+                west: FfiConverterDouble.read(from: &buf), 
+                north: FfiConverterDouble.read(from: &buf), 
+                east: FfiConverterDouble.read(from: &buf), 
+                crs: FfiConverterTypeCrs.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GeoBounds, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.south, into: &buf)
+        FfiConverterDouble.write(value.west, into: &buf)
+        FfiConverterDouble.write(value.north, into: &buf)
+        FfiConverterDouble.write(value.east, into: &buf)
+        FfiConverterTypeCrs.write(value.crs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeoBounds_lift(_ buf: RustBuffer) throws -> GeoBounds {
+    return try FfiConverterTypeGeoBounds.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeoBounds_lower(_ value: GeoBounds) -> RustBuffer {
+    return FfiConverterTypeGeoBounds.lower(value)
+}
+
+
+/**
  * An H3 cell index — mirror of [`gc::H3Cell`](gc::dgg::H3Cell).
  *
  * The record carries an unvalidated `u64`; every export that takes one
@@ -2605,6 +2955,85 @@ public func FfiConverterTypeS2CellId_lift(_ buf: RustBuffer) throws -> S2CellId 
 #endif
 public func FfiConverterTypeS2CellId_lower(_ value: S2CellId) -> RustBuffer {
     return FfiConverterTypeS2CellId.lower(value)
+}
+
+
+/**
+ * One query result from a [`SpatialIndex`].
+ */
+public struct SpatialNeighbor: Equatable, Hashable {
+    /**
+     * The entry's coordinate, as it was inserted.
+     */
+    public var coordinate: Coordinate
+    /**
+     * The entry's position in the list the index was built from.
+     */
+    public var index: UInt64
+    /**
+     * The exact geodesic distance from the query point, in meters.
+     */
+    public var distanceM: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The entry's coordinate, as it was inserted.
+         */coordinate: Coordinate, 
+        /**
+         * The entry's position in the list the index was built from.
+         */index: UInt64, 
+        /**
+         * The exact geodesic distance from the query point, in meters.
+         */distanceM: Double) {
+        self.coordinate = coordinate
+        self.index = index
+        self.distanceM = distanceM
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SpatialNeighbor: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSpatialNeighbor: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SpatialNeighbor {
+        return
+            try SpatialNeighbor(
+                coordinate: FfiConverterTypeCoordinate.read(from: &buf), 
+                index: FfiConverterUInt64.read(from: &buf), 
+                distanceM: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SpatialNeighbor, into buf: inout [UInt8]) {
+        FfiConverterTypeCoordinate.write(value.coordinate, into: &buf)
+        FfiConverterUInt64.write(value.index, into: &buf)
+        FfiConverterDouble.write(value.distanceM, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSpatialNeighbor_lift(_ buf: RustBuffer) throws -> SpatialNeighbor {
+    return try FfiConverterTypeSpatialNeighbor.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSpatialNeighbor_lower(_ value: SpatialNeighbor) -> RustBuffer {
+    return FfiConverterTypeSpatialNeighbor.lower(value)
 }
 
 
@@ -5088,6 +5517,30 @@ fileprivate struct FfiConverterOptionTypeAxisOrder: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeCrs: FfiConverterRustBuffer {
+    typealias SwiftType = Crs?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCrs.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCrs.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDatumAmbiguity: FfiConverterRustBuffer {
     typealias SwiftType = DatumAmbiguity?
 
@@ -5185,6 +5638,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCoordinate: FfiConverterRustBuffer {
+    typealias SwiftType = [Coordinate]
+
+    public static func write(_ value: [Coordinate], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCoordinate.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Coordinate] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Coordinate]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCoordinate.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFix: FfiConverterRustBuffer {
     typealias SwiftType = [Fix]
 
@@ -5202,6 +5680,31 @@ fileprivate struct FfiConverterSequenceTypeFix: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFix.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSpatialNeighbor: FfiConverterRustBuffer {
+    typealias SwiftType = [SpatialNeighbor]
+
+    public static func write(_ value: [SpatialNeighbor], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSpatialNeighbor.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SpatialNeighbor] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SpatialNeighbor]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSpatialNeighbor.read(from: &buf))
         }
         return seq
     }
@@ -7217,6 +7720,128 @@ public func utmZoneFor(coord: Coordinate)throws  -> UInt8  {
 })
 }
 /**
+ * The middle of the box in latitude and longitude: the midpoint of the edges, not
+ * a geodesic centroid.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+ */
+public func geoBoundsCenter(bounds: GeoBounds)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_center(
+        FfiConverterTypeGeoBounds_lower(bounds),$0
+    )
+})
+}
+/**
+ * Whether `point` lies in the box, edges included. A pole is inside a box that
+ * reaches it, whatever the box's longitudes.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when `point` is not on the box's reference system;
+ * `GeoError::InvalidValue` / `GeoError::OutOfRange` for an invalid record.
+ */
+public func geoBoundsContains(bounds: GeoBounds, point: Coordinate)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_contains(
+        FfiConverterTypeGeoBounds_lower(bounds),
+        FfiConverterTypeCoordinate_lower(point),$0
+    )
+})
+}
+/**
+ * Whether the box crosses the antimeridian: its west edge lies east of its east
+ * edge.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+ */
+public func geoBoundsCrossesAntimeridian(bounds: GeoBounds)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_crosses_antimeridian(
+        FfiConverterTypeGeoBounds_lower(bounds),$0
+    )
+})
+}
+/**
+ * The box grown so it holds every point within geodesic `distance_m` meters of the
+ * original box, clamped at the poles. Reaching a pole takes in every longitude.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `distance`) when `distance_m` is negative or
+ * non-finite, or for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` on
+ * GCJ-02 / BD-09, which have no ellipsoid.
+ */
+public func geoBoundsExpandBy(bounds: GeoBounds, distanceM: Double)throws  -> GeoBounds  {
+    return try  FfiConverterTypeGeoBounds_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_expand_by(
+        FfiConverterTypeGeoBounds_lower(bounds),
+        FfiConverterDouble.lower(distanceM),$0
+    )
+})
+}
+/**
+ * The smallest box holding every point, choosing the smallest longitude span, so
+ * a cluster around ±180° does not span the globe.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `points`) for no points;
+ * `GeoError::CrsMismatch` when the points' reference systems differ;
+ * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid coordinate
+ * record.
+ */
+public func geoBoundsFromPoints(points: [Coordinate])throws  -> GeoBounds  {
+    return try  FfiConverterTypeGeoBounds_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_from_points(
+        FfiConverterSequenceTypeCoordinate.lower(points),$0
+    )
+})
+}
+/**
+ * Whether the two boxes share any point, edges included.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when the boxes are on different reference systems;
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+ */
+public func geoBoundsIntersects(a: GeoBounds, b: GeoBounds)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_intersects(
+        FfiConverterTypeGeoBounds_lower(a),
+        FfiConverterTypeGeoBounds_lower(b),$0
+    )
+})
+}
+/**
+ * The smallest box holding both boxes, taking the shorter way around the globe
+ * between them.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when the boxes are on different reference systems;
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+ */
+public func geoBoundsUnion(a: GeoBounds, b: GeoBounds)throws  -> GeoBounds  {
+    return try  FfiConverterTypeGeoBounds_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_union(
+        FfiConverterTypeGeoBounds_lower(a),
+        FfiConverterTypeGeoBounds_lower(b),$0
+    )
+})
+}
+/**
+ * Checks a hand-built [`GeoBounds`] against the core crate's rules.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming the edge when it is non-finite or out of range,
+ * and field `south` when south lies north of north.
+ */
+public func geoBoundsValidate(bounds: GeoBounds)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_geo_bounds_validate(
+        FfiConverterTypeGeoBounds_lower(bounds),$0
+    )
+}
+}
+/**
  * Parse positions from a GeoJSON document (lon-lat order) — one [`Fix`] per
  * position (a line of *n* vertices yields *n* fixes), altitude ellipsoidal.
  * A document with no positions yields an empty list.
@@ -7907,6 +8532,30 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_utm_zone_for() != 21952) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_center() != 60755) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_contains() != 59421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_crosses_antimeridian() != 29894) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_expand_by() != 33462) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_from_points() != 62214) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_intersects() != 43308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_union() != 20908) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_validate() != 12905) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_geojson() != 22879) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -7953,6 +8602,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 10027) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_crs() != 14985) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_is_empty() != 4455) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_len() != 7926) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_nearest() != 45457) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_within() != 34896) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_constructor_spatialindex_new() != 35612) {
         return InitializationResult.apiChecksumMismatch
     }
 
