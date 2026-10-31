@@ -137,7 +137,7 @@ fn speed_without_a_unit_is_dropped_with_a_note() {
     }
     assert_eq!(from_exif(&base()).unwrap().speed_mps, None);
     let unit_alone = ExifGps {
-        speed_ref: text("bogus"),
+        speed_ref: text("K"),
         ..base()
     };
     assert_eq!(from_exif(&unit_alone).unwrap().speed_mps, None);

@@ -57,6 +57,7 @@ fn xmp_forms_match_the_ifd_path() {
 
 #[test]
 fn xmp_rejects_what_the_ifd_path_rejects() {
+    let overflowing = format!("{}/0.001", "9".repeat(308));
     for (field, gps) in [
         (
             "latitude",
@@ -97,6 +98,56 @@ fn xmp_rejects_what_the_ifd_path_rejects() {
             "dop",
             XmpGps {
                 dop: text("0/0"),
+                ..xmp_base()
+            },
+        ),
+        (
+            "dop",
+            XmpGps {
+                dop: text(&overflowing),
+                ..xmp_base()
+            },
+        ),
+        (
+            "speed",
+            XmpGps {
+                speed: text(&overflowing),
+                speed_ref: text("K"),
+                ..xmp_base()
+            },
+        ),
+        (
+            "altitude_ref",
+            XmpGps {
+                altitude_ref: text("up"),
+                ..xmp_base()
+            },
+        ),
+        (
+            "altitude_ref",
+            XmpGps {
+                altitude_ref: text("9"),
+                ..xmp_base()
+            },
+        ),
+        (
+            "speed_ref",
+            XmpGps {
+                speed_ref: text("bogus"),
+                ..xmp_base()
+            },
+        ),
+        (
+            "img_direction_ref",
+            XmpGps {
+                img_direction_ref: text("bogus"),
+                ..xmp_base()
+            },
+        ),
+        (
+            "track_ref",
+            XmpGps {
+                track_ref: text("bogus"),
                 ..xmp_base()
             },
         ),
@@ -151,7 +202,6 @@ fn xmp_rejects_what_the_ifd_path_rejects() {
 #[test]
 fn xmp_text_that_does_not_read_is_a_syntax_error() {
     let bad_coordinates = [
-        "",
         "N",
         "10N",
         "10,0,0,0N",
@@ -229,6 +279,66 @@ fn xmp_blank_numbers_read_as_absent() {
         capture.fix.source.unwrap().notes.len(),
         1,
         "only the datum note"
+    );
+}
+
+#[test]
+fn xmp_blank_positions_are_no_fix() {
+    for blank in ["", "  ", "\0"] {
+        for gps in [
+            XmpGps {
+                latitude: text(blank),
+                ..xmp_base()
+            },
+            XmpGps {
+                longitude: text(blank),
+                ..xmp_base()
+            },
+        ] {
+            assert!(
+                matches!(
+                    xmp_error(&gps),
+                    Error::Parse {
+                        kind: ParseErrorKind::NoFix,
+                        ..
+                    }
+                ),
+                "{gps:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn xmp_time_stamp_zones_must_be_in_range() {
+    for stamp in [
+        "2020-01-01T00:00:00+99:99",
+        "2020-01-01T00:00:00+24:00",
+        "2020-01-01T00:00:00-24:00",
+        "2020-01-01T00:00:00+00:60",
+    ] {
+        let gps = XmpGps {
+            time_stamp: text(stamp),
+            ..xmp_base()
+        };
+        assert!(
+            matches!(
+                xmp_error(&gps),
+                Error::InvalidValue {
+                    field: "time_stamp",
+                    ..
+                }
+            ),
+            "{stamp}"
+        );
+    }
+    let widest = XmpGps {
+        time_stamp: text("1970-01-02T23:59:00+23:59"),
+        ..xmp_base()
+    };
+    assert_eq!(
+        from_xmp(&widest).unwrap().fix.timestamp,
+        Some(SystemTime::UNIX_EPOCH + Duration::from_secs(86_400))
     );
 }
 

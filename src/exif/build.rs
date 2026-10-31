@@ -44,7 +44,7 @@ pub(super) fn clean(value: &str) -> &str {
 }
 
 /// The tag's cleaned value, with a blank one read as absent.
-fn present(value: Option<&str>) -> Option<&str> {
+pub(super) fn present(value: Option<&str>) -> Option<&str> {
     value.map(clean).filter(|v| !v.is_empty())
 }
 
@@ -59,8 +59,8 @@ impl Tags<'_> {
         if options.null_island == NullIslandPolicy::Reject && lat == 0.0 && lon == 0.0 {
             return Err(no_fix("position is exactly 0, 0"));
         }
-        if let Some(meters) = self.altitude {
-            coord = coord.with_height(height(meters, self.altitude_ref)?)?;
+        if let Some(height) = height(self.altitude, self.altitude_ref)? {
+            coord = coord.with_height(height)?;
         }
 
         let confidence = if crs.is_some() {
@@ -80,8 +80,9 @@ impl Tags<'_> {
         }
         source.notes.extend(self.stamp.note);
 
-        let speed_mps = match (self.speed, present(self.speed_ref)) {
-            (Some(speed), Some(unit)) => Some(speed * speed_factor(unit)?),
+        let speed_unit = present(self.speed_ref).map(speed_factor).transpose()?;
+        let speed_mps = match (self.speed, speed_unit) {
+            (Some(speed), Some(factor)) => Some(speed * factor),
             (Some(_), None) => {
                 source
                     .notes
@@ -179,19 +180,23 @@ fn crs_for_datum(name: &str) -> Option<Crs> {
     }
 }
 
-/// The height a `GPSAltitude` magnitude and `GPSAltitudeRef` describe. Subtracting
-/// from zero keeps a zero magnitude below the surface from reading as `-0.0`.
-fn height(meters: f64, reference: Option<u8>) -> Result<Height> {
-    match reference.unwrap_or(0) {
-        0 => Ok(Height::Orthometric(meters)),
-        1 => Ok(Height::Orthometric(0.0 - meters)),
-        2 => Ok(Height::Ellipsoidal(meters)),
-        3 => Ok(Height::Ellipsoidal(0.0 - meters)),
-        other => Err(Error::InvalidValue {
-            field: "altitude_ref",
-            detail: format!("must be 0, 1, 2 or 3, got {other}"),
-        }),
-    }
+/// The height a `GPSAltitude` magnitude and `GPSAltitudeRef` describe; the Ref is
+/// checked with or without a magnitude. Subtracting from zero keeps a zero magnitude
+/// below the surface from reading as `-0.0`.
+fn height(meters: Option<f64>, reference: Option<u8>) -> Result<Option<Height>> {
+    let surface: fn(f64) -> Height = match reference.unwrap_or(0) {
+        0 => Height::Orthometric,
+        1 => |m| Height::Orthometric(0.0 - m),
+        2 => Height::Ellipsoidal,
+        3 => |m| Height::Ellipsoidal(0.0 - m),
+        other => {
+            return Err(Error::InvalidValue {
+                field: "altitude_ref",
+                detail: format!("must be 0, 1, 2 or 3, got {other}"),
+            });
+        }
+    };
+    Ok(meters.map(surface))
 }
 
 fn speed_factor(unit: &str) -> Result<f64> {
@@ -212,9 +217,6 @@ fn bearing(
     field: &'static str,
     ref_field: &'static str,
 ) -> Result<Option<NorthBearing>> {
-    let Some(degrees) = degrees else {
-        return Ok(None);
-    };
     let reference = match present(reference).map(str::to_ascii_uppercase).as_deref() {
         None => None,
         Some("T") => Some(NorthReference::True),
@@ -226,7 +228,9 @@ fn bearing(
             });
         }
     };
-    NorthBearing::checked(degrees, reference, field).map(Some)
+    degrees
+        .map(|degrees| NorthBearing::checked(degrees, reference, field))
+        .transpose()
 }
 
 /// The UTC timestamp of a stamp, and a note when its date could not be read.

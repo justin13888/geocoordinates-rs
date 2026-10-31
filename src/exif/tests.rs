@@ -403,11 +403,47 @@ fn every_altitude_ref_maps_to_its_surface_and_sign() {
             "{reference:?}"
         );
     }
-    let bad_ref_alone = ExifGps {
-        altitude_ref: Some(9),
+    let ref_alone = ExifGps {
+        altitude_ref: Some(1),
         ..base()
     };
-    assert_eq!(from_exif(&bad_ref_alone).unwrap().fix.coord.height(), None);
+    assert_eq!(from_exif(&ref_alone).unwrap().fix.coord.height(), None);
+}
+
+#[test]
+fn an_unrecognised_ref_is_an_error_without_its_value_tag() {
+    for (field, gps) in [
+        (
+            "altitude_ref",
+            ExifGps {
+                altitude_ref: Some(9),
+                ..base()
+            },
+        ),
+        (
+            "speed_ref",
+            ExifGps {
+                speed_ref: text("bogus"),
+                ..base()
+            },
+        ),
+        (
+            "img_direction_ref",
+            ExifGps {
+                img_direction_ref: text("bogus"),
+                ..base()
+            },
+        ),
+        (
+            "track_ref",
+            ExifGps {
+                track_ref: text("bogus"),
+                ..base()
+            },
+        ),
+    ] {
+        assert_eq!(field_of(&gps), field);
+    }
 }
 
 #[test]

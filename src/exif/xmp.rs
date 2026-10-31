@@ -1,6 +1,6 @@
 //! The XMP `exif:GPS*` string forms, reduced to the same tags as the IFD path.
 
-use super::build::{Stamp, Tags, clean};
+use super::build::{Stamp, Tags, clean, present};
 use super::{CaptureGeo, ExifOptions, no_fix};
 use crate::{Error, ParseErrorKind, Result};
 
@@ -85,12 +85,16 @@ pub fn from_xmp(gps: &XmpGps) -> Result<CaptureGeo> {
 /// [`from_exif_with`](super::from_exif_with). The same values give the same result
 /// by either path, apart from [`RawSource::raw`](crate::fix::RawSource::raw).
 ///
-/// A `time_stamp` missing its date, seconds or zone gives no timestamp, with a note.
+/// A blank property reads as absent, so a blank latitude or longitude is
+/// [`ParseErrorKind::NoFix`]. A `time_stamp` missing its date, seconds or zone gives
+/// no timestamp, with a note.
 ///
 /// # Errors
-/// As [`from_exif_with`](super::from_exif_with), and [`Error::Parse`] with
+/// As [`from_exif_with`](super::from_exif_with); [`Error::Parse`] with
 /// [`ParseErrorKind::Syntax`] for a coordinate or number that does not read in its
-/// XMP form, which includes `NaN` and infinities.
+/// XMP form, which includes `NaN` and infinities; and [`Error::InvalidValue`] naming
+/// the field for a rational whose quotient overflows to infinity, or a `time_stamp`
+/// zone outside `±23:59`.
 ///
 /// ```
 /// use geocoordinates::Error;
@@ -105,11 +109,12 @@ pub fn from_xmp(gps: &XmpGps) -> Result<CaptureGeo> {
 /// ));
 /// ```
 pub fn from_xmp_with(gps: &XmpGps, options: ExifOptions) -> Result<CaptureGeo> {
-    let (Some(latitude), Some(longitude)) = (&gps.latitude, &gps.longitude) else {
+    let (Some(latitude), Some(longitude)) = (
+        present(gps.latitude.as_deref()),
+        present(gps.longitude.as_deref()),
+    ) else {
         return Err(no_fix("GPSLatitude and GPSLongitude are both required"));
     };
-    let latitude = clean(latitude);
-    let longitude = clean(longitude);
     let (latitude_components, latitude_ref) = coordinate(latitude, "latitude")?;
     let (longitude_components, longitude_ref) = coordinate(longitude, "longitude")?;
     let tags = Tags {
@@ -186,7 +191,14 @@ fn number(value: Option<&str>, field: &'static str) -> Result<Option<f64>> {
             detail: format!("zero denominator in {value}"),
         });
     }
-    Ok(Some(numerator / denominator))
+    let quotient = numerator / denominator;
+    if !quotient.is_finite() {
+        return Err(Error::InvalidValue {
+            field,
+            detail: format!("{value} overflows to infinity"),
+        });
+    }
+    Ok(Some(quotient))
 }
 
 fn altitude_ref(value: Option<&str>) -> Result<Option<u8>> {
@@ -211,13 +223,15 @@ fn stamp(value: Option<&str>) -> Result<Stamp> {
             note: Some(format!("time stamp {value:?} is partial; no timestamp")),
         });
     };
-    Stamp::new(Some(date), Some(time), offset)
+    Stamp::new(Some(date), Some(time), offset?)
 }
 
-fn date_time_zone(value: &str) -> Option<(&str, [f64; 3], i64)> {
+/// The date, time of day and zone of a stamp; `None` when a part is missing, and an
+/// error in the zone's place when the zone is out of range.
+fn date_time_zone(value: &str) -> Option<(&str, [f64; 3], Result<i64>)> {
     let (date, rest) = value.split_once('T')?;
     let (clock, offset) = if let Some(clock) = rest.strip_suffix(['Z', 'z']) {
-        (clock, 0)
+        (clock, Ok(0))
     } else {
         let at = rest.rfind(['+', '-'])?;
         let (clock, zone) = rest.split_at(at);
@@ -229,11 +243,17 @@ fn date_time_zone(value: &str) -> Option<(&str, [f64; 3], i64)> {
 }
 
 /// `+hh:mm` or `-hh:mm` as signed minutes ahead of UTC.
-fn zone_minutes(zone: &str) -> Option<i64> {
+fn zone_minutes(zone: &str) -> Option<Result<i64>> {
     let (sign, digits) = zone.split_at(1);
     let (hours, minutes) = digits.split_once(':')?;
     let hours: i64 = (hours.len() == 2).then(|| hours.parse().ok())??;
     let minutes: i64 = (minutes.len() == 2).then(|| minutes.parse().ok())??;
+    if hours >= 24 || minutes >= 60 {
+        return Some(Err(Error::InvalidValue {
+            field: "time_stamp",
+            detail: format!("zone must be within ±23:59, got {zone}"),
+        }));
+    }
     let total = hours * 60 + minutes;
-    Some(if sign == "-" { -total } else { total })
+    Some(Ok(if sign == "-" { -total } else { total }))
 }

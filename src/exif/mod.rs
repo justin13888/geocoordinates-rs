@@ -436,9 +436,10 @@ pub fn from_exif(gps: &ExifGps) -> Result<CaptureGeo> {
 ///   absent, the block is all `0/0` placeholders, or the position is 0°, 0° under
 ///   [`NullIslandPolicy::Reject`].
 /// - [`Error::InvalidValue`] naming the field: a zero denominator or negative
-///   value, minutes or seconds of 60 or more, an hour of 24 or more, a bearing
-///   outside `[0, 360)`, or an absent or unrecognised latitude / longitude Ref, or
-///   an unrecognised other Ref.
+///   value, minutes or seconds of 60 or more, a time stamp's hour of 24 or more or
+///   seconds of 60 (so a UTC leap second is rejected), a bearing outside `[0, 360)`
+///   (so 360 is rejected), an absent or unrecognised latitude / longitude Ref, or
+///   an unrecognised other Ref, with or without the tag it qualifies.
 /// - [`Error::OutOfRange`]: the position is beyond ±90° / ±180°.
 ///
 /// ```
