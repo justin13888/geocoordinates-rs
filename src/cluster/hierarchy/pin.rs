@@ -67,6 +67,12 @@ impl TryFrom<MapClusterRepr> for MapCluster {
                 detail: "a cluster holds at least one point".into(),
             });
         }
+        if repr.centroid.value().crs() != repr.bounds.crs() {
+            return Err(Error::CrsMismatch {
+                expected: repr.bounds.crs(),
+                found: repr.centroid.value().crs(),
+            });
+        }
         Ok(Self {
             id: repr.id,
             zoom: repr.zoom,

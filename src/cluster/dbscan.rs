@@ -78,6 +78,12 @@ impl TryFrom<DbscanRepr> for Dbscan {
                         field: "clusters",
                         detail: format!("member {member} has no label"),
                     })?;
+                if *slot != PointLabel::Noise {
+                    return Err(Error::InvalidValue {
+                        field: "clusters",
+                        detail: format!("member {member} is listed in two clusters"),
+                    });
+                }
                 *slot = PointLabel::Cluster { id: position };
             }
         }

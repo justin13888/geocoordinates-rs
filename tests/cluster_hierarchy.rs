@@ -574,6 +574,15 @@ fn map_clusters_and_options_serde() {
     assert!(serde_json::from_str::<MapCluster>(&bad_zoom).is_err());
     let bad_count = json.replacen("\"count\":1", "\"count\":0", 1);
     assert!(serde_json::from_str::<MapCluster>(&bad_count).is_err());
+    let mut mixed = serde_json::to_value(pin).unwrap();
+    mixed["bounds"]["crs"] = serde_json::json!("Tokyo");
+    let message = serde_json::from_value::<MapCluster>(mixed)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        message.contains("CRS") || message.contains("Tokyo"),
+        "{message}"
+    );
 
     let options: ClusterIndexOptions = serde_json::from_str("{\"radius_px\":9.0}").unwrap();
     assert_eq!(options, ClusterIndexOptions::default().with_radius_px(9.0));

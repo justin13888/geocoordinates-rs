@@ -462,6 +462,17 @@ fn serde_round_trips_and_rejects_invalid_values() {
     let misnumbered = json.replacen("\"id\":0,\"centroid\"", "\"id\":4,\"centroid\"", 1);
     assert!(serde_json::from_str::<Dbscan>(&misnumbered).is_err());
 
+    // A member in two clusters, labelled with the later one so the labels agree.
+    let two = [wgs(0.0, 0.0), wgs(0.0, 0.0), wgs(5.0, 5.0), wgs(5.0, 5.0)];
+    let found = dbscan(&two, Length::from_meters(50.0), 2).unwrap();
+    let mut shared = serde_json::to_value(&found).unwrap();
+    shared["clusters"][1]["members"] = serde_json::json!([1, 2, 3]);
+    shared["labels"][1] = serde_json::json!({"Cluster": {"id": 1}});
+    let message = serde_json::from_value::<Dbscan>(shared)
+        .unwrap_err()
+        .to_string();
+    assert!(message.contains("two clusters"), "{message}");
+
     let bucket = bucket_by_geohash(&points, 3).unwrap();
     let bucket_json = serde_json::to_string(&bucket).unwrap();
     assert_eq!(
