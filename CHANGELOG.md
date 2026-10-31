@@ -8,6 +8,83 @@ Versions are `0.x`; each minor may make breaking changes until `1.0`. See
 [STABILIZATION.md](STABILIZATION.md) for the stabilization ledger and the road to
 the 1.0 API freeze.
 
+## [0.15.0](https://github.com/justin13888/geocoordinates-rs/compare/v0.14.2...v0.15.0) - 2026-10-31
+
+### Added
+
+- *(exif)* convert EXIF and XMP GPS tag values to a Fix ([#236](https://github.com/justin13888/geocoordinates-rs/pull/236))
+- *(index)* add antimeridian-aware GeoBounds and a geodesic SpatialIndex ([#230](https://github.com/justin13888/geocoordinates-rs/pull/230))
+- *(format)* [**breaking**] non-exhaustive option builders, round-trip decimal caps, Hash derives ([#210](https://github.com/justin13888/geocoordinates-rs/pull/210))
+- *(parse)* [**breaking**] structured parse errors with ParseErrorKind ([#203](https://github.com/justin13888/geocoordinates-rs/pull/203))
+- *(geodesy)* [**breaking**] ellipsoidal cross-track, along-track and intersection ([#202](https://github.com/justin13888/geocoordinates-rs/pull/202))
+- *(grids)* inherent parse on grid codes, Hash on ids, H3/S2 level getters, dedupe grid math ([#201](https://github.com/justin13888/geocoordinates-rs/pull/201))
+- *(fix)* [**breaking**] validated, kind-tagged Accuracy and an extensible Fix model ([#195](https://github.com/justin13888/geocoordinates-rs/pull/195))
+- *(parse)* [**breaking**] state axis order and altitude meaning explicitly in interchange parsing ([#155](https://github.com/justin13888/geocoordinates-rs/pull/155))
+- *(parse)* [**breaking**] add ParseOptions with grid detection and reject ambiguous free text ([#154](https://github.com/justin13888/geocoordinates-rs/pull/154))
+- *(format)* [**breaking**] let Representation carry its own settings and cover every grid ([#150](https://github.com/justin13888/geocoordinates-rs/pull/150))
+- *(grids)* [**breaking**] give MGRS a typed precision, validated serde and Display ([#148](https://github.com/justin13888/geocoordinates-rs/pull/148))
+
+### Fixed
+
+- *(grids)* [**breaking**] accept only the forward image in Utm::new, Ups::new and Mgrs::parse ([#211](https://github.com/justin13888/geocoordinates-rs/pull/211))
+- *(parse)* reject a KML Point with no coordinates instead of panicking ([#209](https://github.com/justin13888/geocoordinates-rs/pull/209))
+- *(parse)* reject unclosed KML instead of hanging in the kml reader ([#206](https://github.com/justin13888/geocoordinates-rs/pull/206))
+- *(mgrs)* keep a point west of a central meridian in the square west of it ([#207](https://github.com/justin13888/geocoordinates-rs/pull/207))
+- *(jvm)* release Maven Central deployments automatically ([#204](https://github.com/justin13888/geocoordinates-rs/pull/204))
+- *(mgrs)* decode a truncated square inside its grid-zone designator ([#196](https://github.com/justin13888/geocoordinates-rs/pull/196))
+- *(geodesy)* [**breaking**] honest errors for along-track at the path pole and bad Crs arguments; no -0.0 ([#193](https://github.com/justin13888/geocoordinates-rs/pull/193))
+- *(mgrs)* emit only references the decoder accepts, and decode without re-parsing ([#194](https://github.com/justin13888/geocoordinates-rs/pull/194))
+- *(china)* measured China inverse bounds, direct BD-09 to GCJ-02 in convert, and a fast BD-09 inverse ([#191](https://github.com/justin13888/geocoordinates-rs/pull/191))
+- *(geodesy)* [**breaking**] rhumb bearing from a pole inverts with rhumb_destination ([#192](https://github.com/justin13888/geocoordinates-rs/pull/192))
+- *(parse)* reject short GeoJSON positions and bound WKT/KML nesting ([#189](https://github.com/justin13888/geocoordinates-rs/pull/189))
+- *(parse)* read an uppercase S after a seconds number as South ([#188](https://github.com/justin13888/geocoordinates-rs/pull/188))
+- *(geodesy)* [**breaking**] compute rhumb lines on the datum ellipsoid and stop them at the poles ([#162](https://github.com/justin13888/geocoordinates-rs/pull/162))
+- *(parse)* [**breaking**] reject NMEA sentences that report no fix and timestamp RMC ([#157](https://github.com/justin13888/geocoordinates-rs/pull/157))
+- *(geodesy)* [**breaking**] make geodesics datum-aware, fix the pole intersection and name spherical functions ([#156](https://github.com/justin13888/geocoordinates-rs/pull/156))
+
+### Other
+
+- *(exif)* pin PossiblyGcj02 with a real tag set captured inside China ([#239](https://github.com/justin13888/geocoordinates-rs/pull/239))
+- *(readme)* add the index-test gate to the Development table ([#238](https://github.com/justin13888/geocoordinates-rs/pull/238))
+- *(index)* cover expand_by and longitude_reach up to the pole-gap cutoff ([#235](https://github.com/justin13888/geocoordinates-rs/pull/235))
+- admit photo-library geo into scope and reserve its features ([#229](https://github.com/justin13888/geocoordinates-rs/pull/229))
+- trim dev-profile debug info to line tables, none for dependencies ([#228](https://github.com/justin13888/geocoordinates-rs/pull/228))
+- *(ffi)* record that Approx records are output-only with no FFI constructor ([#219](https://github.com/justin13888/geocoordinates-rs/pull/219))
+- *(rhumb)* assert the zero-distance return is exact from every start ([#217](https://github.com/justin13888/geocoordinates-rs/pull/217))
+- *(grids)* record the UTM inverse latitude rounding change ([#218](https://github.com/justin13888/geocoordinates-rs/pull/218))
+- reconcile STABILIZATION, README and AGENTS with the audited surface ([#213](https://github.com/justin13888/geocoordinates-rs/pull/213))
+- *(ffi)* [**breaking**] normalize FFI naming and close validation, capability and docs gaps ([#212](https://github.com/justin13888/geocoordinates-rs/pull/212))
+- [**breaking**] uniform argument conventions (Coordinate by value, is_outside_china, LatLon/format docs) ([#208](https://github.com/justin13888/geocoordinates-rs/pull/208))
+- one workspace version, compiled npm package, and release-PR packaging runs ([#200](https://github.com/justin13888/geocoordinates-rs/pull/200))
+- *(geodesy)* [**breaking**] local frames valid by construction on any classic datum ([#199](https://github.com/justin13888/geocoordinates-rs/pull/199))
+- docs.rs all-features, include allow-list, and per-feature CI ([#197](https://github.com/justin13888/geocoordinates-rs/pull/197))
+- [**breaking**] honest Approx API and Length for every public magnitude ([#190](https://github.com/justin13888/geocoordinates-rs/pull/190))
+- [**breaking**] give every public item one canonical path ([#187](https://github.com/justin13888/geocoordinates-rs/pull/187))
+- reconcile README, STABILIZATION and conventions with the 0.15.0 surface ([#167](https://github.com/justin13888/geocoordinates-rs/pull/167))
+- kill the surviving mutants in the core crate ([#166](https://github.com/justin13888/geocoordinates-rs/pull/166))
+- enforce a ratcheting line-coverage floor in CI ([#165](https://github.com/justin13888/geocoordinates-rs/pull/165))
+- *(geodesy)* add compiling doctests to every public geodesy item ([#164](https://github.com/justin13888/geocoordinates-rs/pull/164))
+- *(core)* add compiling doctests to core types, angles and units ([#163](https://github.com/justin13888/geocoordinates-rs/pull/163))
+- *(grids, dgg)* add compiling doctests to every public grid and cell item ([#161](https://github.com/justin13888/geocoordinates-rs/pull/161))
+- *(ffi)* behavioural tests for the Kotlin, Swift and TypeScript bindings in CI ([#159](https://github.com/justin13888/geocoordinates-rs/pull/159))
+- *(dgg)* [**breaking**] make H3 and S2 cell ids valid by construction ([#160](https://github.com/justin13888/geocoordinates-rs/pull/160))
+- *(format, parse)* add compiling doctests to every public formatting and parsing item ([#158](https://github.com/justin13888/geocoordinates-rs/pull/158))
+- *(china)* add compiling doctests with error cases to China datums and convert ([#153](https://github.com/justin13888/geocoordinates-rs/pull/153))
+- *(geodesy)* [**breaking**] derive ellipsoids from the CRS, exact ECEF inverse, published Helmert bounds ([#152](https://github.com/justin13888/geocoordinates-rs/pull/152))
+- *(china)* [**breaking**] make China datum types valid by construction with truthful inverse bounds ([#151](https://github.com/justin13888/geocoordinates-rs/pull/151))
+- *(grids)* [**breaking**] make encoded grid codes valid by construction ([#147](https://github.com/justin13888/geocoordinates-rs/pull/147))
+- *(angle)* [**breaking**] replace Dd with validated Dms/Ddm conversions and fix normalize_degrees ([#146](https://github.com/justin13888/geocoordinates-rs/pull/146))
+- *(grids)* [**breaking**] make Utm and Ups valid by construction and wrap the inverse ([#145](https://github.com/justin13888/geocoordinates-rs/pull/145))
+- *(coord)* [**breaking**] make Coordinate valid by construction ([#144](https://github.com/justin13888/geocoordinates-rs/pull/144))
+- *(error)* [**breaking**] make the error taxonomy precise and mirror it one-to-one across FFI ([#143](https://github.com/justin13888/geocoordinates-rs/pull/143))
+- *(examples)* split the flagship example into per-subsystem modules ([#142](https://github.com/justin13888/geocoordinates-rs/pull/142))
+- *(ffi)* split lib.rs into per-subsystem modules ([#141](https://github.com/justin13888/geocoordinates-rs/pull/141))
+- *(geodesy)* split geodesic.rs by model and remove the dead proj/height stubs ([#140](https://github.com/justin13888/geocoordinates-rs/pull/140))
+- *(ffi)* run the FFI crate's Rust tests in CI ([#139](https://github.com/justin13888/geocoordinates-rs/pull/139))
+- *(parse)* split the text parser below the file-length limit ([#138](https://github.com/justin13888/geocoordinates-rs/pull/138))
+- pin current core-crate behaviour with characterization and property tests ([#134](https://github.com/justin13888/geocoordinates-rs/pull/134))
+- correct stale and contradicted repository documentation ([#132](https://github.com/justin13888/geocoordinates-rs/pull/132))
+
 ## [0.14.2](https://github.com/justin13888/geocoordinates-rs/compare/v0.14.1...v0.14.2) - 2026-10-09
 
 ### Fixed
