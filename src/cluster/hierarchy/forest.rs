@@ -591,3 +591,15 @@ impl Forest {
         found
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::pack;
+
+    #[test]
+    fn a_grid_key_orders_by_column_then_row() {
+        assert!(pack(1, 0) > pack(0, u64::from(u32::MAX)));
+        assert!(pack(1, 3) > pack(1, 2));
+        assert_ne!(pack(1, 2), pack(2, 2));
+    }
+}

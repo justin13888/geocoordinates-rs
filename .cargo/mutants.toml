@@ -56,11 +56,6 @@ exclude_re = [
     # a cluster id packs a level above a 32-bit point id. Columns and rows stay under
     # 2^31, so the two sides share no bit, and `|` and `^` agree on them.
     'src/cluster/hierarchy/forest\.rs:.*: replace \| with \^ in pack',
-    # The other two ways to break `pack` lose the column (or everything), which is
-    # the one-big-cell case of the grid-sizing note below: answers stay the same, and
-    # a search only gets slow enough that a test could time out rather than fail.
-    'src/cluster/hierarchy/forest\.rs:.*: replace \| with & in pack',
-    'src/cluster/hierarchy/forest\.rs:.*: replace << with >> in pack',
     'src/cluster/hierarchy/pin\.rs:.*: replace \| with \^ in encode_id',
     # cluster::hierarchy::forest grid sizing chooses how points are bucketed, not
     # what a search answers: every search filters by exact distance or `contains`,
@@ -73,25 +68,32 @@ exclude_re = [
     # world_x's `lon - 180` only shifts every x by one whole world, which wrapped
     # distances cannot see, and piles every point into column 0, as above.
     'src/cluster/hierarchy/forest\.rs:.*: replace \+ with - in world_x',
-    # The same for the last row and the row or column slack of a search: a row past
-    # the grid's end holds nothing, and a box's edges map through the same monotonic
-    # functions as the points inside it, so the extra cell only ever adds candidates
-    # that the exact filter then rejects.
-    'src/cluster/hierarchy/forest\.rs:.*: replace - with (\+|/) in Forest::for_each_near',
-    'src/cluster/hierarchy/forest\.rs:.*: replace - with (\+|/) in Forest::candidates',
-    'src/cluster/hierarchy/forest\.rs:.*: replace \+ with \* in Forest::candidates',
-    'src/cluster/hierarchy/forest\.rs:.*: replace % with \+ in Forest::candidates',
+    # The entries below name a line where one function holds both harmless mutants
+    # and answer-changing ones, so a broader regex would hide the latter. An edit that
+    # moves such a line brings its mutants back as missed, which is the safe failure:
+    # re-anchor the entry to the same expression.
+    #
+    # The upper row limit of a search: a row past the grid's end holds nothing, so
+    # raising `cells - 1` (`for_each_near`, `candidates`) adds no candidate. Dropping
+    # `candidates`' one row of slack below the box keeps `cell_of(bottom)`, and a point
+    # inside the box maps through the same monotonic function to no later a row.
+    'src/cluster/hierarchy/forest\.rs:349:.*: replace - with (\+|/) in Forest::for_each_near',
+    'src/cluster/hierarchy/forest\.rs:584:.*: replace - with (\+|/) in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:584:.*: replace \+ with \* in Forest::candidates',
+    # `start`'s `% cells`: the loop reduces `start + step` by `cells` again, so leaving
+    # `start` unreduced walks the same columns.
+    'src/cluster/hierarchy/forest\.rs:582:.*: replace % with \+ in Forest::candidates',
     # Forest::candidates may always return more than the box holds, because
-    # `ClusterIndex::clusters` filters by `contains`. Widening the column count, or
+    # `ClusterIndex::clusters` filters by `contains`. Raising the column count, or
     # choosing the full walk (even at every query), changes speed, never an answer.
-    'src/cluster/hierarchy/forest\.rs:.*: replace \* with \+ in Forest::candidates',
-    'src/cluster/hierarchy/forest\.rs:.*: replace / with (\*|%) in Forest::candidates',
-    'src/cluster/hierarchy/forest\.rs:.*: replace < with (==|<=|>) in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:576:.*: replace \* with \+ in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:576:.*: replace / with \* in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:579:.*: replace < with (==|<=|>) in Forest::candidates',
     # ClusterIndex::clusters' `rows` of `None` is the full walk, so a mutant that
     # makes it `None` for every box changes speed, never an answer.
-    'src/cluster/hierarchy\.rs:.*: replace < with > in ClusterIndex::clusters',
-    'src/cluster/hierarchy\.rs:.*: replace > with < in ClusterIndex::clusters',
-    'src/cluster/hierarchy\.rs:.*: delete - in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:420:.*: replace < with > in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:420:.*: replace > with < in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:420:.*: delete - in ClusterIndex::clusters',
     # Forest::seed_for compares keys unique by id, and a node equal to `best` is the
     # node itself, which `best` already names.
     'src/cluster/hierarchy/forest\.rs:.*: replace < with <= in Forest::seed_for',
