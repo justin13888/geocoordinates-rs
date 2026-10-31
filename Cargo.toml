@@ -91,10 +91,10 @@ default = []
 serde = ["dep:serde"]
 
 # --- Optional capabilities ---
-# Each feature below is implemented, tested and released. The core path (angles,
-# format, parse, Plus Code) needs no cargo features at all. EXIF ingestion is out
-# of scope entirely — it lives in a separate library that consumes this crate's
-# primitives.
+# Each uncommented feature below is implemented, tested and released. The core
+# path (angles, format, parse, Plus Code) needs no cargo features at all. Container
+# and byte parsing of JPEG, TIFF and HEIF is out of scope: it lives in separate
+# libraries, and the reserved `exif` feature starts from the tag values they read.
 #
 # Interchange formats (parsers):
 geojson = ["dep:geojson"] # GeoJSON (lon-lat axis order)
@@ -113,6 +113,18 @@ s2 = ["dep:s2"] # Google S2 indexing
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
 # geoid = []          # EGM96/EGM2008 geoid models — needs multi-MB grid data files
+#
+# Photo-library geo (RESERVED — see the roadmap in STABILIZATION.md). None has any
+# source in-tree yet; each lands after 0.15.0, off by default. These placeholders
+# only record the intended feature names:
+# exif = []            # EXIF/XMP GPS tag values to a `Fix`, with no container parsing
+# index = []           # antimeridian-aware bounds and spatial index queries
+# reverse = []         # offline reverse geocoding behind a trait
+# reverse-bundled = [] # `reverse` with embedded data
+# cluster = []         # geodesic centroid and point clustering
+# map = []             # Web Mercator, tile and viewport math, GeoJSON layers
+# geotag = []          # track-based geotagging
+# privacy = []         # deterministic location coarsening and exclusion zones
 
 [[example]]
 name = "flagship"
