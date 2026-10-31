@@ -352,6 +352,18 @@ per-feature CI job. Until one lands, its name is only a commented-out placeholde
 | #226 | `geotag` | Track-based geotagging | #221 |
 | #227 | `privacy` | Deterministic location coarsening and exclusion zones | #222 |
 
+### `exif`: what real files showed
+
+`exif` is implemented on master. `src/exif/device_tests.rs` transcribes GPS IFDs from
+`drewnoakes/metadata-extractor-images` at `7b56b64` (iPhone 5, 6 and 6 Plus, Pixel 2,
+DJI Phantom 4, Oppo R7 Plus, OnePlus 8). Three of them shaped the rules: the iPhone 6
+stores the date `2014:09:259`, so an unreadable date gives no timestamp rather than
+losing the fix; the OnePlus 8 writes an all-`0/0` block for "no fix", which reads as
+`NoFix`; the Pixel 2 has a DOP alone, and because `Accuracy` needs a magnitude, a DOP
+stays in `CaptureGeo::dop` with no `Accuracy`. Open gap: that corpus has no
+Chinese-market file taken inside China, so the `PossiblyGcj02` flag is pinned by
+constructed values only.
+
 ### `index`: the backing tree
 
 `index` is implemented on master, and #222 chose an in-crate k-d tree over unit vectors

@@ -12,11 +12,22 @@ import uniffi.geocoordinates_ffi.Accuracy
 import uniffi.geocoordinates_ffi.AccuracyKind
 import uniffi.geocoordinates_ffi.Bd09
 import uniffi.geocoordinates_ffi.Crs
+import uniffi.geocoordinates_ffi.DatumAmbiguity
+import uniffi.geocoordinates_ffi.ExifDms
+import uniffi.geocoordinates_ffi.ExifGps
+import uniffi.geocoordinates_ffi.ExifOptions
+import uniffi.geocoordinates_ffi.ExifRational
 import uniffi.geocoordinates_ffi.Gcj02
 import uniffi.geocoordinates_ffi.GeoException
 import uniffi.geocoordinates_ffi.H3Cell
+import uniffi.geocoordinates_ffi.Height
 import uniffi.geocoordinates_ffi.MgrsPrecision
+import uniffi.geocoordinates_ffi.NullIslandPolicy
 import uniffi.geocoordinates_ffi.ParseErrorKind
+import uniffi.geocoordinates_ffi.XmpGps
+import uniffi.geocoordinates_ffi.parseExif
+import uniffi.geocoordinates_ffi.parseXmp
+import uniffi.geocoordinates_ffi.parseXmpWith
 import uniffi.geocoordinates_ffi.S2CellId
 import uniffi.geocoordinates_ffi.Ups
 import uniffi.geocoordinates_ffi.Utm
@@ -279,5 +290,40 @@ class BindingsTest {
                 parseNmeaSentence("\$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
             }
         assertEquals(ParseErrorKind.CHECKSUM, corrupt.kind)
+    }
+
+    @Test
+    fun exifAndXmpTagsReachTheSameCapture() {
+        fun whole(n: UInt) = ExifRational.Unsigned(n, 1u)
+        val gps =
+            ExifGps(
+                latitude = ExifDms(whole(39u), whole(54u), whole(0u)),
+                latitudeRef = "N",
+                longitude = ExifDms(whole(116u), whole(24u), whole(0u)),
+                longitudeRef = "E",
+                altitude = whole(10u),
+                altitudeRef = 1u.toUByte(),
+                speed = whole(36u),
+                speedRef = "K",
+            )
+        val capture = parseExif(gps)
+        assertEquals(39.9, capture.fix.coord.lat)
+        assertEquals(116.4, capture.fix.coord.lon)
+        assertEquals(Height.Orthometric(-10.0), capture.fix.coord.height)
+        assertEquals(DatumAmbiguity.POSSIBLY_GCJ02, capture.fix.source?.datumAmbiguity)
+        assertEquals(10.0, capture.speedMps)
+        val xmp = parseXmp(XmpGps(latitude = "39,54.0N", longitude = "116,24,0E"))
+        assertEquals(capture.fix.coord.lat, xmp.fix.coord.lat)
+        assertEquals(capture.fix.coord.lon, xmp.fix.coord.lon)
+        val badRef = throwsVariant<GeoException.InvalidValue> { parseExif(gps.copy(latitudeRef = "Q")) }
+        assertEquals("latitude_ref", badRef.field)
+        val island =
+            throwsVariant<GeoException.Parse> {
+                parseXmpWith(
+                    XmpGps(latitude = "0,0.0N", longitude = "0,0.0E"),
+                    ExifOptions(NullIslandPolicy.REJECT),
+                )
+            }
+        assertEquals(ParseErrorKind.NO_FIX, island.kind)
     }
 }

@@ -36,6 +36,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Encoded grids** (`grids`) | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
 | **Discrete global grids** *(feature-gated; `dgg`)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
 | **Bounds & spatial index** *(feature-gated; `index`)* | `GeoBounds`, `SpatialIndex`, `Neighbor` | ✅ | ✅ |
+| **EXIF / XMP GPS tags** *(feature-gated; `exif`)* | `from_exif`, `from_exif_with`, `from_xmp`, `from_xmp_with`, `ExifGps`, `ExifRational`, `XmpGps`, `CaptureGeo`, `NorthBearing`, `NorthReference`, `ExifOptions`, `NullIslandPolicy` | ✅ | ✅ |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
@@ -47,8 +48,8 @@ pre-1.0 audit is closed in the ledger.
 a system library or multi-megabyte external data.
 
 **Planned after 0.15.0, not yet shipped:** the geo features a photo library needs,
-each behind its own cargo feature that is off by default: already-read EXIF/XMP GPS
-tag values to a `Fix` (`exif`), offline reverse geocoding behind a trait (`reverse`, plus
+each behind its own cargo feature that is off by default: offline reverse
+geocoding behind a trait (`reverse`, plus
 `reverse-bundled` for embedded data), a geodesic centroid and point clustering
 (`cluster`), Web Mercator, tile and viewport math with GeoJSON layer output (`map`),
 track-based geotagging (`geotag`), and deterministic location coarsening and

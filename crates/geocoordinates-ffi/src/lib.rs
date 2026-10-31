@@ -15,6 +15,7 @@
 //! | `Length` + operator overloads | distance returned as `f64` meters ([`haversine_distance_m`]) |
 //! | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
 //! | Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
+//! | `[ExifRational; 3]` (a tag of three rationals) | the named records [`ExifDms`] and [`ExifTime`] |
 //! | `SpatialIndex<T>` (generic, holds its entries) | the object [`SpatialIndex`] over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
@@ -96,6 +97,7 @@ mod core;
 mod datum;
 mod dgg;
 mod error;
+mod exif;
 mod geodesy;
 mod grids;
 mod index;
@@ -108,6 +110,7 @@ pub use self::core::*;
 pub use self::datum::*;
 pub use self::dgg::*;
 pub use self::error::*;
+pub use self::exif::*;
 pub use self::geodesy::*;
 pub use self::grids::*;
 pub use self::index::*;

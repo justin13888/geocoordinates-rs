@@ -16,10 +16,16 @@ import initAsync from "../src/generated/web/wasm-bindgen/index.js";
 import geocoordinatesFfi, {
   AccuracyKind,
   Crs,
+  DatumAmbiguity,
+  ExifDms,
+  ExifGps,
+  ExifRational,
   GeoError,
   MgrsPrecision,
+  NullIslandPolicy,
   ParseErrorKind,
   UtmHemisphere,
+  XmpGps,
   accuracyNew,
   baiduMercatorFromBd09,
   baiduMercatorFromCoordinate,
@@ -44,8 +50,11 @@ import geocoordinatesFfi, {
   mgrsFromCoordinate,
   mgrsToCoordinate,
   parseCoordinate,
+  parseExif,
   parseNmeaSentence,
   parseText,
+  parseXmp,
+  parseXmpWith,
   rhumbBearingDeg,
   s2Validate,
   utmCentralMeridianDeg,
@@ -314,5 +323,45 @@ describe("typed GeoError variants", () => {
     const corrupt = thrown(() => parseNmeaSentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"));
     assert.ok(GeoError.Parse.instanceOf(corrupt), String(corrupt));
     assert.equal(corrupt.inner.kind, ParseErrorKind.Checksum);
+  });
+});
+
+describe("EXIF and XMP GPS tags", () => {
+  const whole = (numerator: number) => new ExifRational.Unsigned({ numerator, denominator: 1 });
+  const gps = () =>
+    ExifGps.create({
+      latitude: ExifDms.create({ degrees: whole(39), minutes: whole(54), seconds: whole(0) }),
+      latitudeRef: "N",
+      longitude: ExifDms.create({ degrees: whole(116), minutes: whole(24), seconds: whole(0) }),
+      longitudeRef: "E",
+      altitude: whole(10),
+      altitudeRef: 1,
+      speed: whole(36),
+      speedRef: "K",
+    });
+
+  it("reaches the same capture by either path", () => {
+    const capture = parseExif(gps());
+    assert.equal(capture.fix.coord.lat, 39.9);
+    assert.equal(capture.fix.coord.lon, 116.4);
+    assert.equal(capture.fix.coord.height?.inner.meters, -10);
+    assert.equal(capture.fix.source?.datumAmbiguity, DatumAmbiguity.PossiblyGcj02);
+    assert.equal(capture.speedMps, 10);
+    const xmp = parseXmp(XmpGps.create({ latitude: "39,54.0N", longitude: "116,24,0E" }));
+    assert.equal(xmp.fix.coord.lat, capture.fix.coord.lat);
+    assert.equal(xmp.fix.coord.lon, capture.fix.coord.lon);
+  });
+
+  it("rejects a bad Ref and, by option, null island", () => {
+    const badRef = thrown(() => parseExif({ ...gps(), latitudeRef: "Q" }));
+    assert.ok(GeoError.InvalidValue.instanceOf(badRef), String(badRef));
+    assert.equal(badRef.inner.field, "latitude_ref");
+    const island = thrown(() =>
+      parseXmpWith(XmpGps.create({ latitude: "0,0.0N", longitude: "0,0.0E" }), {
+        nullIsland: NullIslandPolicy.Reject,
+      }),
+    );
+    assert.ok(GeoError.Parse.instanceOf(island), String(island));
+    assert.equal(island.inner.kind, ParseErrorKind.NoFix);
   });
 });
