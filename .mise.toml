@@ -94,7 +94,7 @@ if [ -z "$msrv" ]; then
     exit 1
 fi
 rustup toolchain install "$msrv" --profile minimal --no-self-update
-cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2
+cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index
 
 exceptions="$(sed -n '/^\[package\.metadata\.feature-rust-version\]$/,/^\[/ s/^\([a-z0-9_-]*\) = "\(.*\)"$/\1 \2/p' Cargo.toml)"
 if [ -z "$exceptions" ]; then
@@ -120,6 +120,15 @@ tools = { "github:taiki-e/cargo-hack" = "0.6.45" }
 run = [
     "cargo hack --each-feature --no-dev-deps check",
     "cargo test --no-default-features",
+]
+
+# The per-feature job for `index`: its tests and doctests with no sibling feature
+# on, and its benchmark target compiled, since no other gate builds benches alone.
+[tasks.index-test]
+description = "Test the index feature alone and compile its benchmark"
+run = [
+    "cargo test --no-default-features --features index",
+    "cargo bench --no-run --no-default-features --features index --bench spatial_index",
 ]
 
 # Both coverage tasks fail when total line coverage falls under the floor in
