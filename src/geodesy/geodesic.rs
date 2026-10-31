@@ -276,10 +276,12 @@ pub(super) fn validate_bearing_and_distance(bearing_deg: f64, distance: Length) 
     Ok(())
 }
 
-// Polygon and line ops — ellipsoidal area/perimeter, point-in-polygon, centroid,
-// convex hull, buffers, bounding boxes, line densification, and simplification —
-// are out of scope for this crate: use the `geo` crate directly for them. This
-// module and its `spherical` / `rhumb` siblings own only point-to-point ops.
+// Polygon and line ops — ellipsoidal area/perimeter, point-in-polygon, polygon
+// centroid, convex hull, buffers, line densification, and simplification — are out
+// of scope for this crate: use the `geo` crate directly for them. Geographic bounds
+// and the centroid of a set of points are not polygon ops, and are on the roadmap in
+// `STABILIZATION.md`. This module and its `spherical` / `rhumb` siblings own only
+// point-to-point ops.
 
 #[cfg(test)]
 mod tests;

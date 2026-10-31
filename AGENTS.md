@@ -3,12 +3,13 @@
 Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-09),
 angle encodings, coordinate parsing/formatting, and geodesy utilities. UNIX
 philosophy: this crate abstracts **only** geo-related complexity, as primitives for
-higher-level libraries to consume (e.g. EXIF GPS extraction lives in a separate
-library built on this one).
+higher-level libraries to consume (e.g. reading EXIF out of a JPEG, TIFF or HEIF
+file lives in a separate library; this one starts from the tag values it read).
 
 ## Architecture constraints
 
-- **Own the coordinate domain; delegate reference math:** GCJ-02 / BD-09 offset math, DMS / DDM parsing, fuzzy free-text coordinate extraction, locale-aware formatting, frames, and datum transforms are owned here. Heavyweight, well-validated reference math is delegated behind narrow deps (Karney geodesics via `geographiclib-rs`; interchange formats behind cargo features). Polygon / line geometry ops are out of scope — point users at the `geo` crate.
+- **Own the coordinate domain; delegate reference math:** GCJ-02 / BD-09 offset math, DMS / DDM parsing, fuzzy free-text coordinate extraction, locale-aware formatting, frames, and datum transforms are owned here. Heavyweight, well-validated reference math is delegated behind narrow deps (Karney geodesics via `geographiclib-rs`; interchange formats behind cargo features). Polygon / line geometry ops (area, point-in-polygon, simplification, hull) are out of scope — point users at the `geo` crate.
+- **Photo-library geo lands after 0.15.0:** each capability is its own cargo feature, off by default with a per-feature CI job, reserved in `Cargo.toml` and tracked in `STABILIZATION.md`'s roadmap: already-read EXIF/XMP GPS tag values to a `Fix` (`exif`); antimeridian-aware geographic bounds and spatial index queries (`index`); offline reverse geocoding behind a trait (`reverse`, plus `reverse-bundled` for embedded data); a geodesic centroid and point clustering (`cluster`); Web Mercator, tile and viewport math with GeoJSON layer output (`map`); track-based geotagging (`geotag`); deterministic location coarsening and exclusion zones (`privacy`). Still out of scope: container/byte parsing of JPEG, TIFF and HEIF (gamut-exif, rawshift and kamadak-exif own it) and rendering static map images.
 - **Honesty about accuracy:** mark GCJ-02 / BD-09 inversions as approximate (iterative, lossy, decimeter-to-meter) — never present them as exact like a Helmert transform.
 - **Axis order is first-class:** GeoJSON / WKT are lon-lat (X,Y); humans and many EPSG CRS are lat-first. Never let it be implicit.
 - **Antimeridian and poles:** the two places spatial routines break — handle them explicitly throughout.

@@ -311,6 +311,10 @@ Unscheduled. Promoted only when a concrete consumer appears.
   Blocked: needs the system `libproj` C library.
 - **`geoid`** — EGM96/EGM2008/EGM2020 height undulation. Blocked: needs
   multi-megabyte external grid data files.
+- **`tz`** — timezone from coordinates, behind `tzf-rs` or similar. An open
+  question from #220, not admitted and not reserved in `Cargo.toml`. Capsule
+  depends on `tzf-rs` directly today, so this consumer is what a decision would
+  weigh; admitting it takes its own issue.
 
 `proj` and `geoid` have no source in-tree: #140 deleted the `todo!()` stubs (git
 history keeps them). Each survives only as a commented-out Cargo feature, so neither can
@@ -318,11 +322,35 @@ be reached from the released surface.
 
 ## Out of scope
 
-- **EXIF/XMP GPS extraction** — belongs to a separate library that consumes these
-  primitives (angle conversions for GPS rationals, `Fix` / `RawSource`, and
-  `DatumAmbiguity::PossiblyGcj02` for the China-EXIF ambiguity).
-- **Polygon / line geometry ops** (area, point-in-polygon, centroid,
-  simplification) — use [`geo`](https://crates.io/crates/geo) directly.
+- **Container / byte parsing of JPEG, TIFF and HEIF** — gamut-exif, rawshift and
+  kamadak-exif own reading EXIF/XMP out of a file. This crate starts from tag values
+  already read (the `exif` feature on the roadmap below).
+- **Polygon / line geometry ops** (area, point-in-polygon, simplification, hull) —
+  use [`geo`](https://crates.io/crates/geo) directly. Geographic bounds and the
+  centroid of a set of points are not polygon ops, and are on the roadmap below.
+- **Rendering static map images** — the `map` feature computes view math and
+  GeoJSON layers; clients draw them.
+
+## Roadmap — photo-library geo
+
+#220 admitted the geo features a photo library needs, on the evidence of a concrete
+consumer: Capsule reads GPS by hand and has no index, clusters or offline place names,
+and gamut-exif already bridges its `GpsInfo` to `Coordinate`.
+
+0.15.0 (#133) ships as-is. These features land additively after it, so the 0.15
+surface is not reopened. Each is its own cargo feature, off by default, with its own
+per-feature CI job. Until one lands, its name is only a commented-out placeholder in
+`Cargo.toml`, so none can be reached from the released surface.
+
+| Issue | Feature | Capability | Blocked by |
+|---|---|---|---|
+| #221 | `exif` | Already-read EXIF/XMP GPS tag values to a `Fix` | — |
+| #222 | `index` | Antimeridian-aware geographic bounds; spatial index queries | — |
+| #223 | `reverse`, `reverse-bundled` | Offline reverse geocoding behind a trait; `reverse-bundled` embeds the data | #222 |
+| #224 | `cluster` | Geodesic centroid and point clustering | #222 |
+| #225 | `map` | Web Mercator, tile and viewport math with GeoJSON layer output | #222, #224 |
+| #226 | `geotag` | Track-based geotagging | #221 |
+| #227 | `privacy` | Deterministic location coarsening and exclusion zones | #222 |
 
 ## After 0.15.0 — the 1.0 freeze
 

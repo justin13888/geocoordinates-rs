@@ -16,7 +16,8 @@ use crate::{Error, Result};
 /// Scope is *positional* metadata only — accuracy, time, and parse provenance.
 /// Motion/telemetry that some sources carry (heading from EXIF
 /// `GPSImgDirection`, NMEA course and speed) is intentionally excluded to keep
-/// the type lean.
+/// the type lean. The planned `exif` feature carries a photo's capture direction
+/// and motion in a wrapper around the `Fix`, not in the `Fix` itself.
 ///
 /// `#[non_exhaustive]`, so a field can be added without a breaking release:
 /// outside this crate a `Fix` is built with [`from_coord`](Self::from_coord)

@@ -43,8 +43,23 @@ option and id type under the `serde` feature.
 pre-1.0 audit is closed in the ledger.
 
 **Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
-a system library or multi-megabyte external data. **Out of scope:** EXIF
-extraction and polygon/line geometry operations.
+a system library or multi-megabyte external data.
+
+**Planned after 0.15.0, not yet shipped:** the geo features a photo library needs,
+each behind its own cargo feature that is off by default: already-read EXIF/XMP GPS
+tag values to a `Fix` (`exif`), antimeridian-aware bounds and spatial index queries
+(`index`), offline reverse geocoding behind a trait (`reverse`, plus
+`reverse-bundled` for embedded data), a geodesic centroid and point clustering
+(`cluster`), Web Mercator, tile and viewport math with GeoJSON layer output (`map`),
+track-based geotagging (`geotag`), and deterministic location coarsening and
+exclusion zones (`privacy`). The
+[stabilization ledger](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)
+tracks each one.
+
+**Out of scope:** container/byte parsing of JPEG, TIFF and HEIF (use an EXIF reader
+and pass its tag values in), polygon/line geometry operations such as area,
+point-in-polygon, simplification and hull (use [`geo`](https://crates.io/crates/geo)),
+and rendering static map images.
 
 ## Full-surface example
 

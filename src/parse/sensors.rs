@@ -1,11 +1,12 @@
 //! Sensor/device ingestion: NMEA 0183 sentences.
 //!
-//! EXIF/XMP image GPS metadata is **out of scope** — it is handled by a
-//! separate library that consumes this crate's primitives (the angle
-//! conversions for GPS rationals, [`Fix`] with its
+//! Reading EXIF/XMP image GPS metadata out of a JPEG, TIFF or HEIF file is **out
+//! of scope** — it is handled by a separate library that consumes this crate's
+//! primitives (the angle conversions for GPS rationals, [`Fix`] with its
 //! [`RawSource`], and
 //! [`DatumAmbiguity::PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02)
-//! for China-EXIF datum ambiguity).
+//! for China-EXIF datum ambiguity). Turning tag values already read into a [`Fix`]
+//! is the planned `exif` feature, not yet shipped.
 //!
 //! The three position sentences (`GGA`, `RMC`, `GLL`) are parsed directly — the
 //! grammar is small and parsing it here keeps the dependency surface (and the
