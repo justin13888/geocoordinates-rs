@@ -360,9 +360,9 @@ DJI Phantom 4, Oppo R7 Plus, OnePlus 8). Three of them shaped the rules: the iPh
 stores the date `2014:09:259`, so an unreadable date gives no timestamp rather than
 losing the fix; the OnePlus 8 writes an all-`0/0` block for "no fix", which reads as
 `NoFix`; the Pixel 2 has a DOP alone, and because `Accuracy` needs a magnitude, a DOP
-stays in `CaptureGeo::dop` with no `Accuracy`. Open gap: that corpus has no
-Chinese-market file taken inside China, so the `PossiblyGcj02` flag is pinned by
-constructed values only.
+stays in `CaptureGeo::dop` with no `Accuracy`. That corpus has no Chinese-market file
+taken inside China, so the `PossiblyGcj02` flag is pinned by a CC BY-SA 4.0 Wikimedia
+Commons photo from a Xiaomi `M2104K10AC` in Xi'an, which stores no `GPSMapDatum`.
 
 ### `index`: the backing tree
 

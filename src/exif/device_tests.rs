@@ -5,15 +5,16 @@
 //! file. The values are the rationals as stored, read with Pillow's `Exif.get_ifd`.
 //!
 //! The corpus holds no Chinese-market file taken inside China: the Oppo R7 Plus was
-//! used in Norway, so it pins the unflagged case, and `tests.rs` covers the
-//! [`PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02) flag with constructed
-//! values.
+//! used in Norway, so it pins the unflagged case. The
+//! [`PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02) flag is pinned by one
+//! file from Wikimedia Commons, whose case names its source, author and license. Its
+//! values are the rationals as stored, read directly from the file's GPS IFD.
 
 use std::time::{Duration, SystemTime};
 
 use super::{CaptureGeo, ExifGps, ExifRational, NorthReference, from_exif};
-use crate::Height;
-use crate::{Error, ParseErrorKind};
+use crate::fix::DatumAmbiguity;
+use crate::{Crs, Error, Height, ParseErrorKind};
 
 fn dms(values: [(u32, u32); 3]) -> Option<[ExifRational; 3]> {
     Some(values.map(ExifRational::from))
@@ -186,6 +187,43 @@ fn oppo_r7_plus_outside_china_is_not_flagged() {
     let capture = from_exif(&gps).unwrap();
     assert_eq!(capture.fix.source.as_ref().unwrap().datum_ambiguity, None);
     assert_eq!(capture.fix.timestamp, utc(1_531_756_342, 0));
+}
+
+/// A Xiaomi `M2104K10AC` at Wulukou Station, Xi'an, with no `GPSMapDatum` tag: the file
+/// [`Exit A of WULUKOU Station, Xi'an Metro (Dec 21, 2023).jpg`][source] by Bob Wehn,
+/// CC BY-SA 4.0, SHA-1 `80daae8e7fbbfe0e02cf2898a0d0631629a3ddc9`. Its `DateTime` of
+/// 16:47:30 is UTC+8 against the 08:47:29 GPS stamp, which agrees with China time.
+///
+/// [source]: https://commons.wikimedia.org/wiki/File:Exit_A_of_WULUKOU_Station,_Xi%27an_Metro_(Dec_21,_2023).jpg
+#[test]
+fn xiaomi_inside_china_without_a_datum_is_flagged() {
+    let gps = ExifGps {
+        latitude_ref: text("N"),
+        latitude: dms([(34, 1), (16, 1), (177_832, 10_000)]),
+        longitude_ref: text("E"),
+        longitude: dms([(108, 1), (57, 1), (263_836, 10_000)]),
+        altitude_ref: Some(0),
+        altitude: rational(379, 1),
+        time_stamp: dms([(8, 1), (47, 1), (29, 1)]),
+        date_stamp: text("2023:12:21"),
+        ..ExifGps::default()
+    };
+    let capture = from_exif(&gps).unwrap();
+    close(
+        capture.fix.coord.lat(),
+        34.0 + 16.0 / 60.0 + 17.7832 / 3600.0,
+    );
+    close(
+        capture.fix.coord.lon(),
+        108.0 + 57.0 / 60.0 + 26.3836 / 3600.0,
+    );
+    assert_eq!(capture.fix.coord.crs(), Crs::Wgs84);
+    assert_eq!(capture.fix.coord.height(), Some(Height::Orthometric(379.0)));
+    assert_eq!(capture.fix.timestamp, utc(1_703_148_449, 0));
+    let source = capture.fix.source.as_ref().unwrap();
+    assert_eq!(source.datum_ambiguity, Some(DatumAmbiguity::PossiblyGcj02));
+    assert_eq!(source.confidence.value(), 0.7);
+    assert!(notes(&capture).iter().any(|n| n.contains("absent")));
 }
 
 /// `jpg/OnePlus8.jpg`: a GPS block with no fix, written as NUL refs and `0/0`.
