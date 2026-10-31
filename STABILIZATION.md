@@ -421,12 +421,16 @@ point per zoom, for the whole run with the index at its largest.
 So one update costs what about 1,400 (10⁴) to 83,000 (10⁶) points cost to rebuild, and
 updates stay flat with size. Above 10⁶, memory is what argues for `bucket_by_geohash`.
 
-Two limits are stated rather than hidden. Distance in `ClusterIndex` is on the Web
+Three limits are stated rather than hidden. Distance in `ClusterIndex` is on the Web
 Mercator square, because its radius is a promise about pixels, so points past ±85.05°
 flatten onto the map's edge and neighbors over a pole stay apart; `dbscan` and
-`segment_visits` are geodesic and have no such limit. And removing the seed of `k` points
+`segment_visits` are geodesic and have no such limit. Removing the seed of `k` points
 at one spot costs `O(k²)` at the deepest level, which a large burst of identical
-coordinates could feel; the benchmark does not exercise that shape.
+coordinates could feel; the benchmark does not exercise that shape. And ids are never
+reused, so every id ever issued keeps its slots, about 1 KB by the struct sizes (24
+levels of a 40-byte `Option<Node>` plus a 16-byte `keys` entry), which neither `remove`
+nor emptying the index reclaims: a long-lived index under steady insert and remove grows
+without bound at a constant `len()`, until the caller rebuilds it over the live points.
 
 ## After 0.15.0 — the 1.0 freeze
 

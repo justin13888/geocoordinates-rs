@@ -283,9 +283,10 @@ impl Trip {
 /// # Errors
 ///
 /// [`Error::InvalidValue`] with `field: "distance"` when `distance` is negative or
-/// non-finite, and `field: "timestamp"` for a fix with no timestamp, naming its
-/// position; [`Error::CrsMismatch`] when the fixes' CRSs differ or are GCJ-02 /
-/// BD-09.
+/// non-finite, `field: "timestamp"` for a fix with no timestamp, naming its position,
+/// and `field: "points"` when a visit's unit vectors cancel, which takes a `distance`
+/// around half the planet; [`Error::CrsMismatch`] when the fixes' CRSs differ or are
+/// GCJ-02 / BD-09.
 ///
 /// ```
 /// use std::time::{Duration, UNIX_EPOCH};

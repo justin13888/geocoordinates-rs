@@ -27,6 +27,19 @@ fn fix(lat: f64, lon: f64, second: u64) -> Fix {
     fix
 }
 
+#[test]
+fn segment_visits_reports_a_visit_with_no_mean() {
+    // A distance around half the planet keeps antipodes in one run.
+    let fixes = [fix(10.0, 20.0, 0), fix(-10.0, -160.0, MINUTE)];
+    assert!(matches!(
+        segment_visits(&fixes, Length::from_meters(21_000_000.0), Duration::ZERO),
+        Err(Error::InvalidValue {
+            field: "points",
+            ..
+        })
+    ));
+}
+
 fn near() -> Length {
     Length::from_meters(100.0)
 }

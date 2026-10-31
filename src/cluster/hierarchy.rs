@@ -105,6 +105,12 @@ impl ClusterIndexOptions {
 /// about 80 bytes per point per zoom. STABILIZATION.md records measurements; above
 /// about 10⁶ points, prefer [`bucket_by_geohash`](super::bucket_by_geohash).
 ///
+/// **Churn.** Because removed ids are not reused, every id ever issued keeps a slot on
+/// all 24 levels and an entry in the id table, about 1 KB, which neither
+/// [`remove`](Self::remove) nor emptying the index reclaims. So an index under steady
+/// insert and remove grows without bound at a constant [`len`](Self::len). To reclaim
+/// it, build a new index over the live points, which assigns them new ids.
+///
 /// Heights are ignored, and every point shares a CRS with an ellipsoid.
 ///
 /// ```
@@ -325,8 +331,9 @@ impl ClusterIndex {
     }
 
     /// Removes the point `point_id` without a rebuild, returning its position. Its id
-    /// is not reused. The result is the one a rebuild over the remaining points would
-    /// give, and removing the last point lets the next insert choose the CRS.
+    /// is not reused, and its slots are not reclaimed (see the type's note on churn).
+    /// The result is the one a rebuild over the remaining points would give, and
+    /// removing the last point lets the next insert choose the CRS.
     ///
     /// # Errors
     ///

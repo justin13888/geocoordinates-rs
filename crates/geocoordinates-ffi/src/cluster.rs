@@ -248,7 +248,8 @@ pub fn visit_validate(visit: Visit) -> Result<(), GeoError> {
 ///
 /// # Errors
 /// `GeoError::InvalidValue` with field `distance` when `distance_m` is negative or
-/// non-finite, and field `timestamp` for a fix with no timestamp;
+/// non-finite, field `timestamp` for a fix with no timestamp, and field `points` when
+/// a visit's unit vectors cancel, which takes a `distance_m` around half the planet;
 /// `GeoError::CrsMismatch` when the reference systems differ or are GCJ-02 / BD-09;
 /// `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid record.
 #[uniffi::export]
@@ -441,7 +442,8 @@ impl ClusterIndex {
     }
 
     /// Removes the point `point_id` without a rebuild, returning its position. Its id
-    /// is not reused.
+    /// is not reused, and its slots (about 1 KB per id ever issued) are not reclaimed:
+    /// after steady insert and remove churn, build a new index over the live points.
     ///
     /// # Errors
     /// `GeoError::InvalidValue` (field `point_id`) when there is no such point.
