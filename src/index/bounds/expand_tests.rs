@@ -41,6 +41,15 @@ fn sampled_reach(lat: f64, meters: f64) -> f64 {
     best.1
 }
 
+/// Every half degree, plus bearings closing on due north and south, where the
+/// peak of reach sits near the cutoff.
+fn sweep_bearings() -> impl Iterator<Item = f64> {
+    let near = [1e-4, 1e-3, 1e-2, 1e-1]
+        .into_iter()
+        .flat_map(|offset| [offset, 360.0 - offset, 180.0 - offset, 180.0 + offset]);
+    (0..720).map(|step| f64::from(step) / 2.0).chain(near)
+}
+
 #[test]
 fn longitude_reach_finds_the_peak_a_dense_sweep_finds() {
     for (lat, meters) in [
@@ -106,8 +115,6 @@ proptest! {
         toward_cutoff in prop_oneof![0.0..=0.999_999_f64, 0.99..=0.999_999_f64],
         from_lat in 0.0..=1.0_f64,
         from_lon in 0.0..=1.0_f64,
-        // The peak of reach closes on due north or south near the cutoff.
-        bearing in prop_oneof![0.0..360.0_f64, -1.0..1.0_f64, 179.0..181.0_f64],
     ) {
         let north = south + height;
         let b = bounds(south, west, north, wrap_longitude(west + width));
@@ -122,9 +129,15 @@ proptest! {
             wrap_longitude(west + from_lon * b.arc().span()),
         )
         .unwrap();
-        let target = destination(start, bearing.rem_euclid(360.0), Length::from_meters(meters))
-            .unwrap();
-        prop_assert!(grown.contains(target).unwrap(), "{grown:?} misses {target:?}");
+        // The corners nearest the pole are where reach is greatest.
+        let edge = if north.abs() >= south.abs() { north } else { south };
+        let corner = |lon| Coordinate::wgs84(edge, lon).unwrap();
+        for from in [start, corner(b.west()), corner(b.east())] {
+            for bearing in sweep_bearings() {
+                let target = destination(from, bearing, Length::from_meters(meters)).unwrap();
+                prop_assert!(grown.contains(target).unwrap(), "{grown:?} misses {target:?}");
+            }
+        }
     }
 }
 
