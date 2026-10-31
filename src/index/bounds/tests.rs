@@ -525,7 +525,7 @@ fn brute_force_span(lons: &[f64]) -> f64 {
     lons.iter()
         .map(|&west| {
             lons.iter()
-                .map(|&lon| Arc::meridian(west).offset(lon))
+                .map(|&lon| LonArc::meridian(west).offset(lon))
                 .fold(0.0, f64::max)
         })
         .fold(f64::INFINITY, f64::min)
@@ -578,7 +578,10 @@ proptest! {
         a in (-180..=180_i32, -180..=180_i32),
         b in (-180..=180_i32, -180..=180_i32),
     ) {
-        let arc = |(west, east): (i32, i32)| Arc { west: f64::from(west), east: f64::from(east) };
+        let arc = |(west, east): (i32, i32)| LonArc {
+            west: f64::from(west),
+            east: f64::from(east),
+        };
         let (a, b) = (arc(a), arc(b));
         let held: Vec<bool> = (-360..360)
             .map(|half| f64::from(half) / 2.0)
