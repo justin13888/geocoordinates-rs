@@ -344,24 +344,30 @@ pub fn segment_visits(fixes: &[Fix], distance: Length, dwell: Duration) -> Resul
 
     let points: Vec<Coordinate> = fixes.iter().map(|fix| fix.coord).collect();
     let mut visits = Vec::new();
-    let mut start = 0;
-    while start < ordered.len() {
-        let (arrival, anchor, _) = ordered[start];
-        let mut end = start + 1;
-        while end < ordered.len() && geodesic_distance(anchor, ordered[end].1)? <= distance {
-            end += 1;
-        }
-        let departure = ordered[end - 1].0;
-        // Sorted times, so the subtraction cannot fail.
-        if departure.duration_since(arrival).unwrap_or_default() < dwell {
-            start += 1;
+    // Fixes before this one already belong to a visit.
+    let mut taken = 0;
+    for start in 0..ordered.len() {
+        if start < taken {
             continue;
         }
-        let mut members: Vec<usize> = ordered[start..end].iter().map(|fix| fix.2).collect();
+        let (arrival, anchor, _) = ordered[start];
+        let mut members = Vec::new();
+        let mut departure = arrival;
+        for (time, point, position) in &ordered[start..] {
+            if geodesic_distance(anchor, *point)? > distance {
+                break;
+            }
+            members.push(*position);
+            departure = *time;
+        }
+        // Sorted times, so the subtraction cannot fail.
+        if departure.duration_since(arrival).unwrap_or_default() < dwell {
+            continue;
+        }
+        taken = start + members.len();
         members.sort_unstable();
         let cluster = summarize(visits.len(), &points, members)?;
         visits.push(Visit::new(cluster, arrival, departure)?);
-        start = end;
     }
     Ok(visits)
 }

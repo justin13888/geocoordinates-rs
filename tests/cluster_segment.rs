@@ -114,6 +114,10 @@ fn visits_stay_whole_across_the_antimeridian_and_the_pole() {
 #[test]
 fn segment_visits_checks_its_input() {
     let dwell = Duration::ZERO;
+    // A zero distance is valid: it groups fixes at one exact position.
+    let same = [fix(1.0, 2.0, 0), fix(1.0, 2.0, 5)];
+    let zero = Length::from_meters(0.0);
+    assert_eq!(segment_visits(&same, zero, dwell).unwrap().len(), 1);
     assert!(segment_visits(&[], near(), dwell).unwrap().is_empty());
     for bad in [-1.0, f64::NAN, f64::INFINITY] {
         assert!(matches!(
@@ -280,6 +284,14 @@ fn visits_and_trips_serde_rejects_impossible_times() {
     assert_eq!(
         serde_json::from_value::<geocoordinates::cluster::Trip>(trip_json.clone()).unwrap(),
         trip
+    );
+    // A trip of one instant is valid.
+    let instant = [visit_at(0.0, 0.0, 10, 10)];
+    let instant = segment_trips(&instant, Duration::ZERO).unwrap()[0].clone();
+    let instant_json = serde_json::to_string(&instant).unwrap();
+    assert_eq!(
+        serde_json::from_str::<geocoordinates::cluster::Trip>(&instant_json).unwrap(),
+        instant
     );
     let mut empty = trip_json.clone();
     empty["visits"] = serde_json::json!([]);

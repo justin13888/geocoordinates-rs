@@ -240,6 +240,23 @@ fn centroid_finds_the_middle_on_the_ellipsoid_of_the_crs() {
 }
 
 #[test]
+fn centroid_treats_nearly_cancelling_points_by_their_mean_length() {
+    // Two points about 1e-9 rad short of antipodal: a mean length of 5e-10.
+    let short = 1e-9_f64.to_degrees();
+    let nearly = [wgs(0.0, 0.0), wgs(0.0, 180.0 - short)];
+    assert!(matches!(
+        centroid(&nearly),
+        Err(Error::InvalidValue {
+            field: "points",
+            ..
+        })
+    ));
+    // Ten times further from antipodal, the same pair has a direction.
+    let clear = [wgs(0.0, 0.0), wgs(0.0, 180.0 - 100.0 * short)];
+    assert!(centroid(&clear).is_ok());
+}
+
+#[test]
 fn centroid_rejects_what_has_no_mean() {
     for points in [
         vec![],

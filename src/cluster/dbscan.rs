@@ -132,7 +132,12 @@ impl Dbscan {
 
 /// The root of `node` in a union-find forest, halving the path on the way up.
 fn find(parents: &mut [usize], mut node: usize) -> usize {
-    while parents[node] != node {
+    // A path visits each node at most once; the bound keeps this loop finite whatever
+    // the forest holds.
+    for _ in 0..parents.len() {
+        if parents[node] == node {
+            break;
+        }
         parents[node] = parents[parents[node]];
         node = parents[node];
     }

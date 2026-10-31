@@ -100,15 +100,15 @@ impl Aggregate {
     }
 }
 
-/// `point` on the Web Mercator square `[0, 1) × [0, 1]`, north at `y = 0`. Latitudes
-/// past about ±85.05° clamp to the square's edge.
+/// `point` on the Web Mercator square `[0, 1] × [0, 1]`, north at `y = 0`. Latitudes
+/// past about ±85.05° clamp to the square's edge. `x = 0` and `x = 1` are one meridian:
+/// distances wrap, and the grid's first and last columns are neighbors.
 fn world_xy(point: Coordinate) -> (f64, f64) {
     (world_x(point.lon()), world_y(point.lat()))
 }
 
 pub(super) fn world_x(lon: f64) -> f64 {
-    let x = (lon + 180.0) / 360.0;
-    if x >= 1.0 { x - 1.0 } else { x }
+    (lon + 180.0) / 360.0
 }
 
 pub(super) fn world_y(lat: f64) -> f64 {
@@ -417,7 +417,12 @@ impl Forest {
         let mut next_changed = Vec::new();
         let mut next_removed = HashMap::new();
 
-        while let Some(key) = work.pop_first() {
+        // Pushes only ever go to later keys, so each is taken once. The bound keeps
+        // this loop finite whatever the pushes do.
+        for _ in 0..self.keys.len() {
+            let Some(key) = work.pop_first() else {
+                break;
+            };
             let id = key.id;
             let child = self.levels[level + 1][id as usize].as_ref();
             let old_parent = match child {
@@ -520,7 +525,8 @@ impl Forest {
             return; // the seed is already gone, and its children with it
         };
         node.children.retain(|id| *id != child);
-        if node.children.len() == 1 && node.children[0] == parent {
+        if node.children.len() == 1 {
+            // Only the seed itself is left, which an empty list stands for.
             node.children = Vec::new();
         }
     }

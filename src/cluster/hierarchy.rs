@@ -403,16 +403,15 @@ impl ClusterIndex {
             });
         }
         let level = usize::from(zoom);
-        let span = (bounds.east() - bounds.west()).rem_euclid(360.0);
+        let span = if bounds.crosses_antimeridian() {
+            bounds.east() - bounds.west() + 360.0
+        } else {
+            bounds.east() - bounds.west()
+        };
         // A box reaching a pole holds the pole at every longitude, so only the
         // full walk can find a centroid exactly there.
         let rows = (bounds.north() < 90.0 && bounds.south() > -90.0)
             .then(|| (world_y(bounds.north()), world_y(bounds.south())));
-        let span = if bounds.west() == -180.0 && bounds.east() == 180.0 {
-            360.0
-        } else {
-            span
-        };
         let mut found = Vec::new();
         for id in forest.candidates(level, bounds.west(), span, rows) {
             let aggregate = &forest.node(level, id).aggregate;
@@ -495,21 +494,7 @@ impl ClusterIndex {
         let forest = self.live_forest().ok_or_else(|| unknown(cluster_id))?;
         let mut found = Vec::new();
         let mut skip = offset as u64;
-        let mut stack = vec![(level, id)];
-        while let Some((level, id)) = stack.pop() {
-            if found.len() >= limit {
-                break;
-            }
-            let node = forest.node(level, id);
-            if node.aggregate.count <= skip {
-                skip -= node.aggregate.count;
-            } else if level == LEAF_LEVEL {
-                found.push(u64::from(id));
-            } else {
-                let children = node.children(id);
-                stack.extend(children.into_iter().rev().map(|child| (level + 1, child)));
-            }
-        }
+        collect_leaves(forest, level, id, limit, &mut skip, &mut found);
         Ok(found)
     }
 
@@ -525,6 +510,31 @@ impl ClusterIndex {
                     .is_some_and(|forest| forest.get(*level, *id).is_some())
             })
             .ok_or_else(|| unknown(cluster_id))
+    }
+}
+
+/// Walks down from one node, at most 24 levels deep, skipping whole subtrees while
+/// `skip` lasts and stopping once `found` holds `limit` ids.
+fn collect_leaves(
+    forest: &Forest,
+    level: usize,
+    id: u32,
+    limit: usize,
+    skip: &mut u64,
+    found: &mut Vec<u64>,
+) {
+    if found.len() >= limit {
+        return;
+    }
+    let node = forest.node(level, id);
+    if node.aggregate.count <= *skip {
+        *skip -= node.aggregate.count;
+    } else if level == LEAF_LEVEL {
+        found.push(u64::from(id));
+    } else {
+        for child in node.children(id) {
+            collect_leaves(forest, level + 1, child, limit, skip, found);
+        }
     }
 }
 

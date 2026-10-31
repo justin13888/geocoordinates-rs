@@ -331,6 +331,77 @@ proptest! {
 }
 
 #[test]
+fn viewports_over_many_pins_lose_nothing() {
+    // Thousands of distinct pins, so every box below takes the grid path at these
+    // zooms, with a pin on each pole and on both names of the antimeridian.
+    let mut points: Vec<Coordinate> = (0..6_000_u32)
+        .map(|i| {
+            let (a, b) = (
+                f64::from(i) * 0.618_033_988_7,
+                f64::from(i) * 0.754_877_666_2,
+            );
+            wgs(a.fract() * 160.0 - 80.0, b.fract() * 359.0 - 179.5)
+        })
+        .collect();
+    points.extend([
+        wgs(90.0, 37.0),
+        wgs(-90.0, 37.0),
+        wgs(10.0, 180.0),
+        wgs(-10.0, -180.0),
+    ]);
+    let count = points.len() as u64;
+    let index = ClusterIndex::new(points, tight()).unwrap();
+    for zoom in [3, 5, 8, 12] {
+        let pins = index.clusters(world(), zoom).unwrap();
+        assert_eq!(
+            pins.iter().map(MapCluster::count).sum::<u64>(),
+            count,
+            "zoom {zoom}"
+        );
+        for (south, west, north, east) in [
+            (-5.0, -40.0, 5.0, -20.0),
+            (0.0, 150.0, 30.0, -150.0),
+            (-30.0, -180.0, 30.0, -170.0),
+            (-30.0, 170.0, 30.0, 180.0),
+            (5.0, 180.0, 15.0, 180.0),
+            (-15.0, -180.0, -5.0, -180.0),
+            (-85.0, 100.0, 85.0, 120.0),
+            (80.0, -10.0, 90.0, 10.0),
+            (-90.0, -10.0, -80.0, 10.0),
+        ] {
+            let bounds = GeoBounds::new(south, west, north, east, Crs::Wgs84).unwrap();
+            let expected: Vec<MapCluster> = pins
+                .iter()
+                .copied()
+                .filter(|pin| bounds.contains(*pin.centroid().value()).unwrap())
+                .collect();
+            assert_eq!(
+                index.clusters(bounds, zoom).unwrap(),
+                expected,
+                "zoom {zoom} {bounds:?}"
+            );
+        }
+    }
+    // The poles are found in a box of other longitudes only by the full walk.
+    let cap = GeoBounds::new(80.0, -10.0, 90.0, 10.0, Crs::Wgs84).unwrap();
+    assert!(
+        index
+            .clusters(cap, 12)
+            .unwrap()
+            .iter()
+            .any(|pin| pin.centroid().value().lat() == 90.0)
+    );
+    let cap = GeoBounds::new(-90.0, -10.0, -80.0, 10.0, Crs::Wgs84).unwrap();
+    assert!(
+        index
+            .clusters(cap, 12)
+            .unwrap()
+            .iter()
+            .any(|pin| pin.centroid().value().lat() == -90.0)
+    );
+}
+
+#[test]
 fn viewports_find_pins_through_the_grid() {
     // Enough pins that a small box walks the grid rather than the whole level.
     let points: Vec<Coordinate> = (0..2_000)
@@ -448,6 +519,8 @@ fn children_and_leaves_walk_down_to_the_points() {
     let mut stack = vec![top[0]];
     while let Some(pin) = stack.pop() {
         let children = index.children(pin.id()).unwrap();
+        // Each step goes one zoom deeper, which also keeps this walk finite.
+        assert!(children.iter().all(|child| child.zoom() == pin.zoom() + 1));
         if children.is_empty() {
             assert_eq!(pin.zoom(), MAX_ZOOM + 1);
             assert_eq!(pin.centroid().max_error().meters(), 0.0);
@@ -504,6 +577,7 @@ fn updates_handle_every_id_and_crs_edge() {
 
     let first = index.insert(wgs(1.0, 2.0)).unwrap();
     assert_eq!(index.len(), 1);
+    assert!(!index.is_empty());
     assert_eq!(index.crs(), Some(Crs::Wgs84));
     let tokyo = Coordinate::new(1.0, 2.0, Crs::Tokyo).unwrap();
     assert!(matches!(
