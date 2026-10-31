@@ -65,12 +65,12 @@ fn each_moved_edge_sits_one_margin_past_the_exact_solution() {
 
 #[test]
 fn a_wide_box_stays_open_while_its_edges_have_not_met() {
-    // 200° wide, grown by under a degree a side: far from circling the globe.
-    let grown = bounds(0.0, -100.0, 1.0, 100.0)
+    // 300° wide, grown by under a degree a side: far from circling the globe.
+    let grown = bounds(0.0, -150.0, 1.0, 150.0)
         .expand_by(Length::from_meters(100_000.0))
         .unwrap();
-    assert!(grown.west() < -100.0 && grown.west() > -102.0, "{grown:?}");
-    assert!(grown.east() > 100.0 && grown.east() < 102.0, "{grown:?}");
+    assert!(grown.west() < -150.0 && grown.west() > -152.0, "{grown:?}");
+    assert!(grown.east() > 150.0 && grown.east() < 152.0, "{grown:?}");
 }
 
 #[test]

@@ -41,6 +41,9 @@ exclude_re = [
     # Every candidate has a distinct insertion index, so `candidate < worst` and
     # `candidate <= worst` cannot differ: the two are never equal.
     'src/index/spatial\.rs:.*: replace < with <= in SpatialIndex<T>::nearest',
+    # index::bounds::longitude_reach: where the two probes reach equally far, the
+    # single peak lies between them, so discarding either outer third keeps it.
+    'src/index/bounds\.rs:.*: replace < with <= in longitude_reach',
     # index::bounds::arc::LonArc::union, when each arc holds the other: at equal
     # spellings `self` and `other` are the same value, so `<` and `<=` agree.
     'src/index/bounds/arc\.rs:.*: replace < with <= in LonArc::union',

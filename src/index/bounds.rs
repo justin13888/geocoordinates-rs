@@ -533,7 +533,7 @@ fn longitude_reach(geodesic: &Geodesic, lat: f64, meters: f64) -> f64 {
             high = right;
         }
     }
-    reach(low + (high - low) / 2.0)
+    reach(low)
 }
 
 #[cfg(test)]
