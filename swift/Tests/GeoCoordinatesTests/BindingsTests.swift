@@ -226,4 +226,38 @@ final class TypedErrorTests: XCTestCase {
         }) else { return XCTFail("expected Parse for deep WKT") }
         XCTAssertEqual(deepKind, .tooDeep)
     }
+
+    func testExifAndXmpTagsReachTheSameCapture() throws {
+        func whole(_ n: UInt32) -> ExifRational { .unsigned(numerator: n, denominator: 1) }
+        var gps = ExifGps(
+            latitude: ExifDms(degrees: whole(39), minutes: whole(54), seconds: whole(0)),
+            latitudeRef: "N",
+            longitude: ExifDms(degrees: whole(116), minutes: whole(24), seconds: whole(0)),
+            longitudeRef: "E",
+            altitude: whole(10),
+            altitudeRef: 1,
+            speed: whole(36),
+            speedRef: "K"
+        )
+        let capture = try parseExif(gps: gps)
+        XCTAssertEqual(capture.fix.coord.lat, 39.9)
+        XCTAssertEqual(capture.fix.coord.lon, 116.4)
+        XCTAssertEqual(capture.fix.coord.height, .orthometric(meters: -10.0))
+        XCTAssertEqual(capture.fix.source?.datumAmbiguity, .possiblyGcj02)
+        XCTAssertEqual(capture.speedMps, 10.0)
+        let xmp = try parseXmp(gps: XmpGps(latitude: "39,54.0N", longitude: "116,24,0E"))
+        XCTAssertEqual(xmp.fix.coord.lat, capture.fix.coord.lat)
+        XCTAssertEqual(xmp.fix.coord.lon, capture.fix.coord.lon)
+        gps.latitudeRef = "Q"
+        guard case let .InvalidValue(field, _)? = geoError({ try parseExif(gps: gps) }) else {
+            return XCTFail("expected InvalidValue for a bad Ref")
+        }
+        XCTAssertEqual(field, "latitude_ref")
+        guard case let .Parse(kind, _)? = geoError({
+            try parseXmpWith(
+                gps: XmpGps(latitude: "0,0.0N", longitude: "0,0.0E"),
+                options: ExifOptions(nullIsland: .reject))
+        }) else { return XCTFail("expected Parse for null island") }
+        XCTAssertEqual(kind, .noFix)
+    }
 }

@@ -74,3 +74,41 @@ try:
     raise AssertionError("expected a checksum error")
 except gc.GeoError.Parse as e:
     assert e.kind == gc.ParseErrorKind.CHECKSUM, (e.kind, e.detail)
+
+
+# --- EXIF / XMP GPS tags: both paths reach the same capture ---
+def whole(n):
+    return gc.ExifRational.UNSIGNED(numerator=n, denominator=1)
+
+
+ifd = gc.ExifGps(
+    latitude=gc.ExifDms(degrees=whole(39), minutes=whole(54), seconds=whole(0)),
+    latitude_ref="N",
+    longitude=gc.ExifDms(degrees=whole(116), minutes=whole(24), seconds=whole(0)),
+    longitude_ref="E",
+    altitude=whole(10),
+    altitude_ref=1,
+    speed=whole(36),
+    speed_ref="K",
+)
+capture = gc.parse_exif(ifd)
+assert (capture.fix.coord.lat, capture.fix.coord.lon) == (39.9, 116.4), capture.fix.coord
+assert capture.fix.coord.height == gc.Height.ORTHOMETRIC(meters=-10.0)
+assert capture.fix.source.datum_ambiguity == gc.DatumAmbiguity.POSSIBLY_GCJ02
+assert capture.speed_mps == 10.0
+xmp = gc.parse_xmp(gc.XmpGps(latitude="39,54.0N", longitude="116,24,0E"))
+assert (xmp.fix.coord.lat, xmp.fix.coord.lon) == (39.9, 116.4), xmp.fix.coord
+ifd.latitude_ref = "Q"
+try:
+    gc.parse_exif(ifd)
+    raise AssertionError("expected InvalidValue for a bad Ref")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "latitude_ref", e.field
+try:
+    gc.parse_xmp_with(
+        gc.XmpGps(latitude="0,0.0N", longitude="0,0.0E"),
+        gc.ExifOptions(null_island=gc.NullIslandPolicy.REJECT),
+    )
+    raise AssertionError("expected Parse for null island")
+except gc.GeoError.Parse as e:
+    assert e.kind == gc.ParseErrorKind.NO_FIX, e.kind

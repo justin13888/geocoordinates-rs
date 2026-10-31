@@ -46,8 +46,8 @@
 //! [`ParseErrorKind`], [`Result`]);
 //! every other item lives flat in its subsystem module: [`angle`], [`china`],
 //! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
-//! [`parse`], `dgg` (behind the `h3` / `s2` features), and `index` (behind the
-//! `index` feature). Implementation
+//! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
+//! `index` feature), and `exif` (behind the `exif` feature). Implementation
 //! submodules are private, so a type is never reachable at both
 //! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
 //!
@@ -116,6 +116,10 @@ pub mod dgg;
 #[cfg_attr(docsrs, doc(cfg(feature = "index")))]
 pub mod index;
 
+#[cfg(feature = "exif")]
+#[cfg_attr(docsrs, doc(cfg(feature = "exif")))]
+pub mod exif;
+
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -164,6 +168,11 @@ pub mod prelude {
     pub use crate::geodesy::haversine_distance;
 
     pub use crate::convert::convert;
+    #[cfg(feature = "exif")]
+    pub use crate::exif::{
+        CaptureGeo, ExifGps, ExifOptions, ExifRational, NorthBearing, NorthReference,
+        NullIslandPolicy, XmpGps, from_exif, from_exif_with, from_xmp, from_xmp_with,
+    };
     pub use crate::format::{
         DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
         format_fix,

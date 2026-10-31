@@ -25,6 +25,7 @@ explicit `max_error_m`.
 | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
 | Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
 | `SpatialIndex<T>` (generic, holds its entries) | the object `SpatialIndex` over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
+| `[ExifRational; 3]` (a tag of three rationals) | the named records `ExifDms` and `ExifTime` |
 | A type valid by construction | a plain record, checked as it crosses into Rust, with a `<record>_validate` function to check a hand-built one |
 
 Exact forward conversions return a bare datum record; approximate inverses
@@ -50,7 +51,8 @@ Every export follows one scheme, so a name reads the same in every language
 - **Ingestion is `parse_*`.** `parse_coordinate`, `parse_coordinate_with`,
   `parse_text`, `parse_text_with`, `parse_geo_uri`, `parse_geojson`,
   `parse_wkt`, `parse_gpx`, `parse_kml` and `parse_nmea_sentence` each read
-  text into a `Fix` (or a list of them). The core crate's readers are named
+  text into a `Fix` (or a list of them), and `parse_exif`, `parse_exif_with`,
+  `parse_xmp` and `parse_xmp_with` read GPS tag values into a `CaptureGeo`. The core crate's readers are named
   `from_geojson` and so on inside a module that says what they produce; a
   top-level foreign function has no such module.
 - **`<record>_validate` for every invariant record.** `Coordinate`, `Wgs84`,
@@ -64,7 +66,9 @@ Every export follows one scheme, so a name reads the same in every language
   `datum_transform_new`). The `Approx*` records are the exception: every
   export that returns one is a decoder, `convert` or a China inverse, and no
   export takes one as input, so they have no `_new` or `_validate` and
-  `Approx::new` has no FFI form.
+  `Approx::new` has no FFI form. `CaptureGeo` and `NorthBearing` are output-only
+  the same way, and the `ExifGps` / `XmpGps` inputs hold no invariant: they are
+  checked as they are read.
 - **`<grid>_canonicalize` for grid codes.** `plus_code_canonicalize`,
   `geohash_canonicalize`, `maidenhead_canonicalize` and `mgrs_canonicalize`
   validate a code and return its canonical form.

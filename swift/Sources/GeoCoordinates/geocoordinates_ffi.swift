@@ -467,6 +467,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -1406,6 +1422,110 @@ public func FfiConverterTypeBd09_lower(_ value: Bd09) -> RustBuffer {
 
 
 /**
+ * A photo's capture position, direction and motion — mirror of
+ * [`gc::exif::CaptureGeo`]. Output only: no export takes one.
+ */
+public struct CaptureGeo: Equatable, Hashable {
+    /**
+     * The position, height, accuracy, UTC timestamp and provenance. A DOP gives no
+     * accuracy, since it has no meters to report; it stays in `dop`.
+     */
+    public var fix: Fix
+    /**
+     * The direction the camera faced (`GPSImgDirection`).
+     */
+    public var direction: NorthBearing?
+    /**
+     * Ground speed in meters per second; absent when `GPSSpeedRef` is, as the unit
+     * is then unknown.
+     */
+    public var speedMps: Double?
+    /**
+     * The direction of travel (`GPSTrack`).
+     */
+    public var track: NorthBearing?
+    /**
+     * The dilution of precision (`GPSDOP`), unitless.
+     */
+    public var dop: Double?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The position, height, accuracy, UTC timestamp and provenance. A DOP gives no
+         * accuracy, since it has no meters to report; it stays in `dop`.
+         */fix: Fix, 
+        /**
+         * The direction the camera faced (`GPSImgDirection`).
+         */direction: NorthBearing?, 
+        /**
+         * Ground speed in meters per second; absent when `GPSSpeedRef` is, as the unit
+         * is then unknown.
+         */speedMps: Double?, 
+        /**
+         * The direction of travel (`GPSTrack`).
+         */track: NorthBearing?, 
+        /**
+         * The dilution of precision (`GPSDOP`), unitless.
+         */dop: Double?) {
+        self.fix = fix
+        self.direction = direction
+        self.speedMps = speedMps
+        self.track = track
+        self.dop = dop
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CaptureGeo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCaptureGeo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CaptureGeo {
+        return
+            try CaptureGeo(
+                fix: FfiConverterTypeFix.read(from: &buf), 
+                direction: FfiConverterOptionTypeNorthBearing.read(from: &buf), 
+                speedMps: FfiConverterOptionDouble.read(from: &buf), 
+                track: FfiConverterOptionTypeNorthBearing.read(from: &buf), 
+                dop: FfiConverterOptionDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CaptureGeo, into buf: inout [UInt8]) {
+        FfiConverterTypeFix.write(value.fix, into: &buf)
+        FfiConverterOptionTypeNorthBearing.write(value.direction, into: &buf)
+        FfiConverterOptionDouble.write(value.speedMps, into: &buf)
+        FfiConverterOptionTypeNorthBearing.write(value.track, into: &buf)
+        FfiConverterOptionDouble.write(value.dop, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCaptureGeo_lift(_ buf: RustBuffer) throws -> CaptureGeo {
+    return try FfiConverterTypeCaptureGeo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCaptureGeo_lower(_ value: CaptureGeo) -> RustBuffer {
+    return FfiConverterTypeCaptureGeo.lower(value)
+}
+
+
+/**
  * Parse confidence on a 0.0–1.0 scale — mirror of [`gc::fix::Confidence`].
  *
  * A record can be built field by field in foreign code, so it is checked at
@@ -2083,6 +2203,444 @@ public func FfiConverterTypeEnu_lower(_ value: Enu) -> RustBuffer {
 
 
 /**
+ * `GPSLatitude` / `GPSLongitude` as stored. Any component may be fractional.
+ */
+public struct ExifDms: Equatable, Hashable {
+    /**
+     * Degrees.
+     */
+    public var degrees: ExifRational
+    /**
+     * Minutes.
+     */
+    public var minutes: ExifRational
+    /**
+     * Seconds.
+     */
+    public var seconds: ExifRational
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Degrees.
+         */degrees: ExifRational, 
+        /**
+         * Minutes.
+         */minutes: ExifRational, 
+        /**
+         * Seconds.
+         */seconds: ExifRational) {
+        self.degrees = degrees
+        self.minutes = minutes
+        self.seconds = seconds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExifDms: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExifDms: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExifDms {
+        return
+            try ExifDms(
+                degrees: FfiConverterTypeExifRational.read(from: &buf), 
+                minutes: FfiConverterTypeExifRational.read(from: &buf), 
+                seconds: FfiConverterTypeExifRational.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExifDms, into buf: inout [UInt8]) {
+        FfiConverterTypeExifRational.write(value.degrees, into: &buf)
+        FfiConverterTypeExifRational.write(value.minutes, into: &buf)
+        FfiConverterTypeExifRational.write(value.seconds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifDms_lift(_ buf: RustBuffer) throws -> ExifDms {
+    return try FfiConverterTypeExifDms.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifDms_lower(_ value: ExifDms) -> RustBuffer {
+    return FfiConverterTypeExifDms.lower(value)
+}
+
+
+/**
+ * The raw values of an EXIF GPS IFD — mirror of [`gc::exif::ExifGps`]. Every field
+ * is optional. No checks apply until [`parse_exif`] reads it.
+ */
+public struct ExifGps: Equatable, Hashable {
+    /**
+     * `GPSLatitude`.
+     */
+    public var latitude: ExifDms?
+    /**
+     * `GPSLatitudeRef`: `N` or `S`.
+     */
+    public var latitudeRef: String?
+    /**
+     * `GPSLongitude`.
+     */
+    public var longitude: ExifDms?
+    /**
+     * `GPSLongitudeRef`: `E` or `W`.
+     */
+    public var longitudeRef: String?
+    /**
+     * `GPSAltitude`, a nonnegative magnitude in meters.
+     */
+    public var altitude: ExifRational?
+    /**
+     * `GPSAltitudeRef`: 0 above sea level, 1 below, 2 above the ellipsoid, 3 below it.
+     */
+    public var altitudeRef: UInt8?
+    /**
+     * `GPSMapDatum`.
+     */
+    public var mapDatum: String?
+    /**
+     * `GPSHPositioningError`, in meters.
+     */
+    public var hPositioningError: ExifRational?
+    /**
+     * `GPSDOP`.
+     */
+    public var dop: ExifRational?
+    /**
+     * `GPSDateStamp`: `YYYY:MM:DD`.
+     */
+    public var dateStamp: String?
+    /**
+     * `GPSTimeStamp`.
+     */
+    public var timeStamp: ExifTime?
+    /**
+     * `GPSImgDirection`, in degrees.
+     */
+    public var imgDirection: ExifRational?
+    /**
+     * `GPSImgDirectionRef`: `T` or `M`.
+     */
+    public var imgDirectionRef: String?
+    /**
+     * `GPSSpeed`, in the unit of `speed_ref`.
+     */
+    public var speed: ExifRational?
+    /**
+     * `GPSSpeedRef`: `K` (km/h), `M` (mph) or `N` (knots).
+     */
+    public var speedRef: String?
+    /**
+     * `GPSTrack`, in degrees.
+     */
+    public var track: ExifRational?
+    /**
+     * `GPSTrackRef`: `T` or `M`.
+     */
+    public var trackRef: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `GPSLatitude`.
+         */latitude: ExifDms? = nil, 
+        /**
+         * `GPSLatitudeRef`: `N` or `S`.
+         */latitudeRef: String? = nil, 
+        /**
+         * `GPSLongitude`.
+         */longitude: ExifDms? = nil, 
+        /**
+         * `GPSLongitudeRef`: `E` or `W`.
+         */longitudeRef: String? = nil, 
+        /**
+         * `GPSAltitude`, a nonnegative magnitude in meters.
+         */altitude: ExifRational? = nil, 
+        /**
+         * `GPSAltitudeRef`: 0 above sea level, 1 below, 2 above the ellipsoid, 3 below it.
+         */altitudeRef: UInt8? = nil, 
+        /**
+         * `GPSMapDatum`.
+         */mapDatum: String? = nil, 
+        /**
+         * `GPSHPositioningError`, in meters.
+         */hPositioningError: ExifRational? = nil, 
+        /**
+         * `GPSDOP`.
+         */dop: ExifRational? = nil, 
+        /**
+         * `GPSDateStamp`: `YYYY:MM:DD`.
+         */dateStamp: String? = nil, 
+        /**
+         * `GPSTimeStamp`.
+         */timeStamp: ExifTime? = nil, 
+        /**
+         * `GPSImgDirection`, in degrees.
+         */imgDirection: ExifRational? = nil, 
+        /**
+         * `GPSImgDirectionRef`: `T` or `M`.
+         */imgDirectionRef: String? = nil, 
+        /**
+         * `GPSSpeed`, in the unit of `speed_ref`.
+         */speed: ExifRational? = nil, 
+        /**
+         * `GPSSpeedRef`: `K` (km/h), `M` (mph) or `N` (knots).
+         */speedRef: String? = nil, 
+        /**
+         * `GPSTrack`, in degrees.
+         */track: ExifRational? = nil, 
+        /**
+         * `GPSTrackRef`: `T` or `M`.
+         */trackRef: String? = nil) {
+        self.latitude = latitude
+        self.latitudeRef = latitudeRef
+        self.longitude = longitude
+        self.longitudeRef = longitudeRef
+        self.altitude = altitude
+        self.altitudeRef = altitudeRef
+        self.mapDatum = mapDatum
+        self.hPositioningError = hPositioningError
+        self.dop = dop
+        self.dateStamp = dateStamp
+        self.timeStamp = timeStamp
+        self.imgDirection = imgDirection
+        self.imgDirectionRef = imgDirectionRef
+        self.speed = speed
+        self.speedRef = speedRef
+        self.track = track
+        self.trackRef = trackRef
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExifGps: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExifGps: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExifGps {
+        return
+            try ExifGps(
+                latitude: FfiConverterOptionTypeExifDms.read(from: &buf), 
+                latitudeRef: FfiConverterOptionString.read(from: &buf), 
+                longitude: FfiConverterOptionTypeExifDms.read(from: &buf), 
+                longitudeRef: FfiConverterOptionString.read(from: &buf), 
+                altitude: FfiConverterOptionTypeExifRational.read(from: &buf), 
+                altitudeRef: FfiConverterOptionUInt8.read(from: &buf), 
+                mapDatum: FfiConverterOptionString.read(from: &buf), 
+                hPositioningError: FfiConverterOptionTypeExifRational.read(from: &buf), 
+                dop: FfiConverterOptionTypeExifRational.read(from: &buf), 
+                dateStamp: FfiConverterOptionString.read(from: &buf), 
+                timeStamp: FfiConverterOptionTypeExifTime.read(from: &buf), 
+                imgDirection: FfiConverterOptionTypeExifRational.read(from: &buf), 
+                imgDirectionRef: FfiConverterOptionString.read(from: &buf), 
+                speed: FfiConverterOptionTypeExifRational.read(from: &buf), 
+                speedRef: FfiConverterOptionString.read(from: &buf), 
+                track: FfiConverterOptionTypeExifRational.read(from: &buf), 
+                trackRef: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExifGps, into buf: inout [UInt8]) {
+        FfiConverterOptionTypeExifDms.write(value.latitude, into: &buf)
+        FfiConverterOptionString.write(value.latitudeRef, into: &buf)
+        FfiConverterOptionTypeExifDms.write(value.longitude, into: &buf)
+        FfiConverterOptionString.write(value.longitudeRef, into: &buf)
+        FfiConverterOptionTypeExifRational.write(value.altitude, into: &buf)
+        FfiConverterOptionUInt8.write(value.altitudeRef, into: &buf)
+        FfiConverterOptionString.write(value.mapDatum, into: &buf)
+        FfiConverterOptionTypeExifRational.write(value.hPositioningError, into: &buf)
+        FfiConverterOptionTypeExifRational.write(value.dop, into: &buf)
+        FfiConverterOptionString.write(value.dateStamp, into: &buf)
+        FfiConverterOptionTypeExifTime.write(value.timeStamp, into: &buf)
+        FfiConverterOptionTypeExifRational.write(value.imgDirection, into: &buf)
+        FfiConverterOptionString.write(value.imgDirectionRef, into: &buf)
+        FfiConverterOptionTypeExifRational.write(value.speed, into: &buf)
+        FfiConverterOptionString.write(value.speedRef, into: &buf)
+        FfiConverterOptionTypeExifRational.write(value.track, into: &buf)
+        FfiConverterOptionString.write(value.trackRef, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifGps_lift(_ buf: RustBuffer) throws -> ExifGps {
+    return try FfiConverterTypeExifGps.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifGps_lower(_ value: ExifGps) -> RustBuffer {
+    return FfiConverterTypeExifGps.lower(value)
+}
+
+
+/**
+ * Options for [`parse_exif_with`] and [`parse_xmp_with`] — mirror of
+ * [`gc::exif::ExifOptions`].
+ */
+public struct ExifOptions: Equatable, Hashable {
+    /**
+     * What to do with a position of exactly 0°, 0°.
+     */
+    public var nullIsland: NullIslandPolicy
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * What to do with a position of exactly 0°, 0°.
+         */nullIsland: NullIslandPolicy) {
+        self.nullIsland = nullIsland
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExifOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExifOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExifOptions {
+        return
+            try ExifOptions(
+                nullIsland: FfiConverterTypeNullIslandPolicy.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExifOptions, into buf: inout [UInt8]) {
+        FfiConverterTypeNullIslandPolicy.write(value.nullIsland, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifOptions_lift(_ buf: RustBuffer) throws -> ExifOptions {
+    return try FfiConverterTypeExifOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifOptions_lower(_ value: ExifOptions) -> RustBuffer {
+    return FfiConverterTypeExifOptions.lower(value)
+}
+
+
+/**
+ * `GPSTimeStamp` as stored: a UTC time of day. Any component may be fractional.
+ */
+public struct ExifTime: Equatable, Hashable {
+    /**
+     * Hours.
+     */
+    public var hours: ExifRational
+    /**
+     * Minutes.
+     */
+    public var minutes: ExifRational
+    /**
+     * Seconds.
+     */
+    public var seconds: ExifRational
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Hours.
+         */hours: ExifRational, 
+        /**
+         * Minutes.
+         */minutes: ExifRational, 
+        /**
+         * Seconds.
+         */seconds: ExifRational) {
+        self.hours = hours
+        self.minutes = minutes
+        self.seconds = seconds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ExifTime: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExifTime: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExifTime {
+        return
+            try ExifTime(
+                hours: FfiConverterTypeExifRational.read(from: &buf), 
+                minutes: FfiConverterTypeExifRational.read(from: &buf), 
+                seconds: FfiConverterTypeExifRational.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExifTime, into buf: inout [UInt8]) {
+        FfiConverterTypeExifRational.write(value.hours, into: &buf)
+        FfiConverterTypeExifRational.write(value.minutes, into: &buf)
+        FfiConverterTypeExifRational.write(value.seconds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifTime_lift(_ buf: RustBuffer) throws -> ExifTime {
+    return try FfiConverterTypeExifTime.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifTime_lower(_ value: ExifTime) -> RustBuffer {
+    return FfiConverterTypeExifTime.lower(value)
+}
+
+
+/**
  * A coordinate plus all known observation metadata — mirror of [`gc::fix::Fix`].
  *
  * `timestamp` crosses natively via UniFFI's builtin `Timestamp`.
@@ -2688,6 +3246,76 @@ public func FfiConverterTypeNed_lower(_ value: Ned) -> RustBuffer {
 
 
 /**
+ * A bearing with its north — mirror of [`gc::exif::NorthBearing`]. Output only: no
+ * export takes one, so it has no `_new` or `_validate`.
+ */
+public struct NorthBearing: Equatable, Hashable {
+    /**
+     * Degrees clockwise from north, in `[0, 360)`.
+     */
+    public var bearingDeg: Double
+    /**
+     * The north this bearing is measured from; absent when the source named none.
+     */
+    public var reference: NorthReference?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Degrees clockwise from north, in `[0, 360)`.
+         */bearingDeg: Double, 
+        /**
+         * The north this bearing is measured from; absent when the source named none.
+         */reference: NorthReference?) {
+        self.bearingDeg = bearingDeg
+        self.reference = reference
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NorthBearing: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNorthBearing: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NorthBearing {
+        return
+            try NorthBearing(
+                bearingDeg: FfiConverterDouble.read(from: &buf), 
+                reference: FfiConverterOptionTypeNorthReference.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NorthBearing, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.bearingDeg, into: &buf)
+        FfiConverterOptionTypeNorthReference.write(value.reference, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNorthBearing_lift(_ buf: RustBuffer) throws -> NorthBearing {
+    return try FfiConverterTypeNorthBearing.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNorthBearing_lower(_ value: NorthBearing) -> RustBuffer {
+    return FfiConverterTypeNorthBearing.lower(value)
+}
+
+
+/**
  * Options controlling [`parse_coordinate_with`] and [`parse_text_with`] —
  * mirror of [`gc::parse::ParseOptions`]. Take them from
  * [`format_options_parse_options`] to read back a rendering.
@@ -3284,6 +3912,196 @@ public func FfiConverterTypeWgs84_lower(_ value: Wgs84) -> RustBuffer {
     return FfiConverterTypeWgs84.lower(value)
 }
 
+
+/**
+ * The XMP `exif:GPS*` property values — mirror of [`gc::exif::XmpGps`]. Every field
+ * is optional. No checks apply until [`parse_xmp`] reads it.
+ */
+public struct XmpGps: Equatable, Hashable {
+    /**
+     * `exif:GPSLatitude`: `DD,MM.mmmmK` or `DD,MM,SSK`.
+     */
+    public var latitude: String?
+    /**
+     * `exif:GPSLongitude`: `DD,MM.mmmmK` or `DD,MM,SSK`.
+     */
+    public var longitude: String?
+    /**
+     * `exif:GPSAltitude`: a rational or decimal, in meters.
+     */
+    public var altitude: String?
+    /**
+     * `exif:GPSAltitudeRef`: `0`, `1`, `2` or `3`.
+     */
+    public var altitudeRef: String?
+    /**
+     * `exif:GPSMapDatum`.
+     */
+    public var mapDatum: String?
+    /**
+     * `exif:GPSHPositioningError`: a rational or decimal, in meters.
+     */
+    public var hPositioningError: String?
+    /**
+     * `exif:GPSDOP`: a rational or decimal.
+     */
+    public var dop: String?
+    /**
+     * `exif:GPSTimeStamp`: `YYYY-MM-DDThh:mm:ss[.s]` and a `Z` or `±hh:mm` zone.
+     */
+    public var timeStamp: String?
+    /**
+     * `exif:GPSImgDirection`: a rational or decimal, in degrees.
+     */
+    public var imgDirection: String?
+    /**
+     * `exif:GPSImgDirectionRef`: `T` or `M`.
+     */
+    public var imgDirectionRef: String?
+    /**
+     * `exif:GPSSpeed`: a rational or decimal.
+     */
+    public var speed: String?
+    /**
+     * `exif:GPSSpeedRef`: `K`, `M` or `N`.
+     */
+    public var speedRef: String?
+    /**
+     * `exif:GPSTrack`: a rational or decimal, in degrees.
+     */
+    public var track: String?
+    /**
+     * `exif:GPSTrackRef`: `T` or `M`.
+     */
+    public var trackRef: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `exif:GPSLatitude`: `DD,MM.mmmmK` or `DD,MM,SSK`.
+         */latitude: String? = nil, 
+        /**
+         * `exif:GPSLongitude`: `DD,MM.mmmmK` or `DD,MM,SSK`.
+         */longitude: String? = nil, 
+        /**
+         * `exif:GPSAltitude`: a rational or decimal, in meters.
+         */altitude: String? = nil, 
+        /**
+         * `exif:GPSAltitudeRef`: `0`, `1`, `2` or `3`.
+         */altitudeRef: String? = nil, 
+        /**
+         * `exif:GPSMapDatum`.
+         */mapDatum: String? = nil, 
+        /**
+         * `exif:GPSHPositioningError`: a rational or decimal, in meters.
+         */hPositioningError: String? = nil, 
+        /**
+         * `exif:GPSDOP`: a rational or decimal.
+         */dop: String? = nil, 
+        /**
+         * `exif:GPSTimeStamp`: `YYYY-MM-DDThh:mm:ss[.s]` and a `Z` or `±hh:mm` zone.
+         */timeStamp: String? = nil, 
+        /**
+         * `exif:GPSImgDirection`: a rational or decimal, in degrees.
+         */imgDirection: String? = nil, 
+        /**
+         * `exif:GPSImgDirectionRef`: `T` or `M`.
+         */imgDirectionRef: String? = nil, 
+        /**
+         * `exif:GPSSpeed`: a rational or decimal.
+         */speed: String? = nil, 
+        /**
+         * `exif:GPSSpeedRef`: `K`, `M` or `N`.
+         */speedRef: String? = nil, 
+        /**
+         * `exif:GPSTrack`: a rational or decimal, in degrees.
+         */track: String? = nil, 
+        /**
+         * `exif:GPSTrackRef`: `T` or `M`.
+         */trackRef: String? = nil) {
+        self.latitude = latitude
+        self.longitude = longitude
+        self.altitude = altitude
+        self.altitudeRef = altitudeRef
+        self.mapDatum = mapDatum
+        self.hPositioningError = hPositioningError
+        self.dop = dop
+        self.timeStamp = timeStamp
+        self.imgDirection = imgDirection
+        self.imgDirectionRef = imgDirectionRef
+        self.speed = speed
+        self.speedRef = speedRef
+        self.track = track
+        self.trackRef = trackRef
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension XmpGps: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeXmpGps: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> XmpGps {
+        return
+            try XmpGps(
+                latitude: FfiConverterOptionString.read(from: &buf), 
+                longitude: FfiConverterOptionString.read(from: &buf), 
+                altitude: FfiConverterOptionString.read(from: &buf), 
+                altitudeRef: FfiConverterOptionString.read(from: &buf), 
+                mapDatum: FfiConverterOptionString.read(from: &buf), 
+                hPositioningError: FfiConverterOptionString.read(from: &buf), 
+                dop: FfiConverterOptionString.read(from: &buf), 
+                timeStamp: FfiConverterOptionString.read(from: &buf), 
+                imgDirection: FfiConverterOptionString.read(from: &buf), 
+                imgDirectionRef: FfiConverterOptionString.read(from: &buf), 
+                speed: FfiConverterOptionString.read(from: &buf), 
+                speedRef: FfiConverterOptionString.read(from: &buf), 
+                track: FfiConverterOptionString.read(from: &buf), 
+                trackRef: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: XmpGps, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.latitude, into: &buf)
+        FfiConverterOptionString.write(value.longitude, into: &buf)
+        FfiConverterOptionString.write(value.altitude, into: &buf)
+        FfiConverterOptionString.write(value.altitudeRef, into: &buf)
+        FfiConverterOptionString.write(value.mapDatum, into: &buf)
+        FfiConverterOptionString.write(value.hPositioningError, into: &buf)
+        FfiConverterOptionString.write(value.dop, into: &buf)
+        FfiConverterOptionString.write(value.timeStamp, into: &buf)
+        FfiConverterOptionString.write(value.imgDirection, into: &buf)
+        FfiConverterOptionString.write(value.imgDirectionRef, into: &buf)
+        FfiConverterOptionString.write(value.speed, into: &buf)
+        FfiConverterOptionString.write(value.speedRef, into: &buf)
+        FfiConverterOptionString.write(value.track, into: &buf)
+        FfiConverterOptionString.write(value.trackRef, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeXmpGps_lift(_ buf: RustBuffer) throws -> XmpGps {
+    return try FfiConverterTypeXmpGps.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeXmpGps_lower(_ value: XmpGps) -> RustBuffer {
+    return FfiConverterTypeXmpGps.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -3796,6 +4614,102 @@ public func FfiConverterTypeDecimalSeparator_lift(_ buf: RustBuffer) throws -> D
 #endif
 public func FfiConverterTypeDecimalSeparator_lower(_ value: DecimalSeparator) -> RustBuffer {
     return FfiConverterTypeDecimalSeparator.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * One EXIF rational exactly as stored — mirror of [`gc::exif::ExifRational`].
+ */
+
+public enum ExifRational: Equatable, Hashable {
+    
+    /**
+     * An EXIF `RATIONAL`.
+     */
+    case unsigned(
+        /**
+         * Numerator.
+         */numerator: UInt32, 
+        /**
+         * Denominator.
+         */denominator: UInt32
+    )
+    /**
+     * An EXIF `SRATIONAL`.
+     */
+    case signed(
+        /**
+         * Numerator.
+         */numerator: Int32, 
+        /**
+         * Denominator.
+         */denominator: Int32
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ExifRational: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExifRational: FfiConverterRustBuffer {
+    typealias SwiftType = ExifRational
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExifRational {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .unsigned(numerator: try FfiConverterUInt32.read(from: &buf), denominator: try FfiConverterUInt32.read(from: &buf)
+        )
+        
+        case 2: return .signed(numerator: try FfiConverterInt32.read(from: &buf), denominator: try FfiConverterInt32.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExifRational, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .unsigned(numerator,denominator):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt32.write(numerator, into: &buf)
+            FfiConverterUInt32.write(denominator, into: &buf)
+            
+        
+        case let .signed(numerator,denominator):
+            writeInt(&buf, Int32(2))
+            FfiConverterInt32.write(numerator, into: &buf)
+            FfiConverterInt32.write(denominator, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifRational_lift(_ buf: RustBuffer) throws -> ExifRational {
+    return try FfiConverterTypeExifRational.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExifRational_lower(_ value: ExifRational) -> RustBuffer {
+    return FfiConverterTypeExifRational.lower(value)
 }
 
 
@@ -4845,6 +5759,159 @@ public func FfiConverterTypeMgrsPrecision_lower(_ value: MgrsPrecision) -> RustB
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * Which north a bearing is measured from — mirror of [`gc::exif::NorthReference`].
+ */
+
+public enum NorthReference: Equatable, Hashable {
+    
+    /**
+     * True north (`T`).
+     */
+    case `true`
+    /**
+     * Magnetic north (`M`).
+     */
+    case magnetic
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NorthReference: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNorthReference: FfiConverterRustBuffer {
+    typealias SwiftType = NorthReference
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NorthReference {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .`true`
+        
+        case 2: return .magnetic
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NorthReference, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .`true`:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .magnetic:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNorthReference_lift(_ buf: RustBuffer) throws -> NorthReference {
+    return try FfiConverterTypeNorthReference.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNorthReference_lower(_ value: NorthReference) -> RustBuffer {
+    return FfiConverterTypeNorthReference.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What to do with a position of exactly 0°, 0° — mirror of
+ * [`gc::exif::NullIslandPolicy`].
+ */
+
+public enum NullIslandPolicy: Equatable, Hashable {
+    
+    /**
+     * Treat 0°, 0° as any other position.
+     */
+    case accept
+    /**
+     * Reject 0°, 0° as `GeoError::Parse` of kind `NoFix`.
+     */
+    case reject
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NullIslandPolicy: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNullIslandPolicy: FfiConverterRustBuffer {
+    typealias SwiftType = NullIslandPolicy
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NullIslandPolicy {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .accept
+        
+        case 2: return .reject
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NullIslandPolicy, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .accept:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .reject:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNullIslandPolicy_lift(_ buf: RustBuffer) throws -> NullIslandPolicy {
+    return try FfiConverterTypeNullIslandPolicy.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNullIslandPolicy_lower(_ value: NullIslandPolicy) -> RustBuffer {
+    return FfiConverterTypeNullIslandPolicy.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Why a [`GeoError::Parse`] rejected its input — mirror of
  * [`gc::ParseErrorKind`].
  */
@@ -5373,6 +6440,30 @@ fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTimestamp: FfiConverterRustBuffer {
     typealias SwiftType = Date?
 
@@ -5461,6 +6552,78 @@ fileprivate struct FfiConverterOptionTypeEllipsoid: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeEllipsoid.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeExifDms: FfiConverterRustBuffer {
+    typealias SwiftType = ExifDms?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeExifDms.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeExifDms.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeExifTime: FfiConverterRustBuffer {
+    typealias SwiftType = ExifTime?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeExifTime.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeExifTime.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNorthBearing: FfiConverterRustBuffer {
+    typealias SwiftType = NorthBearing?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNorthBearing.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNorthBearing.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -5565,6 +6728,30 @@ fileprivate struct FfiConverterOptionTypeDatumAmbiguity: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeExifRational: FfiConverterRustBuffer {
+    typealias SwiftType = ExifRational?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeExifRational.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeExifRational.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeGridKind: FfiConverterRustBuffer {
     typealias SwiftType = GridKind?
 
@@ -5605,6 +6792,30 @@ fileprivate struct FfiConverterOptionTypeHeight: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeHeight.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNorthReference: FfiConverterRustBuffer {
+    typealias SwiftType = NorthReference?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNorthReference.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNorthReference.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -6676,6 +7887,69 @@ public func s2Validate(cell: S2CellId)throws   {try rustCallWithError(FfiConvert
         FfiConverterTypeS2CellId_lower(cell),$0
     )
 }
+}
+/**
+ * Read GPS IFD tag values, accepting a position of 0°, 0° — the FFI form of the core
+ * `exif::from_exif`.
+ *
+ * # Errors
+ * As [`parse_exif_with`].
+ */
+public func parseExif(gps: ExifGps)throws  -> CaptureGeo  {
+    return try  FfiConverterTypeCaptureGeo_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_parse_exif(
+        FfiConverterTypeExifGps_lower(gps),$0
+    )
+})
+}
+/**
+ * Read GPS IFD tag values under `options` — the FFI form of the core
+ * `exif::from_exif_with`.
+ *
+ * # Errors
+ * `GeoError::Parse` of kind `NoFix` when latitude or longitude is absent, the block
+ * is all `0/0`, or the position is 0°, 0° under `NullIslandPolicy::Reject`;
+ * `GeoError::InvalidValue` naming the tag for a zero denominator, a negative value,
+ * minutes or seconds of 60 or more, an hour of 24 or more, a bearing outside
+ * `[0, 360)`, or a bad Ref; `GeoError::OutOfRange` beyond ±90° / ±180°.
+ */
+public func parseExifWith(gps: ExifGps, options: ExifOptions)throws  -> CaptureGeo  {
+    return try  FfiConverterTypeCaptureGeo_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_parse_exif_with(
+        FfiConverterTypeExifGps_lower(gps),
+        FfiConverterTypeExifOptions_lower(options),$0
+    )
+})
+}
+/**
+ * Read XMP `exif:GPS*` properties, accepting a position of 0°, 0° — the FFI form of
+ * the core `exif::from_xmp`.
+ *
+ * # Errors
+ * As [`parse_xmp_with`].
+ */
+public func parseXmp(gps: XmpGps)throws  -> CaptureGeo  {
+    return try  FfiConverterTypeCaptureGeo_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_parse_xmp(
+        FfiConverterTypeXmpGps_lower(gps),$0
+    )
+})
+}
+/**
+ * Read XMP `exif:GPS*` properties under `options` — the FFI form of the core
+ * `exif::from_xmp_with`.
+ *
+ * # Errors
+ * As [`parse_exif_with`], and `GeoError::Parse` of kind `Syntax` for a coordinate or
+ * number that does not read in its XMP form.
+ */
+public func parseXmpWith(gps: XmpGps, options: ExifOptions)throws  -> CaptureGeo  {
+    return try  FfiConverterTypeCaptureGeo_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_parse_xmp_with(
+        FfiConverterTypeXmpGps_lower(gps),
+        FfiConverterTypeExifOptions_lower(options),$0
+    )
+})
 }
 /**
  * The azimuth/elevation/range of `target` relative to `origin` (as
@@ -8326,6 +9600,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_s2_validate() != 24086) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif() != 557) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif_with() != 40192) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_xmp() != 30757) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_xmp_with() != 35954) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 9329) {
