@@ -94,7 +94,7 @@ if [ -z "$msrv" ]; then
     exit 1
 fi
 rustup toolchain install "$msrv" --profile minimal --no-self-update
-cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif
+cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif,cluster
 
 exceptions="$(sed -n '/^\[package\.metadata\.feature-rust-version\]$/,/^\[/ s/^\([a-z0-9_-]*\) = "\(.*\)"$/\1 \2/p' Cargo.toml)"
 if [ -z "$exceptions" ]; then
@@ -135,6 +135,15 @@ run = [
 [tasks.exif-test]
 description = "Test the exif feature alone"
 run = "cargo test --no-default-features --features exif"
+
+# The per-feature job for `cluster`: its tests and doctests with no sibling feature
+# beyond the `index` it builds on, and its benchmark target compiled.
+[tasks.cluster-test]
+description = "Test the cluster feature alone and compile its benchmark"
+run = [
+    "cargo test --no-default-features --features cluster",
+    "cargo bench --no-run --no-default-features --features cluster --bench cluster",
+]
 
 # Both coverage tasks fail when total line coverage falls under the floor in
 # `.coverage-baseline`; `coverage-ratchet` keeps that floor from falling.

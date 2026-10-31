@@ -64,8 +64,8 @@ Every export follows one scheme, so a name reads the same in every language
   (`aer_new`, `raw_source_new`), beside the constructors that predate that
   rule (`coordinate_new`, `ellipsoid_new`, `accuracy_new`, `confidence_new`,
   `datum_transform_new`). The `Approx*` records are the exception: every
-  export that returns one is a decoder, `convert` or a China inverse, and no
-  export takes one as input, so they have no `_new` or `_validate` and
+  export that returns one is a decoder, `convert`, `centroid` or a China inverse,
+  and no export takes one as input, so they have no `_new` or `_validate` and
   `Approx::new` has no FFI form. `CaptureGeo` and `NorthBearing` are output-only
   the same way, and the `ExifGps` / `XmpGps` inputs hold no invariant: they are
   checked as they are read.
