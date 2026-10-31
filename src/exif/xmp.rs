@@ -160,12 +160,11 @@ fn coordinate<'a>(value: &'a str, field: &str) -> Result<([f64; 3], &'a str)> {
     }
 }
 
-/// An unsigned decimal: digits with at most one point, finite. `f64::from_str`
-/// alone would also take `NaN`, `inf`, signs and exponents.
+/// An unsigned decimal: digits and a point, finite. `f64::from_str` alone would also
+/// take `NaN`, `inf`, signs and exponents; it does reject an empty string, a lone
+/// point and a second point.
 fn decimal(text: &str) -> Option<f64> {
-    let digits = text.bytes().filter(u8::is_ascii_digit).count();
-    let points = text.bytes().filter(|b| *b == b'.').count();
-    if digits == 0 || points > 1 || digits + points != text.len() {
+    if !text.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
         return None;
     }
     text.parse().ok().filter(|v: &f64| v.is_finite())

@@ -245,13 +245,13 @@ impl Stamp {
         time: Option<[f64; 3]>,
         offset_minutes: i64,
     ) -> Result<Self> {
-        if let Some([hours, minutes, seconds]) = time
-            && (hours >= 24.0 || minutes >= 60.0 || seconds >= 60.0)
-        {
-            return Err(Error::InvalidValue {
-                field: "time_stamp",
-                detail: format!("not a time of day: {hours}:{minutes}:{seconds}"),
-            });
+        if let Some([hours, minutes, seconds]) = time {
+            if hours >= 24.0 || minutes >= 60.0 || seconds >= 60.0 {
+                return Err(Error::InvalidValue {
+                    field: "time_stamp",
+                    detail: format!("not a time of day: {hours}:{minutes}:{seconds}"),
+                });
+            }
         }
         let Some(date) = present(date) else {
             return Ok(Self {
