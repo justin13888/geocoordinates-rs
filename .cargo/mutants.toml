@@ -65,6 +65,9 @@ exclude_re = [
     'src/cluster/hierarchy/forest\.rs:.*: replace \* with (\+|/) in cells_for',
     'src/cluster/hierarchy/forest\.rs:.*: replace / with (%|\*) in cells_for',
     'src/cluster/hierarchy/forest\.rs:.*: replace \* with (\+|/) in cell_of',
+    # world_x's `lon - 180` only shifts every x by one whole world, which wrapped
+    # distances cannot see, and piles every point into column 0, as above.
+    'src/cluster/hierarchy/forest\.rs:.*: replace \+ with - in world_x',
     # The same for the last row and the row or column slack of a search: a row past
     # the grid's end holds nothing, and a box's edges map through the same monotonic
     # functions as the points inside it, so the extra cell only ever adds candidates

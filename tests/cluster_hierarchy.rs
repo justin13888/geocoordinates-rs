@@ -205,7 +205,12 @@ fn brute_force(points: &[Coordinate], options: ClusterIndexOptions) -> Vec<Vec<V
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(64))]
+    // A full snapshot per step makes shrinking slow, and a failure names its seed.
+    #![proptest_config(ProptestConfig {
+        cases: 64,
+        max_shrink_iters: 32,
+        ..ProptestConfig::default()
+    })]
 
     #[test]
     fn result_does_not_depend_on_input_order(points in points(), seed in any::<u64>()) {
@@ -366,6 +371,7 @@ fn viewports_over_many_pins_lose_nothing() {
             (5.0, 180.0, 15.0, 180.0),
             (-15.0, -180.0, -5.0, -180.0),
             (-85.0, 100.0, 85.0, 120.0),
+            (-30.0, -120.0, 30.0, -20.0),
             (80.0, -10.0, 90.0, 10.0),
             (-90.0, -10.0, -80.0, 10.0),
         ] {
