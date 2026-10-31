@@ -53,7 +53,7 @@ resolver = "3"
 # line at the start of a line in this file: the release workflows stamp and read
 # it by that pattern.
 [workspace.package]
-version = "0.14.2"
+version = "0.15.0"
 
 # Every `pub` item needs a doc comment (see CLAUDE.md). `warn` keeps local
 # iteration unblocked; CI's `RUSTFLAGS="-D warnings"` and clippy's `-D warnings`
