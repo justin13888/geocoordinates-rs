@@ -230,4 +230,9 @@ impl KdTree {
         };
         pending(1.0) == pending(1.0) && pending(1.0) != pending(2.0)
     }
+
+    /// The squared distance from `query` to the box around every point.
+    pub(super) fn root_box_chord_sq(&self, query: Vector) -> f64 {
+        box_chord_sq(&self.nodes[0], query)
+    }
 }

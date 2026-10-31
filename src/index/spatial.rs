@@ -421,7 +421,10 @@ impl<T> SpatialIndex<T> {
         }
         let mut best: BinaryHeap<Refined> = BinaryHeap::with_capacity(k.min(self.len()));
         let mut limit_sq = f64::INFINITY;
-        for (chord_sq, index) in self.tree.by_chord(model.unit_vector(center)) {
+        // The walk yields each entry once, so the bound never drops a candidate. It
+        // keeps this loop finite whatever the walk does.
+        let walk = self.tree.by_chord(model.unit_vector(center));
+        for (chord_sq, index) in walk.take(self.len()) {
             // Candidates arrive by rising chord, so once one cannot be as near as
             // the current k-th, none after it can. A candidate *at* that distance
             // is still refined: it may win the tie on insertion order.
