@@ -271,6 +271,9 @@ fn unit_vectors_are_unit_length_and_use_the_reduced_latitude() {
     let reduced = ((1.0 - model.flattening) * 45.0_f64.to_radians().tan()).atan();
     assert!((z - reduced.sin()).abs() < 1e-15);
     assert!((y - reduced.cos()).abs() < 1e-15);
+    let [x, y, _] = model.unit_vector(wgs84(45.0, 0.0));
+    assert!((x - reduced.cos()).abs() < 1e-15);
+    assert!(y.abs() < 1e-15);
 }
 
 #[test]
