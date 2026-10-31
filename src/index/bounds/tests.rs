@@ -478,7 +478,7 @@ fn serde_round_trips_and_validates() {
     assert!(serde_json::from_str::<GeoBounds>(bad).is_err());
 }
 
-fn lon_near_antimeridian() -> impl Strategy<Value = f64> {
+pub(super) fn lon_near_antimeridian() -> impl Strategy<Value = f64> {
     prop_oneof![
         -180.0..=180.0_f64,
         170.0..=180.0_f64,

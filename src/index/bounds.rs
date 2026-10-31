@@ -517,7 +517,11 @@ fn meridian_lat(geodesic: &Geodesic, lat: f64, bearing: f64, meters: f64) -> f64
 /// any point `meters` away, when that circle does not enclose a pole.
 ///
 /// A ternary search over the initial bearing: longitude reach rises to one peak
-/// between due north and due south.
+/// between due north and due south. That shape, and reach growing towards a pole,
+/// are assumed on the ellipsoid rather than proved. Tests check both only up to
+/// the cutoff `expand_by` calls this below: the meridian distance from `lat` to
+/// its nearer pole, at most about 10,002 km (from the equator). Past it, the box
+/// takes every longitude and this is not called.
 fn longitude_reach(geodesic: &Geodesic, lat: f64, meters: f64) -> f64 {
     let reach = |bearing: f64| -> f64 {
         let (_, lon): (f64, f64) = geodesic.direct(lat, 0.0, bearing, meters);
