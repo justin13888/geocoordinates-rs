@@ -16,8 +16,8 @@ use crate::{Error, Result};
 /// Scope is *positional* metadata only — accuracy, time, and parse provenance.
 /// Motion/telemetry that some sources carry (heading from EXIF
 /// `GPSImgDirection`, NMEA course and speed) is intentionally excluded to keep
-/// the type lean. The planned `exif` feature carries a photo's capture direction
-/// and motion in a wrapper around the `Fix`, not in the `Fix` itself.
+/// the type lean. The `exif` feature carries a photo's capture direction and
+/// motion in `exif::CaptureGeo`, a wrapper around the `Fix`, not in the `Fix` itself.
 ///
 /// `#[non_exhaustive]`, so a field can be added without a breaking release:
 /// outside this crate a `Fix` is built with [`from_coord`](Self::from_coord)
@@ -92,6 +92,7 @@ impl Fix {
 /// | A decoded grid reference (Plus Code, Geohash, Maidenhead, MGRS) | [`Bound`](Self::Bound) |
 /// | NMEA `GGA` HDOP, GPX `<hdop>` (both `HDOP × 5 m`) | [`OneSigma`](Self::OneSigma) |
 /// | A `geo:` URI's `u=` parameter | [`Unspecified`](Self::Unspecified) |
+/// | EXIF / XMP `GPSHPositioningError` (feature `exif`) | [`Bound`](Self::Bound) |
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every
 /// variant, so adding one here is a deliberate, compile-forcing change on both

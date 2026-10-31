@@ -94,7 +94,7 @@ serde = ["dep:serde"]
 # Each uncommented feature below is implemented, tested and released. The core
 # path (angles, format, parse, Plus Code) needs no cargo features at all. Container
 # and byte parsing of JPEG, TIFF and HEIF is out of scope: it lives in separate
-# libraries, and the reserved `exif` feature starts from the tag values they read.
+# libraries, and the `exif` feature starts from the tag values they read.
 #
 # Interchange formats (parsers):
 geojson = ["dep:geojson"] # GeoJSON (lon-lat axis order)
@@ -113,6 +113,10 @@ s2 = ["dep:s2"] # Google S2 indexing
 # external dep; STABILIZATION.md records the benchmark behind that choice):
 index = []
 #
+# EXIF / XMP GPS tag values to a `Fix`, with capture direction and motion. No
+# container or byte parsing, and no external dep:
+exif = []
+#
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
@@ -121,7 +125,6 @@ index = []
 # Photo-library geo (RESERVED — see the roadmap in STABILIZATION.md). None has any
 # source in-tree yet; each lands after 0.15.0, off by default. These placeholders
 # only record the intended feature names:
-# exif = []            # EXIF/XMP GPS tag values to a `Fix`, with no container parsing
 # reverse = []         # offline reverse geocoding behind a trait
 # reverse-bundled = [] # `reverse` with embedded data
 # cluster = []         # geodesic centroid and point clustering

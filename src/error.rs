@@ -219,6 +219,7 @@ impl Error {
 /// | `geo:` URI ([`from_geo_uri`](crate::parse::from_geo_uri)) | [`Syntax`](Self::Syntax), [`Unsupported`](Self::Unsupported) (a `crs` other than `wgs84`) |
 /// | NMEA 0183 (`parse::sensors::from_nmea_sentence`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum), [`NoFix`](Self::NoFix), [`Unsupported`](Self::Unsupported) (a sentence other than `GGA` / `RMC` / `GLL`) |
 /// | GeoJSON, WKT, GPX, KML (`parse::interchange`) | [`Syntax`](Self::Syntax), [`TooDeep`](Self::TooDeep) |
+/// | EXIF / XMP GPS tags (`exif`) | [`NoFix`](Self::NoFix), [`Syntax`](Self::Syntax) (XMP strings only) |
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every
 /// variant, so adding one here is a deliberate, compile-forcing change on both
@@ -244,8 +245,9 @@ pub enum ParseErrorKind {
     /// An NMEA `*HH` checksum is malformed or does not match the sentence.
     Checksum,
     /// A well-formed sentence that reports no position: NMEA `RMC` / `GLL`
-    /// status `V`, mode indicator `N`, or `GGA` fix quality `0`. A streaming
-    /// reader can skip it rather than treat it as corrupt input.
+    /// status `V`, mode indicator `N`, or `GGA` fix quality `0`; or EXIF / XMP
+    /// GPS tags with no usable position. A streaming reader can skip it rather
+    /// than treat it as corrupt input.
     NoFix,
     /// Free text with no single reading: concatenated `DDMM.mmm` without a
     /// hemisphere letter, a fraction on a field before the last (`40.5 30`),

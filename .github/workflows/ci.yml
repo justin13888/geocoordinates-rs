@@ -138,6 +138,19 @@ jobs:
       - name: Test the index feature alone
         run: mise run index-test
 
+  exif:
+    name: Feature exif
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      - name: Test the exif feature alone
+        run: mise run exif-test
+
   msrv:
     name: MSRV
     runs-on: ubuntu-latest
