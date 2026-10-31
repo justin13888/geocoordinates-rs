@@ -711,7 +711,8 @@ public protocol ClusterIndexProtocol: AnyObject, Sendable {
     
     /**
      * Removes the point `point_id` without a rebuild, returning its position. Its id
-     * is not reused.
+     * is not reused, and its slots (about 1 KB per id ever issued) are not reclaimed:
+     * after steady insert and remove churn, build a new index over the live points.
      *
      * # Errors
      * `GeoError::InvalidValue` (field `point_id`) when there is no such point.
@@ -909,7 +910,8 @@ open func len() -> UInt64  {
     
     /**
      * Removes the point `point_id` without a rebuild, returning its position. Its id
-     * is not reused.
+     * is not reused, and its slots (about 1 KB per id ever issued) are not reclaimed:
+     * after steady insert and remove churn, build a new index over the live points.
      *
      * # Errors
      * `GeoError::InvalidValue` (field `point_id`) when there is no such point.
@@ -8807,7 +8809,8 @@ public func segmentTrips(visits: [Visit], gap: TimeInterval)throws  -> [Trip]  {
  *
  * # Errors
  * `GeoError::InvalidValue` with field `distance` when `distance_m` is negative or
- * non-finite, and field `timestamp` for a fix with no timestamp;
+ * non-finite, field `timestamp` for a fix with no timestamp, and field `points` when
+ * a visit's unit vectors cancel, which takes a `distance_m` around half the planet;
  * `GeoError::CrsMismatch` when the reference systems differ or are GCJ-02 / BD-09;
  * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid record.
  */
@@ -10916,7 +10919,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_segment_trips() != 21761) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_segment_visits() != 31487) {
+    if (uniffi_geocoordinates_ffi_checksum_func_segment_visits() != 49736) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_visit_validate() != 35163) {
@@ -11327,7 +11330,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_len() != 44084) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_remove() != 35775) {
+    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_remove() != 36688) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_crs() != 14985) {
