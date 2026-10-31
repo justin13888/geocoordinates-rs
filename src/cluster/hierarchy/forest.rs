@@ -202,6 +202,11 @@ fn cells_for(radii: &[f64], level: usize) -> u64 {
     (1.0 / radius).floor().clamp(1.0, MAX_CELLS) as u64
 }
 
+/// A grid key: ordered by column, then row.
+const fn pack(column: u64, row: u64) -> u64 {
+    (column << 32) | row
+}
+
 fn cell_of(fraction: f64, cells: u64) -> u64 {
     ((fraction * cells as f64) as u64).min(cells - 1)
 }
@@ -327,7 +332,7 @@ impl Forest {
 
     fn cell(&self, level: usize, x: f64, y: f64) -> u64 {
         let cells = cells_for(&self.radii, level);
-        cell_of(x, cells) << 32 | cell_of(y, cells)
+        pack(cell_of(x, cells), cell_of(y, cells))
     }
 
     /// Calls `visit` with each node of `level + 1` within `level`'s radius of `(x, y)`
@@ -335,15 +340,16 @@ impl Forest {
     fn for_each_near(&self, level: usize, x: f64, y: f64, mut visit: impl FnMut(u32)) {
         let cells = cells_for(&self.radii, level + 1);
         let (column, row) = (cell_of(x, cells), cell_of(y, cells));
-        let columns = if cells <= 3 {
-            (0..cells).collect::<Vec<_>>()
-        } else {
-            vec![(column + cells - 1) % cells, column, (column + 1) % cells]
-        };
+        // On a grid this small, a column can be its own neighbor.
+        let mut columns = [(column + cells - 1) % cells, column, (column + 1) % cells];
+        columns.sort_unstable();
+        let last = columns.len();
+        let distinct = (0..last).filter(|at| *at == 0 || columns[*at] != columns[at - 1]);
+        let columns: Vec<u64> = distinct.map(|at| columns[at]).collect();
         let (low, high) = (row.saturating_sub(1), (row + 1).min(cells - 1));
         let radius_sq = self.radii[level] * self.radii[level];
         for column in columns {
-            let range = (column << 32 | low, 0)..=(column << 32 | high, u32::MAX);
+            let range = (pack(column, low), 0)..=(pack(column, high), u32::MAX);
             for (_, id) in self.grids[level + 1].range(range) {
                 let at = &self.node(level + 1, *id).aggregate;
                 let dx = (at.x - x).abs();
@@ -579,7 +585,7 @@ impl Forest {
         let mut found = Vec::new();
         for step in 0..columns {
             let column = (start + step) % cells;
-            let range = (column << 32 | low, 0)..=(column << 32 | high, u32::MAX);
+            let range = (pack(column, low), 0)..=(pack(column, high), u32::MAX);
             found.extend(grid.range(range).map(|(_, id)| *id));
         }
         found

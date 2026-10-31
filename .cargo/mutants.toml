@@ -55,7 +55,12 @@ exclude_re = [
     # cluster: a grid key packs a column above the 32nd bit and a row below it, and
     # a cluster id packs a level above a 32-bit point id. Columns and rows stay under
     # 2^31, so the two sides share no bit, and `|` and `^` agree on them.
-    'src/cluster/hierarchy/forest\.rs:.*: replace \| with \^ in Forest::',
+    'src/cluster/hierarchy/forest\.rs:.*: replace \| with \^ in pack',
+    # The other two ways to break `pack` lose the column (or everything), which is
+    # the one-big-cell case of the grid-sizing note below: answers stay the same, and
+    # a search only gets slow enough that a test could time out rather than fail.
+    'src/cluster/hierarchy/forest\.rs:.*: replace \| with & in pack',
+    'src/cluster/hierarchy/forest\.rs:.*: replace << with >> in pack',
     'src/cluster/hierarchy/pin\.rs:.*: replace \| with \^ in encode_id',
     # cluster::hierarchy::forest grid sizing chooses how points are bucketed, not
     # what a search answers: every search filters by exact distance or `contains`,
