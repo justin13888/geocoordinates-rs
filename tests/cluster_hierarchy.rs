@@ -486,9 +486,13 @@ fn updates_handle_every_id_and_crs_edge() {
     assert_eq!(index.len(), 1);
 
     // Emptying the index frees its CRS but keeps ids unique.
+    let pin = index.clusters(world(), 0).unwrap()[0].id();
     assert_eq!(index.remove(first).unwrap(), wgs(1.0, 2.0));
     assert!(index.is_empty() && index.crs().is_none());
     assert!(index.clusters(world(), 0).unwrap().is_empty());
+    // No level keeps a node of the last point, so its pin names nothing now.
+    assert!(index.children(pin).is_err());
+    assert!(index.leaves(pin, 1, 0).is_err());
     let second = index.insert(tokyo).unwrap();
     assert_eq!(second, first + 1);
     assert_eq!(index.crs(), Some(Crs::Tokyo));

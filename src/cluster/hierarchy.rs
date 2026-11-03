@@ -400,7 +400,7 @@ impl ClusterIndex {
                 detail: format!("{zoom} is above the deepest zoom {MAX_ZOOM}"),
             });
         }
-        let Some(forest) = self.live_forest() else {
+        let Some(forest) = self.forest.as_ref() else {
             return Ok(Vec::new());
         };
         if let Some(crs) = self.crs.filter(|crs| *crs != bounds.crs()) {
@@ -461,7 +461,7 @@ impl ClusterIndex {
         if level == LEAF_LEVEL {
             return Ok(Vec::new());
         }
-        let forest = self.live_forest().ok_or_else(|| unknown(cluster_id))?;
+        let forest = self.forest.as_ref().ok_or_else(|| unknown(cluster_id))?;
         forest
             .node(level, id)
             .children(id)
@@ -498,22 +498,18 @@ impl ClusterIndex {
     /// ```
     pub fn leaves(&self, cluster_id: u64, limit: usize, offset: usize) -> Result<Vec<u64>> {
         let (level, id) = self.resolve(cluster_id)?;
-        let forest = self.live_forest().ok_or_else(|| unknown(cluster_id))?;
+        let forest = self.forest.as_ref().ok_or_else(|| unknown(cluster_id))?;
         let mut found = Vec::new();
         let mut skip = offset as u64;
         collect_leaves(forest, level, id, limit, &mut skip, &mut found);
         Ok(found)
     }
 
-    /// The forest, unless every point has been removed.
-    fn live_forest(&self) -> Option<&Forest> {
-        self.forest.as_ref().filter(|_| self.len > 0)
-    }
-
     fn resolve(&self, cluster_id: u64) -> Result<(usize, u32)> {
         decode_id(cluster_id)
             .filter(|(level, id)| {
-                self.live_forest()
+                self.forest
+                    .as_ref()
                     .is_some_and(|forest| forest.get(*level, *id).is_some())
             })
             .ok_or_else(|| unknown(cluster_id))
