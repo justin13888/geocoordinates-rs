@@ -65,6 +65,12 @@ exclude_re = [
     'src/cluster/hierarchy/forest\.rs:.*: replace \* with (\+|/) in cells_for',
     'src/cluster/hierarchy/forest\.rs:.*: replace / with (%|\*) in cells_for',
     'src/cluster/hierarchy/forest\.rs:.*: replace \* with (\+|/) in cell_of',
+    # A one-by-one grid (`cells_for` of 1), or every point in cell (0, 0) of a full
+    # grid (`cell_of` of 0), is the same pile: every search's columns and rows still
+    # reach cell (0, 0), so it visits every node. On the large test sets that is too
+    # slow to finish inside the mutation timeout, so these report as timeouts.
+    'src/cluster/hierarchy/forest\.rs:.*: replace cells_for -> u64 with 1',
+    'src/cluster/hierarchy/forest\.rs:.*: replace cell_of -> u64 with 0',
     # world_x's `lon - 180` only shifts every x by one whole world, which wrapped
     # distances cannot see, and piles every point into column 0, as above.
     'src/cluster/hierarchy/forest\.rs:.*: replace \+ with - in world_x',

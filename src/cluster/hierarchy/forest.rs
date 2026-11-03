@@ -594,7 +594,18 @@ impl Forest {
 
 #[cfg(test)]
 mod tests {
-    use super::pack;
+    use super::{Key, pack};
+
+    #[test]
+    fn a_key_equals_only_a_key_that_orders_equal() {
+        let key = Key {
+            lat: 1.0,
+            lon: 2.0,
+            id: 3,
+        };
+        assert!(key == Key { ..key });
+        assert!(key != Key { id: 4, ..key });
+    }
 
     #[test]
     fn a_grid_key_orders_by_column_then_row() {
