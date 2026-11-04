@@ -155,14 +155,22 @@ fn every_count_is_bounded_by_the_bytes_left() {
 fn a_place_count_is_checked_against_the_smallest_place() {
     let mut d = Dataset::new("", "");
     d.places
-        .push(PlaceRow::new(1, 2, "", *b"AB", Class::Locality));
+        .push(PlaceRow::new(1, 2, "x", *b"AB", Class::Locality));
     let p = payload(&d);
-    // Empty date and attribution, a pool of one empty string, no languages, two
-    // empty admin tables, the place count, then the 16-byte place.
-    assert_eq!(p.len(), 2 + 2 + 1 + 2 + 1 + 16);
+    // Empty date and attribution, a pool of one string, no languages, two empty
+    // admin tables, the place count, then the 16-byte place.
+    assert_eq!(p.len(), 2 + 3 + 1 + 2 + 1 + 16);
     assert_eq!(Gazetteer::from_bytes(&file(&p)).unwrap().len(), 1);
     let short = &p[..p.len() - 1];
     assert!(detail(&file(short)).contains("1 places cannot fit in the 15 bytes left"));
+}
+
+#[test]
+fn rejects_a_place_with_an_empty_name() {
+    let mut d = Dataset::new("", "");
+    d.places
+        .push(PlaceRow::new(1, 2, "", *b"AB", Class::Locality));
+    assert!(detail(&encode(&d)).contains("a place has an empty name"));
 }
 
 #[test]

@@ -263,6 +263,13 @@ fn place(r: &mut Reader<'_>, d: &mut Decoded) -> Result<PlaceEntry> {
         ));
     }
     let name = r.index(d.spans.len(), "place name")?;
+    // A `Place` always has a name.
+    if d.string(name).is_empty() {
+        return Err(malformed(
+            ParseErrorKind::Syntax,
+            "a place has an empty name",
+        ));
+    }
     let country = r.take(2, "country")?;
     let country = [country[0], country[1]];
     if !country.iter().all(u8::is_ascii_uppercase) {
