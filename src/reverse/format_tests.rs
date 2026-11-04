@@ -149,6 +149,28 @@ fn every_count_is_bounded_by_the_bytes_left() {
     assert!(detail(&file(&spliced)).contains("localized names cannot fit in the 2 bytes left"));
 }
 
+/// The smallest place is 16 bytes: two `i32`s, the country, the class byte, and
+/// five one-byte varints. A count is checked against that, exactly.
+#[test]
+fn a_place_count_is_checked_against_the_smallest_place() {
+    let mut d = Dataset::new("", "");
+    d.places
+        .push(PlaceRow::new(1, 2, "", *b"AB", Class::Locality));
+    let p = payload(&d);
+    // Empty date and attribution, a pool of one empty string, no languages, two
+    // empty admin tables, the place count, then the 16-byte place.
+    assert_eq!(p.len(), 2 + 2 + 1 + 2 + 1 + 16);
+    assert_eq!(Gazetteer::from_bytes(&file(&p)).unwrap().len(), 1);
+    let short = &p[..p.len() - 1];
+    assert!(detail(&file(short)).contains("1 places cannot fit in the 15 bytes left"));
+}
+
+#[test]
+fn a_header_with_an_empty_payload_reads_on_into_it() {
+    // Exactly 16 bytes is a whole header, so the error is about the payload.
+    assert!(detail(&file(&[])).contains("truncated source date at payload byte 0"));
+}
+
 #[test]
 fn reads_the_largest_varint() {
     // A place whose population is u64::MAX, the ten-byte varint.

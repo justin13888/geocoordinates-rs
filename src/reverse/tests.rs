@@ -458,6 +458,26 @@ mod serde_round_trip {
     }
 
     #[test]
+    fn a_bare_place_round_trips_and_a_millimetre_is_tolerated() {
+        let at = wgs(1.0, 2.0);
+        let place = Place::new("Bare", at, "AB", Approx::new(at, Length::ZERO).unwrap()).unwrap();
+        let mut json = serde_json::to_value(&place).unwrap();
+        assert_eq!(json["admin1_code"], serde_json::Value::Null);
+        assert_eq!(
+            serde_json::from_value::<Place>(json.clone()).unwrap(),
+            place
+        );
+        // The stated distance may be off by up to a millimetre, inclusive.
+        json["distance"]["meters"] = 1e-3.into();
+        assert_eq!(
+            serde_json::from_value::<Place>(json.clone()).unwrap(),
+            place
+        );
+        json["distance"]["meters"] = 1.001e-3.into();
+        assert!(serde_json::from_value::<Place>(json).is_err());
+    }
+
+    #[test]
     fn options_round_trip_and_default_missing_fields() {
         let options = ReverseOptions::default()
             .with_languages(["ja"])
