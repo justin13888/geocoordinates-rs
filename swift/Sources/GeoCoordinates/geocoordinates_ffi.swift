@@ -414,7 +414,13 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -574,6 +580,24 @@ fileprivate struct FfiConverterString: FfiConverter {
         let len = Int32(value.utf8.count)
         writeInt(&buf, len)
         writeBytes(&buf, value.utf8)
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterData: FfiConverterRustBuffer {
+    typealias SwiftType = Data
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        let len: Int32 = try readInt(&buf)
+        return Data(try readBytes(&buf, count: Int(len)))
+    }
+
+    public static func write(_ value: Data, into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        writeBytes(&buf, value)
     }
 }
 
@@ -968,6 +992,495 @@ public func FfiConverterTypeClusterIndex_lift(_ handle: UInt64) throws -> Cluste
 #endif
 public func FfiConverterTypeClusterIndex_lower(_ value: ClusterIndex) -> UInt64 {
     return FfiConverterTypeClusterIndex.lower(value)
+}
+
+
+
+
+
+
+/**
+ * An offline reverse geocoder over GeoNames places — the object form of
+ * [`gc::reverse::Gazetteer`]. Immutable once loaded, so it is safe to share
+ * between threads; loading builds an index, so load once and keep it.
+ */
+public protocol GazetteerProtocol: AnyObject, Sendable {
+    
+    /**
+     * The licence and attribution to ship with the places it returns.
+     */
+    func attribution()  -> String
+    
+    /**
+     * Whether the gazetteer has no places.
+     */
+    func isEmpty()  -> Bool
+    
+    /**
+     * The BCP-47 tags the file holds localized names in.
+     */
+    func languages()  -> [String]
+    
+    /**
+     * The number of places.
+     */
+    func len()  -> UInt64
+    
+    /**
+     * The nearest place to `coordinate` that passes `options`, or `None`. A
+     * coordinate on another datum is converted to WGS-84 first.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `max_distance`) for a negative or non-finite
+     * maximum distance, or (field `languages`) for a tag that is not BCP-47
+     * shaped; `GeoError::OutsideDomain` for a BD-09 coordinate at the South Pole;
+     * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid coordinate
+     * record.
+     */
+    func reverse(coordinate: Coordinate, options: ReverseOptions) throws  -> Place?
+    
+    /**
+     * When the source data was taken, as the file states it.
+     */
+    func sourceDate()  -> String
+    
+}
+/**
+ * An offline reverse geocoder over GeoNames places — the object form of
+ * [`gc::reverse::Gazetteer`]. Immutable once loaded, so it is safe to share
+ * between threads; loading builds an index, so load once and keep it.
+ */
+open class Gazetteer: GazetteerProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_geocoordinates_ffi_fn_clone_gazetteer(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_geocoordinates_ffi_fn_free_gazetteer(handle, $0) }
+    }
+
+    
+    /**
+     * Loads a gazetteer from the bytes of a gazetteer file, checking every field.
+     *
+     * # Errors
+     * `GeoError::Parse` when the bytes are not a valid gazetteer file: kind
+     * `Checksum` for a payload that fails its CRC-32, `Unsupported` for a format
+     * version this build does not read, `Syntax` for anything else.
+     */
+public static func fromBytes(bytes: Data)throws  -> Gazetteer  {
+    return try  FfiConverterTypeGazetteer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_constructor_gazetteer_from_bytes(
+        FfiConverterData.lower(bytes),$0
+    )
+})
+}
+    
+    /**
+     * Loads a gazetteer from the file at `path`.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `path`) when the file cannot be read, and
+     * every error of `from_bytes`.
+     */
+public static func `open`(path: String)throws  -> Gazetteer  {
+    return try  FfiConverterTypeGazetteer_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_constructor_gazetteer_open(
+        FfiConverterString.lower(path),$0
+    )
+})
+}
+    
+
+    
+    /**
+     * The licence and attribution to ship with the places it returns.
+     */
+open func attribution() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_gazetteer_attribution(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Whether the gazetteer has no places.
+     */
+open func isEmpty() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_gazetteer_is_empty(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The BCP-47 tags the file holds localized names in.
+     */
+open func languages() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_gazetteer_languages(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The number of places.
+     */
+open func len() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_gazetteer_len(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The nearest place to `coordinate` that passes `options`, or `None`. A
+     * coordinate on another datum is converted to WGS-84 first.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `max_distance`) for a negative or non-finite
+     * maximum distance, or (field `languages`) for a tag that is not BCP-47
+     * shaped; `GeoError::OutsideDomain` for a BD-09 coordinate at the South Pole;
+     * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid coordinate
+     * record.
+     */
+open func reverse(coordinate: Coordinate, options: ReverseOptions)throws  -> Place?  {
+    return try  FfiConverterOptionTypePlace.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_method_gazetteer_reverse(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCoordinate_lower(coordinate),
+        FfiConverterTypeReverseOptions_lower(options),$0
+    )
+})
+}
+    
+    /**
+     * When the source data was taken, as the file states it.
+     */
+open func sourceDate() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_gazetteer_source_date(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGazetteer: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = Gazetteer
+
+    public static func lift(_ handle: UInt64) throws -> Gazetteer {
+        return Gazetteer(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: Gazetteer) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Gazetteer {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: Gazetteer, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGazetteer_lift(_ handle: UInt64) throws -> Gazetteer {
+    return try FfiConverterTypeGazetteer.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGazetteer_lower(_ value: Gazetteer) -> UInt64 {
+    return FfiConverterTypeGazetteer.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Anything that resolves a coordinate to the place it lies in — the foreign form
+ * of [`gc::reverse::ReverseGeocoder`].
+ *
+ * Implement it in Swift, Kotlin, Python or TypeScript to put a platform provider
+ * behind the same interface as [`Gazetteer`]; return `None` when no place is
+ * close enough, and build each place with [`place_new`].
+ */
+public protocol ReverseGeocoder: AnyObject, Sendable {
+    
+    /**
+     * The place `coordinate` lies in, or `None` when nothing qualifies within
+     * `options`.
+     *
+     * # Errors
+     * Implementation-defined; a [`Gazetteer`] fails as its own `reverse` does.
+     */
+    func reverse(coordinate: Coordinate, options: ReverseOptions) throws  -> Place?
+    
+}
+/**
+ * Anything that resolves a coordinate to the place it lies in — the foreign form
+ * of [`gc::reverse::ReverseGeocoder`].
+ *
+ * Implement it in Swift, Kotlin, Python or TypeScript to put a platform provider
+ * behind the same interface as [`Gazetteer`]; return `None` when no place is
+ * close enough, and build each place with [`place_new`].
+ */
+open class ReverseGeocoderImpl: ReverseGeocoder, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_geocoordinates_ffi_fn_clone_reversegeocoder(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_geocoordinates_ffi_fn_free_reversegeocoder(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * The place `coordinate` lies in, or `None` when nothing qualifies within
+     * `options`.
+     *
+     * # Errors
+     * Implementation-defined; a [`Gazetteer`] fails as its own `reverse` does.
+     */
+open func reverse(coordinate: Coordinate, options: ReverseOptions)throws  -> Place?  {
+    return try  FfiConverterOptionTypePlace.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_method_reversegeocoder_reverse(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCoordinate_lower(coordinate),
+        FfiConverterTypeReverseOptions_lower(options),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceReverseGeocoder {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceReverseGeocoder = UniffiVTableCallbackInterfaceReverseGeocoder(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeReverseGeocoder.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface ReverseGeocoder: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeReverseGeocoder.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface ReverseGeocoder: handle missing in uniffiClone")
+            }
+        },
+        reverse: { (
+            uniffiHandle: UInt64,
+            coordinate: RustBuffer,
+            options: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Place? in
+                guard let uniffiObj = try? FfiConverterTypeReverseGeocoder.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.reverse(
+                     coordinate: try FfiConverterTypeCoordinate_lift(coordinate),
+                     options: try FfiConverterTypeReverseOptions_lift(options)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypePlace.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeGeoError_lower
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceReverseGeocoder> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceReverseGeocoder>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitReverseGeocoder() {
+    uniffi_geocoordinates_ffi_fn_init_callback_vtable_reversegeocoder(UniffiCallbackInterfaceReverseGeocoder.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReverseGeocoder: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<ReverseGeocoder>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = ReverseGeocoder
+
+    public static func lift(_ handle: UInt64) throws -> ReverseGeocoder {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return ReverseGeocoderImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: ReverseGeocoder) -> UInt64 {
+         if let rustImpl = value as? ReverseGeocoderImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReverseGeocoder {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ReverseGeocoder, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReverseGeocoder_lift(_ handle: UInt64) throws -> ReverseGeocoder {
+    return try FfiConverterTypeReverseGeocoder.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReverseGeocoder_lower(_ value: ReverseGeocoder) -> UInt64 {
+    return FfiConverterTypeReverseGeocoder.lower(value)
 }
 
 
@@ -4197,6 +4710,193 @@ public func FfiConverterTypeParseOptions_lower(_ value: ParseOptions) -> RustBuf
 
 
 /**
+ * A place a coordinate resolved to — mirror of [`gc::reverse::Place`].
+ *
+ * Plain data: [`place_new`] builds a valid one, and [`place_validate`] checks a
+ * hand-built one against the core crate's rules (a non-empty name, a two-letter
+ * capital country code, both halves of an admin division or neither, BCP-47 keys,
+ * and `distance_m` within a millimetre of the distance from `query` to
+ * `coordinate`).
+ */
+public struct Place: Equatable, Hashable {
+    /**
+     * The place's default name, as its source spells it.
+     */
+    public var name: String
+    /**
+     * The place's center.
+     */
+    public var coordinate: Coordinate
+    /**
+     * ISO 3166-1 alpha-2 country code, e.g. `FR`.
+     */
+    public var countryCode: String
+    /**
+     * The first-order division's code (GeoNames codes from a gazetteer).
+     */
+    public var admin1Code: String?
+    /**
+     * The first-order division's name.
+     */
+    public var admin1Name: String?
+    /**
+     * The second-order division's code.
+     */
+    public var admin2Code: String?
+    /**
+     * The second-order division's name.
+     */
+    public var admin2Name: String?
+    /**
+     * How significant the place is, when the source says.
+     */
+    public var featureClass: FeatureClass?
+    /**
+     * The population, when the source has a figure.
+     */
+    public var population: UInt64?
+    /**
+     * The geodesic distance from `query` to the place, in meters.
+     */
+    public var distanceM: Double
+    /**
+     * The position the lookup ran at: the input, converted to the data's datum.
+     */
+    public var query: Coordinate
+    /**
+     * The error bound of that conversion in meters: `0` for input already on the
+     * data's datum, positive for GCJ-02 / BD-09 input.
+     */
+    public var queryMaxErrorM: Double
+    /**
+     * Localized names keyed by BCP-47 tag.
+     */
+    public var localizedNames: [String: String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The place's default name, as its source spells it.
+         */name: String, 
+        /**
+         * The place's center.
+         */coordinate: Coordinate, 
+        /**
+         * ISO 3166-1 alpha-2 country code, e.g. `FR`.
+         */countryCode: String, 
+        /**
+         * The first-order division's code (GeoNames codes from a gazetteer).
+         */admin1Code: String?, 
+        /**
+         * The first-order division's name.
+         */admin1Name: String?, 
+        /**
+         * The second-order division's code.
+         */admin2Code: String?, 
+        /**
+         * The second-order division's name.
+         */admin2Name: String?, 
+        /**
+         * How significant the place is, when the source says.
+         */featureClass: FeatureClass?, 
+        /**
+         * The population, when the source has a figure.
+         */population: UInt64?, 
+        /**
+         * The geodesic distance from `query` to the place, in meters.
+         */distanceM: Double, 
+        /**
+         * The position the lookup ran at: the input, converted to the data's datum.
+         */query: Coordinate, 
+        /**
+         * The error bound of that conversion in meters: `0` for input already on the
+         * data's datum, positive for GCJ-02 / BD-09 input.
+         */queryMaxErrorM: Double, 
+        /**
+         * Localized names keyed by BCP-47 tag.
+         */localizedNames: [String: String]) {
+        self.name = name
+        self.coordinate = coordinate
+        self.countryCode = countryCode
+        self.admin1Code = admin1Code
+        self.admin1Name = admin1Name
+        self.admin2Code = admin2Code
+        self.admin2Name = admin2Name
+        self.featureClass = featureClass
+        self.population = population
+        self.distanceM = distanceM
+        self.query = query
+        self.queryMaxErrorM = queryMaxErrorM
+        self.localizedNames = localizedNames
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Place: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePlace: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Place {
+        return
+            try Place(
+                name: FfiConverterString.read(from: &buf), 
+                coordinate: FfiConverterTypeCoordinate.read(from: &buf), 
+                countryCode: FfiConverterString.read(from: &buf), 
+                admin1Code: FfiConverterOptionString.read(from: &buf), 
+                admin1Name: FfiConverterOptionString.read(from: &buf), 
+                admin2Code: FfiConverterOptionString.read(from: &buf), 
+                admin2Name: FfiConverterOptionString.read(from: &buf), 
+                featureClass: FfiConverterOptionTypeFeatureClass.read(from: &buf), 
+                population: FfiConverterOptionUInt64.read(from: &buf), 
+                distanceM: FfiConverterDouble.read(from: &buf), 
+                query: FfiConverterTypeCoordinate.read(from: &buf), 
+                queryMaxErrorM: FfiConverterDouble.read(from: &buf), 
+                localizedNames: FfiConverterDictionaryStringString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Place, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterTypeCoordinate.write(value.coordinate, into: &buf)
+        FfiConverterString.write(value.countryCode, into: &buf)
+        FfiConverterOptionString.write(value.admin1Code, into: &buf)
+        FfiConverterOptionString.write(value.admin1Name, into: &buf)
+        FfiConverterOptionString.write(value.admin2Code, into: &buf)
+        FfiConverterOptionString.write(value.admin2Name, into: &buf)
+        FfiConverterOptionTypeFeatureClass.write(value.featureClass, into: &buf)
+        FfiConverterOptionUInt64.write(value.population, into: &buf)
+        FfiConverterDouble.write(value.distanceM, into: &buf)
+        FfiConverterTypeCoordinate.write(value.query, into: &buf)
+        FfiConverterDouble.write(value.queryMaxErrorM, into: &buf)
+        FfiConverterDictionaryStringString.write(value.localizedNames, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePlace_lift(_ buf: RustBuffer) throws -> Place {
+    return try FfiConverterTypePlace.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePlace_lower(_ value: Place) -> RustBuffer {
+    return FfiConverterTypePlace.lower(value)
+}
+
+
+/**
  * The original input a coordinate was parsed from — mirror of [`gc::fix::RawSource`].
  */
 public struct RawSource: Equatable, Hashable {
@@ -4312,6 +5012,98 @@ public func FfiConverterTypeRawSource_lift(_ buf: RustBuffer) throws -> RawSourc
 #endif
 public func FfiConverterTypeRawSource_lower(_ value: RawSource) -> RustBuffer {
     return FfiConverterTypeRawSource.lower(value)
+}
+
+
+/**
+ * What a reverse geocoder may return — mirror of
+ * [`gc::reverse::ReverseOptions`]. Start from [`reverse_options_default`].
+ */
+public struct ReverseOptions: Equatable, Hashable {
+    /**
+     * BCP-47 tags of the languages to return localized names in, most preferred
+     * first.
+     */
+    public var languages: [String]
+    /**
+     * The farthest a place may be from the query, inclusive, in meters.
+     */
+    public var maxDistanceM: Double
+    /**
+     * The smallest population a place may have; `0` admits any.
+     */
+    public var minPopulation: UInt64
+    /**
+     * The least significant class a place may have; none admits any.
+     */
+    public var minFeatureClass: FeatureClass?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * BCP-47 tags of the languages to return localized names in, most preferred
+         * first.
+         */languages: [String], 
+        /**
+         * The farthest a place may be from the query, inclusive, in meters.
+         */maxDistanceM: Double, 
+        /**
+         * The smallest population a place may have; `0` admits any.
+         */minPopulation: UInt64, 
+        /**
+         * The least significant class a place may have; none admits any.
+         */minFeatureClass: FeatureClass?) {
+        self.languages = languages
+        self.maxDistanceM = maxDistanceM
+        self.minPopulation = minPopulation
+        self.minFeatureClass = minFeatureClass
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ReverseOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReverseOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReverseOptions {
+        return
+            try ReverseOptions(
+                languages: FfiConverterSequenceString.read(from: &buf), 
+                maxDistanceM: FfiConverterDouble.read(from: &buf), 
+                minPopulation: FfiConverterUInt64.read(from: &buf), 
+                minFeatureClass: FfiConverterOptionTypeFeatureClass.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ReverseOptions, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.languages, into: &buf)
+        FfiConverterDouble.write(value.maxDistanceM, into: &buf)
+        FfiConverterUInt64.write(value.minPopulation, into: &buf)
+        FfiConverterOptionTypeFeatureClass.write(value.minFeatureClass, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReverseOptions_lift(_ buf: RustBuffer) throws -> ReverseOptions {
+    return try FfiConverterTypeReverseOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReverseOptions_lower(_ value: ReverseOptions) -> RustBuffer {
+    return FfiConverterTypeReverseOptions.lower(value)
 }
 
 
@@ -5672,6 +6464,133 @@ public func FfiConverterTypeExifRational_lift(_ buf: RustBuffer) throws -> ExifR
 #endif
 public func FfiConverterTypeExifRational_lower(_ value: ExifRational) -> RustBuffer {
     return FfiConverterTypeExifRational.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * How significant a populated place is — mirror of
+ * [`gc::reverse::FeatureClass`], from a neighbourhood up to a capital.
+ */
+
+public enum FeatureClass: Equatable, Hashable {
+    
+    /**
+     * A section of a populated place, such as a neighbourhood (`PPLX`).
+     */
+    case section
+    /**
+     * A populated place with no administrative role (`PPL`).
+     */
+    case locality
+    /**
+     * The seat of a fourth- or fifth-order division (`PPLA4`, `PPLA5`).
+     */
+    case admin4Seat
+    /**
+     * The seat of a third-order division (`PPLA3`).
+     */
+    case admin3Seat
+    /**
+     * The seat of a second-order division (`PPLA2`).
+     */
+    case admin2Seat
+    /**
+     * The seat of a first-order division (`PPLA`).
+     */
+    case admin1Seat
+    /**
+     * A national capital or seat of government (`PPLC`, `PPLG`).
+     */
+    case capital
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FeatureClass: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFeatureClass: FfiConverterRustBuffer {
+    typealias SwiftType = FeatureClass
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FeatureClass {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .section
+        
+        case 2: return .locality
+        
+        case 3: return .admin4Seat
+        
+        case 4: return .admin3Seat
+        
+        case 5: return .admin2Seat
+        
+        case 6: return .admin1Seat
+        
+        case 7: return .capital
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FeatureClass, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .section:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .locality:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .admin4Seat:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .admin3Seat:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .admin2Seat:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .admin1Seat:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .capital:
+            writeInt(&buf, Int32(7))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFeatureClass_lift(_ buf: RustBuffer) throws -> FeatureClass {
+    return try FfiConverterTypeFeatureClass.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFeatureClass_lower(_ value: FeatureClass) -> RustBuffer {
+    return FfiConverterTypeFeatureClass.lower(value)
 }
 
 
@@ -7460,6 +8379,30 @@ fileprivate struct FfiConverterOptionUInt8: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
+    typealias SwiftType = UInt64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
     typealias SwiftType = Double?
 
@@ -7700,6 +8643,30 @@ fileprivate struct FfiConverterOptionTypeNorthBearing: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypePlace: FfiConverterRustBuffer {
+    typealias SwiftType = Place?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePlace.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePlace.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeRawSource: FfiConverterRustBuffer {
     typealias SwiftType = RawSource?
 
@@ -7812,6 +8779,30 @@ fileprivate struct FfiConverterOptionTypeExifRational: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeExifRational.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeFeatureClass: FfiConverterRustBuffer {
+    typealias SwiftType = FeatureClass?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeFeatureClass.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeFeatureClass.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -8161,6 +9152,32 @@ fileprivate struct FfiConverterSequenceTypePointLabel: FfiConverterRustBuffer {
             seq.append(try FfiConverterTypePointLabel.read(from: &buf))
         }
         return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
+    public static func write(_ value: [String: String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterString.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: String] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: String]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterString.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
     }
 }
 /**
@@ -10601,6 +11618,84 @@ public func parseWkt(input: String, axisOrder: AxisOrder)throws  -> [Fix]  {
 })
 }
 /**
+ * `gazetteer` as a [`ReverseGeocoder`], so it can stand where one is expected:
+ * passed to [`reverse_geocode`], or chained with a foreign implementation.
+ */
+public func gazetteerAsReverseGeocoder(gazetteer: Gazetteer) -> ReverseGeocoder  {
+    return try!  FfiConverterTypeReverseGeocoder_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_gazetteer_as_reverse_geocoder(
+        FfiConverterTypeGazetteer_lower(gazetteer),$0
+    )
+})
+}
+/**
+ * A place named `name` at `coordinate` in the country `country_code`, resolved
+ * from `query` with a conversion error of `query_max_error_m` meters (`0` for an
+ * exact query). The distance is computed; set the optional fields on the record.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `name`) for an empty name, (field
+ * `country_code`) for a code that is not two ASCII capital letters, or (field
+ * `max_error`) for a negative or NaN bound; `GeoError::CrsMismatch` when
+ * `coordinate` and `query` are on different reference systems or on GCJ-02 /
+ * BD-09; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
+ * coordinate record.
+ */
+public func placeNew(name: String, coordinate: Coordinate, countryCode: String, query: Coordinate, queryMaxErrorM: Double)throws  -> Place  {
+    return try  FfiConverterTypePlace_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_place_new(
+        FfiConverterString.lower(name),
+        FfiConverterTypeCoordinate_lower(coordinate),
+        FfiConverterString.lower(countryCode),
+        FfiConverterTypeCoordinate_lower(query),
+        FfiConverterDouble.lower(queryMaxErrorM),$0
+    )
+})
+}
+/**
+ * Checks a hand-built [`Place`] against the core crate's rules.
+ *
+ * # Errors
+ * Every error of [`place_new`]; `GeoError::InvalidValue` (field `admin1` /
+ * `admin2`) for a division with a code but no name or the reverse, (field
+ * `language`) for a localized-name key that is not a BCP-47 tag, or (field
+ * `distance`) for a `distance_m` more than a millimetre off.
+ */
+public func placeValidate(place: Place)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_place_validate(
+        FfiConverterTypePlace_lower(place),$0
+    )
+}
+}
+/**
+ * Asks `geocoder`, Rust or foreign, for the place `coordinate` lies in, and checks
+ * the answer: a foreign implementation's place must pass [`place_validate`].
+ *
+ * # Errors
+ * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid coordinate
+ * record; whatever `geocoder` returns; and every error of [`place_validate`] for
+ * an invalid place.
+ */
+public func reverseGeocode(geocoder: ReverseGeocoder, coordinate: Coordinate, options: ReverseOptions)throws  -> Place?  {
+    return try  FfiConverterOptionTypePlace.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_reverse_geocode(
+        FfiConverterTypeReverseGeocoder_lower(geocoder),
+        FfiConverterTypeCoordinate_lower(coordinate),
+        FfiConverterTypeReverseOptions_lower(options),$0
+    )
+})
+}
+/**
+ * The default options: no localized names, a 50 km maximum distance, and no
+ * population or class floor.
+ */
+public func reverseOptionsDefault() -> ReverseOptions  {
+    return try!  FfiConverterTypeReverseOptions_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_reverse_options_default($0
+    )
+})
+}
+/**
  * The decimal separator a BCP-47 locale tag conventionally uses.
  *
  * A **heuristic**, not locale data: a small allowlist of decimal-comma
@@ -11273,6 +12368,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_parse_wkt() != 58076) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_gazetteer_as_reverse_geocoder() != 12896) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_place_new() != 33796) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_place_validate() != 12729) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_reverse_geocode() != 37847) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_reverse_options_default() != 51005) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_decimal_separator_for_locale() != 30884) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -11348,13 +12458,41 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_within() != 34896) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_method_gazetteer_attribution() != 39068) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_gazetteer_is_empty() != 47018) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_gazetteer_languages() != 32377) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_gazetteer_len() != 46734) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_gazetteer_reverse() != 13892) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_gazetteer_source_date() != 42733) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_reversegeocoder_reverse() != 4530) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_constructor_clusterindex_new() != 14173) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_constructor_spatialindex_new() != 35612) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_constructor_gazetteer_from_bytes() != 62284) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_constructor_gazetteer_open() != 23463) {
+        return InitializationResult.apiChecksumMismatch
+    }
 
+    uniffiCallbackInitReverseGeocoder()
     return InitializationResult.ok
 }()
 

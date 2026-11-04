@@ -19,6 +19,9 @@
 //! | `SpatialIndex<T>` (generic, holds its entries) | the object [`SpatialIndex`] over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
 //! | `ClusterIndex` (`insert` / `remove` take `&mut self`) | the object [`ClusterIndex`], whose updates take a lock |
 //! | `Approx<Coordinate>` inside a cluster | flat `centroid` and `centroid_max_error_m` fields on [`Cluster`] and [`MapCluster`] |
+//! | `ReverseGeocoder` trait | the foreign trait [`ReverseGeocoder`], which foreign code implements and [`reverse_geocode`] calls and checks; [`gazetteer_as_reverse_geocoder`] passes a [`Gazetteer`] as one |
+//! | `Approx<Coordinate>` inside a [`Place`] | flat `query` and `query_max_error_m` fields |
+//! | `Gazetteer::bundled` (`reverse-bundled`) | none: the bindings do not compile the dataset in; load a gazetteer file with [`Gazetteer::from_bytes`] or [`Gazetteer::open`] |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
 //! return a bare datum record, while approximate inverses return an `Approx*`
@@ -105,6 +108,7 @@ mod geodesy;
 mod grids;
 mod index;
 mod interchange;
+mod reverse;
 mod text;
 
 pub use self::angle::*;
@@ -119,4 +123,5 @@ pub use self::geodesy::*;
 pub use self::grids::*;
 pub use self::index::*;
 pub use self::interchange::*;
+pub use self::reverse::*;
 pub use self::text::*;

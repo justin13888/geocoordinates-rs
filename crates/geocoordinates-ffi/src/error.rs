@@ -126,6 +126,15 @@ impl From<gc::ParseErrorKind> for ParseErrorKind {
     }
 }
 
+/// A foreign [`ReverseGeocoder`](crate::ReverseGeocoder) that threw something
+/// other than a `GeoError` (or failed to cross back at all) surfaces as
+/// [`GeoError::Other`] with the reason.
+impl From<uniffi::UnexpectedUniFFICallbackError> for GeoError {
+    fn from(e: uniffi::UnexpectedUniFFICallbackError) -> Self {
+        GeoError::Other { detail: e.reason }
+    }
+}
+
 impl From<gc::Error> for GeoError {
     fn from(e: gc::Error) -> Self {
         match e {
