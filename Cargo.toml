@@ -41,7 +41,7 @@ h3 = "1.94"
 # `cargo build/test/clippy/llvm-cov` scoped to this crate only, so the FFI crate
 # (built explicitly via `-p geocoordinates-ffi`) never perturbs core CI/coverage.
 [workspace]
-members = ["crates/geocoordinates-ffi"]
+members = ["crates/geocoordinates-ffi", "crates/geocoordinates-gazetteer"]
 default-members = ["."]
 resolver = "3"
 

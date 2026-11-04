@@ -410,6 +410,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "geocoordinates-gazetteer"
+version = "0.14.2"
+
+[[package]]
 name = "geographiclib-rs"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
