@@ -43,7 +43,8 @@
 //! dumps (`citiesN.txt`, `admin1CodesASCII.txt`, `admin2Codes.txt`, and optionally
 //! `alternateNamesV2.txt` filtered to chosen languages). Under the
 //! `reverse-bundled` feature, `Gazetteer::bundled` loads a copy of GeoNames
-//! `cities1000` (every place of 1,000 or more people, about 170,000) compiled into
+//! `cities1000` (places of 1,000 or more people and administrative seats, about
+//! 170,000) compiled into
 //! the binary, with no localized names: about 6.0 MB in the binary, 3.6 MB
 //! gzip-compressed.
 //!

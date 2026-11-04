@@ -129,7 +129,8 @@ impl Gazetteer {
     }
 
     /// The gazetteer compiled in under the `reverse-bundled` feature: GeoNames
-    /// `cities1000`, every place of 1,000 or more people, with no localized names.
+    /// `cities1000` (places of 1,000 or more people and administrative seats), with
+    /// no localized names.
     ///
     /// Each call decodes the data and builds the index again, which takes tens of
     /// milliseconds, so call it once and keep the result. Ship
