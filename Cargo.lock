@@ -386,6 +386,7 @@ dependencies = [
 name = "geocoordinates"
 version = "0.14.2"
 dependencies = [
+ "geocoordinates-gazetteer",
  "geographiclib-rs",
  "geojson",
  "gpx",

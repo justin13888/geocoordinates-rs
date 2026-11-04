@@ -14,8 +14,17 @@ categories = ["science::geo", "mathematics", "parser-implementations"]
 # package at the repo root) stays out of the published crate without anyone having
 # to remember an exclude entry. Cargo adds Cargo.toml and Cargo.lock itself. The
 # flagship example is left out too: it needs every feature and is CI's concern, so
-# `cargo package` drops its target with a warning.
-include = ["/src/**/*.rs", "/LICENSE-APACHE", "/LICENSE-MIT", "/README.md", "/CHANGELOG.md"]
+# `cargo package` drops its target with a warning. The bundled gazetteer is listed
+# by name, since `reverse-bundled` compiles it in; the doctests' small fixture is
+# not, so the published crate's doctests are not runnable (docs.rs never runs them).
+include = [
+    "/src/**/*.rs",
+    "/src/reverse/data/geonames-cities1000.gaz",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+    "/README.md",
+    "/CHANGELOG.md",
+]
 
 # docs.rs builds with every feature, so each feature-gated item is documented, and
 # sets `--cfg docsrs`, which turns on the `doc(cfg(...))` badges naming the feature
@@ -84,6 +93,9 @@ s2 = { version = "0.0.13", optional = true, default-features = false }
 [dev-dependencies]
 proptest = { version = "1.11.0", default-features = false, features = ["std"] }
 serde_json = "1.0.150"
+# The only writer of the `reverse` feature's gazetteer format; the tests build their
+# fixtures with it. Path-only, so `cargo publish` drops it.
+geocoordinates-gazetteer = { path = "crates/geocoordinates-gazetteer" }
 
 [features]
 default = []
@@ -121,6 +133,13 @@ exif = []
 # trips. No external dep; it builds on `index`, and `bucket_by_h3` also needs `h3`:
 cluster = ["index"]
 #
+# Offline reverse geocoding: the `ReverseGeocoder` trait and a GeoNames `Gazetteer`
+# loaded from a validated binary file. No external dep; it builds on `index`.
+# `reverse-bundled` compiles in GeoNames cities1000 (CC BY 4.0): about 6.0 MB in the
+# binary, 3.6 MB gzip-compressed in the published crate.
+reverse = ["index"]
+reverse-bundled = ["reverse"]
+#
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
@@ -129,9 +148,7 @@ cluster = ["index"]
 # Photo-library geo (RESERVED — see the roadmap in STABILIZATION.md). None has any
 # source in-tree yet; each lands after 0.15.0, off by default. These placeholders
 # only record the intended feature names:
-# reverse = []         # offline reverse geocoding behind a trait
-# reverse-bundled = [] # `reverse` with embedded data
-# map = []             # Web Mercator, tile and viewport math, GeoJSON layers
+# map = []           # Web Mercator, tile and viewport math, GeoJSON layers
 # geotag = []          # track-based geotagging
 # privacy = []         # deterministic location coarsening and exclusion zones
 
@@ -155,6 +172,13 @@ required-features = ["index"]
 name = "cluster"
 harness = false
 required-features = ["cluster"]
+
+# Load time and query latency of the bundled gazetteer: `cargo bench --features
+# reverse-bundled --bench reverse`.
+[[bench]]
+name = "reverse"
+harness = false
+required-features = ["reverse-bundled"]
 
 # Full DWARF for every crate is a large share of how fast target/ grows in a
 # quick edit-build loop. Workspace crates keep line tables, so their backtraces
