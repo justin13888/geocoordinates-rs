@@ -50,7 +50,11 @@ hooks {
         }
     }
 
-    // Full gate set before anything leaves the machine.
+    // Fast gates before anything leaves the machine. `git push` opens the
+    // connection to the remote before this hook runs and holds it idle until
+    // the hook returns, so a slow step here makes the remote drop the push.
+    // Line coverage and mutation tests stay in CI only (see the commented-out
+    // steps below); run them locally with `mise run coverage` / `mise run mutants`.
     ["pre-push"] {
         steps {
             ["commits"] {
@@ -75,13 +79,14 @@ hooks {
             ["coverage-ratchet"] {
                 check = "mise run coverage-ratchet"
             }
-            // Fails under the line floor in `.coverage-baseline`.
-            ["coverage"] {
-                check = "mise run coverage"
-            }
-            ["mutants"] {
-                check = "mise run mutants"
-            }
+            // CI-only: `coverage` re-runs the whole test suite under llvm-cov,
+            // duplicating `test` above, and `mutants` takes many minutes.
+            // ["coverage"] {
+            //     check = "mise run coverage"
+            // }
+            // ["mutants"] {
+            //     check = "mise run mutants"
+            // }
         }
     }
 

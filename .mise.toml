@@ -467,7 +467,7 @@ exit "$status"
 # --- Mutation testing (cargo-mutants) ---
 
 [tasks.mutants]
-description = "Mutation-test only the lines changed vs trunk (pre-push + CI gate)"
+description = "Mutation-test only the lines changed vs trunk (CI gate)"
 tools = { "cargo:cargo-mutants" = "27.1.0" }
 # Warn-only mutants must still build to be evaluated, else they count as
 # unviable rather than missed (CI's `mutants` job relaxes it the same way).
