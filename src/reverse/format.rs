@@ -71,6 +71,13 @@ pub(super) struct PlaceEntry {
     pub(super) localized_len: u32,
 }
 
+impl PlaceEntry {
+    /// The place's population, or `None` where the file stores `0` (unknown).
+    pub(super) fn population(&self) -> Option<u64> {
+        (self.population > 0).then_some(self.population)
+    }
+}
+
 /// Everything a file holds, every reference checked.
 #[derive(Debug, Clone)]
 pub(super) struct Decoded {

@@ -268,12 +268,11 @@ impl Gazetteer {
             hit.distance(),
             query,
         );
-        let population = (entry.population > 0).then_some(entry.population);
         place.set_details(
             admin(&d.admin1, entry.admin1),
             admin(&d.admin2, entry.admin2),
             entry.class,
-            population,
+            entry.population(),
         );
         let start = entry.localized_start as usize;
         let own = &d.localized[start..start + entry.localized_len as usize];
@@ -340,8 +339,7 @@ impl ReverseGeocoder for Gazetteer {
                     return Ok(None);
                 }
                 let entry = &self.data.places[hit.index()];
-                let population = (entry.population > 0).then_some(entry.population);
-                if options.admits(entry.class, population) {
+                if options.admits(entry.class, entry.population()) {
                     return Ok(Some(self.place(*hit, query, &languages)));
                 }
             }
