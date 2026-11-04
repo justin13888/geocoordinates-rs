@@ -5,7 +5,10 @@ edition = "2024"
 rust-version = "1.85"
 description = "Low-level geospatial coordinate primitives: China datums (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy utilities."
 authors = ["Justin Chung"]
-license = "MIT OR Apache-2.0"
+# The code is MIT OR Apache-2.0. The package also carries the GeoNames-derived
+# gazetteer `reverse-bundled` compiles in, which is CC BY 4.0, so the package as
+# published is under both (see README.md#license).
+license = "(MIT OR Apache-2.0) AND CC-BY-4.0"
 repository = "https://github.com/justin13888/geocoordinates-rs"
 readme = "README.md"
 keywords = ["gis", "geo", "coordinates", "gcj02", "geodesy"]

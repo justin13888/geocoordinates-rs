@@ -38,6 +38,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Bounds & spatial index** *(feature-gated; `index`)* | `GeoBounds`, `SpatialIndex`, `Neighbor` | ✅ | ✅ |
 | **EXIF / XMP GPS tags** *(feature-gated; `exif`)* | `from_exif`, `from_exif_with`, `from_xmp`, `from_xmp_with`, `ExifGps`, `ExifRational`, `XmpGps`, `CaptureGeo`, `NorthBearing`, `NorthReference`, `ExifOptions`, `NullIslandPolicy` | ✅ | ✅ |
 | **Clustering** *(feature-gated; `cluster`)* | `centroid`, `dbscan`, `Dbscan`, `PointLabel`, `Cluster`, `ClusterIndex`, `ClusterIndexOptions`, `MapCluster`, `MAX_ZOOM`, `bucket_by_geohash`, `bucket_by_h3`, `GridBucket`, `segment_visits`, `segment_trips`, `Visit`, `Trip` | ✅ | ✅ |
+| **Reverse geocoding** *(feature-gated; `reverse`, `reverse-bundled`)* | `ReverseGeocoder`, `Gazetteer`, `Place`, `FeatureClass`, `ReverseOptions` | ✅ | ✅ (no bundled dataset: load a gazetteer file) |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
@@ -49,9 +50,7 @@ pre-1.0 audit is closed in the ledger.
 a system library or multi-megabyte external data.
 
 **Planned after 0.15.0, not yet shipped:** the geo features a photo library needs,
-each behind its own cargo feature that is off by default: offline reverse
-geocoding behind a trait (`reverse`, plus
-`reverse-bundled` for embedded data), Web Mercator, tile and viewport math with GeoJSON layer output (`map`),
+each behind its own cargo feature that is off by default: Web Mercator, tile and viewport math with GeoJSON layer output (`map`),
 track-based geotagging (`geotag`), and deterministic location coarsening and
 exclusion zones (`privacy`). The
 [stabilization ledger](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)
@@ -210,6 +209,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run public-api-check` | Every public item has one path besides its prelude entry (pinned nightly rustdoc JSON) |
 | `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
 | `mise run index-test`       | Tests and doctests for the `index` feature alone; compiles its benchmark |
+| `mise run reverse-test`     | Tests and doctests for `reverse` and `reverse-bundled` alone and for the gazetteer build tool; compiles the benchmark |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
 | `mise run coverage`         | Coverage report; fails under the line floor in `.coverage-baseline`  |
 | `mise run coverage-ratchet` | Fails if the floor in `.coverage-baseline` falls below `origin/master`'s |
@@ -291,3 +291,10 @@ mise run coverage-ratchet
 ## License
 
 Licensed under either of [MIT](https://github.com/justin13888/geocoordinates-rs/blob/master/LICENSE-MIT) or [Apache-2.0](https://github.com/justin13888/geocoordinates-rs/blob/master/LICENSE-APACHE) at your option.
+
+The gazetteer data the `reverse-bundled` feature compiles in
+(`src/reverse/data/geonames-cities1000.gaz`), and any gazetteer file built with
+`geocoordinates-gazetteer`, is derived from [GeoNames](https://www.geonames.org/) and
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), not the
+code's licence. An application that shows places from it must credit GeoNames;
+`Gazetteer::attribution` returns the credit line to ship.
