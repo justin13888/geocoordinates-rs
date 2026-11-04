@@ -1,7 +1,8 @@
 //! Offline reverse geocoding: a coordinate to the place it lies in (feature
 //! `reverse`).
 //!
-//! [`ReverseGeocoder`] is the seam: anything that maps a [`Coordinate`] to a
+//! [`ReverseGeocoder`] is the seam: anything that maps a
+//! [`Coordinate`](crate::Coordinate) to a
 //! [`Place`] implements it, so a caller can swap the offline [`Gazetteer`] for a
 //! platform provider (Apple's `CLGeocoder`, a web service) behind one type.
 //! [`Gazetteer`] answers from GeoNames data with no network: a point resolves to
