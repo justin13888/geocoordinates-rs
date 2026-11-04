@@ -595,11 +595,13 @@ pub fn raw_source_new(raw: String, confidence: Confidence) -> Result<RawSource, 
 // ===========================================================================
 
 /// A coordinate with its error bound — the single FFI form of
-/// `Approx<Coordinate>`, returned by [`convert`] and by every grid / cell
-/// decoder (Plus Code, geohash, Maidenhead, MGRS, H3, S2).
+/// `Approx<Coordinate>`, returned by [`convert`], by `centroid` and by every grid /
+/// cell decoder (Plus Code, geohash, Maidenhead, MGRS, H3, S2).
 ///
 /// What `max_error_m` bounds depends on the producer:
 ///
+/// - **`centroid`** bounds the geodesic distance from the result to the farthest
+///   input.
 /// - **Grid / cell decoders** return the WGS-84 cell center; the bound is the
 ///   distance from that center to the farthest point of the cell, as each
 ///   decoder documents it: the maximum geodesic corner distance (Plus Code,

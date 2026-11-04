@@ -47,7 +47,8 @@
 //! every other item lives flat in its subsystem module: [`angle`], [`china`],
 //! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
 //! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
-//! `index` feature), and `exif` (behind the `exif` feature). Implementation
+//! `index` feature), `exif` (behind the `exif` feature), and `cluster` (behind
+//! the `cluster` feature). Implementation
 //! submodules are private, so a type is never reachable at both
 //! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
 //!
@@ -120,6 +121,10 @@ pub mod index;
 #[cfg_attr(docsrs, doc(cfg(feature = "exif")))]
 pub mod exif;
 
+#[cfg(feature = "cluster")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cluster")))]
+pub mod cluster;
+
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -167,6 +172,14 @@ pub mod prelude {
     };
     pub use crate::geodesy::haversine_distance;
 
+    #[cfg(feature = "h3")]
+    #[cfg(feature = "cluster")]
+    pub use crate::cluster::bucket_by_h3;
+    #[cfg(feature = "cluster")]
+    pub use crate::cluster::{
+        Cluster, ClusterIndex, ClusterIndexOptions, Dbscan, GridBucket, MapCluster, PointLabel,
+        Trip, Visit, bucket_by_geohash, centroid, dbscan, segment_trips, segment_visits,
+    };
     pub use crate::convert::convert;
     #[cfg(feature = "exif")]
     pub use crate::exif::{

@@ -37,6 +37,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Discrete global grids** *(feature-gated; `dgg`)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
 | **Bounds & spatial index** *(feature-gated; `index`)* | `GeoBounds`, `SpatialIndex`, `Neighbor` | ✅ | ✅ |
 | **EXIF / XMP GPS tags** *(feature-gated; `exif`)* | `from_exif`, `from_exif_with`, `from_xmp`, `from_xmp_with`, `ExifGps`, `ExifRational`, `XmpGps`, `CaptureGeo`, `NorthBearing`, `NorthReference`, `ExifOptions`, `NullIslandPolicy` | ✅ | ✅ |
+| **Clustering** *(feature-gated; `cluster`)* | `centroid`, `dbscan`, `Dbscan`, `PointLabel`, `Cluster`, `ClusterIndex`, `ClusterIndexOptions`, `MapCluster`, `MAX_ZOOM`, `bucket_by_geohash`, `bucket_by_h3`, `GridBucket`, `segment_visits`, `segment_trips`, `Visit`, `Trip` | ✅ | ✅ |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
@@ -50,8 +51,7 @@ a system library or multi-megabyte external data.
 **Planned after 0.15.0, not yet shipped:** the geo features a photo library needs,
 each behind its own cargo feature that is off by default: offline reverse
 geocoding behind a trait (`reverse`, plus
-`reverse-bundled` for embedded data), a geodesic centroid and point clustering
-(`cluster`), Web Mercator, tile and viewport math with GeoJSON layer output (`map`),
+`reverse-bundled` for embedded data), Web Mercator, tile and viewport math with GeoJSON layer output (`map`),
 track-based geotagging (`geotag`), and deterministic location coarsening and
 exclusion zones (`privacy`). The
 [stabilization ledger](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)

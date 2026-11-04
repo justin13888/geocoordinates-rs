@@ -117,6 +117,10 @@ index = []
 # container or byte parsing, and no external dep:
 exif = []
 #
+# Geodesic centroid, DBSCAN, a per-zoom map hierarchy, grid buckets, and visits and
+# trips. No external dep; it builds on `index`, and `bucket_by_h3` also needs `h3`:
+cluster = ["index"]
+#
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
@@ -127,7 +131,6 @@ exif = []
 # only record the intended feature names:
 # reverse = []         # offline reverse geocoding behind a trait
 # reverse-bundled = [] # `reverse` with embedded data
-# cluster = []         # geodesic centroid and point clustering
 # map = []             # Web Mercator, tile and viewport math, GeoJSON layers
 # geotag = []          # track-based geotagging
 # privacy = []         # deterministic location coarsening and exclusion zones
@@ -145,6 +148,13 @@ required-features = ["serde", "geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2"
 name = "spatial_index"
 harness = false
 required-features = ["index"]
+
+# Timings for every `cluster` tool at 10^4, 10^5 and 10^6 points: `cargo bench
+# --features cluster --bench cluster`.
+[[bench]]
+name = "cluster"
+harness = false
+required-features = ["cluster"]
 
 # Full DWARF for every crate is a large share of how fast target/ grows in a
 # quick edit-build loop. Workspace crates keep line tables, so their backtraces
