@@ -188,7 +188,9 @@ impl TryFrom<PlaceRepr> for Place {
 
     fn try_from(repr: PlaceRepr) -> Result<Self> {
         let mut place = Self::new(repr.name, repr.coordinate, &repr.country_code, repr.query)?;
-        if (place.distance.meters() - repr.distance.meters()).abs() > 1e-3 {
+        // Written so a NaN distance is rejected too.
+        let matches = (place.distance.meters() - repr.distance.meters()).abs() <= 1e-3;
+        if !matches {
             return Err(Error::InvalidValue {
                 field: "distance",
                 detail: format!(
