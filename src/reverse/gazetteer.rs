@@ -328,11 +328,13 @@ impl ReverseGeocoder for Gazetteer {
         let query = convert(flat, Crs::Wgs84)?;
         let at = *query.value();
         let languages = self.language_positions(&options.languages);
+        // Each round asks for four times as many places and checks only the new
+        // ones. `k` stops before it overflows, so the rounds are finite whatever
+        // the exit test below does.
         let mut checked = 0;
-        let mut k = FIRST_K;
-        loop {
+        for k in std::iter::successors(Some(FIRST_K), |k| k.checked_mul(4)) {
             let hits = self.index.nearest(at, k)?;
-            for hit in &hits[checked..] {
+            for hit in hits.iter().skip(checked) {
                 if hit.distance().meters() > max_m {
                     return Ok(None);
                 }
@@ -342,12 +344,13 @@ impl ReverseGeocoder for Gazetteer {
                     return Ok(Some(self.place(*hit, query, &languages)));
                 }
             }
+            // Fewer than asked for: that was every place.
             if hits.len() < k {
-                return Ok(None);
+                break;
             }
             checked = hits.len();
-            k = k.saturating_mul(4);
         }
+        Ok(None)
     }
 }
 
