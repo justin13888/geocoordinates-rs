@@ -16,7 +16,7 @@ const GEOHASH_ALPHABET: &[u8; 32] = b"0123456789bcdefghjkmnpqrstuvwxyz";
 /// only spurious precision. (An `f64` still holds it: thirteen characters
 /// resolve 360°/2³³ ≈ 4.2e-8° of longitude, far above `f64`'s ≈ 2.8e-14°
 /// near ±180°.)
-pub(super) const GEOHASH_MAX_LENGTH: u8 = 12;
+pub(crate) const GEOHASH_MAX_LENGTH: u8 = 12;
 
 /// A validated geohash string (base-32, 1–12 characters), e.g. `dr5regy`.
 ///

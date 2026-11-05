@@ -75,12 +75,10 @@ use crate::dgg::H3Cell;
 use crate::dgg::S2CellId;
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, Fix, RawSource};
-use crate::grids::Geohash;
+// The longest geohash `coarsen` snaps to is the longest `Geohash::encode`
+// accepts, so the two share one constant and cannot drift apart.
+use crate::grids::{GEOHASH_MAX_LENGTH, Geohash};
 use crate::units::Length;
-
-/// The longest geohash [`coarsen`] snaps to; one character longer than
-/// [`Geohash::encode`] accepts is refused.
-const GEOHASH_MAX_LENGTH: u8 = 12;
 
 /// The finest H3 resolution.
 #[cfg(feature = "h3")]

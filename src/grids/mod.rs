@@ -41,6 +41,8 @@ mod encoded; // Plus Code, Geohash, Maidenhead
 mod mgrs; // UTM/UPS-backed military grid
 mod utm; // transverse Mercator / polar stereographic
 
+#[cfg(feature = "privacy")]
+pub(crate) use encoded::GEOHASH_MAX_LENGTH;
 pub use encoded::{Geohash, Maidenhead, PlusCode};
 pub use mgrs::{Mgrs, MgrsPrecision};
 pub use utm::{Ups, Utm, UtmHemisphere, utm_central_meridian_deg, utm_zone_for};
