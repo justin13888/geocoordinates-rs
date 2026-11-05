@@ -32,7 +32,7 @@ crate-type = ["cdylib", "staticlib", "lib"]
 # the workspace version, so a requirement would only go stale at each release.
 # `reverse` without `reverse-bundled`: the 6 MB dataset is not compiled into every
 # binding. Foreign callers load a gazetteer file from bytes or a path instead.
-geocoordinates = { path = "../..", features = ["geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2", "index", "exif", "cluster", "reverse"] }
+geocoordinates = { path = "../..", features = ["geojson", "wkt", "gpx", "kml", "nmea", "h3", "s2", "index", "exif", "cluster", "reverse", "map"] }
 uniffi = { version = "0.31", features = ["cli"] }
 thiserror = "2.0"
 

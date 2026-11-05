@@ -2294,6 +2294,77 @@ public func FfiConverterTypeBd09_lower(_ value: Bd09) -> RustBuffer {
 
 
 /**
+ * Where a map looks — mirror of [`gc::map::Camera`].
+ *
+ * Plain data: [`camera_validate`] checks a hand-built one.
+ */
+public struct Camera: Equatable, Hashable {
+    /**
+     * The centre of the view.
+     */
+    public var center: Coordinate
+    /**
+     * The fractional zoom, 0 to 30.
+     */
+    public var zoom: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The centre of the view.
+         */center: Coordinate, 
+        /**
+         * The fractional zoom, 0 to 30.
+         */zoom: Double) {
+        self.center = center
+        self.zoom = zoom
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Camera: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCamera: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Camera {
+        return
+            try Camera(
+                center: FfiConverterTypeCoordinate.read(from: &buf), 
+                zoom: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Camera, into buf: inout [UInt8]) {
+        FfiConverterTypeCoordinate.write(value.center, into: &buf)
+        FfiConverterDouble.write(value.zoom, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCamera_lift(_ buf: RustBuffer) throws -> Camera {
+    return try FfiConverterTypeCamera.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCamera_lower(_ value: Camera) -> RustBuffer {
+    return FfiConverterTypeCamera.lower(value)
+}
+
+
+/**
  * A photo's capture position, direction and motion — mirror of
  * [`gc::exif::CaptureGeo`]. Output only: no export takes one.
  */
@@ -5250,6 +5321,88 @@ public func FfiConverterTypeSpatialNeighbor_lower(_ value: SpatialNeighbor) -> R
 
 
 /**
+ * One XYZ tile — mirror of [`gc::map::Tile`]: column `x` east from the
+ * antimeridian, row `y` south from the top edge.
+ *
+ * Plain data: [`tile_validate`] checks a hand-built one.
+ */
+public struct Tile: Equatable, Hashable {
+    /**
+     * Zoom, 0 to 30.
+     */
+    public var z: UInt8
+    /**
+     * Column, below `2^z`.
+     */
+    public var x: UInt32
+    /**
+     * Row, below `2^z`.
+     */
+    public var y: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Zoom, 0 to 30.
+         */z: UInt8, 
+        /**
+         * Column, below `2^z`.
+         */x: UInt32, 
+        /**
+         * Row, below `2^z`.
+         */y: UInt32) {
+        self.z = z
+        self.x = x
+        self.y = y
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Tile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTile: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Tile {
+        return
+            try Tile(
+                z: FfiConverterUInt8.read(from: &buf), 
+                x: FfiConverterUInt32.read(from: &buf), 
+                y: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Tile, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.z, into: &buf)
+        FfiConverterUInt32.write(value.x, into: &buf)
+        FfiConverterUInt32.write(value.y, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTile_lift(_ buf: RustBuffer) throws -> Tile {
+    return try FfiConverterTypeTile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTile_lower(_ value: Tile) -> RustBuffer {
+    return FfiConverterTypeTile.lower(value)
+}
+
+
+/**
  * A run of [`Visit`]s — mirror of [`gc::cluster::Trip`].
  */
 public struct Trip: Equatable, Hashable {
@@ -5518,6 +5671,89 @@ public func FfiConverterTypeUtm_lower(_ value: Utm) -> RustBuffer {
 
 
 /**
+ * The map view on screen, in pixels — mirror of [`gc::map::Viewport`]. `tile_px`
+ * fixes what a zoom means: 512 for MapLibre, 256 for Google Maps, MapKit and
+ * Leaflet.
+ *
+ * Plain data: [`viewport_validate`] checks a hand-built one.
+ */
+public struct Viewport: Equatable, Hashable {
+    /**
+     * Width, pixels.
+     */
+    public var widthPx: Double
+    /**
+     * Height, pixels.
+     */
+    public var heightPx: Double
+    /**
+     * Width of one tile, pixels.
+     */
+    public var tilePx: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Width, pixels.
+         */widthPx: Double, 
+        /**
+         * Height, pixels.
+         */heightPx: Double, 
+        /**
+         * Width of one tile, pixels.
+         */tilePx: Double) {
+        self.widthPx = widthPx
+        self.heightPx = heightPx
+        self.tilePx = tilePx
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Viewport: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeViewport: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Viewport {
+        return
+            try Viewport(
+                widthPx: FfiConverterDouble.read(from: &buf), 
+                heightPx: FfiConverterDouble.read(from: &buf), 
+                tilePx: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Viewport, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.widthPx, into: &buf)
+        FfiConverterDouble.write(value.heightPx, into: &buf)
+        FfiConverterDouble.write(value.tilePx, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeViewport_lift(_ buf: RustBuffer) throws -> Viewport {
+    return try FfiConverterTypeViewport.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeViewport_lower(_ value: Viewport) -> RustBuffer {
+    return FfiConverterTypeViewport.lower(value)
+}
+
+
+/**
  * A stay point — mirror of [`gc::cluster::Visit`].
  *
  * Plain data: [`visit_validate`] checks a hand-built one.
@@ -5599,6 +5835,89 @@ public func FfiConverterTypeVisit_lower(_ value: Visit) -> RustBuffer {
 
 
 /**
+ * A point on Web Mercator (EPSG:3857), in meters — mirror of
+ * [`gc::map::WebMercator`]. The datum of the position it projects is carried, not
+ * converted.
+ *
+ * Plain data: [`web_mercator_validate`] checks a hand-built one.
+ */
+public struct WebMercator: Equatable, Hashable {
+    /**
+     * Easting, meters.
+     */
+    public var xM: Double
+    /**
+     * Northing, meters.
+     */
+    public var yM: Double
+    /**
+     * The reference system of the projected position.
+     */
+    public var crs: Crs
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Easting, meters.
+         */xM: Double, 
+        /**
+         * Northing, meters.
+         */yM: Double, 
+        /**
+         * The reference system of the projected position.
+         */crs: Crs) {
+        self.xM = xM
+        self.yM = yM
+        self.crs = crs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension WebMercator: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWebMercator: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WebMercator {
+        return
+            try WebMercator(
+                xM: FfiConverterDouble.read(from: &buf), 
+                yM: FfiConverterDouble.read(from: &buf), 
+                crs: FfiConverterTypeCrs.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WebMercator, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.xM, into: &buf)
+        FfiConverterDouble.write(value.yM, into: &buf)
+        FfiConverterTypeCrs.write(value.crs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWebMercator_lift(_ buf: RustBuffer) throws -> WebMercator {
+    return try FfiConverterTypeWebMercator.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWebMercator_lower(_ value: WebMercator) -> RustBuffer {
+    return FfiConverterTypeWebMercator.lower(value)
+}
+
+
+/**
  * A WGS-84 position (real GPS / OpenStreetMap), in decimal degrees.
  */
 public struct Wgs84: Equatable, Hashable {
@@ -5664,6 +5983,76 @@ public func FfiConverterTypeWgs84_lift(_ buf: RustBuffer) throws -> Wgs84 {
 #endif
 public func FfiConverterTypeWgs84_lower(_ value: Wgs84) -> RustBuffer {
     return FfiConverterTypeWgs84.lower(value)
+}
+
+
+/**
+ * A position in world pixels at one zoom — mirror of [`gc::map::WorldPixel`]: `x`
+ * east from the world's west edge, `y` south from its top edge.
+ */
+public struct WorldPixel: Equatable, Hashable {
+    /**
+     * Pixels east of the world's west edge.
+     */
+    public var x: Double
+    /**
+     * Pixels south of the world's top edge.
+     */
+    public var y: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Pixels east of the world's west edge.
+         */x: Double, 
+        /**
+         * Pixels south of the world's top edge.
+         */y: Double) {
+        self.x = x
+        self.y = y
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension WorldPixel: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWorldPixel: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WorldPixel {
+        return
+            try WorldPixel(
+                x: FfiConverterDouble.read(from: &buf), 
+                y: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WorldPixel, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.x, into: &buf)
+        FfiConverterDouble.write(value.y, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorldPixel_lift(_ buf: RustBuffer) throws -> WorldPixel {
+    return try FfiConverterTypeWorldPixel.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWorldPixel_lower(_ value: WorldPixel) -> RustBuffer {
+    return FfiConverterTypeWorldPixel.lower(value)
 }
 
 
@@ -6368,6 +6757,82 @@ public func FfiConverterTypeDecimalSeparator_lift(_ buf: RustBuffer) throws -> D
 #endif
 public func FfiConverterTypeDecimalSeparator_lower(_ value: DecimalSeparator) -> RustBuffer {
     return FfiConverterTypeDecimalSeparator.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The datum a basemap draws positions in — mirror of [`gc::map::DisplayDatum`].
+ */
+
+public enum DisplayDatum: Equatable, Hashable {
+    
+    /**
+     * WGS-84, which most basemaps draw.
+     */
+    case wgs84
+    /**
+     * GCJ-02, which basemaps inside China draw.
+     */
+    case gcj02
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DisplayDatum: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDisplayDatum: FfiConverterRustBuffer {
+    typealias SwiftType = DisplayDatum
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisplayDatum {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .wgs84
+        
+        case 2: return .gcj02
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DisplayDatum, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .wgs84:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .gcj02:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisplayDatum_lift(_ buf: RustBuffer) throws -> DisplayDatum {
+    return try FfiConverterTypeDisplayDatum.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisplayDatum_lower(_ value: DisplayDatum) -> RustBuffer {
+    return FfiConverterTypeDisplayDatum.lower(value)
 }
 
 
@@ -9083,6 +9548,31 @@ fileprivate struct FfiConverterSequenceTypeSpatialNeighbor: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeTile: FfiConverterRustBuffer {
+    typealias SwiftType = [Tile]
+
+    public static func write(_ value: [Tile], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTile.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Tile] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Tile]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTile.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTrip: FfiConverterRustBuffer {
     typealias SwiftType = [Trip]
 
@@ -11618,6 +12108,355 @@ public func parseWkt(input: String, axisOrder: AxisOrder)throws  -> [Fix]  {
 })
 }
 /**
+ * Checks a hand-built [`Camera`] against the core crate's rules.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`;
+ * `GeoError::OutOfRange` for an invalid centre.
+ */
+public func cameraValidate(camera: Camera)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_camera_validate(
+        FfiConverterTypeCamera_lower(camera),$0
+    )
+}
+}
+/**
+ * The clusters of `index` a map at the fractional `zoom` draws in `bounds`: level
+ * `floor(zoom)`, capped at 22.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`, or
+ * for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on
+ * another reference system than the points.
+ */
+public func clustersInView(index: ClusterIndex, bounds: GeoBounds, zoom: Double)throws  -> [MapCluster]  {
+    return try  FfiConverterSequenceTypeMapCluster.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_clusters_in_view(
+        FfiConverterTypeClusterIndex_lower(index),
+        FfiConverterTypeGeoBounds_lower(bounds),
+        FfiConverterDouble.lower(zoom),$0
+    )
+})
+}
+/**
+ * The clusters [`clusters_in_view`] finds, as a GeoJSON `FeatureCollection` in JSON
+ * text, in the shape supercluster and MapLibre's clustered sources emit: a cluster
+ * has `id`, `cluster: true`, `cluster_id`, `point_count` and
+ * `point_count_abbreviated`; a single point only a `point_id` property. Coordinates
+ * are `[lon, lat]`, drawn in `display`.
+ *
+ * This is the FFI form of [`gc::map::clusters_to_geojson`]: a [`MapCluster`] record
+ * cannot be turned back into the core's checked cluster, so the view query and the
+ * layer are one call.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`, or
+ * for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on
+ * another reference system than the points, or the points are not on WGS-84.
+ */
+public func clustersInViewGeojson(index: ClusterIndex, bounds: GeoBounds, zoom: Double, display: DisplayDatum)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_clusters_in_view_geojson(
+        FfiConverterTypeClusterIndex_lower(index),
+        FfiConverterTypeGeoBounds_lower(bounds),
+        FfiConverterDouble.lower(zoom),
+        FfiConverterTypeDisplayDatum_lower(display),$0
+    )
+})
+}
+/**
+ * Where a basemap drawing `display` must place the WGS-84 `point`: unchanged for
+ * WGS-84, the exact forward offset for GCJ-02.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` unless `point` is on WGS-84; `GeoError::OutOfRange` for
+ * an invalid coordinate record.
+ */
+public func displayCoordinate(point: Coordinate, display: DisplayDatum)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_display_coordinate(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterTypeDisplayDatum_lower(display),$0
+    )
+})
+}
+/**
+ * The camera that shows all of `bounds` in `viewport`, at the deepest zoom up to
+ * `max_zoom` that leaves `padding_px` free on every side; across the antimeridian
+ * when the box crosses it, `max_zoom` for a single point, and zoom 0 for a box that
+ * does not fit.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` with field `padding_px` unless it is finite, not
+ * negative and leaves part of the view, field `max_zoom` unless it is finite and in
+ * `[0, 30]`, or for an invalid [`GeoBounds`] or [`Viewport`] record.
+ */
+public func fitBounds(bounds: GeoBounds, viewport: Viewport, paddingPx: Double, maxZoom: Double)throws  -> Camera  {
+    return try  FfiConverterTypeCamera_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_fit_bounds(
+        FfiConverterTypeGeoBounds_lower(bounds),
+        FfiConverterTypeViewport_lower(viewport),
+        FfiConverterDouble.lower(paddingPx),
+        FfiConverterDouble.lower(maxZoom),$0
+    )
+})
+}
+/**
+ * A GeoJSON `FeatureCollection`, as JSON text, with one `Point` feature per point:
+ * a top-level `id` and a `point_id` property holding its position in `points`,
+ * coordinates `[lon, lat]` drawn in `display`.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` unless every point is on WGS-84; `GeoError::OutOfRange`
+ * for an invalid coordinate record.
+ */
+public func pointsToGeojson(points: [Coordinate], display: DisplayDatum)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_points_to_geojson(
+        FfiConverterSequenceTypeCoordinate.lower(points),
+        FfiConverterTypeDisplayDatum_lower(display),$0
+    )
+})
+}
+/**
+ * Checks a quadkey and returns its canonical form, which is the key itself: a
+ * quadkey has one spelling.
+ *
+ * # Errors
+ * `GeoError::InvalidGridRef` as [`tile_from_quadkey`] has it.
+ */
+public func quadkeyCanonicalize(quadkey: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_quadkey_canonicalize(
+        FfiConverterString.lower(quadkey),$0
+    )
+})
+}
+/**
+ * The WGS-84 position under a tap a basemap reports in its own datum: exact for
+ * WGS-84, approximate for GCJ-02 (`max_error_m` 0.5, the refined inverse).
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` unless `tap` is on WGS-84 or GCJ-02;
+ * `GeoError::OutOfRange` for an invalid coordinate record.
+ */
+public func tapToWgs84(tap: Coordinate)throws  -> ApproxCoordinate  {
+    return try  FfiConverterTypeApproxCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_tap_to_wgs84(
+        FfiConverterTypeCoordinate_lower(tap),$0
+    )
+})
+}
+/**
+ * The tile's extent on `crs`, the datum of the basemap whose grid it belongs to.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for an invalid [`Tile`] record.
+ */
+public func tileBounds(tile: Tile, crs: Crs)throws  -> GeoBounds  {
+    return try  FfiConverterTypeGeoBounds_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_tile_bounds(
+        FfiConverterTypeTile_lower(tile),
+        FfiConverterTypeCrs_lower(crs),$0
+    )
+})
+}
+/**
+ * The tile at zoom `z` that `point` is drawn in.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `z`) above 30; `GeoError::OutOfRange` for an
+ * invalid coordinate record.
+ */
+public func tileFromCoordinate(point: Coordinate, z: UInt8)throws  -> Tile  {
+    return try  FfiConverterTypeTile_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_tile_from_coordinate(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterUInt8.lower(z),$0
+    )
+})
+}
+/**
+ * The tile a Bing Maps quadkey names; its length is the zoom.
+ *
+ * # Errors
+ * `GeoError::InvalidGridRef` for a character other than `0`–`3`, or a key longer
+ * than 30.
+ */
+public func tileFromQuadkey(quadkey: String)throws  -> Tile  {
+    return try  FfiConverterTypeTile_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_tile_from_quadkey(
+        FfiConverterString.lower(quadkey),$0
+    )
+})
+}
+/**
+ * The deepest tile and map zoom, 30: [`gc::map::MAX_TILE_ZOOM`].
+ */
+public func tileMaxZoom() -> UInt8  {
+    return try!  FfiConverterUInt8.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_tile_max_zoom($0
+    )
+})
+}
+/**
+ * The tile's Bing Maps quadkey.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for an invalid [`Tile`] record.
+ */
+public func tileQuadkey(tile: Tile)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_tile_quadkey(
+        FfiConverterTypeTile_lower(tile),$0
+    )
+})
+}
+/**
+ * Checks a hand-built [`Tile`] against the core crate's rules.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` with field `z` above 30, or `x` / `y` at `2^z` or beyond.
+ */
+public func tileValidate(tile: Tile)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_tile_validate(
+        FfiConverterTypeTile_lower(tile),$0
+    )
+}
+}
+/**
+ * The tiles at zoom `z` that `bounds` touches, at most `max_tiles`, west to east
+ * across the box and north to south within each column.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` with field `z` above 30, field `max_tiles` when more
+ * tiles cover the box, or for an invalid [`GeoBounds`] record.
+ */
+public func tilesCovering(bounds: GeoBounds, z: UInt8, maxTiles: UInt32)throws  -> [Tile]  {
+    return try  FfiConverterSequenceTypeTile.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_tiles_covering(
+        FfiConverterTypeGeoBounds_lower(bounds),
+        FfiConverterUInt8.lower(z),
+        FfiConverterUInt32.lower(maxTiles),$0
+    )
+})
+}
+/**
+ * The box `viewport` shows from `camera`, the inverse of [`fit_bounds`] with no
+ * padding. A view reaching the map's top or bottom edge takes that edge to the
+ * pole.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` or `GeoError::OutOfRange` for an invalid [`Camera`] or
+ * [`Viewport`] record.
+ */
+public func viewportBounds(camera: Camera, viewport: Viewport)throws  -> GeoBounds  {
+    return try  FfiConverterTypeGeoBounds_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_viewport_bounds(
+        FfiConverterTypeCamera_lower(camera),
+        FfiConverterTypeViewport_lower(viewport),$0
+    )
+})
+}
+/**
+ * Checks a hand-built [`Viewport`] against the core crate's rules.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `width_px`, `height_px` or `tile_px` unless it is
+ * finite and positive.
+ */
+public func viewportValidate(viewport: Viewport)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_viewport_validate(
+        FfiConverterTypeViewport_lower(viewport),$0
+    )
+}
+}
+/**
+ * Projects `point`, clamping a latitude beyond ±85.05112878° to the map's edge.
+ *
+ * # Errors
+ * `GeoError::OutOfRange` for an invalid coordinate record.
+ */
+public func webMercatorFromCoordinate(point: Coordinate)throws  -> WebMercator  {
+    return try  FfiConverterTypeWebMercator_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_web_mercator_from_coordinate(
+        FfiConverterTypeCoordinate_lower(point),$0
+    )
+})
+}
+/**
+ * The latitude, in degrees, where Web Mercator's square world ends, about
+ * 85.05112878: [`gc::map::MAX_LATITUDE`].
+ */
+public func webMercatorMaxLatitudeDeg() -> Double  {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_web_mercator_max_latitude_deg($0
+    )
+})
+}
+/**
+ * The geographic position of a projected point, on the CRS it carries.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` for an invalid [`WebMercator`] record.
+ */
+public func webMercatorToCoordinate(point: WebMercator)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_web_mercator_to_coordinate(
+        FfiConverterTypeWebMercator_lower(point),$0
+    )
+})
+}
+/**
+ * Checks a hand-built [`WebMercator`] against the core crate's rules.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` with field `x_m` or `y_m` when it is non-finite or
+ * beyond the square world's half-width.
+ */
+public func webMercatorValidate(point: WebMercator)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_web_mercator_validate(
+        FfiConverterTypeWebMercator_lower(point),$0
+    )
+}
+}
+/**
+ * The pixel `point` is drawn at, at a fractional `zoom` on tiles `tile_px` wide.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` with field `zoom` unless it is finite and in `[0, 30]`,
+ * or `tile_px` unless it is finite and positive; `GeoError::OutOfRange` for an
+ * invalid coordinate record.
+ */
+public func worldPixelFromCoordinate(point: Coordinate, zoom: Double, tilePx: Double)throws  -> WorldPixel  {
+    return try  FfiConverterTypeWorldPixel_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_world_pixel_from_coordinate(
+        FfiConverterTypeCoordinate_lower(point),
+        FfiConverterDouble.lower(zoom),
+        FfiConverterDouble.lower(tilePx),$0
+    )
+})
+}
+/**
+ * The position drawn at `pixel`, on `crs`. `x` wraps around the world; `y` must lie
+ * on it.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` with field `zoom` or `tile_px` as
+ * [`world_pixel_from_coordinate`] has them, field `x` when it is non-finite, and
+ * field `y` unless it is finite and within the world's height.
+ */
+public func worldPixelToCoordinate(pixel: WorldPixel, zoom: Double, tilePx: Double, crs: Crs)throws  -> Coordinate  {
+    return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_world_pixel_to_coordinate(
+        FfiConverterTypeWorldPixel_lower(pixel),
+        FfiConverterDouble.lower(zoom),
+        FfiConverterDouble.lower(tilePx),
+        FfiConverterTypeCrs_lower(crs),$0
+    )
+})
+}
+/**
  * `gazetteer` as a [`ReverseGeocoder`], so it can stand where one is expected:
  * passed to [`reverse_geocode`], or chained with a foreign implementation.
  */
@@ -12366,6 +13205,75 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_wkt() != 58076) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_camera_validate() != 60383) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_clusters_in_view() != 9135) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_clusters_in_view_geojson() != 60016) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_display_coordinate() != 27306) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_fit_bounds() != 48160) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_points_to_geojson() != 63265) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_quadkey_canonicalize() != 48089) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tap_to_wgs84() != 25201) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tile_bounds() != 31051) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tile_from_coordinate() != 52993) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tile_from_quadkey() != 33327) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tile_max_zoom() != 19948) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tile_quadkey() != 37266) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tile_validate() != 60019) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_tiles_covering() != 41267) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_viewport_bounds() != 3430) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_viewport_validate() != 27066) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_web_mercator_from_coordinate() != 59759) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_web_mercator_max_latitude_deg() != 25848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_web_mercator_to_coordinate() != 18022) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_web_mercator_validate() != 63294) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_world_pixel_from_coordinate() != 19885) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_world_pixel_to_coordinate() != 18267) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_gazetteer_as_reverse_geocoder() != 12896) {

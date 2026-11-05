@@ -379,7 +379,7 @@ pub struct ClusterIndex {
 }
 
 impl ClusterIndex {
-    fn read(&self) -> std::sync::RwLockReadGuard<'_, gc::cluster::ClusterIndex> {
+    pub(crate) fn read(&self) -> std::sync::RwLockReadGuard<'_, gc::cluster::ClusterIndex> {
         self.inner.read().unwrap_or_else(PoisonError::into_inner)
     }
 

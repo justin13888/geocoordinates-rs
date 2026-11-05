@@ -31,6 +31,8 @@ explicit `max_error_m`.
 | `ReverseGeocoder` trait | the foreign trait `ReverseGeocoder`: Swift, Kotlin, Python or TypeScript code implements it (a `CLGeocoder` adapter, say), `reverse_geocode` calls any implementation and checks the `Place` it returns, and `gazetteer_as_reverse_geocoder` passes a `Gazetteer` as one |
 | `Approx<Coordinate>` inside a `Place` | flat `query` and `query_max_error_m` fields |
 | `Gazetteer::bundled` (`reverse-bundled`) | none: the bindings do not compile the 6 MB dataset in; load a gazetteer file with `Gazetteer.from_bytes` or `Gazetteer.open` |
+| `map::clusters_to_geojson` (takes checked `MapCluster`s) | `clusters_in_view_geojson`, the view query and the layer in one call, since a `MapCluster` record cannot become a checked core cluster again |
+| `map::MAX_LATITUDE` / `map::MAX_TILE_ZOOM` (constants) | `web_mercator_max_latitude_deg` / `tile_max_zoom` |
 | A type valid by construction | a plain record, checked as it crosses into Rust, with a `<record>_validate` function to check a hand-built one |
 
 Exact forward conversions return a bare datum record; approximate inverses
@@ -63,7 +65,8 @@ Every export follows one scheme, so a name reads the same in every language
 - **`<record>_validate` for every invariant record.** `Coordinate`, `Wgs84`,
   `Gcj02`, `Bd09`, `BaiduMercator`, `Dms`, `Ddm`, `Ellipsoid`, `Enu`, `Ned`,
   `Aer`, `DatumTransform`, `Utm`, `Ups`, `H3Cell` (`h3_validate`), `S2CellId`
-  (`s2_validate`), `Accuracy`, `Confidence` and `Place` each have one. No
+  (`s2_validate`), `Accuracy`, `Confidence`, `Place`, `WebMercator`, `Tile`,
+  `Viewport` and `Camera` each have one. No
   `<record>_new` is added that would only copy its arguments in and validate
   them; one exists where construction derives or normalizes a field
   (`aer_new`, `raw_source_new`, and `place_new`, which computes the distance), beside the constructors that predate that
@@ -75,8 +78,8 @@ Every export follows one scheme, so a name reads the same in every language
   the same way, and the `ExifGps` / `XmpGps` inputs hold no invariant: they are
   checked as they are read.
 - **`<grid>_canonicalize` for grid codes.** `plus_code_canonicalize`,
-  `geohash_canonicalize`, `maidenhead_canonicalize` and `mgrs_canonicalize`
-  validate a code and return its canonical form.
+  `geohash_canonicalize`, `maidenhead_canonicalize`, `mgrs_canonicalize` and
+  `quadkey_canonicalize` validate a code and return its canonical form.
 - **Errors.** Every function that can fail throws the one `GeoError` type and
   documents which variants it raises.
 
