@@ -153,15 +153,16 @@ map = ["cluster"]
 # external dep; feed it fixes from `gpx`, `nmea` or any source:
 geotag = []
 #
+# Location privacy: deterministic coarsening to a grid cell centre with a stated
+# bound, and geodesic exclusion zones that strip or coarsen a fix. No external dep
+# and no randomness; it builds on `index` for box zones, and snaps to H3 or S2
+# cells where `h3` or `s2` is on:
+privacy = ["index"]
+#
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
 # geoid = []          # EGM96/EGM2008 geoid models — needs multi-MB grid data files
-#
-# Photo-library geo (RESERVED — see the roadmap in STABILIZATION.md). None has any
-# source in-tree yet; each lands after 0.15.0, off by default. These placeholders
-# only record the intended feature names:
-# privacy = []         # deterministic location coarsening and exclusion zones
 
 [[example]]
 name = "flagship"

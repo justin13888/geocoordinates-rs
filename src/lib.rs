@@ -49,7 +49,8 @@
 //! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
 //! `index` feature), `exif` (behind the `exif` feature), `cluster` (behind
 //! the `cluster` feature), `reverse` (behind the `reverse` feature), `map`
-//! (behind the `map` feature), and `geotag` (behind the `geotag` feature).
+//! (behind the `map` feature), `geotag` (behind the `geotag` feature), and
+//! `privacy` (behind the `privacy` feature).
 //! Implementation
 //! submodules are private, so a type is never reachable at both
 //! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
@@ -139,6 +140,10 @@ pub mod map;
 #[cfg_attr(docsrs, doc(cfg(feature = "geotag")))]
 pub mod geotag;
 
+#[cfg(feature = "privacy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "privacy")))]
+pub mod privacy;
+
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -227,6 +232,8 @@ pub mod prelude {
     #[cfg(feature = "geojson")]
     pub use crate::map::{clusters_to_geojson, points_to_geojson};
     pub use crate::parse::{GridKind, ParseOptions, parse_coordinate, parse_coordinate_with};
+    #[cfg(feature = "privacy")]
+    pub use crate::privacy::{ExclusionZone, Precision, SnapGrid, ZoneAction, apply, coarsen};
     #[cfg(feature = "reverse")]
     pub use crate::reverse::{FeatureClass, Gazetteer, Place, ReverseGeocoder, ReverseOptions};
 }
