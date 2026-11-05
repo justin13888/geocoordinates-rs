@@ -48,8 +48,8 @@
 //! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
 //! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
 //! `index` feature), `exif` (behind the `exif` feature), `cluster` (behind
-//! the `cluster` feature), `reverse` (behind the `reverse` feature), and `map`
-//! (behind the `map` feature).
+//! the `cluster` feature), `reverse` (behind the `reverse` feature), `map`
+//! (behind the `map` feature), and `geotag` (behind the `geotag` feature).
 //! Implementation
 //! submodules are private, so a type is never reachable at both
 //! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
@@ -135,6 +135,10 @@ pub mod reverse;
 #[cfg_attr(docsrs, doc(cfg(feature = "map")))]
 pub mod map;
 
+#[cfg(feature = "geotag")]
+#[cfg_attr(docsrs, doc(cfg(feature = "geotag")))]
+pub mod geotag;
+
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -207,6 +211,8 @@ pub mod prelude {
         intersection_spherical, midpoint, rhumb_bearing, rhumb_destination, rhumb_distance,
     };
     pub use crate::geodesy::{DatumTransform, Helmert};
+    #[cfg(feature = "geotag")]
+    pub use crate::geotag::{GeotagOptions, Interpolation, Track, estimate_offset};
     pub use crate::grids::{
         Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
     };

@@ -148,6 +148,11 @@ reverse-bundled = ["reverse"]
 # `cluster`, and its GeoJSON layers also need `geojson`:
 map = ["cluster"]
 #
+# Geotagging photos from a GPS track by capture time: a time-ordered `Track` of
+# fixes, interpolated lookup with a clock offset, and clock-offset estimation. No
+# external dep; feed it fixes from `gpx`, `nmea` or any source:
+geotag = []
+#
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
@@ -156,7 +161,6 @@ map = ["cluster"]
 # Photo-library geo (RESERVED — see the roadmap in STABILIZATION.md). None has any
 # source in-tree yet; each lands after 0.15.0, off by default. These placeholders
 # only record the intended feature names:
-# geotag = []          # track-based geotagging
 # privacy = []         # deterministic location coarsening and exclusion zones
 
 [[example]]
