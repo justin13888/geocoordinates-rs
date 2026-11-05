@@ -193,9 +193,10 @@ impl WebMercator {
     /// ```
     #[must_use]
     pub fn from_coordinate(point: Coordinate) -> Self {
-        // Projected by magnitude, so the two hemispheres mirror bit for bit.
+        // atanh(sin φ) is ln(tan(π/4 + φ/2)). Projected by magnitude, so the two
+        // hemispheres mirror bit for bit.
         let lat = point.lat().abs().min(MAX_LATITUDE);
-        let y_m = (RADIUS_M * (PI / 4.0 + lat.to_radians() / 2.0).tan().ln())
+        let y_m = (RADIUS_M * lat.to_radians().sin().atanh())
             .min(HALF_WORLD_M)
             .copysign(point.lat());
         Self {
