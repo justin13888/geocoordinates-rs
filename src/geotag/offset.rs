@@ -19,7 +19,7 @@ use crate::{Coordinate, Error, Result};
 /// the pass nearest the photo time is taken, so choose references where the
 /// track passes once. The suggestion is the median of the references'
 /// offsets, rounded to the millisecond, so one bad reference among three or
-/// more does not move it.
+/// more whose other offsets agree does not move it.
 ///
 /// Check the suggestion before trusting it: [`Track::locate`] each reference
 /// time with it and compare the result against the known location.
