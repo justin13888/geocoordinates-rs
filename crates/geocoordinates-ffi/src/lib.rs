@@ -26,6 +26,8 @@
 //! | `map::MAX_LATITUDE` / `map::MAX_TILE_ZOOM` (constants) | [`web_mercator_max_latitude_deg`] / [`tile_max_zoom`] |
 //! | `geotag::Track` (holds its fixes) | the object [`Track`] |
 //! | `geotag::estimate_offset` (takes `(SystemTime, Coordinate)` tuples) | [`estimate_offset_ms`], over [`GeotagReference`] records |
+//! | `privacy::apply` (a name too generic for a flat namespace) | [`apply_exclusion_zones`] |
+//! | `privacy::ExclusionZone` (constructors over a private shape) | the enum [`ExclusionZone`] with `Circle` and `Bounds` variants, checked by [`exclusion_zone_validate`] |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
 //! return a bare datum record, while approximate inverses return an `Approx*`
@@ -114,6 +116,7 @@ mod grids;
 mod index;
 mod interchange;
 mod map;
+mod privacy;
 mod reverse;
 mod text;
 
@@ -131,5 +134,6 @@ pub use self::grids::*;
 pub use self::index::*;
 pub use self::interchange::*;
 pub use self::map::*;
+pub use self::privacy::*;
 pub use self::reverse::*;
 pub use self::text::*;
