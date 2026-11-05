@@ -98,8 +98,8 @@ const MIN_METERS_PER_DEGREE_LATITUDE: f64 = 110_574.0;
 
 /// The discrete grid a [`Precision`] snaps to.
 ///
-/// [`Geohash`](Self::Geohash) is always available; [`H3`](Self::H3) needs the
-/// `h3` feature and [`S2`](Self::S2) the `s2` feature, so a grid whose backing
+/// [`Geohash`](Self::Geohash) is always available; `H3` needs the
+/// `h3` feature and `S2` the `s2` feature, so a grid whose backing
 /// crate is not compiled in cannot be named.
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every
