@@ -39,6 +39,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **EXIF / XMP GPS tags** *(feature-gated; `exif`)* | `from_exif`, `from_exif_with`, `from_xmp`, `from_xmp_with`, `ExifGps`, `ExifRational`, `XmpGps`, `CaptureGeo`, `NorthBearing`, `NorthReference`, `ExifOptions`, `NullIslandPolicy` | ✅ | ✅ |
 | **Clustering** *(feature-gated; `cluster`)* | `centroid`, `dbscan`, `Dbscan`, `PointLabel`, `Cluster`, `ClusterIndex`, `ClusterIndexOptions`, `MapCluster`, `MAX_ZOOM`, `bucket_by_geohash`, `bucket_by_h3`, `GridBucket`, `segment_visits`, `segment_trips`, `Visit`, `Trip` | ✅ | ✅ |
 | **Reverse geocoding** *(feature-gated; `reverse`, `reverse-bundled`)* | `ReverseGeocoder`, `Gazetteer`, `Place`, `FeatureClass`, `ReverseOptions` | ✅ | ✅ (no bundled dataset: load a gazetteer file) |
+| **Map-view math** *(feature-gated; `map`, GeoJSON layers also `geojson`)* | `WebMercator`, `WorldPixel`, `MAX_LATITUDE`, `Tile`, `MAX_TILE_ZOOM`, `tiles_covering`, `Viewport`, `Camera`, `fit_bounds`, `viewport_bounds`, `clusters_in_view`, `points_to_geojson`, `clusters_to_geojson`, `DisplayDatum`, `display_coordinate`, `tap_to_wgs84` | ✅ | ✅ (`clusters_to_geojson` as `clusters_in_view_geojson`) |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
@@ -210,6 +211,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
 | `mise run index-test`       | Tests and doctests for the `index` feature alone; compiles its benchmark |
 | `mise run reverse-test`     | Tests and doctests for `reverse` and `reverse-bundled` alone and for the gazetteer build tool; compiles the benchmark |
+| `mise run map-test`         | Tests and doctests for the `map` feature alone, and with `geojson` for its layers |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
 | `mise run coverage`         | Coverage report; fails under the line floor in `.coverage-baseline`  |
 | `mise run coverage-ratchet` | Fails if the floor in `.coverage-baseline` falls below `origin/master`'s |
