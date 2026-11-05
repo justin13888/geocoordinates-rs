@@ -41,6 +41,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Reverse geocoding** *(feature-gated; `reverse`, `reverse-bundled`)* | `ReverseGeocoder`, `Gazetteer`, `Place`, `FeatureClass`, `ReverseOptions` | ✅ | ✅ (no bundled dataset: load a gazetteer file) |
 | **Map-view math** *(feature-gated; `map`, GeoJSON layers also `geojson`)* | `WebMercator`, `WorldPixel`, `MAX_LATITUDE`, `Tile`, `MAX_TILE_ZOOM`, `tiles_covering`, `Viewport`, `Camera`, `fit_bounds`, `viewport_bounds`, `clusters_in_view`, `points_to_geojson`, `clusters_to_geojson`, `DisplayDatum`, `display_coordinate`, `tap_to_wgs84` | ✅ | ✅ (`clusters_to_geojson` as `clusters_in_view_geojson`) |
 | **Geotagging** *(feature-gated; `geotag`)* | `Track`, `GeotagOptions`, `Interpolation`, `estimate_offset` | ✅ | ✅ (`estimate_offset` as `estimate_offset_ms`) |
+| **Location privacy** *(feature-gated; `privacy`, H3 / S2 snapping also `h3` / `s2`)* | `coarsen`, `Precision`, `SnapGrid`, `ExclusionZone`, `ZoneAction`, `apply` | ✅ | ✅ (`apply` as `apply_exclusion_zones`) |
 
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
@@ -50,12 +51,6 @@ pre-1.0 audit is closed in the ledger.
 
 **Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
 a system library or multi-megabyte external data.
-
-**Planned after 0.15.0, not yet shipped:** the last of the geo features a photo
-library needs, behind its own cargo feature that is off by default: deterministic
-location coarsening and exclusion zones (`privacy`). The
-[stabilization ledger](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)
-tracks it.
 
 **Out of scope:** container/byte parsing of JPEG, TIFF and HEIF (use an EXIF reader
 and pass its tag values in), polygon/line geometry operations such as area,
@@ -213,6 +208,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run reverse-test`     | Tests and doctests for `reverse` and `reverse-bundled` alone and for the gazetteer build tool; compiles the benchmark |
 | `mise run map-test`         | Tests and doctests for the `map` feature alone, and with `geojson` for its layers |
 | `mise run geotag-test`      | Tests and doctests for the `geotag` feature alone, and with `gpx` for its golden track |
+| `mise run privacy-test`     | Tests and doctests for the `privacy` feature alone, and with `h3`, `s2` and `serde` |
 | `mise run msrv`             | Build and test on the declared MSRV and each feature exception       |
 | `mise run coverage`         | Coverage report; fails under the line floor in `.coverage-baseline`  |
 | `mise run coverage-ratchet` | Fails if the floor in `.coverage-baseline` falls below `origin/master`'s |
