@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A hand-written walk through Zurich with a 45-minute gap at its end, and a
+     second segment that crosses the antimeridian off Taveuni, Fiji. The
+     expected positions in golden_tests.rs come from GeographicLib 2.0
+     (Python), not from this crate. -->
+<gpx version="1.1" creator="geocoordinates golden test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Zurich walk</name>
+    <trkseg>
+      <trkpt lat="47.3769" lon="8.5417"><ele>408</ele><time>2024-06-01T10:00:00Z</time><hdop>1.0</hdop></trkpt>
+      <trkpt lat="47.3775" lon="8.5430"><ele>410</ele><time>2024-06-01T10:00:10Z</time><hdop>1.2</hdop></trkpt>
+      <trkpt lat="47.3782" lon="8.5441"><ele>411</ele><time>2024-06-01T10:00:25Z</time><hdop>0.9</hdop></trkpt>
+      <trkpt lat="47.3790" lon="8.5449"><ele>413</ele><time>2024-06-01T10:00:45Z</time></trkpt>
+      <trkpt lat="47.3801" lon="8.5460"><ele>415</ele><time>2024-06-01T10:45:45Z</time></trkpt>
+    </trkseg>
+  </trk>
+  <trk>
+    <name>Taveuni crossing</name>
+    <trkseg>
+      <trkpt lat="-16.8000" lon="179.9990"><ele>5</ele><time>2024-06-02T00:00:00Z</time></trkpt>
+      <trkpt lat="-16.8010" lon="-179.9985"><ele>7</ele><time>2024-06-02T00:01:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
