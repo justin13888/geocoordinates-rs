@@ -143,6 +143,11 @@ cluster = ["index"]
 reverse = ["index"]
 reverse-bundled = ["reverse"]
 #
+# Map-view math: Web Mercator, XYZ tiles and quadkeys, camera fitting, the clusters
+# in view, and the GCJ-02 shift China's basemaps need. No external dep; it builds on
+# `cluster`, and its GeoJSON layers also need `geojson`:
+map = ["cluster"]
+#
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
 # proj = []           # PROJ-backed EPSG long tail — needs system libproj (C dep)
@@ -151,7 +156,6 @@ reverse-bundled = ["reverse"]
 # Photo-library geo (RESERVED — see the roadmap in STABILIZATION.md). None has any
 # source in-tree yet; each lands after 0.15.0, off by default. These placeholders
 # only record the intended feature names:
-# map = []           # Web Mercator, tile and viewport math, GeoJSON layers
 # geotag = []          # track-based geotagging
 # privacy = []         # deterministic location coarsening and exclusion zones
 
