@@ -3,7 +3,10 @@
 mod forest;
 mod pin;
 
-use self::forest::{DEEPEST, Forest, LEAF_LEVEL, world_y};
+#[cfg(feature = "map")]
+pub(crate) use self::forest::world_x;
+pub(crate) use self::forest::world_y;
+use self::forest::{DEEPEST, Forest, LEAF_LEVEL};
 pub use self::pin::MapCluster;
 use self::pin::decode_id;
 use super::centroid::normal_radius_m;
@@ -503,6 +506,23 @@ impl ClusterIndex {
         let mut skip = offset as u64;
         collect_leaves(forest, level, id, limit, &mut skip, &mut found);
         Ok(found)
+    }
+
+    /// Checks that `pin` is exactly the cluster this index reports under its id, so
+    /// a pin from another index, or from before an update, is refused even when its
+    /// id happens to name a cluster here.
+    #[cfg(all(feature = "map", feature = "geojson"))]
+    pub(crate) fn check_pin(&self, pin: &MapCluster) -> Result<()> {
+        let (level, id) = self.resolve(pin.id())?;
+        let forest = self.forest.as_ref().ok_or_else(|| unknown(pin.id()))?;
+        if MapCluster::from_node(level, id, &forest.node(level, id).aggregate)? == *pin {
+            Ok(())
+        } else {
+            Err(Error::InvalidValue {
+                field: "cluster_id",
+                detail: format!("cluster {} is not the cluster this index holds", pin.id()),
+            })
+        }
     }
 
     fn resolve(&self, cluster_id: u64) -> Result<(usize, u32)> {

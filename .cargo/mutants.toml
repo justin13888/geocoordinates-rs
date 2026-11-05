@@ -57,6 +57,11 @@ exclude_re = [
     # 2^31, so the two sides share no bit, and `|` and `^` agree on them.
     'src/cluster/hierarchy/forest\.rs:.*: replace \| with \^ in pack',
     'src/cluster/hierarchy/pin\.rs:.*: replace \| with \^ in encode_id',
+    # map::Tile's quadkey reads and writes interleave one column bit and one row
+    # bit: `from_quadkey` ORs a 0/1 bit into a value just shifted left (low bit
+    # zero), and `quadkey` ORs bit 0 with a bit shifted to position 1. The two
+    # sides share no bit, so `|` and `^` agree on them.
+    'src/map/tile\.rs:.*: replace \| with \^ in Tile::(from_quadkey|quadkey)',
     # cluster::hierarchy::forest grid sizing chooses how points are bucketed, not
     # what a search answers: every search filters by exact distance or `contains`,
     # and any cell at least one radius wide (which all of these leave, by coarsening

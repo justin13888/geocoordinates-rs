@@ -22,6 +22,8 @@
 //! | `ReverseGeocoder` trait | the foreign trait [`ReverseGeocoder`], which foreign code implements and [`reverse_geocode`] calls and checks; [`gazetteer_as_reverse_geocoder`] passes a [`Gazetteer`] as one |
 //! | `Approx<Coordinate>` inside a [`Place`] | flat `query` and `query_max_error_m` fields |
 //! | `Gazetteer::bundled` (`reverse-bundled`) | none: the bindings do not compile the dataset in; load a gazetteer file with [`Gazetteer::from_bytes`] or [`Gazetteer::open`] |
+//! | `map::clusters_to_geojson` (takes checked `MapCluster`s) | [`clusters_in_view_geojson`], the view query and the layer in one call, since a [`MapCluster`] record cannot become a checked core cluster again |
+//! | `map::MAX_LATITUDE` / `map::MAX_TILE_ZOOM` (constants) | [`web_mercator_max_latitude_deg`] / [`tile_max_zoom`] |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
 //! return a bare datum record, while approximate inverses return an `Approx*`
@@ -108,6 +110,7 @@ mod geodesy;
 mod grids;
 mod index;
 mod interchange;
+mod map;
 mod reverse;
 mod text;
 
@@ -123,5 +126,6 @@ pub use self::geodesy::*;
 pub use self::grids::*;
 pub use self::index::*;
 pub use self::interchange::*;
+pub use self::map::*;
 pub use self::reverse::*;
 pub use self::text::*;

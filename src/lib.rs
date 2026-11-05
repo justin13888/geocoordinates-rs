@@ -48,7 +48,8 @@
 //! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
 //! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
 //! `index` feature), `exif` (behind the `exif` feature), `cluster` (behind
-//! the `cluster` feature), and `reverse` (behind the `reverse` feature).
+//! the `cluster` feature), `reverse` (behind the `reverse` feature), and `map`
+//! (behind the `map` feature).
 //! Implementation
 //! submodules are private, so a type is never reachable at both
 //! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
@@ -130,6 +131,10 @@ pub mod cluster;
 #[cfg_attr(docsrs, doc(cfg(feature = "reverse")))]
 pub mod reverse;
 
+#[cfg(feature = "map")]
+#[cfg_attr(docsrs, doc(cfg(feature = "map")))]
+pub mod map;
+
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -207,6 +212,14 @@ pub mod prelude {
     };
     #[cfg(feature = "index")]
     pub use crate::index::{GeoBounds, Neighbor, SpatialIndex};
+    #[cfg(feature = "map")]
+    pub use crate::map::{
+        Camera, DisplayDatum, Tile, Viewport, WebMercator, WorldPixel, clusters_in_view,
+        display_coordinate, fit_bounds, tap_to_wgs84, tiles_covering, viewport_bounds,
+    };
+    #[cfg(feature = "map")]
+    #[cfg(feature = "geojson")]
+    pub use crate::map::{clusters_to_geojson, points_to_geojson};
     pub use crate::parse::{GridKind, ParseOptions, parse_coordinate, parse_coordinate_with};
     #[cfg(feature = "reverse")]
     pub use crate::reverse::{FeatureClass, Gazetteer, Place, ReverseGeocoder, ReverseOptions};

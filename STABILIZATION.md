@@ -470,6 +470,23 @@ neighbourhoods (`FeatureClass::Section`) unless the caller sets a class floor. A
 GeoNames is CC BY 4.0, so the crate's licence expression is `(MIT OR Apache-2.0) AND
 CC-BY-4.0` and `Gazetteer::attribution` returns the credit an application must show.
 
+### `map`: what the view math promises
+
+`map` is implemented on master, on `cluster`; its GeoJSON layers also need `geojson`.
+Projection, tile, bounds, quadkey and covering-set values in `src/map/tests.rs` were
+printed by mercantile 1.2.1, and the layers take supercluster 8.0.1's cluster
+properties (`cluster`, `cluster_id`, `point_count`, `point_count_abbreviated`).
+
+Three limits are stated rather than hidden. `WebMercator` carries the input's CRS
+rather than requiring WGS-84, because China's basemaps draw GCJ-02 through the same
+formula; EPSG:3857 proper is the WGS-84 case. `fit_bounds` and `viewport_bounds` are
+exact inverses only for a view that stays off the map's top and bottom edges: a view
+reaching an edge takes that edge to the pole, so points drawn there count as in view,
+and refitting that box centres on the map's content. And the FFI cannot pass a
+`MapCluster` record back as a checked cluster, so `clusters_to_geojson` crosses as
+`clusters_in_view_geojson`: a foreign caller serializes the clusters of a view, not an
+arbitrary list such as what `children` returns.
+
 ## After 0.15.0 — the 1.0 freeze
 
 Once the surface has survived dogfooding, freeze the public API and adopt strict
