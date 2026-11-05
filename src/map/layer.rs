@@ -113,7 +113,9 @@ fn collection(features: Vec<Feature>) -> String {
 /// # Errors
 ///
 /// [`Error::InvalidValue`](crate::Error::InvalidValue) (`field: "cluster_id"`) for
-/// a cluster that `index` does not hold, and
+/// a cluster that `index` does not hold: every pin, of one point or many, must be
+/// the cluster `index` reports under its id, so a pin from another index or from
+/// before an update is refused even where its id names a cluster here, and
 /// [`Error::CrsMismatch`](crate::Error::CrsMismatch) unless the index is on WGS-84.
 ///
 /// ```
@@ -147,6 +149,7 @@ pub fn clusters_to_geojson(
     let features = clusters
         .iter()
         .map(|pin| {
+            index.check_pin(pin)?;
             let mut properties = JsonObject::new();
             let id = if pin.count() > 1 {
                 properties.insert("cluster".into(), JsonValue::Bool(true));
@@ -201,6 +204,41 @@ mod tests {
             clusters_to_geojson(&index, &[], DisplayDatum::Wgs84).unwrap(),
             r#"{"type":"FeatureCollection","features":[]}"#
         );
+    }
+
+    #[test]
+    fn refuses_every_foreign_pin_whose_id_resolves_here() {
+        let index = ClusterIndex::new(china(), Default::default()).unwrap();
+        let elsewhere: Vec<_> = [(48.85, 2.35), (48.85, 2.35), (40.71, -74.0)]
+            .into_iter()
+            .map(|(lat, lon)| Coordinate::wgs84(lat, lon).unwrap())
+            .collect();
+        let other = ClusterIndex::new(elsewhere, Default::default()).unwrap();
+        let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+        let (ours, theirs) = (
+            index.clusters(world, 4).unwrap(),
+            other.clusters(world, 4).unwrap(),
+        );
+        // The same seeds give the same ids, so each foreign id names a cluster here.
+        let ids = |pins: &[crate::cluster::MapCluster]| {
+            let mut ids: Vec<_> = pins.iter().map(|pin| (pin.id(), pin.count())).collect();
+            ids.sort_unstable();
+            ids
+        };
+        assert_eq!(ids(&ours), ids(&theirs));
+        for pin in &theirs {
+            assert!(
+                matches!(
+                    clusters_to_geojson(&index, &[*pin], DisplayDatum::Wgs84),
+                    Err(crate::Error::InvalidValue {
+                        field: "cluster_id",
+                        ..
+                    })
+                ),
+                "{} point(s)",
+                pin.count()
+            );
+        }
     }
 
     #[test]

@@ -44,18 +44,10 @@ const RADIUS_M: f64 = 6_378_137.0;
 /// Half the width of the projected world, in meters: `π × 6 378 137`.
 const HALF_WORLD_M: f64 = PI * RADIUS_M;
 
-/// `lon` as a fraction of the world's width, west edge 0, east edge 1.
-pub(super) fn unit_x(lon: f64) -> f64 {
-    (lon + 180.0) / 360.0
-}
-
-/// `lat` as a fraction of the world's height, top edge 0, bottom edge 1, clamped
-/// to the square, so a pole lands on its edge.
-pub(super) fn unit_y(lat: f64) -> f64 {
-    let sin = lat.to_radians().sin();
-    // A pole gives an infinity here, which the clamp sends to its edge.
-    (0.5 - ((1.0 + sin) / (1.0 - sin)).ln() / (4.0 * PI)).clamp(0.0, 1.0)
-}
+// `lon` / `lat` as fractions of the world's width and height (west and top edges 0),
+// latitude clamped to the square. The cluster index's own projection, so the pins it
+// places and the views and tiles drawn here share one formula.
+pub(super) use crate::cluster::{world_x as unit_x, world_y as unit_y};
 
 /// The longitude at the unit-square column `x`, wrapped into `[-180, 180)`.
 pub(super) fn lon_at(x: f64) -> f64 {
