@@ -283,8 +283,10 @@ pub fn tiles_covering(bounds: GeoBounds, z: u8, max_tiles: usize) -> Result<Vec<
     // A box at least a world wide takes every column once.
     let columns = ((east.ceil() as u64).max(first_column + 1) - first_column).min(n);
     let top = column(unit_y(bounds.north()), n);
+    // `unit_y` is clamped to [0, 1] and `n` is a power of two, so the edge is at most
+    // `n` and the row above it at most `n - 1`: only the floor at `top` can bind.
     let bottom_edge = unit_y(bounds.south()) * n as f64;
-    let bottom = ((bottom_edge.ceil() as u64).saturating_sub(1)).clamp(top, n - 1);
+    let bottom = (bottom_edge.ceil() as u64).saturating_sub(1).max(top);
     let rows = bottom - top + 1;
 
     let count = u128::from(columns) * u128::from(rows);
