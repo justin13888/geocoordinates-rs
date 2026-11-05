@@ -1,6 +1,6 @@
 {
   "name": "geocoordinates-rs",
-  "version": "0.14.2",
+  "version": "0.15.0",
   "description": "Low-level geospatial coordinate primitives (WebAssembly): China datums (GCJ-02/BD-09), datum transforms, DMS/DDM angles, coordinate parsing and formatting, geodesics, local frames (ECEF/ENU/NED/AER), UTM/UPS/MGRS, grid codes (Geohash, Plus Code, Maidenhead, H3, S2), and GeoJSON/WKT/GPX/KML/NMEA ingestion.",
   "license": "MIT OR Apache-2.0",
   "author": "Justin Chung",
