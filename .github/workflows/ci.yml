@@ -177,6 +177,19 @@ jobs:
       - name: Test the reverse and reverse-bundled features alone
         run: mise run reverse-test
 
+  map:
+    name: Feature map
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      - name: Test the map feature alone, and with geojson
+        run: mise run map-test
+
   msrv:
     name: MSRV
     runs-on: ubuntu-latest
