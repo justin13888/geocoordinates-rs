@@ -487,6 +487,24 @@ and refitting that box centres on the map's content. And the FFI cannot pass a
 `clusters_in_view_geojson`: a foreign caller serializes the clusters of a view, not an
 arbitrary list such as what `children` returns.
 
+### `geotag`: what a located fix claims
+
+`geotag` is implemented on master, with no external dependency; its golden test reads
+a GPX track through `gpx`, and its expected positions were printed by GeographicLib 2.0
+(Python). The defaults follow ExifTool's `-geotag`: interpolation across gaps of up to
+30 minutes, and no extrapolation beyond the recorded fixes.
+
+A located fix is never presented as recorded. Its `RawSource::raw` starts with
+`geotag:` and names the fixes it came from, and its horizontal accuracy is the
+smallest, over those fixes, of the fix's own magnitude plus the farthest the device
+can move at `GeotagOptions::max_speed_mps` in the time between plus the distance to
+the result. By the triangle inequality that is a hard bound when the device kept to
+that speed, so the kind is `Bound` only when every fix used carried a `Bound`, and
+`Unspecified` otherwise. Because the speed is a caller-supplied `f64`, `Track::locate`
+returns `Result<Option<Fix>>` rather than the `Option<Fix>` #226 sketched: an invalid
+speed is an error, and a time the track does not cover is `Ok(None)`. GCJ-02 and
+BD-09 tracks are refused, since they have no ellipsoid to interpolate on.
+
 ## After 0.15.0 — the 1.0 freeze
 
 Once the surface has survived dogfooding, freeze the public API and adopt strict
