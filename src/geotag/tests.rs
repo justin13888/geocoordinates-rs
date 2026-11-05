@@ -486,6 +486,12 @@ fn estimate_offset_prefers_the_pass_nearest_the_photo_time() {
         estimate_offset(&track, &[(at(290), place)]).unwrap(),
         10_000
     );
+    // Midway between the two passes, the earlier; a farther fix at the photo
+    // time itself never wins on time alone.
+    assert_eq!(
+        estimate_offset(&track, &[(at(200), place)]).unwrap(),
+        -100_000
+    );
 }
 
 #[test]

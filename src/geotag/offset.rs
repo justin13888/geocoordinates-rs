@@ -139,6 +139,11 @@ fn nearest_pass(track: &Track, location: Coordinate, photo: f64) -> Result<f64> 
         let fraction = along / length;
         let foot = intermediate(a, b, fraction)?;
         let distance = geodesic_distance(location, foot)?.meters();
+        // A foot no nearer than an end adds nothing the end, with its exact
+        // time, does not; rounding can put one a hair inside the segment.
+        if distance >= ends[0].min(ends[1]) {
+            continue;
+        }
         let passed = span[0] + fraction * (span[1] - span[0]);
         consider(&mut best, (distance, passed), photo);
     }
