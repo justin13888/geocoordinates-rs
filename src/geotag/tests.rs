@@ -217,6 +217,13 @@ fn a_gap_longer_than_max_gap_is_outside_the_track() {
         tie.locate(at(100), &both).unwrap().unwrap().coord.lon(),
         0.0
     );
+    // Both ends in reach: the nearer one, from either side.
+    let wide = both.with_max_extrapolation(Duration::from_secs(190));
+    assert_eq!(tie.locate(at(20), &wide).unwrap().unwrap().coord.lon(), 0.0);
+    assert_eq!(
+        tie.locate(at(180), &wide).unwrap().unwrap().coord.lon(),
+        0.01
+    );
 }
 
 #[test]
