@@ -164,6 +164,19 @@ jobs:
       - name: Test the cluster feature alone
         run: mise run cluster-test
 
+  reverse:
+    name: Features reverse and reverse-bundled
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      - name: Test the reverse and reverse-bundled features alone
+        run: mise run reverse-test
+
   msrv:
     name: MSRV
     runs-on: ubuntu-latest

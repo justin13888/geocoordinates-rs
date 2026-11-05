@@ -1,0 +1,21 @@
+[package]
+name = "geocoordinates-gazetteer"
+version.workspace = true
+edition = "2024"
+# The core crate's MSRV: its tests use this crate's encoder to build fixtures, so
+# `mise run msrv` compiles it on that toolchain too.
+rust-version = "1.85"
+description = "Builds the geocoordinates gazetteer format (the `reverse` feature's data) from GeoNames dumps."
+authors = ["Justin Chung"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/justin13888/geocoordinates-rs"
+# A build tool, never a crates.io artifact. The core crate names it only as a
+# path dev-dependency, which `cargo publish` drops.
+publish = false
+
+# No dependencies: it reads tab-separated text and writes bytes, so the tool adds
+# nothing to the lockfile.
+[dependencies]
+
+[lints.rust]
+missing_docs = "warn"

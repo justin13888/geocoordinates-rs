@@ -26,3 +26,10 @@ release = false
 # Match the crate's `publish = false`; release-plz errors on a mismatch between
 # Cargo.toml and its own config.
 publish = false
+
+[[package]]
+name = "geocoordinates-gazetteer"
+# The build tool behind the `reverse` feature's data files: run from the
+# repository, never released. Its version still moves with the workspace version.
+release = false
+publish = false

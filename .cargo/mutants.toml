@@ -112,4 +112,11 @@ exclude_re = [
     # ClusterIndex::insert's id counter is only read against the 2^32 - 1 id limit,
     # so it differs only after four billion inserts, which no test can make.
     'src/cluster/hierarchy\.rs:.*: replace \+ with \* in ClusterIndex::insert',
+    # reverse::Gazetteer's lookup stops widening once a search returns fewer places
+    # than it asked for, which means it returned them all. Not stopping (`==` or
+    # `>`) repeats the search with a larger k: each repeat returns the same places,
+    # the round checks none of them again, and the bounded rounds run out to the
+    # same `None`. Only the time differs. (`<=` stops one round early and is
+    # killed.)
+    'src/reverse/gazetteer\.rs:.*: replace < with (==|>) in <impl ReverseGeocoder for Gazetteer>::reverse',
 ]

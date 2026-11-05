@@ -94,7 +94,7 @@ if [ -z "$msrv" ]; then
     exit 1
 fi
 rustup toolchain install "$msrv" --profile minimal --no-self-update
-cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif,cluster
+cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif,cluster,reverse-bundled
 
 exceptions="$(sed -n '/^\[package\.metadata\.feature-rust-version\]$/,/^\[/ s/^\([a-z0-9_-]*\) = "\(.*\)"$/\1 \2/p' Cargo.toml)"
 if [ -z "$exceptions" ]; then
@@ -143,6 +143,19 @@ description = "Test the cluster feature alone and compile its benchmark"
 run = [
     "cargo test --no-default-features --features cluster",
     "cargo bench --no-run --no-default-features --features cluster --bench cluster",
+]
+
+# The per-feature jobs for `reverse` and `reverse-bundled`: each one's tests and
+# doctests with no sibling feature beyond the `index` it builds on, the build
+# tool's own tests (its writer is the format the loader reads), and the benchmark
+# target compiled.
+[tasks.reverse-test]
+description = "Test the reverse and reverse-bundled features alone and compile their benchmark"
+run = [
+    "cargo test --no-default-features --features reverse",
+    "cargo test --no-default-features --features reverse-bundled",
+    "cargo test -p geocoordinates-gazetteer",
+    "cargo bench --no-run --no-default-features --features reverse-bundled --bench reverse",
 ]
 
 # Both coverage tasks fail when total line coverage falls under the floor in
@@ -334,9 +347,11 @@ lengths="$(mktemp)"
 base_baseline="$(mktemp)"
 trap 'rm -f "$lengths" "$base_baseline"' EXIT
 
-# "<lines> <path>" for every tracked regular file present in the worktree.
+# "<lines> <path>" for every tracked regular text file present in the worktree.
+# A binary file (one `grep -I` reads as binary, e.g. the bundled gazetteer data)
+# has no lines to count, so it is skipped rather than measured in newline bytes.
 git ls-files -z | while IFS= read -r -d '' path; do
-    if [ -f "$path" ] && [ ! -L "$path" ]; then
+    if [ -f "$path" ] && [ ! -L "$path" ] && { [ ! -s "$path" ] || grep -Iq '' "$path"; }; then
         printf '%s %s\n' "$(wc -l < "$path" | tr -d ' ')" "$path"
     fi
 done > "$lengths"

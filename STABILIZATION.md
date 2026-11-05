@@ -432,6 +432,44 @@ levels of a 40-byte `Option<Node>` plus a 16-byte `keys` entry), which neither `
 nor emptying the index reclaims: a long-lived index under steady insert and remove grows
 without bound at a constant `len()`, until the caller rebuilds it over the live points.
 
+### `reverse`: the data, its size, and what a lookup costs
+
+`reverse` is implemented on master, on `index`. A `Gazetteer` resolves a point to its
+nearest populated place within `ReverseOptions::max_distance` (50 km by default) and to
+`None` beyond it; filters by class or population widen the k-nearest search fourfold
+until a place passes or the search passes the limit. GCJ-02 / BD-09 and the classic
+datums go through `convert` to WGS-84 first, and `Place::query` carries that bound.
+
+The file format (specified in `src/reverse/mod.rs`) is versioned, checksummed with
+CRC-32, and read by a loader that checks every count against the bytes left before
+allocating, so a hostile file is a `Parse` error and memory stays proportional to its
+length. `crates/geocoordinates-gazetteer` is its only writer, and the core tests build
+their fixtures with it, so reader and writer cannot drift apart unnoticed.
+
+`reverse-bundled` embeds GeoNames `cities1000` of 2026-11-03 without alternate names:
+171,703 places, 6,043,248 bytes in the binary and 3,592,449 gzip-compressed (2,993,584
+with xz), under the issue's budget of about 5 MB compressed. Coordinates are stored in
+1e-5° (at most 0.56 m of rounding), which is GeoNames' own precision. The bindings do not
+embed it: a mobile or web consumer ships the file and loads it from bytes or a path.
+
+Timings are one release run on one machine: `cargo bench --features reverse-bundled
+--bench reverse`, read for scale and not as absolute numbers.
+
+| Operation | Time |
+|---|---|
+| `Gazetteer::bundled` (decode + index) | 76 ms |
+| `reverse`, within 10 km of a place | 5.8 µs |
+| `reverse`, a point uniform on the sphere (83% open ocean or wilderness) | 7.2 µs |
+| `reverse`, `min_feature_class` of `Admin2Seat` | 9.0 µs |
+| `reverse`, GCJ-02 input | 5.8 µs |
+
+Two limits are stated rather than hidden. The nearest populated place is a proxy for
+"the place a point is in": GeoNames has no boundaries, so a point near a border can
+resolve to the town across it, and a city's own center can lose to one of its listed
+neighbourhoods (`FeatureClass::Section`) unless the caller sets a class floor. And
+GeoNames is CC BY 4.0, so the crate's licence expression is `(MIT OR Apache-2.0) AND
+CC-BY-4.0` and `Gazetteer::attribution` returns the credit an application must show.
+
 ## After 0.15.0 — the 1.0 freeze
 
 Once the surface has survived dogfooding, freeze the public API and adopt strict

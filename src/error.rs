@@ -220,6 +220,7 @@ impl Error {
 /// | NMEA 0183 (`parse::sensors::from_nmea_sentence`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum), [`NoFix`](Self::NoFix), [`Unsupported`](Self::Unsupported) (a sentence other than `GGA` / `RMC` / `GLL`) |
 /// | GeoJSON, WKT, GPX, KML (`parse::interchange`) | [`Syntax`](Self::Syntax), [`TooDeep`](Self::TooDeep) |
 /// | EXIF / XMP GPS tags (`exif`) | [`NoFix`](Self::NoFix), [`Syntax`](Self::Syntax) (XMP strings only) |
+/// | Gazetteer files (`reverse::Gazetteer::from_bytes`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum) (payload CRC-32), [`Unsupported`](Self::Unsupported) (a format version or flag this build does not read) |
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every
 /// variant, so adding one here is a deliberate, compile-forcing change on both
@@ -242,7 +243,8 @@ pub enum ParseErrorKind {
     /// value the format does not allow (minutes of 60, a negative HDOP, a
     /// latitude past 90° in free text).
     Syntax,
-    /// An NMEA `*HH` checksum is malformed or does not match the sentence.
+    /// A checksum is malformed or does not match its data: an NMEA `*HH`
+    /// checksum, or a gazetteer file's payload CRC-32.
     Checksum,
     /// A well-formed sentence that reports no position: NMEA `RMC` / `GLL`
     /// status `V`, mode indicator `N`, or `GGA` fix quality `0`; or EXIF / XMP
@@ -254,8 +256,9 @@ pub enum ParseErrorKind {
     /// or exponent notation (`4e1`).
     Ambiguous,
     /// Well-formed input of a type or option this crate does not handle: an
-    /// NMEA sentence other than `GGA` / `RMC` / `GLL`, or a `geo:` URI `crs`
-    /// other than `wgs84`.
+    /// NMEA sentence other than `GGA` / `RMC` / `GLL`, a `geo:` URI `crs`
+    /// other than `wgs84`, or a gazetteer file of a format version this build
+    /// does not read.
     Unsupported,
     /// A document nested deeper than its format's limit: 128 levels of WKT
     /// parentheses or GeoJSON arrays and objects, 32 levels of KML elements.

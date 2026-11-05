@@ -47,8 +47,9 @@
 //! every other item lives flat in its subsystem module: [`angle`], [`china`],
 //! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
 //! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
-//! `index` feature), `exif` (behind the `exif` feature), and `cluster` (behind
-//! the `cluster` feature). Implementation
+//! `index` feature), `exif` (behind the `exif` feature), `cluster` (behind
+//! the `cluster` feature), and `reverse` (behind the `reverse` feature).
+//! Implementation
 //! submodules are private, so a type is never reachable at both
 //! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
 //!
@@ -124,6 +125,10 @@ pub mod exif;
 #[cfg(feature = "cluster")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cluster")))]
 pub mod cluster;
+
+#[cfg(feature = "reverse")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reverse")))]
+pub mod reverse;
 
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
@@ -203,4 +208,6 @@ pub mod prelude {
     #[cfg(feature = "index")]
     pub use crate::index::{GeoBounds, Neighbor, SpatialIndex};
     pub use crate::parse::{GridKind, ParseOptions, parse_coordinate, parse_coordinate_with};
+    #[cfg(feature = "reverse")]
+    pub use crate::reverse::{FeatureClass, Gazetteer, Place, ReverseGeocoder, ReverseOptions};
 }
