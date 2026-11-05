@@ -94,7 +94,7 @@ if [ -z "$msrv" ]; then
     exit 1
 fi
 rustup toolchain install "$msrv" --profile minimal --no-self-update
-cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif,cluster,reverse-bundled,map
+cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif,cluster,reverse-bundled,map,geotag
 
 exceptions="$(sed -n '/^\[package\.metadata\.feature-rust-version\]$/,/^\[/ s/^\([a-z0-9_-]*\) = "\(.*\)"$/\1 \2/p' Cargo.toml)"
 if [ -z "$exceptions" ]; then
@@ -166,6 +166,15 @@ description = "Test the map feature alone, and with geojson for its layers"
 run = [
     "cargo test --no-default-features --features map",
     "cargo test --no-default-features --features map,geojson",
+]
+
+# The per-feature job for `geotag`: its tests and doctests with no sibling feature
+# on, then again with `gpx`, which its golden track file is read through.
+[tasks.geotag-test]
+description = "Test the geotag feature alone, and with gpx for its golden track"
+run = [
+    "cargo test --no-default-features --features geotag",
+    "cargo test --no-default-features --features geotag,gpx",
 ]
 
 # Both coverage tasks fail when total line coverage falls under the floor in
