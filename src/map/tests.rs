@@ -341,3 +341,55 @@ fn covering_handles_edges_poles_and_its_bound() {
         Err(Error::InvalidValue { field: "z", .. })
     ));
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_round_trips_and_rejects_invalid_values() {
+    use super::{Camera, DisplayDatum, Viewport};
+
+    let mercator = WebMercator::from_coordinate(wgs(40.0, -105.0));
+    let json = serde_json::to_string(&mercator).unwrap();
+    assert_eq!(
+        serde_json::from_str::<WebMercator>(&json).unwrap(),
+        mercator
+    );
+    let t = tile(486, 332, 10);
+    assert_eq!(
+        serde_json::to_string(&t).unwrap(),
+        r#"{"z":10,"x":486,"y":332}"#
+    );
+    assert_eq!(
+        serde_json::from_str::<Tile>(r#"{"z":10,"x":486,"y":332}"#).unwrap(),
+        t
+    );
+    let view = Viewport::new(800.0, 600.0, 512.0).unwrap();
+    let json = serde_json::to_string(&view).unwrap();
+    assert_eq!(serde_json::from_str::<Viewport>(&json).unwrap(), view);
+    let camera = Camera::new(wgs(1.0, 2.0), 3.5).unwrap();
+    let json = serde_json::to_string(&camera).unwrap();
+    assert_eq!(serde_json::from_str::<Camera>(&json).unwrap(), camera);
+    let pixel = WorldPixel { x: 1.5, y: 2.5 };
+    let json = serde_json::to_string(&pixel).unwrap();
+    assert_eq!(serde_json::from_str::<WorldPixel>(&json).unwrap(), pixel);
+    let json = serde_json::to_string(&DisplayDatum::Gcj02).unwrap();
+    assert_eq!(
+        serde_json::from_str::<DisplayDatum>(&json).unwrap(),
+        DisplayDatum::Gcj02
+    );
+
+    // No invalid value deserializes.
+    let origin = serde_json::to_string(&WebMercator::new(0.0, 0.0, Crs::Wgs84).unwrap()).unwrap();
+    assert!(serde_json::from_str::<WebMercator>(&origin).is_ok());
+    let off_map = origin.replace(r#""y_m":0.0"#, r#""y_m":3e7"#);
+    assert_ne!(off_map, origin);
+    assert!(serde_json::from_str::<WebMercator>(&off_map).is_err());
+    assert!(serde_json::from_str::<Tile>(r#"{"z":1,"x":2,"y":0}"#).is_err());
+    assert!(
+        serde_json::from_str::<Viewport>(r#"{"width_px":0.0,"height_px":1.0,"tile_px":1.0}"#)
+            .is_err()
+    );
+    let far = serde_json::to_string(&camera)
+        .unwrap()
+        .replace("3.5", "31.0");
+    assert!(serde_json::from_str::<Camera>(&far).is_err());
+}
