@@ -37,6 +37,8 @@ mod geohash;
 mod maidenhead;
 mod plus_code;
 
+#[cfg(feature = "privacy")]
+pub(crate) use geohash::GEOHASH_MAX_LENGTH;
 pub use geohash::Geohash;
 pub use maidenhead::Maidenhead;
 pub use plus_code::PlusCode;

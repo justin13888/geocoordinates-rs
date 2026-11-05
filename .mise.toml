@@ -94,7 +94,7 @@ if [ -z "$msrv" ]; then
     exit 1
 fi
 rustup toolchain install "$msrv" --profile minimal --no-self-update
-cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif,cluster,reverse-bundled,map,geotag
+cargo "+$msrv" test --locked --features serde,wkt,gpx,kml,nmea,s2,index,exif,cluster,reverse-bundled,map,geotag,privacy
 
 exceptions="$(sed -n '/^\[package\.metadata\.feature-rust-version\]$/,/^\[/ s/^\([a-z0-9_-]*\) = "\(.*\)"$/\1 \2/p' Cargo.toml)"
 if [ -z "$exceptions" ]; then
@@ -175,6 +175,16 @@ description = "Test the geotag feature alone, and with gpx for its golden track"
 run = [
     "cargo test --no-default-features --features geotag",
     "cargo test --no-default-features --features geotag,gpx",
+]
+
+# The per-feature job for `privacy`: its tests and doctests with no sibling feature
+# beyond the `index` it builds on (geohash snapping only), then again with `h3`,
+# `s2` and `serde`, which add its H3 and S2 grids and its wire forms.
+[tasks.privacy-test]
+description = "Test the privacy feature alone, and with h3, s2 and serde"
+run = [
+    "cargo test --no-default-features --features privacy",
+    "cargo test --no-default-features --features privacy,h3,s2,serde",
 ]
 
 # Both coverage tasks fail when total line coverage falls under the floor in

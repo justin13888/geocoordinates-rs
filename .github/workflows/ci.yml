@@ -203,6 +203,19 @@ jobs:
       - name: Test the geotag feature alone, and with gpx
         run: mise run geotag-test
 
+  privacy:
+    name: Feature privacy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      - name: Test the privacy feature alone, and with h3, s2 and serde
+        run: mise run privacy-test
+
   msrv:
     name: MSRV
     runs-on: ubuntu-latest

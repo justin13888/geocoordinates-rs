@@ -505,6 +505,33 @@ returns `Result<Option<Fix>>` rather than the `Option<Fix>` #226 sketched: an in
 speed is an error, and a time the track does not cover is `Ok(None)`. GCJ-02 and
 BD-09 tracks are refused, since they have no ellipsoid to interpolate on.
 
+### `privacy`: what a coarsened fix claims
+
+`privacy` is implemented on master, with no external dependency beyond the `index`
+feature its box zones use; H3 and S2 snapping come with the `h3` and `s2` features.
+No random number is ever drawn: jitter leaks on repeated release, since averaging many
+jittered copies recovers the point, while a cell centre is the same on every release.
+
+#227 sketched `coarsen(Coordinate, Precision) -> Coordinate` with the result carrying a
+`Bound` accuracy. A `Coordinate` has no accuracy, so `coarsen` returns
+`Result<Fix>`: the cell centre with no height, a `Bound` equal to the cell's
+circumradius (the largest WGS-84 geodesic distance from the centre to a cell vertex,
+the bound each grid's `decode` already states), and a `RawSource` of `privacy:` and the
+cell, never the input text. It is an error only off WGS-84, where no grid is defined.
+Longitude 180 is read as -180 and a pole's longitude as 0 first, because S2 put
+`(10, 180)` and `(10, -180)` in different cells.
+
+`Precision::at_least(Length)` maps a size onto geohash alone: a geohash cell's height
+is the same at every position (its latitude span at the equator's meridian degree,
+110 574 m, the shortest on WGS-84), so "at least this tall" holds everywhere, while
+its width shrinks toward the poles, as the docs state. H3 and S2 cell sizes vary with
+position, so their levels are named explicitly. `ExclusionZone` membership is the
+Karney geodesic distance to a circle's centre, edge inclusive, or `GeoBounds::contains`
+for a box, so neither breaks at the antimeridian or a pole. `apply` keeps a coarsened
+fix's timestamp, widens the bound by the fix's own horizontal magnitude (`Unspecified`
+when that magnitude was statistical), and drops the height and source. A fix on a
+datum some zone is not on is an error rather than silently passing that zone.
+
 ## After 0.15.0 — the 1.0 freeze
 
 Once the surface has survived dogfooding, freeze the public API and adopt strict

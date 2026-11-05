@@ -5402,6 +5402,77 @@ public func FfiConverterTypePlace_lower(_ value: Place) -> RustBuffer {
 
 
 /**
+ * How coarse [`coarsen`] makes a position: a grid and a level on it — mirror of
+ * [`gc::privacy::Precision`]. Plain data: every export taking one checks the
+ * level against the grid, and [`precision_validate`] checks a hand-built one.
+ */
+public struct Precision: Equatable, Hashable {
+    /**
+     * The grid to snap to.
+     */
+    public var grid: SnapGrid
+    /**
+     * The geohash length, H3 resolution, or S2 level.
+     */
+    public var level: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The grid to snap to.
+         */grid: SnapGrid, 
+        /**
+         * The geohash length, H3 resolution, or S2 level.
+         */level: UInt8) {
+        self.grid = grid
+        self.level = level
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Precision: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePrecision: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Precision {
+        return
+            try Precision(
+                grid: FfiConverterTypeSnapGrid.read(from: &buf), 
+                level: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Precision, into buf: inout [UInt8]) {
+        FfiConverterTypeSnapGrid.write(value.grid, into: &buf)
+        FfiConverterUInt8.write(value.level, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrecision_lift(_ buf: RustBuffer) throws -> Precision {
+    return try FfiConverterTypePrecision.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePrecision_lower(_ value: Precision) -> RustBuffer {
+    return FfiConverterTypePrecision.lower(value)
+}
+
+
+/**
  * The original input a coordinate was parsed from — mirror of [`gc::fix::RawSource`].
  */
 public struct RawSource: Equatable, Hashable {
@@ -7267,6 +7338,101 @@ public func FfiConverterTypeDisplayDatum_lift(_ buf: RustBuffer) throws -> Displ
 #endif
 public func FfiConverterTypeDisplayDatum_lower(_ value: DisplayDatum) -> RustBuffer {
     return FfiConverterTypeDisplayDatum.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * A place whose fixes are never shared exactly — mirror of
+ * [`gc::privacy::ExclusionZone`]. Plain data: every export taking one checks it,
+ * and [`exclusion_zone_validate`] checks a hand-built one.
+ */
+
+public enum ExclusionZone: Equatable, Hashable {
+    
+    /**
+     * Every point within `radius_m` meters (geodesic, edge included) of
+     * `center`, on `center`'s datum.
+     */
+    case circle(
+        /**
+         * The centre; not on GCJ-02 or BD-09.
+         */center: Coordinate, 
+        /**
+         * The radius in meters; finite and nonnegative.
+         */radiusM: Double
+    )
+    /**
+     * Every point in a box, edges included.
+     */
+    case bounds(
+        /**
+         * The box.
+         */bounds: GeoBounds
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ExclusionZone: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExclusionZone: FfiConverterRustBuffer {
+    typealias SwiftType = ExclusionZone
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExclusionZone {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .circle(center: try FfiConverterTypeCoordinate.read(from: &buf), radiusM: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 2: return .bounds(bounds: try FfiConverterTypeGeoBounds.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExclusionZone, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .circle(center,radiusM):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeCoordinate.write(center, into: &buf)
+            FfiConverterDouble.write(radiusM, into: &buf)
+            
+        
+        case let .bounds(bounds):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeGeoBounds.write(bounds, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExclusionZone_lift(_ buf: RustBuffer) throws -> ExclusionZone {
+    return try FfiConverterTypeExclusionZone.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExclusionZone_lower(_ value: ExclusionZone) -> RustBuffer {
+    return FfiConverterTypeExclusionZone.lower(value)
 }
 
 
@@ -9169,6 +9335,93 @@ public func FfiConverterTypeRepresentation_lower(_ value: Representation) -> Rus
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The discrete grid a [`Precision`] snaps to — mirror of
+ * [`gc::privacy::SnapGrid`].
+ */
+
+public enum SnapGrid: Equatable, Hashable {
+    
+    /**
+     * Geohash cells, levels (code lengths) 1 to 12.
+     */
+    case geohash
+    /**
+     * Uber H3 cells, resolutions 0 to 15.
+     */
+    case h3
+    /**
+     * Google S2 cells, levels 0 to 30.
+     */
+    case s2
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SnapGrid: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSnapGrid: FfiConverterRustBuffer {
+    typealias SwiftType = SnapGrid
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SnapGrid {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .geohash
+        
+        case 2: return .h3
+        
+        case 3: return .s2
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SnapGrid, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .geohash:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .h3:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .s2:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSnapGrid_lift(_ buf: RustBuffer) throws -> SnapGrid {
+    return try FfiConverterTypeSnapGrid.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSnapGrid_lower(_ value: SnapGrid) -> RustBuffer {
+    return FfiConverterTypeSnapGrid.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Symbol style for DMS/DDM rendering — mirror of [`gc::format::SymbolStyle`].
  */
 
@@ -9326,6 +9579,89 @@ public func FfiConverterTypeUtmHemisphere_lift(_ buf: RustBuffer) throws -> UtmH
 #endif
 public func FfiConverterTypeUtmHemisphere_lower(_ value: UtmHemisphere) -> RustBuffer {
     return FfiConverterTypeUtmHemisphere.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What [`apply_exclusion_zones`] does to a fix inside a zone — mirror of
+ * [`gc::privacy::ZoneAction`].
+ */
+
+public enum ZoneAction: Equatable, Hashable {
+    
+    /**
+     * Remove the fix.
+     */
+    case strip
+    /**
+     * Replace the fix by its coarsened form at `precision`.
+     */
+    case coarsen(
+        /**
+         * The precision to coarsen to.
+         */precision: Precision
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ZoneAction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeZoneAction: FfiConverterRustBuffer {
+    typealias SwiftType = ZoneAction
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ZoneAction {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .strip
+        
+        case 2: return .coarsen(precision: try FfiConverterTypePrecision.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ZoneAction, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .strip:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .coarsen(precision):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypePrecision.write(precision, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeZoneAction_lift(_ buf: RustBuffer) throws -> ZoneAction {
+    return try FfiConverterTypeZoneAction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeZoneAction_lower(_ value: ZoneAction) -> RustBuffer {
+    return FfiConverterTypeZoneAction.lower(value)
 }
 
 
@@ -10176,6 +10512,31 @@ fileprivate struct FfiConverterSequenceTypeVisit: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeVisit.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeExclusionZone: FfiConverterRustBuffer {
+    typealias SwiftType = [ExclusionZone]
+
+    public static func write(_ value: [ExclusionZone], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeExclusionZone.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ExclusionZone] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ExclusionZone]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeExclusionZone.read(from: &buf))
         }
         return seq
     }
@@ -13047,6 +13408,115 @@ public func worldPixelToCoordinate(pixel: WorldPixel, zoom: Double, tilePx: Doub
 })
 }
 /**
+ * The fix to share given exclusion `zones`: `fix` unchanged when it lies in no
+ * zone, `None` when `action` is `Strip`, or the coarsened fix, which keeps the
+ * timestamp, widens the bound by the fix's own horizontal accuracy, and drops
+ * the height and source.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when `fix` is not on the datum of every zone, or is
+ * coarsened off WGS-84; the records' own errors for an invalid fix, zone or
+ * precision.
+ */
+public func applyExclusionZones(fix: Fix, zones: [ExclusionZone], action: ZoneAction)throws  -> Fix?  {
+    return try  FfiConverterOptionTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_apply_exclusion_zones(
+        FfiConverterTypeFix_lower(fix),
+        FfiConverterSequenceTypeExclusionZone.lower(zones),
+        FfiConverterTypeZoneAction_lower(action),$0
+    )
+})
+}
+/**
+ * Snaps `coord` to the centre of the cell of `precision` holding it. The fix
+ * has no height or timestamp, a `Bound` accuracy equal to the cell's
+ * circumradius, and a source whose `raw` is `privacy:` and the cell.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when `coord` is not on WGS-84; as
+ * [`precision_validate`] for an invalid [`Precision`]; `GeoError::OutOfRange` /
+ * `GeoError::InvalidValue` for an invalid coordinate record.
+ */
+public func coarsen(coord: Coordinate, precision: Precision)throws  -> Fix  {
+    return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_coarsen(
+        FfiConverterTypeCoordinate_lower(coord),
+        FfiConverterTypePrecision_lower(precision),$0
+    )
+})
+}
+/**
+ * Whether `point` lies in `zone`, edge included.
+ *
+ * # Errors
+ * `GeoError::CrsMismatch` when `point` is not on the zone's datum; as
+ * [`exclusion_zone_validate`] for an invalid zone.
+ */
+public func exclusionZoneContains(zone: ExclusionZone, point: Coordinate)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_exclusion_zone_contains(
+        FfiConverterTypeExclusionZone_lower(zone),
+        FfiConverterTypeCoordinate_lower(point),$0
+    )
+})
+}
+/**
+ * Checks a hand-built [`ExclusionZone`] against the core crate's rules.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `radius`) for a negative, NaN or infinite
+ * radius; `GeoError::CrsMismatch` for a centre on GCJ-02 or BD-09; and the
+ * coordinate's or box's own errors for an invalid record.
+ */
+public func exclusionZoneValidate(zone: ExclusionZone)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_exclusion_zone_validate(
+        FfiConverterTypeExclusionZone_lower(zone),$0
+    )
+}
+}
+/**
+ * The finest geohash precision whose cells are at least `size_m` meters tall
+ * everywhere (their width shrinks toward the poles).
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `size`) when `size_m` is negative, NaN or
+ * infinite, or taller than the coarsest geohash cell.
+ */
+public func precisionAtLeast(sizeM: Double)throws  -> Precision  {
+    return try  FfiConverterTypePrecision_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_precision_at_least(
+        FfiConverterDouble.lower(sizeM),$0
+    )
+})
+}
+/**
+ * For a geohash precision, the north–south height in meters every one of its
+ * cells has at least; `None` for H3 and S2.
+ *
+ * # Errors
+ * As [`precision_validate`], for an invalid [`Precision`] record.
+ */
+public func precisionMinCellHeightM(precision: Precision)throws  -> Double?  {
+    return try  FfiConverterOptionDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_precision_min_cell_height_m(
+        FfiConverterTypePrecision_lower(precision),$0
+    )
+})
+}
+/**
+ * Checks a hand-built [`Precision`] against its grid's levels.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `geohash length`, `H3 resolution` or
+ * `S2 level`) when the grid does not define the level.
+ */
+public func precisionValidate(precision: Precision)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_precision_validate(
+        FfiConverterTypePrecision_lower(precision),$0
+    )
+}
+}
+/**
  * `gazetteer` as a [`ReverseGeocoder`], so it can stand where one is expected:
  * passed to [`reverse_geocode`], or chained with a foreign implementation.
  */
@@ -13870,6 +14340,27 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_world_pixel_to_coordinate() != 18267) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_apply_exclusion_zones() != 19674) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_coarsen() != 23687) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_exclusion_zone_contains() != 56423) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_exclusion_zone_validate() != 25979) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_precision_at_least() != 15899) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_precision_min_cell_height_m() != 28855) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_precision_validate() != 59118) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_gazetteer_as_reverse_geocoder() != 12896) {

@@ -35,6 +35,8 @@ explicit `max_error_m`.
 | `map::MAX_LATITUDE` / `map::MAX_TILE_ZOOM` (constants) | `web_mercator_max_latitude_deg` / `tile_max_zoom` |
 | `geotag::Track` (holds its fixes) | the object `Track` |
 | `geotag::estimate_offset` (takes `(SystemTime, Coordinate)` tuples) | `estimate_offset_ms`, over `GeotagReference` records |
+| `privacy::apply` (a name too generic for a flat namespace) | `apply_exclusion_zones` |
+| `privacy::ExclusionZone` (constructors over a private shape) | the enum `ExclusionZone` with `Circle` and `Bounds` variants, checked by `exclusion_zone_validate` |
 | A type valid by construction | a plain record, checked as it crosses into Rust, with a `<record>_validate` function to check a hand-built one |
 
 Exact forward conversions return a bare datum record; approximate inverses
@@ -68,7 +70,7 @@ Every export follows one scheme, so a name reads the same in every language
   `Gcj02`, `Bd09`, `BaiduMercator`, `Dms`, `Ddm`, `Ellipsoid`, `Enu`, `Ned`,
   `Aer`, `DatumTransform`, `Utm`, `Ups`, `H3Cell` (`h3_validate`), `S2CellId`
   (`s2_validate`), `Accuracy`, `Confidence`, `Place`, `WebMercator`, `Tile`,
-  `Viewport` and `Camera` each have one. No
+  `Viewport`, `Camera`, `Precision` and `ExclusionZone` each have one. No
   `<record>_new` is added that would only copy its arguments in and validate
   them; one exists where construction derives or normalizes a field
   (`aer_new`, `raw_source_new`, and `place_new`, which computes the distance), beside the constructors that predate that
