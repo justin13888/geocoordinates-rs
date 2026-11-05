@@ -505,6 +505,22 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
+    typealias FfiType = Int64
+    typealias SwiftType = Int64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int64, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
     typealias FfiType = Double
     typealias SwiftType = Double
@@ -1728,6 +1744,248 @@ public func FfiConverterTypeSpatialIndex_lift(_ handle: UInt64) throws -> Spatia
 #endif
 public func FfiConverterTypeSpatialIndex_lower(_ value: SpatialIndex) -> UInt64 {
     return FfiConverterTypeSpatialIndex.lower(value)
+}
+
+
+
+
+
+
+/**
+ * A GPS track: recorded fixes in time order, each with a timestamp, all on one
+ * geodetic datum — the object form of [`gc::geotag::Track`].
+ */
+public protocol TrackProtocol: AnyObject, Sendable {
+    
+    /**
+     * The datum every fix is on, or `None` for an empty track.
+     */
+    func crs()  -> Crs?
+    
+    /**
+     * How many of the fixes it was built from had no timestamp and were dropped.
+     */
+    func droppedUntimed()  -> UInt64
+    
+    /**
+     * The kept fixes, in time order.
+     */
+    func fixes()  -> [Fix]
+    
+    /**
+     * Whether the track kept no fix, so it locates nothing.
+     */
+    func isEmpty()  -> Bool
+    
+    /**
+     * The number of kept fixes.
+     */
+    func len()  -> UInt64
+    
+    /**
+     * Where the track was at the photo time `at`, or `None` when the track does
+     * not cover it. The result is a derived fix: its source's `raw` starts with
+     * `geotag:`, and its accuracy grows with the time to the fixes it came from.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `max_speed_mps`) when the speed is negative
+     * or not finite.
+     */
+    func locate(at: Date, options: GeotagOptions) throws  -> Fix?
+    
+}
+/**
+ * A GPS track: recorded fixes in time order, each with a timestamp, all on one
+ * geodetic datum — the object form of [`gc::geotag::Track`].
+ */
+open class Track: TrackProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_geocoordinates_ffi_fn_clone_track(self.handle, $0) }
+    }
+    /**
+     * Builds a track from `fixes` in any order, dropping those with no
+     * timestamp and keeping one of each same-instant duplicate.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `fixes`) when two fixes at the same instant
+     * disagree on the position; `GeoError::CrsMismatch` when the timed fixes are
+     * on different datums or on GCJ-02 / BD-09; `GeoError::OutOfRange` /
+     * `GeoError::InvalidValue` for an invalid fix record.
+     */
+public convenience init(fixes: [Fix])throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_constructor_track_new(
+        FfiConverterSequenceTypeFix.lower(fixes),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_geocoordinates_ffi_fn_free_track(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * The datum every fix is on, or `None` for an empty track.
+     */
+open func crs() -> Crs?  {
+    return try!  FfiConverterOptionTypeCrs.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_track_crs(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * How many of the fixes it was built from had no timestamp and were dropped.
+     */
+open func droppedUntimed() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_track_dropped_untimed(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The kept fixes, in time order.
+     */
+open func fixes() -> [Fix]  {
+    return try!  FfiConverterSequenceTypeFix.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_track_fixes(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Whether the track kept no fix, so it locates nothing.
+     */
+open func isEmpty() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_track_is_empty(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The number of kept fixes.
+     */
+open func len() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_method_track_len(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Where the track was at the photo time `at`, or `None` when the track does
+     * not cover it. The result is a derived fix: its source's `raw` starts with
+     * `geotag:`, and its accuracy grows with the time to the fixes it came from.
+     *
+     * # Errors
+     * `GeoError::InvalidValue` (field `max_speed_mps`) when the speed is negative
+     * or not finite.
+     */
+open func locate(at: Date, options: GeotagOptions)throws  -> Fix?  {
+    return try  FfiConverterOptionTypeFix.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_method_track_locate(
+            self.uniffiCloneHandle(),
+        FfiConverterTimestamp.lower(at),
+        FfiConverterTypeGeotagOptions_lower(options),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTrack: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = Track
+
+    public static func lift(_ handle: UInt64) throws -> Track {
+        return Track(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: Track) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Track {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: Track, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTrack_lift(_ handle: UInt64) throws -> Track {
+    return try FfiConverterTypeTrack.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTrack_lower(_ value: Track) -> UInt64 {
+    return FfiConverterTypeTrack.lower(value)
 }
 
 
@@ -4167,6 +4425,182 @@ public func FfiConverterTypeGeoBounds_lift(_ buf: RustBuffer) throws -> GeoBound
 #endif
 public func FfiConverterTypeGeoBounds_lower(_ value: GeoBounds) -> RustBuffer {
     return FfiConverterTypeGeoBounds.lower(value)
+}
+
+
+/**
+ * How [`Track::locate`] matches a photo's time against the track — mirror of
+ * [`gc::geotag::GeotagOptions`]. `max_speed_mps` is checked when it is used.
+ */
+public struct GeotagOptions: Equatable, Hashable {
+    /**
+     * Milliseconds added to the photo's time to reach the track's (UTC) time;
+     * negative for a camera clock that runs ahead.
+     */
+    public var clockOffsetMs: Int64
+    /**
+     * The longest gap between two neighbouring fixes that is interpolated across.
+     */
+    public var maxGap: TimeInterval
+    /**
+     * How far beyond the recorded fixes, or into a longer gap, a photo still
+     * takes the nearest fix's position.
+     */
+    public var maxExtrapolation: TimeInterval
+    /**
+     * How a time between two fixes is placed.
+     */
+    public var interpolation: Interpolation
+    /**
+     * The fastest the device is assumed to move, in meters per second: the rate
+     * a located fix's accuracy grows with time. Finite and nonnegative.
+     */
+    public var maxSpeedMps: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Milliseconds added to the photo's time to reach the track's (UTC) time;
+         * negative for a camera clock that runs ahead.
+         */clockOffsetMs: Int64, 
+        /**
+         * The longest gap between two neighbouring fixes that is interpolated across.
+         */maxGap: TimeInterval, 
+        /**
+         * How far beyond the recorded fixes, or into a longer gap, a photo still
+         * takes the nearest fix's position.
+         */maxExtrapolation: TimeInterval, 
+        /**
+         * How a time between two fixes is placed.
+         */interpolation: Interpolation, 
+        /**
+         * The fastest the device is assumed to move, in meters per second: the rate
+         * a located fix's accuracy grows with time. Finite and nonnegative.
+         */maxSpeedMps: Double) {
+        self.clockOffsetMs = clockOffsetMs
+        self.maxGap = maxGap
+        self.maxExtrapolation = maxExtrapolation
+        self.interpolation = interpolation
+        self.maxSpeedMps = maxSpeedMps
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GeotagOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGeotagOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GeotagOptions {
+        return
+            try GeotagOptions(
+                clockOffsetMs: FfiConverterInt64.read(from: &buf), 
+                maxGap: FfiConverterDuration.read(from: &buf), 
+                maxExtrapolation: FfiConverterDuration.read(from: &buf), 
+                interpolation: FfiConverterTypeInterpolation.read(from: &buf), 
+                maxSpeedMps: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GeotagOptions, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.clockOffsetMs, into: &buf)
+        FfiConverterDuration.write(value.maxGap, into: &buf)
+        FfiConverterDuration.write(value.maxExtrapolation, into: &buf)
+        FfiConverterTypeInterpolation.write(value.interpolation, into: &buf)
+        FfiConverterDouble.write(value.maxSpeedMps, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeotagOptions_lift(_ buf: RustBuffer) throws -> GeotagOptions {
+    return try FfiConverterTypeGeotagOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeotagOptions_lower(_ value: GeotagOptions) -> RustBuffer {
+    return FfiConverterTypeGeotagOptions.lower(value)
+}
+
+
+/**
+ * A photo whose true position is known, for [`estimate_offset_ms`]: the time on
+ * the camera's clock and where it was taken.
+ */
+public struct GeotagReference: Equatable, Hashable {
+    /**
+     * The photo's time on the camera's clock.
+     */
+    public var photoTime: Date
+    /**
+     * Where the photo was taken.
+     */
+    public var location: Coordinate
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The photo's time on the camera's clock.
+         */photoTime: Date, 
+        /**
+         * Where the photo was taken.
+         */location: Coordinate) {
+        self.photoTime = photoTime
+        self.location = location
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GeotagReference: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGeotagReference: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GeotagReference {
+        return
+            try GeotagReference(
+                photoTime: FfiConverterTimestamp.read(from: &buf), 
+                location: FfiConverterTypeCoordinate.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GeotagReference, into buf: inout [UInt8]) {
+        FfiConverterTimestamp.write(value.photoTime, into: &buf)
+        FfiConverterTypeCoordinate.write(value.location, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeotagReference_lift(_ buf: RustBuffer) throws -> GeotagReference {
+    return try FfiConverterTypeGeotagReference.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGeotagReference_lower(_ value: GeotagReference) -> RustBuffer {
+    return FfiConverterTypeGeotagReference.lower(value)
 }
 
 
@@ -7764,6 +8198,84 @@ public func FfiConverterTypeHemisphereStyle_lower(_ value: HemisphereStyle) -> R
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * How a time between two fixes is placed — mirror of
+ * [`gc::geotag::Interpolation`].
+ */
+
+public enum Interpolation: Equatable, Hashable {
+    
+    /**
+     * The point on the geodesic between the two fixes, the same fraction of the
+     * way along it as the time is through the gap.
+     */
+    case geodesic
+    /**
+     * The position of whichever fix is nearer in time (the earlier on a tie).
+     */
+    case nearest
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension Interpolation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInterpolation: FfiConverterRustBuffer {
+    typealias SwiftType = Interpolation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Interpolation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .geodesic
+        
+        case 2: return .nearest
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Interpolation, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .geodesic:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .nearest:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInterpolation_lift(_ buf: RustBuffer) throws -> Interpolation {
+    return try FfiConverterTypeInterpolation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInterpolation_lower(_ value: Interpolation) -> RustBuffer {
+    return FfiConverterTypeInterpolation.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * The outcome of [`intersection_spherical`] — mirror of
  * [`gc::geodesy::Intersection`].
  *
@@ -9084,6 +9596,30 @@ fileprivate struct FfiConverterOptionTypeExifTime: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeFix: FfiConverterRustBuffer {
+    typealias SwiftType = Fix?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeFix.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeFix.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeNorthBearing: FfiConverterRustBuffer {
     typealias SwiftType = NorthBearing?
 
@@ -9465,6 +10001,31 @@ fileprivate struct FfiConverterSequenceTypeFix: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFix.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeGeotagReference: FfiConverterRustBuffer {
+    typealias SwiftType = [GeotagReference]
+
+    public static func write(_ value: [GeotagReference], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeGeotagReference.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [GeotagReference] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [GeotagReference]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeGeotagReference.read(from: &buf))
         }
         return seq
     }
@@ -11562,6 +12123,35 @@ public func intersectionSpherical(a: Coordinate, bearingADeg: Double, b: Coordin
 })
 }
 /**
+ * Suggests a `clock_offset_ms` for a camera from reference photos whose position
+ * is known: the median, over the references, of the time the track passed
+ * nearest each location minus the photo's time, in milliseconds.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` (field `references`) when there are none, and (field
+ * `track`) when the track is empty; `GeoError::CrsMismatch` when a location is
+ * not on the track's datum; `GeoError::OutOfRange` / `GeoError::InvalidValue`
+ * for an invalid coordinate record.
+ */
+public func estimateOffsetMs(track: Track, references: [GeotagReference])throws  -> Int64  {
+    return try  FfiConverterInt64.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_estimate_offset_ms(
+        FfiConverterTypeTrack_lower(track),
+        FfiConverterSequenceTypeGeotagReference.lower(references),$0
+    )
+})
+}
+/**
+ * The default options: no clock offset, interpolation across gaps of up to 30
+ * minutes, no extrapolation, geodesic interpolation, and 50 m/s.
+ */
+public func geotagOptionsDefault() -> GeotagOptions  {
+    return try!  FfiConverterTypeGeotagOptions_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_geotag_options_default($0
+    )
+})
+}
+/**
  * Validate a 1–12 character geohash and return its canonical (trimmed,
  * lowercase) form — the FFI form of `Geohash::parse` and
  * `Display`.
@@ -13102,6 +13692,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 63057) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_estimate_offset_ms() != 12166) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_geotag_options_default() != 47694) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_geohash_canonicalize() != 44917) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13351,6 +13947,24 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_remove() != 36688) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_method_track_crs() != 54872) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_track_dropped_untimed() != 64889) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_track_fixes() != 62664) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_track_is_empty() != 10907) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_track_len() != 40100) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_method_track_locate() != 60912) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_crs() != 14985) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13388,6 +14002,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_constructor_clusterindex_new() != 14173) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_constructor_track_new() != 55892) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_constructor_spatialindex_new() != 35612) {

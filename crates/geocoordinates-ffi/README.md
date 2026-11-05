@@ -33,6 +33,8 @@ explicit `max_error_m`.
 | `Gazetteer::bundled` (`reverse-bundled`) | none: the bindings do not compile the 6 MB dataset in; load a gazetteer file with `Gazetteer.from_bytes` or `Gazetteer.open` |
 | `map::clusters_to_geojson` (takes checked `MapCluster`s) | `clusters_in_view_geojson`, the view query and the layer in one call, since a `MapCluster` record cannot become a checked core cluster again |
 | `map::MAX_LATITUDE` / `map::MAX_TILE_ZOOM` (constants) | `web_mercator_max_latitude_deg` / `tile_max_zoom` |
+| `geotag::Track` (holds its fixes) | the object `Track` |
+| `geotag::estimate_offset` (takes `(SystemTime, Coordinate)` tuples) | `estimate_offset_ms`, over `GeotagReference` records |
 | A type valid by construction | a plain record, checked as it crosses into Rust, with a `<record>_validate` function to check a hand-built one |
 
 Exact forward conversions return a bare datum record; approximate inverses

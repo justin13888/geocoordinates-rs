@@ -24,6 +24,8 @@
 //! | `Gazetteer::bundled` (`reverse-bundled`) | none: the bindings do not compile the dataset in; load a gazetteer file with [`Gazetteer::from_bytes`] or [`Gazetteer::open`] |
 //! | `map::clusters_to_geojson` (takes checked `MapCluster`s) | [`clusters_in_view_geojson`], the view query and the layer in one call, since a [`MapCluster`] record cannot become a checked core cluster again |
 //! | `map::MAX_LATITUDE` / `map::MAX_TILE_ZOOM` (constants) | [`web_mercator_max_latitude_deg`] / [`tile_max_zoom`] |
+//! | `geotag::Track` (holds its fixes) | the object [`Track`] |
+//! | `geotag::estimate_offset` (takes `(SystemTime, Coordinate)` tuples) | [`estimate_offset_ms`], over [`GeotagReference`] records |
 //!
 //! Exactness stays visible across the boundary: exact forward conversions
 //! return a bare datum record, while approximate inverses return an `Approx*`
@@ -107,6 +109,7 @@ mod dgg;
 mod error;
 mod exif;
 mod geodesy;
+mod geotag;
 mod grids;
 mod index;
 mod interchange;
@@ -123,6 +126,7 @@ pub use self::dgg::*;
 pub use self::error::*;
 pub use self::exif::*;
 pub use self::geodesy::*;
+pub use self::geotag::*;
 pub use self::grids::*;
 pub use self::index::*;
 pub use self::interchange::*;

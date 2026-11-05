@@ -639,5 +639,6 @@ except gc.GeoError.InvalidValue as e:
 runpy.run_path(str(pathlib.Path(__file__).with_name("smoke_cluster.py")), init_globals=globals())
 runpy.run_path(str(pathlib.Path(__file__).with_name("smoke_reverse.py")), init_globals=globals())
 runpy.run_path(str(pathlib.Path(__file__).with_name("smoke_map.py")), init_globals=globals())
+runpy.run_path(str(pathlib.Path(__file__).with_name("smoke_geotag.py")), init_globals=globals())
 
 print("python smoke OK")
