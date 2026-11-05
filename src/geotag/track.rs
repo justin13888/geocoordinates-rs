@@ -247,7 +247,8 @@ impl Track {
     /// magnitude (zero where it has none), plus the farthest the device can move
     /// at [`max_speed_mps`](GeotagOptions::max_speed_mps) in the time between,
     /// plus the distance from that fix to the result; the smallest of these
-    /// holds. Its kind is [`AccuracyKind::Bound`] when each of those fixes carries
+    /// holds (and no accuracy at all where it overflows to infinity, as for a
+    /// speed near `f64::MAX`). Its kind is [`AccuracyKind::Bound`] when each of those fixes carries
     /// a `Bound` horizontal magnitude, and [`AccuracyKind::Unspecified`]
     /// otherwise. Its [`RawSource`] has full confidence, a datum ambiguity
     /// carried over from either fix, a note naming any clock offset applied, and
@@ -442,9 +443,10 @@ impl Track {
 
     /// The point `fraction` of the way along the geodesic from fix `a` to fix
     /// `b`, with a height interpolated when both carry one on the same surface.
+    /// `fraction` lies strictly between 0 and 1: the time is strictly between
+    /// the two fixes' times.
     fn interpolate(&self, a: usize, b: usize, fraction: f64) -> Result<Coordinate> {
         let (from, to) = (self.fixes[a].coord, self.fixes[b].coord);
-        let fraction = fraction.clamp(0.0, 1.0);
         let point = intermediate(from, to, fraction)?;
         let lerp = |x: f64, y: f64| x + (y - x) * fraction;
         match (from.height(), to.height()) {
