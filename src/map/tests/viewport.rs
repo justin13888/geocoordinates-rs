@@ -160,6 +160,13 @@ fn viewport_bounds_at_the_edges_of_the_map() {
     );
     let exact = exact.unwrap();
     assert_eq!((exact.west(), exact.east()), (-180.0, 180.0));
+    // A view exactly one world high ends on both edges, and so takes in both poles.
+    let flush = viewport_bounds(
+        Camera::new(wgs(0.0, 0.0), 0.0).unwrap(),
+        view(100.0, 512.0, 512.0),
+    )
+    .unwrap();
+    assert_eq!((flush.south(), flush.north()), (-90.0, 90.0));
     // Seeing the top edge takes in the pole; the bottom edge too.
     let arctic = viewport_bounds(
         Camera::new(wgs(80.0, 0.0), 2.0).unwrap(),
