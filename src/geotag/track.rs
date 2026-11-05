@@ -158,6 +158,11 @@ impl Track {
         &self.fixes
     }
 
+    /// Each kept fix's timestamp, in the order of [`fixes`](Self::fixes).
+    pub(super) fn times(&self) -> &[SystemTime] {
+        &self.times
+    }
+
     /// The number of kept fixes.
     ///
     /// ```

@@ -101,7 +101,7 @@ pub fn estimate_offset(track: &Track, references: &[(SystemTime, Coordinate)]) -
 /// `location`, the one nearest `photo` (Unix seconds) among equally near passes.
 fn nearest_pass(track: &Track, location: Coordinate, photo: f64) -> Result<f64> {
     let fixes = track.fixes();
-    let time = |i: usize| fixes[i].timestamp.map_or(0.0, unix_secs);
+    let times: Vec<f64> = track.times().iter().copied().map(unix_secs).collect();
     let distances = fixes
         .iter()
         .map(|fix| geodesic_distance(location, fix.coord).map(|d| d.meters()))
@@ -109,20 +109,26 @@ fn nearest_pass(track: &Track, location: Coordinate, photo: f64) -> Result<f64> 
 
     // (distance in meters, track time)
     let mut best = (f64::INFINITY, 0.0);
-    for (i, &distance) in distances.iter().enumerate() {
-        consider(&mut best, (distance, time(i)), photo);
+    for (&distance, &time) in distances.iter().zip(&times) {
+        consider(&mut best, (distance, time), photo);
     }
-    for i in 1..fixes.len() {
-        let (a, b) = (fixes[i - 1].coord, fixes[i].coord);
+    let segments = fixes
+        .windows(2)
+        .zip(distances.windows(2))
+        .zip(times.windows(2));
+    for ((pair, ends), span) in segments {
+        let (a, b) = (pair[0].coord, pair[1].coord);
         let length = geodesic_distance(a, b)?.meters();
-        // By the triangle inequality, no point of the segment is nearer than
-        // this, so a segment that cannot beat the best is skipped.
-        if length == 0.0 || distances[i - 1].min(distances[i]) - length >= best.0 {
+        // By the triangle inequality no point of the segment is nearer than
+        // this, so a segment that cannot beat the best is skipped. The best
+        // already holds both ends, so this never skips a nearer point.
+        if ends[0].min(ends[1]) - length >= best.0 {
             continue;
         }
-        // A location with no defined foot on this geodesic (a pole off an
-        // equatorial segment) is as near to one end as to any point: the ends
-        // already cover it.
+        // (A segment of no length never gets here: its lower bound is an end's
+        // own distance.) A location with no defined foot on this geodesic (a
+        // pole off an equatorial segment) is as near to one end as to any
+        // point: the ends already cover it.
         let Ok(along) = along_track_distance(location, a, b) else {
             continue;
         };
@@ -133,7 +139,7 @@ fn nearest_pass(track: &Track, location: Coordinate, photo: f64) -> Result<f64> 
         let fraction = along / length;
         let foot = intermediate(a, b, fraction)?;
         let distance = geodesic_distance(location, foot)?.meters();
-        let passed = time(i - 1) + fraction * (time(i) - time(i - 1));
+        let passed = span[0] + fraction * (span[1] - span[0]);
         consider(&mut best, (distance, passed), photo);
     }
     Ok(best.1)

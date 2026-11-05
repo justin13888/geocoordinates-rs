@@ -502,6 +502,19 @@ fn estimate_offset_handles_a_stationary_segment_and_a_pole() {
 }
 
 #[test]
+fn estimate_offset_finds_the_foot_of_a_sub_meter_segment() {
+    // Two fixes 0.45 m apart, and a place 1.1 m off the middle of them: the
+    // foot is nearer than either end, however short the segment.
+    let track = Track::new(vec![fix(0, 0.0, 0.0), fix(100, 0.0, 0.000_004)]).unwrap();
+    let beside = Coordinate::wgs84(0.000_01, 0.000_002).unwrap();
+    assert_eq!(estimate_offset(&track, &[(at(50), beside)]).unwrap(), 0);
+    assert_eq!(
+        estimate_offset(&track, &[(at(1_050), beside)]).unwrap(),
+        -1_000_000
+    );
+}
+
+#[test]
 fn estimate_offset_refuses_what_it_cannot_match() {
     let track = equator();
     assert!(matches!(
