@@ -148,6 +148,10 @@ pub mod privacy;
 #[cfg(test)]
 pub(crate) mod test_support;
 
+/// Tests pinning the type-level promises across the public surface.
+#[cfg(test)]
+mod promises;
+
 // The crate root holds the core types, each re-exported from its private
 // implementation module; it is their only path. The broader common working
 // set is in [`prelude`]; every other item lives in its subsystem module.
