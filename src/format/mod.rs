@@ -285,6 +285,17 @@ pub enum HemisphereStyle {
 /// assert_eq!(format(c, &german)?, "40,712800 -74,006000");
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
+///
+/// A struct literal naming every current field still does not compile:
+///
+/// ```compile_fail,E0639
+/// use geocoordinates::format::{DecimalSeparator, FormatOptions, Representation};
+/// // Expected: E0639, cannot create a non-exhaustive struct with a struct expression.
+/// let _ = FormatOptions {
+///     representation: Representation::Geohash { length: 5 },
+///     decimal_separator: DecimalSeparator::Point,
+/// };
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(default))]

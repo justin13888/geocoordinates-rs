@@ -95,6 +95,14 @@ pub enum Crs {
 /// let _: geocoordinates::Coordinate = "40, -74".parse().unwrap(); // no `FromStr`
 /// ```
 ///
+/// The fields stay private, so a struct literal cannot skip the validation:
+///
+/// ```compile_fail,E0451
+/// use geocoordinates::{Coordinate, Crs};
+/// // Expected: E0451, the fields of `Coordinate` are private.
+/// let _ = Coordinate { lat: 91.0, lon: 0.0, height: None, crs: Crs::Wgs84 };
+/// ```
+///
 /// Under the `serde` feature the JSON shape is
 /// `{"lat":…,"lon":…,"height":…,"crs":…}`, and deserialization applies the same
 /// checks as [`new`](Self::new) and [`with_height`](Self::with_height).
@@ -402,9 +410,12 @@ pub(crate) mod sealed {
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 ///
-/// Being sealed, it cannot be implemented outside this crate:
+/// Being sealed, it cannot be implemented outside this crate, even by a `Copy`
+/// type:
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
+/// // Expected: E0277, `Mine: Sealed` is not satisfied (not a missing `Copy`).
+/// #[derive(Clone, Copy)]
 /// struct Mine;
 /// impl geocoordinates::LatLon for Mine {
 ///     fn lat(&self) -> f64 { 0.0 }
