@@ -10,7 +10,7 @@ use crate::fix::{AccuracyKind, AxisOrder, DatumAmbiguity, Fix};
 use crate::format::{
     DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle,
 };
-use crate::grids::{Geohash, Maidenhead, MgrsPrecision, PlusCode, UtmHemisphere};
+use crate::grids::{Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, UtmHemisphere};
 use crate::parse::{GridKind, ParseOptions};
 use crate::test_support::assert_hash_consistent;
 use crate::{Approx, Coordinate, Crs, Error, LengthUnit, ParseErrorKind};
@@ -184,8 +184,8 @@ fn format_and_parse_options_hash_consistently() {
     ]);
 }
 
-/// Grid codes parsed from different spellings of one cell compare, and so
-/// hash, equal.
+/// Grid codes parsed from different spellings of one cell (or square)
+/// compare, and so hash, equal.
 #[test]
 fn grid_codes_hash_consistently() {
     let geohash = |s| Geohash::parse(s).unwrap();
@@ -195,6 +195,13 @@ fn grid_codes_hash_consistently() {
         plus("8FVC9G8F+6X"),
         plus("8fvc9g8f+6x"),
         plus("8FVC9G8F+6W"),
+    ]);
+    // `Mgrs` implements `Hash` by hand, over its canonical string.
+    let mgrs = |s| Mgrs::parse(s).unwrap();
+    assert_hash_consistent(&[
+        mgrs("4QFJ12345678"),
+        mgrs("04qfj 1234 5678"),
+        mgrs("04QFJ12345679"),
     ]);
     let maidenhead = |s| Maidenhead::parse(s).unwrap();
     assert_hash_consistent(&[
