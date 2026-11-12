@@ -209,6 +209,27 @@ fn call_scan_ignores_comments_strings_and_definitions() {
         &none
     ));
     assert!(checks_error("{ if let Err(e) = f() { drop(e) } }", &none));
+    assert!(checks_error(
+        "{ let Err(e) = f() else { panic!(\"no error\") }; }",
+        &none
+    ));
+    // A success-only test whose `Err` arm or branch only fails the test.
+    assert!(!checks_error(
+        "{ match f() { Ok(v) => assert_eq!(v, 1), Err(e) => panic!(\"{e}\") } }",
+        &none
+    ));
+    assert!(!checks_error(
+        "{ match f() { Ok(_) => {} Err(e) => { unreachable!(\"{e}\") } } }",
+        &none
+    ));
+    assert!(!checks_error(
+        "{ match f() { Ok(_) => {} Err(e) if e.is_x() => todo!() } }",
+        &none
+    ));
+    assert!(!checks_error(
+        "{ if let Err(e) = f() { panic!(\"{e}\") } }",
+        &none
+    ));
     assert!(!checks_error("{ match f() { MyErr(e) => {} } }", &none));
     assert!(!checks_error(
         "{ assert!(matches!(f(), Ok(_))); let _ = Err(1); }",
@@ -307,6 +328,11 @@ const BARE_F64_EXCEPTIONS: &[&str] = &[
     "hemisphere_sign",
     // Names degrees as its target, as the scheme allows.
     "normalize_degrees",
+    "dms_to_degrees",
+    "ddm_to_degrees",
+    // Dimensionless ellipsoid shape parameters, not lengths.
+    "ellipsoid_flattening",
+    "ellipsoid_eccentricity_sq",
 ];
 
 /// Records whose `TryFrom` only validates the records they embed, each of which
@@ -320,8 +346,12 @@ fn exports_follow_naming_scheme() {
     let names: BTreeSet<&str> = exports.iter().map(|e| e.name.as_str()).collect();
     let mut wrong = Vec::new();
 
-    // A bare length or angle names its unit.
-    for e in exports.iter().filter(|e| e.ret == "f64") {
+    // A bare length or angle names its unit, also inside `Result` / `Option`.
+    let aliases = result_aliases(&sources);
+    for e in exports
+        .iter()
+        .filter(|e| value_type(&e.ret, &aliases) == "f64")
+    {
         let suffixed = ["_m", "_meters", "_deg"]
             .iter()
             .any(|s| e.name.ends_with(s));
@@ -436,4 +466,17 @@ fn naming_scheme_records_are_read() {
         BTreeSet::from(["Gcj02".into(), "GeoBounds".into(), "Wgs84".into()])
     );
     assert_eq!(snake_case("BaiduMercator"), "baidu_mercator");
+
+    // The unit rule reads the value inside `Result` / `Option` and aliases.
+    let aliases = BTreeSet::from(["GeoResult".to_string()]);
+    assert_eq!(value_type("Result<f64, GeoError>", &aliases), "f64");
+    assert_eq!(value_type("std::result::Result<f64, E>", &aliases), "f64");
+    assert_eq!(value_type("Option<f64>", &aliases), "f64");
+    assert_eq!(value_type("GeoResult<Option<f64>>", &aliases), "f64");
+    assert_eq!(value_type("f64", &aliases), "f64");
+    assert_eq!(value_type("Vec<f64>", &aliases), "Vec<f64>");
+    assert_eq!(
+        value_type("Result<Vec<f64>, GeoError>", &aliases),
+        "Vec<f64>"
+    );
 }

@@ -302,6 +302,30 @@ pub fn is_result(ty: &str, aliases: &BTreeSet<String>) -> bool {
     last == "Result" || aliases.contains(last)
 }
 
+/// The value a caller reads from the return type `ty`: the first type argument
+/// of a `Result`, an `Option` or a `Result` alias in `aliases` (unwrapped
+/// again where it nests), else `ty` itself.
+pub fn value_type<'a>(ty: &'a str, aliases: &BTreeSet<String>) -> &'a str {
+    let ty = ty.trim();
+    let Some((head, args)) = ty.split_once('<') else {
+        return ty;
+    };
+    let last = head.rsplit("::").next().unwrap_or("").trim();
+    if !(last == "Option" || is_result(head, aliases)) {
+        return ty;
+    }
+    let mut depth = 0;
+    for (i, ch) in args.char_indices() {
+        match ch {
+            '<' | '(' => depth += 1,
+            '>' | ')' if depth > 0 => depth -= 1,
+            ',' | '>' if depth == 0 => return value_type(&args[..i], aliases),
+            _ => {}
+        }
+    }
+    ty
+}
+
 /// Whether `doc` has an `# Errors` heading with at least one non-empty line
 /// before the next heading.
 pub fn documents_errors(doc: &[String]) -> bool {
@@ -357,9 +381,22 @@ pub fn fn_bodies(code: &str) -> Vec<(String, &str)> {
     bodies
 }
 
+/// Whether `code` opens with a macro that fails the test, optionally inside a
+/// block: the body of an arm or branch that rejects the value it matched.
+fn fails_first(code: &str) -> bool {
+    let code = code.trim_start();
+    let code = code.strip_prefix('{').unwrap_or(code).trim_start();
+    ["panic!", "unreachable!", "todo!", "unimplemented!"]
+        .iter()
+        .any(|m| code.starts_with(m))
+}
+
 /// Whether `body` checks an error: `is_err()`, `unwrap_err()`, `expect_err(…)`,
-/// a `matches!(…, Err(…))`, an `Err(…) =>` match arm (or `if let Err(…)`), or a
-/// call to one of the `helpers` that does.
+/// a `matches!(…, Err(…))`, an `Err(…) =>` match arm (or `if let Err(…)`, or
+/// `let Err(…) = … else`), or a call to one of the `helpers` that does. An arm
+/// or `if let` branch whose body opens with `panic!` / `unreachable!` (or
+/// `todo!` / `unimplemented!`) rejects the error rather than checking it, so it
+/// does not count.
 pub fn checks_error(body: &str, helpers: &BTreeSet<String>) -> bool {
     body.contains(".is_err()")
         || body.contains(".unwrap_err()")
@@ -368,10 +405,23 @@ pub fn checks_error(body: &str, helpers: &BTreeSet<String>) -> bool {
             .match_indices("matches!(")
             .any(|(i, _)| parens(&body[i..]).0.contains("Err("))
         || body.match_indices("Err(").any(|(i, _)| {
+            if body[..i].ends_with(is_ident) {
+                return false;
+            }
             let rest = parens(&body[i..]).1.trim_start();
-            let arm = rest.starts_with("=>") || rest.starts_with("if ");
-            let bounded = !body[..i].ends_with(is_ident);
-            bounded && (arm || body[..i].trim_end().ends_with("let"))
+            let before = body[..i].trim_end();
+            if rest.starts_with("=>") || rest.starts_with("if ") {
+                // A match arm: its body follows the (guarded) `=>`.
+                rest.split_once("=>")
+                    .is_some_and(|(_, arm)| !fails_first(arm))
+            } else if before.ends_with("if let") || before.ends_with("while let") {
+                // The branch body follows the scrutinee's opening `{`.
+                rest.split_once('{')
+                    .is_some_and(|(_, branch)| !fails_first(branch))
+            } else {
+                // `let Err(…) = … else { … }` fails the test on success.
+                before.ends_with("let")
+            }
         })
         || helpers.iter().any(|h| {
             body.match_indices(&format!("{h}("))
