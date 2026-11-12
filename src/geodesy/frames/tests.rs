@@ -265,3 +265,48 @@ fn serde_round_trips_and_rejects_invalid_values() {
     let wrapped: Aer = serde_json::from_str(&json.replace("30.0", "390.0")).unwrap();
     assert_close(wrapped.azimuth_deg(), 30.0, 1e-12);
 }
+
+/// Finite components whose combined length overflows reach the validator
+/// (`serde_json` reads `1.7e308` as an ordinary `f64`), which rejects them by
+/// naming the `magnitude` component. Proves deserialization runs `new`.
+#[cfg(feature = "serde")]
+#[test]
+fn serde_rejects_overflowing_magnitude() {
+    let big = 1.7e308;
+    // Each literal alone is a valid component, so the parser accepts it.
+    assert_eq!(
+        serde_json::from_str::<Enu>(r#"{"east_m":1.7e308,"north_m":0.0,"up_m":0.0}"#).unwrap(),
+        enu(big, 0.0, 0.0)
+    );
+    let enu_err =
+        serde_json::from_str::<Enu>(r#"{"east_m":1.7e308,"north_m":1.7e308,"up_m":1.7e308}"#)
+            .unwrap_err();
+    let ned_err =
+        serde_json::from_str::<Ned>(r#"{"north_m":1.7e308,"east_m":1.7e308,"down_m":1.7e308}"#)
+            .unwrap_err();
+    for err in [enu_err, ned_err] {
+        assert!(err.is_data(), "{err}");
+        assert!(err.to_string().contains("`magnitude`"), "{err}");
+    }
+    assert!(matches!(
+        Ned::new(big, big, big),
+        Err(Error::InvalidValue {
+            field: "magnitude",
+            ..
+        })
+    ));
+}
+
+/// Each frame `From` impl is thin sugar over its named method.
+#[test]
+fn frame_from_impls_equal_named_methods() {
+    let e = enu(120.5, -340.25, 18.0);
+    let n = e.to_ned();
+    let a = aer(215.0, -12.5, 950.0);
+    assert_eq!(Ned::from(e), e.to_ned());
+    assert_eq!(Enu::from(n), n.to_enu());
+    assert_eq!(Aer::from(e), e.to_aer());
+    assert_eq!(Enu::from(a), a.to_enu());
+    assert_eq!(Aer::from(n), n.to_aer());
+    assert_eq!(Ned::from(a), a.to_ned());
+}

@@ -109,6 +109,20 @@ pub(crate) fn near_china_box(lat: f64, lon: f64, margin_deg: f64) -> bool {
 /// assert!(Wgs84::new(90.5, 116.404).is_err());
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
+///
+/// The datum is part of the type, so a GCJ-02 position never passes for one:
+///
+/// ```compile_fail,E0308
+/// let gcj = geocoordinates::china::Gcj02::new(39.9, 116.4).unwrap();
+/// // Expected: E0308, mismatched types (`Gcj02` is not `Wgs84`).
+/// let _: geocoordinates::china::Wgs84 = gcj;
+/// ```
+///
+/// ```compile_fail,E0277
+/// let gcj = geocoordinates::china::Gcj02::new(39.9, 116.4).unwrap();
+/// // Expected: E0277, `Wgs84: From<Gcj02>` is not satisfied (the inverse is approximate).
+/// let _: geocoordinates::china::Wgs84 = gcj.into();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "LatLonRecord"))]

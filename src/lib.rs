@@ -26,15 +26,19 @@
 //!   are plain `to_x()` methods, with [`From`] as sugar.
 //!
 //! ```
-//! use geocoordinates::Approx;
 //! use geocoordinates::china::{Bd09, Gcj02, Wgs84};
+//! use geocoordinates::{Approx, Length};
 //!
 //! let wgs = Wgs84::new(39.915, 116.404)?; // validated once, here
 //! let gcj: Gcj02 = wgs.to_gcj02(); // exact forward offset, infallible
+//! assert!((gcj.lat() - 39.916_404).abs() < 1e-6 && (gcj.lon() - 116.410_244).abs() < 1e-6);
 //! let bd: Bd09 = wgs.try_to_bd09()?; // exact composition, fallible near a pole
+//! assert!((bd.lat() - 39.922_700).abs() < 1e-6 && (bd.lon() - 116.416_627).abs() < 1e-6);
 //! let w: Approx<Wgs84> = gcj.to_wgs84_refined(); // approximate inverse
-//! println!("{} ± {} m", w.value().lat(), w.max_error().meters());
-//! # let _ = bd;
+//! assert_eq!(w.max_error(), Length::from_meters(0.5)); // the stated bound...
+//! // ...holds: the round trip lands well within it (1e-6 degrees is about 0.1 m).
+//! assert!((w.value().lat() - wgs.lat()).abs() < 1e-6);
+//! assert!((w.value().lon() - wgs.lon()).abs() < 1e-6);
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 //!
@@ -147,6 +151,10 @@ pub mod privacy;
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
 pub(crate) mod test_support;
+
+/// Tests pinning the type-level promises across the public surface.
+#[cfg(test)]
+mod promises;
 
 // The crate root holds the core types, each re-exported from its private
 // implementation module; it is their only path. The broader common working

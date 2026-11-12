@@ -36,6 +36,14 @@ use crate::{Error, Length, Result};
 /// let _ = wgs.lat(); // no `Deref`: an approximate value is not read as exact
 /// ```
 ///
+/// Nor does it stand in for the exact type it wraps:
+///
+/// ```compile_fail,E0308
+/// use geocoordinates::china::{Gcj02, Wgs84};
+/// // Expected: E0308, mismatched types (`Approx<Wgs84>` is not `Wgs84`).
+/// let _: Wgs84 = Gcj02::new(39.9, 116.4).unwrap().to_wgs84_refined();
+/// ```
+///
 /// Note: the derived [`PartialEq`] compares [`max_error`](Approx::max_error)
 /// too, so two approximations of the same point with different bounds are not
 /// equal. Compare [`value`](Approx::value) explicitly for a bound-agnostic test.
