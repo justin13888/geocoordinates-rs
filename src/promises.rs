@@ -260,7 +260,13 @@ fn feature_gated_types_hash_consistently() {
     #[cfg(feature = "privacy")]
     {
         use crate::privacy::{Precision, SnapGrid, ZoneAction};
-        let grids = [SnapGrid::Geohash, SnapGrid::H3, SnapGrid::S2];
+        let grids = [
+            SnapGrid::Geohash,
+            #[cfg(feature = "h3")]
+            SnapGrid::H3,
+            #[cfg(feature = "s2")]
+            SnapGrid::S2,
+        ];
         assert_hash_consistent(&[grids, grids].concat());
         let precision = |level| Precision::new(SnapGrid::Geohash, level).unwrap();
         assert_hash_consistent(&[precision(5), precision(6), precision(5)]);
