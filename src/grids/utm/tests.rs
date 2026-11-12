@@ -256,6 +256,31 @@ fn ups_rejects_non_polar_latitudes() {
     );
 }
 
+/// `TryFrom<Coordinate>` is thin sugar over `try_from_coordinate`, on success
+/// and on every failure (outside the domain, and a non-WGS-84 datum).
+#[test]
+fn utm_ups_try_from_equals_named_method() {
+    let gcj = Coordinate::gcj02(39.9, 116.4).unwrap();
+    for coord in [
+        c(40.0, -75.0),
+        c(-33.9, 151.2),
+        c(86.0, 10.0),
+        c(-88.0, 0.0),
+        gcj,
+    ] {
+        assert_eq!(
+            Utm::try_from(coord),
+            Utm::try_from_coordinate(coord),
+            "{coord:?}"
+        );
+        assert_eq!(
+            Ups::try_from(coord),
+            Ups::try_from_coordinate(coord),
+            "{coord:?}"
+        );
+    }
+}
+
 #[test]
 fn projections_reject_wrong_crs_and_out_of_range_input_is_unconstructible() {
     use crate::Crs::{Gcj02, Wgs84};
