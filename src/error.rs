@@ -42,6 +42,25 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 /// let e = Coordinate::wgs84(95.0, 10.0).unwrap_err();
 /// assert_eq!(e.to_string(), "coordinate out of valid range: lat=95, lon=10");
 /// ```
+///
+/// Naming every current variant without a wildcard arm does not compile:
+///
+/// ```compile_fail,E0004
+/// use geocoordinates::Error;
+///
+/// fn name(e: Error) -> &'static str {
+///     // Expected: E0004, non-exhaustive patterns: `_` not covered.
+///     match e {
+///         Error::OutOfRange { .. } => "out of range",
+///         Error::OutsideDomain { .. } => "outside domain",
+///         Error::InvalidValue { .. } => "invalid value",
+///         Error::InvalidCellId { .. } => "invalid cell id",
+///         Error::Parse { .. } => "parse",
+///         Error::CrsMismatch { .. } => "crs mismatch",
+///         Error::InvalidGridRef(_) => "invalid grid ref",
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {

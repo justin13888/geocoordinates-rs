@@ -607,4 +607,31 @@ mod tests {
             assert!(serde_json::from_str::<Accuracy>(bad).is_err(), "{bad}");
         }
     }
+
+    /// A `Fix` with every optional field set, and its `RawSource` likewise,
+    /// read back equal to what was written.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn fix_serde_round_trips() {
+        use super::{AxisOrder, DatumAmbiguity, Fix, RawSource};
+        use crate::{Coordinate, Height};
+        use std::time::{Duration, SystemTime};
+
+        let coord = Coordinate::gcj02(39.9, 116.4).unwrap();
+        let mut source = RawSource::new("39.9, 116.4", Confidence::new(0.8).unwrap());
+        source.axis_order = Some(AxisOrder::LonLat);
+        source.datum_ambiguity = Some(DatumAmbiguity::PossiblyGcj02);
+        source.geoid_separation = Some(Length::from_meters(-28.5));
+        source.notes = vec!["first".into(), "second".into()];
+        let json = serde_json::to_string(&source).unwrap();
+        assert_eq!(serde_json::from_str::<RawSource>(&json).unwrap(), source);
+
+        let mut fix = Fix::from_coord(coord.with_height(Height::Orthometric(43.5)).unwrap());
+        let m = Some(Length::from_meters(3.0));
+        fix.accuracy = Some(Accuracy::new(AccuracyKind::Cep50, m, m).unwrap());
+        fix.timestamp = Some(SystemTime::UNIX_EPOCH + Duration::new(1_700_000_000, 250_000_000));
+        fix.source = Some(source);
+        let json = serde_json::to_string(&fix).unwrap();
+        assert_eq!(serde_json::from_str::<Fix>(&json).unwrap(), fix);
+    }
 }

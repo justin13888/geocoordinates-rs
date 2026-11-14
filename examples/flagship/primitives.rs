@@ -20,7 +20,7 @@ use geocoordinates::grids::{
     Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
 };
 use geocoordinates::parse::{GridKind, ParseOptions};
-use geocoordinates::{Approx, Coordinate, Crs, Height, Length, LengthUnit};
+use geocoordinates::{Approx, Coordinate, Crs, Height, Length, LengthUnit, ParseErrorKind};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -101,6 +101,8 @@ fn eq_value_types_are_hashable() {
     assert_hash::<ParseOptions>();
     assert_hash::<GridKind>();
     assert_hash::<UtmHemisphere>();
+    assert_hash::<MgrsPrecision>();
+    assert_hash::<ParseErrorKind>();
 }
 
 pub(crate) fn primitives_and_serde() -> DemoResult {

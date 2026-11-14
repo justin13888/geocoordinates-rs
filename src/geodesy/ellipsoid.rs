@@ -144,6 +144,13 @@ impl Ellipsoid {
     /// assert!(Ellipsoid::new(Length::from_meters(6_371_000.0), 0.5).is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
+    ///
+    /// The axis is a [`Length`], so a bare number of unstated unit is rejected:
+    ///
+    /// ```compile_fail,E0308
+    /// // Expected: E0308, mismatched types (`f64` where `Length` is expected).
+    /// let _ = geocoordinates::geodesy::Ellipsoid::new(6_378_137.0, 298.257_223_563);
+    /// ```
     pub fn new(semi_major: Length, inverse_flattening: f64) -> Result<Self> {
         let a = semi_major.meters();
         if !a.is_finite() || a <= 0.0 {

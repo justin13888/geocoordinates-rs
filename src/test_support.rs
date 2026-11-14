@@ -77,6 +77,26 @@ pub(crate) fn assert_close(actual: f64, expected: f64, eps: f64) {
     );
 }
 
+/// Assert `Hash` agrees with `Eq` across `values`: every pair that compares
+/// equal hashes equal. List each value more than once, built independently
+/// (a second parse, a different spelling), so equal pairs exist to check.
+#[track_caller]
+pub(crate) fn assert_hash_consistent<T: Eq + core::hash::Hash + core::fmt::Debug>(values: &[T]) {
+    use core::hash::BuildHasher;
+    let state = std::hash::RandomState::new();
+    let mut equal_pairs = 0;
+    for a in values {
+        for b in values.iter().filter(|b| a == *b) {
+            assert_eq!(state.hash_one(a), state.hash_one(b), "{a:?} == {b:?}");
+            equal_pairs += 1;
+        }
+    }
+    assert!(
+        equal_pairs > values.len(),
+        "no two distinct entries compare equal"
+    );
+}
+
 /// A reference point with its representation in each China datum, in
 /// `(lat, lon)` decimal-degree order. `bd09` is present only where the source
 /// provides a BD-09 value for the *same* physical point.
