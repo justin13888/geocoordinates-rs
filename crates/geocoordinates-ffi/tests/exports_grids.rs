@@ -96,6 +96,15 @@ fn maidenhead_encodes_and_decodes_its_square() {
     let square = maidenhead_decode("FN20".to_string()).unwrap();
     assert_eq!(square.coord, wgs84(40.5, -75.0));
     close(square.max_error_m, 101_592.817_120_622_36, 1e-6);
+    assert!(matches!(
+        maidenhead_encode(wgs84(40.5, -75.0), 4),
+        Err(GeoError::InvalidValue { .. })
+    ));
+    assert!(matches!(
+        maidenhead_encode(gcj02(40.5, -75.0), 2),
+        Err(GeoError::CrsMismatch { .. })
+    ));
+    assert!(maidenhead_decode("ZZ99".to_string()).is_err());
 }
 
 // --- UTM / UPS / MGRS ---
@@ -361,6 +370,9 @@ fn parse_gpx_reads_a_waypoint() {
     close(fixes[0].accuracy.unwrap().horizontal_m.unwrap(), 7.5, 1e-12);
     // GPX labels its axes with attributes, so no listing order is recorded.
     assert_eq!(fixes[0].source.as_ref().unwrap().axis_order, None);
+    let out_of_range = r#"<gpx version="1.1"><wpt lat="91" lon="0"></wpt></gpx>"#;
+    let (kind, _) = parse_error(parse_gpx(out_of_range.to_string()));
+    assert_eq!(kind, ParseErrorKind::Syntax);
 }
 
 #[test]

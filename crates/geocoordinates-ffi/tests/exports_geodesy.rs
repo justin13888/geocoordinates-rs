@@ -217,6 +217,27 @@ fn midpoint_and_intermediate_lie_on_the_geodesic() {
 }
 
 #[test]
+fn geodesic_exports_reject_mixed_datums_and_bad_input() {
+    let gcj = coordinate_new(39.9, 116.4, Crs::Gcj02).unwrap();
+    assert!(matches!(
+        haversine_distance_m(new_york(), gcj),
+        Err(GeoError::CrsMismatch { .. })
+    ));
+    assert!(matches!(
+        final_bearing_deg(new_york(), gcj),
+        Err(GeoError::CrsMismatch { .. })
+    ));
+    assert!(matches!(
+        midpoint(new_york(), gcj),
+        Err(GeoError::CrsMismatch { .. })
+    ));
+    match intermediate(new_york(), london(), 1.5) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "fraction"),
+        other => panic!("expected InvalidValue, got {other:?}"),
+    }
+}
+
+#[test]
 fn rhumb_line_distance_bearing_and_destination_are_pinned() {
     // GeographicLib RhumbSolve on WGS-84: I 40.7128 -74.006 51.5074 -0.1278
     // and D 40.7128 -74.006 45 100000.
