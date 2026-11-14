@@ -73,7 +73,7 @@ pub struct Approx<T> {
 #[derive(serde::Deserialize)]
 struct ApproxRepr<T> {
     value: T,
-    #[serde(with = "max_error_serde")]
+    #[serde(with = "infinity_as_none")]
     max_error_m: f64,
 }
 
@@ -82,7 +82,7 @@ struct ApproxRepr<T> {
 #[derive(serde::Serialize)]
 struct ApproxRef<'a, T> {
     value: &'a T,
-    #[serde(with = "max_error_serde")]
+    #[serde(with = "infinity_as_none")]
     max_error_m: f64,
 }
 
@@ -107,21 +107,23 @@ impl<T: serde::Serialize> serde::Serialize for Approx<T> {
     }
 }
 
-/// (De)serializes an error bound with `f64::INFINITY` as none, because JSON
-/// writes infinity as `null` and cannot read `null` back as a number.
+/// (De)serializes an `f64` whose `+∞` means "unbounded" (an [`Approx`] error
+/// bound, a sphere's inverse flattening) with `f64::INFINITY` as none, because
+/// JSON writes infinity as `null` and cannot read `null` back as a number. A
+/// finite value keeps its plain-number wire shape.
 #[cfg(feature = "serde")]
-mod max_error_serde {
+pub(crate) mod infinity_as_none {
     use serde::{Deserialize, Deserializer, Serializer};
 
-    pub(super) fn serialize<S: Serializer>(bound: &f64, s: S) -> Result<S::Ok, S::Error> {
-        if *bound == f64::INFINITY {
+    pub(crate) fn serialize<S: Serializer>(value: &f64, s: S) -> Result<S::Ok, S::Error> {
+        if *value == f64::INFINITY {
             s.serialize_none()
         } else {
-            s.serialize_some(bound)
+            s.serialize_some(value)
         }
     }
 
-    pub(super) fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<f64, D::Error> {
+    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<f64, D::Error> {
         Ok(Option::<f64>::deserialize(d)?.unwrap_or(f64::INFINITY))
     }
 }
