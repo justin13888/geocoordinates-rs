@@ -114,7 +114,7 @@ pub(crate) fn primitives_and_serde() -> DemoResult {
     assert_eq!(coordinate.height(), Some(Height::Ellipsoidal(12.5)));
     // Either surface reads back as a `Length`.
     assert_eq!(
-        coordinate.height().map(Height::meters),
+        coordinate.height().map(Height::length),
         Some(Length::from_meters(12.5))
     );
     assert_close(coordinate.lat(), 40.7128, 1e-12);

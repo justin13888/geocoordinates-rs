@@ -185,11 +185,11 @@ impl Height {
     /// ```
     /// use geocoordinates::{Height, Length};
     ///
-    /// assert_eq!(Height::Ellipsoidal(46.9).meters(), Length::from_meters(46.9));
-    /// assert_eq!(Height::Orthometric(-28.0).meters().meters(), -28.0);
+    /// assert_eq!(Height::Ellipsoidal(46.9).length(), Length::from_meters(46.9));
+    /// assert_eq!(Height::Orthometric(-28.0).length().meters(), -28.0);
     /// ```
     #[must_use]
-    pub const fn meters(self) -> Length {
+    pub const fn length(self) -> Length {
         match self {
             Height::Ellipsoidal(value) | Height::Orthometric(value) => Length::from_meters(value),
         }

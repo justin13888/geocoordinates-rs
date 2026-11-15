@@ -70,7 +70,7 @@ pub enum geocoordinates::Height
 pub geocoordinates::Height::Ellipsoidal(f64)
 pub geocoordinates::Height::Orthometric(f64)
 impl geocoordinates::Height
-pub const fn geocoordinates::Height::meters(self) -> geocoordinates::Length
+pub const fn geocoordinates::Height::length(self) -> geocoordinates::Length
 impl core::clone::Clone for geocoordinates::Height
 pub fn geocoordinates::Height::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::Height

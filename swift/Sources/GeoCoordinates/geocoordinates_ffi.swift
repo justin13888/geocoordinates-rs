@@ -11436,7 +11436,7 @@ public func fixFromCoord(coord: Coordinate)throws  -> Fix  {
 }
 /**
  * The height in meters, whichever surface it is measured from — mirror of
- * [`gc::Height::meters`] (`Length` is flattened to `f64` meters).
+ * [`gc::Height::length`] (`Length` is flattened to `f64` meters).
  */
 public func heightMeters(height: Height) -> Double  {
     return try!  FfiConverterDouble.lift(try! rustCall() {
@@ -13950,7 +13950,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_fix_from_coord() != 4840) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_height_meters() != 31695) {
+    if (uniffi_geocoordinates_ffi_checksum_func_height_meters() != 52988) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_length_from_unit() != 28617) {
