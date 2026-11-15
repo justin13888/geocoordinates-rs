@@ -159,7 +159,13 @@ fn s2_bound_covers_the_ellipsoidal_vertex_distance() {
 fn invalid_ids_and_levels_are_rejected() {
     #[cfg(feature = "h3")]
     {
-        assert!(H3Cell::encode(c(0.0, 0.0), 16).is_err());
+        assert!(matches!(
+            H3Cell::encode(c(0.0, 0.0), 16),
+            Err(Error::InvalidValue {
+                field: "resolution",
+                ..
+            })
+        ));
         assert!(matches!(
             H3Cell::new(0),
             Err(Error::InvalidCellId {
@@ -177,7 +183,10 @@ fn invalid_ids_and_levels_are_rejected() {
     }
     #[cfg(feature = "s2")]
     {
-        assert!(S2CellId::encode(c(0.0, 0.0), 31).is_err());
+        assert!(matches!(
+            S2CellId::encode(c(0.0, 0.0), 31),
+            Err(Error::InvalidValue { field: "level", .. })
+        ));
         assert!(matches!(
             S2CellId::new(0),
             Err(Error::InvalidCellId {
