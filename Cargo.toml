@@ -156,10 +156,9 @@ geotag = []
 #
 # Location privacy: deterministic coarsening to a grid cell centre with a stated
 # bound, and geodesic exclusion zones that strip or coarsen a fix. No external dep
-# and no randomness; it still enables `index`, though its box zones now need only
-# the ungated `geodesy::GeoBounds`, and it snaps to H3 or S2
-# cells where `h3` or `s2` is on:
-privacy = ["index"]
+# and no randomness, and it does not enable `index`: its box zones use the ungated
+# `geodesy::GeoBounds`. It snaps to H3 or S2 cells where `h3` or `s2` is on:
+privacy = []
 #
 # Heavy / external integrations (BLOCKED — see STABILIZATION.md). Neither has
 # any source in-tree; these placeholders only record the intended feature names:
