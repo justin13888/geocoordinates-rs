@@ -10,8 +10,8 @@ use crate::Length;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
 use crate::fix::Fix;
+use crate::geodesy::GeoBounds;
 use crate::geodesy::geodesic_distance;
-use crate::index::GeoBounds;
 
 /// A stay point: a run of fixes that stayed near one place for long enough.
 ///

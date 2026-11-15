@@ -3,7 +3,7 @@
 use super::mercator::{MAX_TILE_ZOOM, lat_at, unit_x, unit_y};
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 
 /// One XYZ ("slippy map") tile: zoom `z`, column `x` counted east from the
 /// antimeridian, row `y` counted south from the map's top edge, valid by
@@ -256,7 +256,7 @@ impl Tile {
 /// is built, so a large box at a deep zoom cannot ask for unbounded output.
 ///
 /// ```
-/// use geocoordinates::{Crs, Error, index::GeoBounds, map::{Tile, tiles_covering}};
+/// use geocoordinates::{Crs, Error, geodesy::GeoBounds, map::{Tile, tiles_covering}};
 ///
 /// // Across the antimeridian: the last column, then the first.
 /// let fiji = GeoBounds::new(-20.0, 170.0, -10.0, -170.0, Crs::Wgs84)?;

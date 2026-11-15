@@ -8,7 +8,7 @@ use crate::coord::Coordinate;
 #[cfg(feature = "serde")]
 use crate::error::Error;
 use crate::error::Result;
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 use crate::{Approx, Length};
 
 /// One cluster or point at one zoom of a [`ClusterIndex`].
@@ -17,7 +17,7 @@ use crate::{Approx, Length};
 /// [`ClusterIndex::leaves`] pages through the member ids instead.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, index::GeoBounds};
+/// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
 ///
 /// let here = Coordinate::wgs84(1.0, 2.0)?;
 /// let index = ClusterIndex::new([here, here], Default::default())?;
@@ -102,7 +102,7 @@ impl MapCluster {
     /// input, and stays the same across updates that leave the seed's role alone.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
     /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
@@ -119,7 +119,7 @@ impl MapCluster {
     /// [`ClusterIndex::children`] of a cluster at [`MAX_ZOOM`] has one more.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
     /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
@@ -139,7 +139,7 @@ impl MapCluster {
     /// exact.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let here = Coordinate::wgs84(1.0, 2.0)?;
     /// let index = ClusterIndex::new([here], Default::default())?;
@@ -158,7 +158,7 @@ impl MapCluster {
     /// it can be a little larger than the smallest such box.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
     /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
@@ -173,7 +173,7 @@ impl MapCluster {
     /// The number of points in the cluster.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
     /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;

@@ -7,7 +7,8 @@ use super::types::Cluster;
 use crate::Length;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::index::{GeoBounds, Neighbor, SpatialIndex};
+use crate::geodesy::GeoBounds;
+use crate::index::{Neighbor, SpatialIndex};
 
 /// What [`dbscan`] made of one input point.
 ///

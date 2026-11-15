@@ -68,8 +68,9 @@
 //!
 //! Every module declared below is implemented, tested, and released. The
 //! surface spans the core primitives, the China datums, formatting and
-//! parsing, interchange and sensor ingestion, geodesy, projected and encoded
-//! grids, and runtime CRS dispatch. `README.md` tabulates it by subsystem,
+//! parsing, interchange and sensor ingestion, geodesy (with the
+//! antimeridian-aware [`geodesy::GeoBounds`] box, in every build), projected
+//! and encoded grids, and runtime CRS dispatch. `README.md` tabulates it by subsystem,
 //! together with the FFI parity status of each entry.
 //!
 //! Two capabilities remain deliberately unreleased because they need a system
@@ -223,14 +224,14 @@ pub mod prelude {
         destination, final_bearing, geodesic_distance, initial_bearing, intermediate, intersection,
         intersection_spherical, midpoint, rhumb_bearing, rhumb_destination, rhumb_distance,
     };
-    pub use crate::geodesy::{DatumTransform, Helmert};
+    pub use crate::geodesy::{DatumTransform, GeoBounds, Helmert};
     #[cfg(feature = "geotag")]
     pub use crate::geotag::{GeotagOptions, Interpolation, Track, estimate_offset};
     pub use crate::grids::{
         Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
     };
     #[cfg(feature = "index")]
-    pub use crate::index::{GeoBounds, Neighbor, SpatialIndex};
+    pub use crate::index::{Neighbor, SpatialIndex};
     #[cfg(feature = "map")]
     pub use crate::map::{
         Camera, DisplayDatum, Tile, Viewport, WebMercator, WorldPixel, clusters_in_view,

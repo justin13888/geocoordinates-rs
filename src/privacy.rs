@@ -55,7 +55,7 @@
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 //!
-//! [`GeoBounds`]: crate::index::GeoBounds
+//! [`GeoBounds`]: crate::geodesy::GeoBounds
 
 mod zone;
 

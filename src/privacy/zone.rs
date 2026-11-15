@@ -5,8 +5,8 @@ use super::{Precision, coarsen_fix};
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::fix::Fix;
+use crate::geodesy::GeoBounds;
 use crate::geodesy::{Ellipsoid, geodesic_distance};
-use crate::index::GeoBounds;
 use crate::units::Length;
 
 /// A place whose fixes are never shared exactly: a geodesic circle, or a
@@ -28,7 +28,7 @@ use crate::units::Length;
 /// `{"Bounds":{…}}`.
 ///
 /// ```
-/// use geocoordinates::index::GeoBounds;
+/// use geocoordinates::geodesy::GeoBounds;
 /// use geocoordinates::privacy::ExclusionZone;
 /// use geocoordinates::{Coordinate, Crs, Length};
 ///
@@ -121,7 +121,7 @@ impl ExclusionZone {
     /// is already valid.
     ///
     /// ```
-    /// use geocoordinates::index::GeoBounds;
+    /// use geocoordinates::geodesy::GeoBounds;
     /// use geocoordinates::privacy::ExclusionZone;
     /// use geocoordinates::Crs;
     ///
@@ -139,7 +139,7 @@ impl ExclusionZone {
     /// The centre and radius of a circular zone, or `None` for a box.
     ///
     /// ```
-    /// use geocoordinates::index::GeoBounds;
+    /// use geocoordinates::geodesy::GeoBounds;
     /// use geocoordinates::privacy::ExclusionZone;
     /// use geocoordinates::Crs;
     ///

@@ -134,6 +134,7 @@ pub geocoordinates::prelude::Fix::timestamp: core::option::Option<std::time::Sys
 pub geocoordinates::prelude::FormatOptions::decimal_separator: geocoordinates::format::DecimalSeparator
 pub geocoordinates::prelude::FormatOptions::representation: geocoordinates::format::Representation
 pub struct geocoordinates::prelude::Gcj02
+pub struct geocoordinates::prelude::GeoBounds
 pub struct geocoordinates::prelude::Geohash(_)
 pub struct geocoordinates::prelude::Helmert
 pub geocoordinates::prelude::Helmert::rx_arcsec: f64

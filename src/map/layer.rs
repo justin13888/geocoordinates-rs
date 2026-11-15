@@ -121,7 +121,7 @@ fn collection(features: Vec<Feature>) -> String {
 /// ```
 /// use geocoordinates::{Coordinate, Crs, Error};
 /// use geocoordinates::cluster::ClusterIndex;
-/// use geocoordinates::index::GeoBounds;
+/// use geocoordinates::geodesy::GeoBounds;
 /// use geocoordinates::map::{DisplayDatum, clusters_to_geojson};
 ///
 /// let index = ClusterIndex::new(
@@ -172,7 +172,7 @@ pub fn clusters_to_geojson(
 mod tests {
     use super::{abbreviated, clusters_to_geojson, points_to_geojson};
     use crate::cluster::ClusterIndex;
-    use crate::index::GeoBounds;
+    use crate::geodesy::GeoBounds;
     use crate::map::DisplayDatum;
     use crate::{Coordinate, Crs};
 

@@ -50,7 +50,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::Camera
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::Camera
 pub struct geocoordinates::map::Tile
 impl geocoordinates::map::Tile
-pub fn geocoordinates::map::Tile::bounds(&self, geocoordinates::Crs) -> geocoordinates::index::GeoBounds
+pub fn geocoordinates::map::Tile::bounds(&self, geocoordinates::Crs) -> geocoordinates::geodesy::GeoBounds
 pub fn geocoordinates::map::Tile::from_coordinate(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
 pub fn geocoordinates::map::Tile::from_quadkey(&str) -> geocoordinates::Result<Self>
 pub fn geocoordinates::map::Tile::new(u8, u32, u32) -> geocoordinates::Result<Self>
@@ -163,11 +163,11 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::WorldPixel
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::WorldPixel
 pub const geocoordinates::map::MAX_LATITUDE: f64
 pub const geocoordinates::map::MAX_TILE_ZOOM: u8
-pub fn geocoordinates::map::clusters_in_view(&geocoordinates::cluster::ClusterIndex, geocoordinates::index::GeoBounds, f64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
+pub fn geocoordinates::map::clusters_in_view(&geocoordinates::cluster::ClusterIndex, geocoordinates::geodesy::GeoBounds, f64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
 pub fn geocoordinates::map::clusters_to_geojson(&geocoordinates::cluster::ClusterIndex, &[geocoordinates::cluster::MapCluster], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
 pub fn geocoordinates::map::display_coordinate(geocoordinates::Coordinate, geocoordinates::map::DisplayDatum) -> geocoordinates::Result<geocoordinates::Coordinate>
-pub fn geocoordinates::map::fit_bounds(geocoordinates::index::GeoBounds, geocoordinates::map::Viewport, f64, f64) -> geocoordinates::Result<geocoordinates::map::Camera>
+pub fn geocoordinates::map::fit_bounds(geocoordinates::geodesy::GeoBounds, geocoordinates::map::Viewport, f64, f64) -> geocoordinates::Result<geocoordinates::map::Camera>
 pub fn geocoordinates::map::points_to_geojson(&[geocoordinates::Coordinate], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
 pub fn geocoordinates::map::tap_to_wgs84(geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
-pub fn geocoordinates::map::tiles_covering(geocoordinates::index::GeoBounds, u8, usize) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::map::Tile>>
-pub fn geocoordinates::map::viewport_bounds(geocoordinates::map::Camera, geocoordinates::map::Viewport) -> geocoordinates::Result<geocoordinates::index::GeoBounds>
+pub fn geocoordinates::map::tiles_covering(geocoordinates::geodesy::GeoBounds, u8, usize) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::map::Tile>>
+pub fn geocoordinates::map::viewport_bounds(geocoordinates::map::Camera, geocoordinates::map::Viewport) -> geocoordinates::Result<geocoordinates::geodesy::GeoBounds>

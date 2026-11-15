@@ -310,11 +310,10 @@ proptest! {
     }
 }
 
-#[cfg(feature = "index")]
 proptest! {
     #[test]
     fn geo_bounds(south in lat(), west in lon(), north in lat(), east in lon(), crs in crs()) {
-        use crate::index::GeoBounds;
+        use crate::geodesy::GeoBounds;
         let record = json!({"south": south, "west": west, "north": north, "east": east, "crs": crs});
         agrees(record, GeoBounds::new(south, west, north, east, crs))?;
     }

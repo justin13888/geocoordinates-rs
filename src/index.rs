@@ -1,16 +1,16 @@
-//! Antimeridian-aware geographic bounds and a static geodesic spatial index
-//! (feature `index`).
+//! A static geodesic spatial index (feature `index`).
 //!
-//! [`GeoBounds`] is a latitude / longitude box whose west edge may lie east of
-//! its east edge, which is how it crosses the antimeridian. [`SpatialIndex`]
-//! answers radius and k-nearest queries over a fixed set of coordinates with
-//! exact geodesic distances.
+//! [`SpatialIndex`] answers radius and k-nearest queries over a fixed set of
+//! coordinates with exact geodesic distances, and [`Neighbor`] is one of its
+//! answers. The antimeridian-aware box that pairs with it,
+//! [`GeoBounds`](crate::geodesy::GeoBounds), is geodesy and needs no feature.
 //!
 //! Every item is reached flat at `index::NAME`.
 //!
 //! ```
 //! use geocoordinates::{Coordinate, Length, LengthUnit};
-//! use geocoordinates::index::{GeoBounds, SpatialIndex};
+//! use geocoordinates::geodesy::GeoBounds;
+//! use geocoordinates::index::SpatialIndex;
 //!
 //! let photos = [
 //!     (Coordinate::wgs84(-17.7, 178.0)?, "Nadi"),
@@ -30,9 +30,7 @@
 
 // Every submodule is private: each public item is re-exported flat below, so
 // `index::NAME` is its one path.
-mod bounds; // the antimeridian- and pole-aware box
 mod kdtree; // the k-d tree over unit vectors behind `SpatialIndex`
 mod spatial; // the geodesic queries
 
-pub use bounds::GeoBounds;
 pub use spatial::{Neighbor, SpatialIndex};

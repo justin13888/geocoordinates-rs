@@ -30,11 +30,9 @@ fn public_types_are_send_and_sync() {
     assert_send_sync::<Fix>();
     assert_send_sync::<FormatOptions>();
     assert_send_sync::<ParseOptions>();
+    assert_send_sync::<crate::geodesy::GeoBounds>();
     #[cfg(feature = "index")]
-    {
-        assert_send_sync::<crate::index::GeoBounds>();
-        assert_send_sync::<crate::index::SpatialIndex<u32>>();
-    }
+    assert_send_sync::<crate::index::SpatialIndex<u32>>();
     #[cfg(feature = "exif")]
     assert_send_sync::<crate::exif::ExifOptions>();
     #[cfg(feature = "cluster")]

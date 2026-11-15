@@ -12,12 +12,12 @@ use self::pin::decode_id;
 use super::centroid::normal_radius_m;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 
 /// The deepest zoom a [`ClusterIndex`] clusters at. Zooms run from 0 to this.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, Error, cluster::{ClusterIndex, MAX_ZOOM}, index::GeoBounds};
+/// use geocoordinates::{Coordinate, Crs, Error, cluster::{ClusterIndex, MAX_ZOOM}, geodesy::GeoBounds};
 ///
 /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
 /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
@@ -117,7 +117,7 @@ impl ClusterIndexOptions {
 /// Heights are ignored, and every point shares a CRS with an ellipsoid.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, index::GeoBounds};
+/// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
 ///
 /// let mut index = ClusterIndex::new(
 ///     [Coordinate::wgs84(0.0, 179.99)?, Coordinate::wgs84(0.0, -179.99)?],
@@ -380,7 +380,7 @@ impl ClusterIndex {
     /// [`Error::CrsMismatch`] when `bounds` is on another CRS than the points.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new(
     ///     [Coordinate::wgs84(0.0, 179.0)?, Coordinate::wgs84(0.0, 0.0)?],
@@ -442,7 +442,7 @@ impl ClusterIndex {
     /// [`Error::InvalidValue`] (`field: "cluster_id"`) when there is no such cluster.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new(
     ///     [Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 0.01)?],
@@ -485,7 +485,7 @@ impl ClusterIndex {
     /// [`Error::InvalidValue`] (`field: "cluster_id"`) when there is no such cluster.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let here = Coordinate::wgs84(1.0, 2.0)?;
     /// let index = ClusterIndex::new([here, here, here], Default::default())?;

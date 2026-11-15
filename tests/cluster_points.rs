@@ -3,8 +3,8 @@
 #![cfg(feature = "cluster")]
 
 use geocoordinates::cluster::{Cluster, PointLabel, bucket_by_geohash, centroid, dbscan};
+use geocoordinates::geodesy::GeoBounds;
 use geocoordinates::geodesy::geodesic_distance;
-use geocoordinates::index::GeoBounds;
 use geocoordinates::{Approx, Coordinate, Crs, Error, Length};
 use proptest::prelude::*;
 

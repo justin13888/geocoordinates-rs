@@ -9,7 +9,7 @@
 mod viewport;
 
 use super::{MAX_LATITUDE, MAX_TILE_ZOOM, Tile, WebMercator, WorldPixel, tiles_covering};
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 use crate::{Coordinate, Crs, Error};
 
 fn wgs(lat: f64, lon: f64) -> Coordinate {

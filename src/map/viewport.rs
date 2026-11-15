@@ -5,7 +5,7 @@ use super::mercator::{check_tile_px, check_zoom, lat_at, lon_at, unit_x, unit_y}
 use crate::cluster::{ClusterIndex, MAX_ZOOM, MapCluster};
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 
 /// The map view on screen: its width and height, and the width of one tile, all in
 /// pixels, valid by construction.
@@ -249,7 +249,7 @@ fn columns_of(bounds: &GeoBounds) -> (f64, f64) {
 /// unless it is finite and in `[0, MAX_TILE_ZOOM]`.
 ///
 /// ```
-/// use geocoordinates::{Crs, Error, index::GeoBounds, map::{Viewport, fit_bounds}};
+/// use geocoordinates::{Crs, Error, geodesy::GeoBounds, map::{Viewport, fit_bounds}};
 ///
 /// let view = Viewport::new(512.0, 512.0, 512.0)?;
 /// // Fiji, across the antimeridian: centred on it, 16 times narrower than the world.

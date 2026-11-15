@@ -25,12 +25,12 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::PointL
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::PointLabel
 pub struct geocoordinates::cluster::Cluster
 impl geocoordinates::cluster::Cluster
-pub const fn geocoordinates::cluster::Cluster::bounds(&self) -> geocoordinates::index::GeoBounds
+pub const fn geocoordinates::cluster::Cluster::bounds(&self) -> geocoordinates::geodesy::GeoBounds
 pub const fn geocoordinates::cluster::Cluster::centroid(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
 pub fn geocoordinates::cluster::Cluster::count(&self) -> usize
 pub const fn geocoordinates::cluster::Cluster::id(&self) -> usize
 pub fn geocoordinates::cluster::Cluster::members(&self) -> &[usize]
-pub fn geocoordinates::cluster::Cluster::new(usize, geocoordinates::Approx<geocoordinates::Coordinate>, geocoordinates::index::GeoBounds, alloc::vec::Vec<usize>) -> geocoordinates::Result<Self>
+pub fn geocoordinates::cluster::Cluster::new(usize, geocoordinates::Approx<geocoordinates::Coordinate>, geocoordinates::geodesy::GeoBounds, alloc::vec::Vec<usize>) -> geocoordinates::Result<Self>
 impl core::clone::Clone for geocoordinates::cluster::Cluster
 pub fn geocoordinates::cluster::Cluster::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::cluster::Cluster
@@ -52,7 +52,7 @@ impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::Cluster
 pub struct geocoordinates::cluster::ClusterIndex
 impl geocoordinates::cluster::ClusterIndex
 pub fn geocoordinates::cluster::ClusterIndex::children(&self, u64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
-pub fn geocoordinates::cluster::ClusterIndex::clusters(&self, geocoordinates::index::GeoBounds, u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
+pub fn geocoordinates::cluster::ClusterIndex::clusters(&self, geocoordinates::geodesy::GeoBounds, u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
 pub fn geocoordinates::cluster::ClusterIndex::coordinate(&self, u64) -> core::option::Option<geocoordinates::Coordinate>
 pub const fn geocoordinates::cluster::ClusterIndex::crs(&self) -> core::option::Option<geocoordinates::Crs>
 pub fn geocoordinates::cluster::ClusterIndex::insert(&mut self, geocoordinates::Coordinate) -> geocoordinates::Result<u64>
@@ -143,7 +143,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::GridBu
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::GridBucket
 pub struct geocoordinates::cluster::MapCluster
 impl geocoordinates::cluster::MapCluster
-pub const fn geocoordinates::cluster::MapCluster::bounds(&self) -> geocoordinates::index::GeoBounds
+pub const fn geocoordinates::cluster::MapCluster::bounds(&self) -> geocoordinates::geodesy::GeoBounds
 pub const fn geocoordinates::cluster::MapCluster::centroid(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
 pub const fn geocoordinates::cluster::MapCluster::count(&self) -> u64
 pub const fn geocoordinates::cluster::MapCluster::id(&self) -> u64
@@ -169,7 +169,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::MapClu
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::MapCluster
 pub struct geocoordinates::cluster::Trip
 impl geocoordinates::cluster::Trip
-pub const fn geocoordinates::cluster::Trip::bounds(&self) -> geocoordinates::index::GeoBounds
+pub const fn geocoordinates::cluster::Trip::bounds(&self) -> geocoordinates::geodesy::GeoBounds
 pub const fn geocoordinates::cluster::Trip::end(&self) -> std::time::SystemTime
 pub const fn geocoordinates::cluster::Trip::start(&self) -> std::time::SystemTime
 pub fn geocoordinates::cluster::Trip::visits(&self) -> &[usize]

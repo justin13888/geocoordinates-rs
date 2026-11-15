@@ -52,11 +52,11 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::privacy::ZoneAc
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::privacy::ZoneAction
 pub struct geocoordinates::privacy::ExclusionZone
 impl geocoordinates::privacy::ExclusionZone
-pub const fn geocoordinates::privacy::ExclusionZone::bounds(&self) -> core::option::Option<geocoordinates::index::GeoBounds>
+pub const fn geocoordinates::privacy::ExclusionZone::bounds(&self) -> core::option::Option<geocoordinates::geodesy::GeoBounds>
 pub const fn geocoordinates::privacy::ExclusionZone::circle(&self) -> core::option::Option<(geocoordinates::Coordinate, geocoordinates::Length)>
 pub fn geocoordinates::privacy::ExclusionZone::contains(&self, geocoordinates::Coordinate) -> geocoordinates::Result<bool>
 pub fn geocoordinates::privacy::ExclusionZone::crs(&self) -> geocoordinates::Crs
-pub const fn geocoordinates::privacy::ExclusionZone::from_bounds(geocoordinates::index::GeoBounds) -> Self
+pub const fn geocoordinates::privacy::ExclusionZone::from_bounds(geocoordinates::geodesy::GeoBounds) -> Self
 pub fn geocoordinates::privacy::ExclusionZone::from_circle(geocoordinates::Coordinate, geocoordinates::Length) -> geocoordinates::Result<Self>
 impl core::clone::Clone for geocoordinates::privacy::ExclusionZone
 pub fn geocoordinates::privacy::ExclusionZone::clone(&self) -> Self
