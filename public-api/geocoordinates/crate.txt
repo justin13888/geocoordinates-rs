@@ -37,7 +37,9 @@ pub geocoordinates::Error::CrsMismatch::found: geocoordinates::Crs
 pub geocoordinates::Error::InvalidCellId
 pub geocoordinates::Error::InvalidCellId::grid: &'static str
 pub geocoordinates::Error::InvalidCellId::value: u64
-pub geocoordinates::Error::InvalidGridRef(alloc::string::String)
+pub geocoordinates::Error::InvalidGridRef
+pub geocoordinates::Error::InvalidGridRef::detail: alloc::string::String
+pub geocoordinates::Error::InvalidGridRef::grid: &'static str
 pub geocoordinates::Error::InvalidValue
 pub geocoordinates::Error::InvalidValue::detail: alloc::string::String
 pub geocoordinates::Error::InvalidValue::field: &'static str

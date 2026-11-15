@@ -234,7 +234,10 @@ impl PlusCode {
     ///
     /// assert_eq!(PlusCode::parse(" 8fvc2222+22 ")?.as_str(), "8FVC2222+22");
     /// // A short code needs a reference location, so it is rejected.
-    /// assert!(matches!(PlusCode::parse("2222+22"), Err(Error::InvalidGridRef(_))));
+    /// assert!(matches!(
+    ///     PlusCode::parse("2222+22"),
+    ///     Err(Error::InvalidGridRef { grid: "Plus Code", .. })
+    /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
@@ -245,7 +248,11 @@ impl PlusCode {
         if is_valid_full(&upper) {
             Ok(PlusCode(upper))
         } else {
-            Err(Error::InvalidGridRef(format!("invalid Plus Code: {s}")))
+            Err(Error::invalid_grid_ref(
+                "Plus Code",
+                s,
+                "is not a full Plus Code",
+            ))
         }
     }
 }

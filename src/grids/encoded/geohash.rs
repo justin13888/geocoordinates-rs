@@ -54,7 +54,10 @@ impl Geohash {
     /// use geocoordinates::grids::Geohash;
     ///
     /// assert_eq!(Geohash::parse(" EZS42 ")?.as_str(), "ezs42");
-    /// assert!(matches!(Geohash::parse("ezs4a"), Err(Error::InvalidGridRef(_))));
+    /// assert!(matches!(
+    ///     Geohash::parse("ezs4a"),
+    ///     Err(Error::InvalidGridRef { grid: "geohash", .. })
+    /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
@@ -63,11 +66,25 @@ impl Geohash {
     /// input.
     pub fn parse(s: &str) -> Result<Self> {
         let lower = s.trim().to_ascii_lowercase();
-        if lower.is_empty()
-            || lower.len() > usize::from(GEOHASH_MAX_LENGTH)
-            || lower.bytes().any(|b| !GEOHASH_ALPHABET.contains(&b))
+        if lower.is_empty() {
+            return Err(Error::invalid_grid_ref("geohash", s, "is empty"));
+        }
+        if lower.len() > usize::from(GEOHASH_MAX_LENGTH) {
+            return Err(Error::invalid_grid_ref(
+                "geohash",
+                s,
+                format_args!("is longer than {GEOHASH_MAX_LENGTH} characters"),
+            ));
+        }
+        if let Some(c) = lower
+            .chars()
+            .find(|&c| !u8::try_from(c).is_ok_and(|b| GEOHASH_ALPHABET.contains(&b)))
         {
-            return Err(Error::InvalidGridRef(format!("invalid geohash: {s}")));
+            return Err(Error::invalid_grid_ref(
+                "geohash",
+                s,
+                format_args!("holds {c:?}, not a base-32 digit"),
+            ));
         }
         Ok(Geohash(lower))
     }

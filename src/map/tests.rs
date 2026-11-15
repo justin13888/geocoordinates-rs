@@ -251,9 +251,24 @@ fn tiles_and_quadkeys_round_trip_and_reject_bad_input() {
     assert!(Tile::new(2, 3, 3).is_ok());
     for bad in ["4", "01a", "0".repeat(31).as_str(), "-1"] {
         assert!(
-            matches!(Tile::from_quadkey(bad), Err(Error::InvalidGridRef(_))),
+            matches!(
+                Tile::from_quadkey(bad),
+                Err(Error::InvalidGridRef {
+                    grid: "quadkey",
+                    ..
+                })
+            ),
             "{bad}"
         );
+    }
+    for (bad, message) in [
+        ("4", r#"invalid quadkey reference: "4" holds '4', not 0-3"#),
+        (
+            &"0".repeat(31),
+            r#"invalid quadkey reference: "0000000000000000000000000000000" is longer than the deepest tile zoom 30"#,
+        ),
+    ] {
+        assert_eq!(Tile::from_quadkey(bad).unwrap_err().to_string(), message);
     }
     assert_eq!(
         Tile::from_quadkey(&"3".repeat(30)).unwrap(),

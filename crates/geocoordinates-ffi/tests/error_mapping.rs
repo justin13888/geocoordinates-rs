@@ -137,11 +137,15 @@ fn parse_keeps_its_kind_and_detail() {
 }
 
 #[test]
-fn invalid_grid_ref_keeps_its_detail() {
+fn invalid_grid_ref_keeps_its_grid_and_detail() {
     assert_maps(
-        gc::Error::InvalidGridRef("ZZ".to_string()),
+        gc::Error::InvalidGridRef {
+            grid: "MGRS",
+            detail: "\"ZZ\" is malformed".to_string(),
+        },
         GeoError::InvalidGridRef {
-            detail: "ZZ".to_string(),
+            grid: "MGRS".to_string(),
+            detail: "\"ZZ\" is malformed".to_string(),
         },
     );
 }
