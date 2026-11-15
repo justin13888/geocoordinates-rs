@@ -151,7 +151,7 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// [`ParseOptions::default_axis_order`] and
 /// [`ParseOptions::decimal_separator`]. To read back what
 /// [`format`](crate::format::format) rendered, pass
-/// [`FormatOptions::parse_options`](crate::format::FormatOptions::parse_options).
+/// [`ParseOptions::for_format`].
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found, with the
@@ -536,7 +536,7 @@ mod tests {
                         decimal_separator,
                     };
                     let text = format(c, &options).unwrap();
-                    let parsed = parse_coordinate_with(&text, &options.parse_options())
+                    let parsed = parse_coordinate_with(&text, &ParseOptions::for_format(&options))
                         .unwrap_or_else(|e| panic!("{text:?} ({options:?}): {e}"));
                     // Default precisions: DD 6 dp (0.11 m), DMS 0.01″
                     // (0.3 m), DDM 0.001′ (1.9 m) — each rounds to half.

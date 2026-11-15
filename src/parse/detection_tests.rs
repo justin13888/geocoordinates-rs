@@ -153,7 +153,7 @@ fn a_failed_expected_grid_explains_both_readings() {
 }
 
 #[test]
-fn parse_options_expect_the_grid_their_representation_renders() {
+fn for_format_expects_the_grid_its_representation_renders() {
     let grid_cases = [
         (
             Representation::PlusCode { length: 10 },
@@ -181,7 +181,7 @@ fn parse_options_expect_the_grid_their_representation_renders() {
                 representation,
                 decimal_separator: separator,
             };
-            let parse = options.parse_options();
+            let parse = ParseOptions::for_format(&options);
             assert_eq!(parse.expect_grid, expect_grid, "{options:?}");
             assert_eq!(parse.decimal_separator, separator);
             assert_eq!(parse.default_axis_order, AxisOrder::LatLon);
@@ -190,7 +190,7 @@ fn parse_options_expect_the_grid_their_representation_renders() {
 }
 
 #[test]
-fn every_grid_rendering_round_trips_through_parse_options() {
+fn every_grid_rendering_round_trips_through_for_format() {
     let c = Coordinate::wgs84(40.7128, -74.006).unwrap();
     for representation in [
         Representation::PlusCode { length: 10 },
@@ -207,7 +207,7 @@ fn every_grid_rendering_round_trips_through_parse_options() {
             ..FormatOptions::default()
         };
         let text = format(c, &options).unwrap();
-        let fix = parse_coordinate_with(&text, &options.parse_options())
+        let fix = parse_coordinate_with(&text, &ParseOptions::for_format(&options))
             .unwrap_or_else(|e| panic!("{text:?}: {e}"));
         // The original lies within the decoded cell's reported bound.
         assert_within_meters(fix.coord, c, accuracy_m(&fix));
