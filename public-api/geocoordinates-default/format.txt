@@ -111,7 +111,6 @@ impl core::panic::unwind_safe::UnwindSafe for geocoordinates::format::SymbolStyl
 pub geocoordinates::format::FormatOptions::decimal_separator: geocoordinates::format::DecimalSeparator
 pub geocoordinates::format::FormatOptions::representation: geocoordinates::format::Representation
 impl geocoordinates::format::FormatOptions
-pub const fn geocoordinates::format::FormatOptions::parse_options(&self) -> geocoordinates::parse::ParseOptions
 pub const fn geocoordinates::format::FormatOptions::with_decimal_separator(self, geocoordinates::format::DecimalSeparator) -> Self
 pub const fn geocoordinates::format::FormatOptions::with_representation(self, geocoordinates::format::Representation) -> Self
 impl core::clone::Clone for geocoordinates::format::FormatOptions

@@ -18,7 +18,7 @@
 //!
 //! Every output re-parses through
 //! [`parse_coordinate_with`](crate::parse::parse_coordinate_with) given
-//! [`FormatOptions::parse_options`]: DD / DMS / DDM in every [`SymbolStyle`],
+//! [`ParseOptions::for_format`](crate::parse::ParseOptions::for_format): DD / DMS / DDM in every [`SymbolStyle`],
 //! [`HemisphereStyle`] and [`DecimalSeparator`], and every grid, to the
 //! decoded cell's center. With the default options, and for DD / DMS / DDM
 //! with a point separator, Plus Code or MGRS output, that is exactly
@@ -30,9 +30,8 @@
 
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::fix::{AxisOrder, Fix};
+use crate::fix::Fix;
 use crate::grids::{Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode};
-use crate::parse::{GridKind, ParseOptions};
 
 mod render;
 mod separator;
@@ -345,44 +344,6 @@ impl FormatOptions {
     pub const fn with_decimal_separator(mut self, decimal_separator: DecimalSeparator) -> Self {
         self.decimal_separator = decimal_separator;
         self
-    }
-
-    /// The [`ParseOptions`] that read back every string these options render
-    /// through [`parse_coordinate_with`](crate::parse::parse_coordinate_with):
-    /// lat-first, this [`decimal_separator`](Self::decimal_separator), and,
-    /// for a grid representation, that grid as
-    /// [`expect_grid`](ParseOptions::expect_grid) (so a Geohash or Maidenhead
-    /// rendering, which is never detected unasked, decodes too).
-    ///
-    /// ```
-    /// use geocoordinates::Coordinate;
-    /// use geocoordinates::format::{FormatOptions, Representation, format};
-    /// use geocoordinates::parse::parse_coordinate_with;
-    ///
-    /// let options =
-    ///     FormatOptions::default().with_representation(Representation::Geohash { length: 5 });
-    /// let c = Coordinate::wgs84(42.6, -5.6)?;
-    /// let text = format(c, &options)?; // "ezs42"
-    /// let fix = parse_coordinate_with(&text, &options.parse_options())?;
-    /// assert!((fix.coord.lat() - 42.6).abs() < 0.03);
-    /// # Ok::<(), geocoordinates::Error>(())
-    /// ```
-    #[must_use]
-    pub const fn parse_options(&self) -> ParseOptions {
-        let expect_grid = match self.representation {
-            Representation::DecimalDegrees { .. }
-            | Representation::Dms { .. }
-            | Representation::Ddm { .. } => None,
-            Representation::PlusCode { .. } => Some(GridKind::PlusCode),
-            Representation::Geohash { .. } => Some(GridKind::Geohash),
-            Representation::Maidenhead { .. } => Some(GridKind::Maidenhead),
-            Representation::Mgrs { .. } => Some(GridKind::Mgrs),
-        };
-        ParseOptions {
-            default_axis_order: AxisOrder::LatLon,
-            decimal_separator: self.decimal_separator,
-            expect_grid,
-        }
     }
 }
 
