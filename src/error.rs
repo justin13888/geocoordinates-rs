@@ -235,8 +235,8 @@ impl Error {
 /// | Parser | Kinds it produces |
 /// |---|---|
 /// | Free text ([`parse_text`](crate::parse::parse_text), [`parse_coordinate`](crate::parse::parse_coordinate)) | [`Syntax`](Self::Syntax), [`Ambiguous`](Self::Ambiguous) |
-/// | `geo:` URI ([`from_geo_uri`](crate::parse::from_geo_uri)) | [`Syntax`](Self::Syntax), [`Unsupported`](Self::Unsupported) (a `crs` other than `wgs84`) |
-/// | NMEA 0183 (`parse::sensors::from_nmea_sentence`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum), [`NoFix`](Self::NoFix), [`Unsupported`](Self::Unsupported) (a sentence other than `GGA` / `RMC` / `GLL`) |
+/// | `geo:` URI ([`parse_geo_uri`](crate::parse::parse_geo_uri)) | [`Syntax`](Self::Syntax), [`Unsupported`](Self::Unsupported) (a `crs` other than `wgs84`) |
+/// | NMEA 0183 (`parse::sensors::parse_nmea_sentence`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum), [`NoFix`](Self::NoFix), [`Unsupported`](Self::Unsupported) (a sentence other than `GGA` / `RMC` / `GLL`) |
 /// | GeoJSON, WKT, GPX, KML (`parse::interchange`) | [`Syntax`](Self::Syntax), [`TooDeep`](Self::TooDeep) |
 /// | EXIF / XMP GPS tags (`exif`) | [`NoFix`](Self::NoFix), [`Syntax`](Self::Syntax) (XMP strings only) |
 /// | Gazetteer files (`reverse::Gazetteer::from_bytes`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum) (payload CRC-32), [`Unsupported`](Self::Unsupported) (a format version or flag this build does not read) |

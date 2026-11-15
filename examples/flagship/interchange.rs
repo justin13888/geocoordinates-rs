@@ -4,13 +4,13 @@ use std::time::{Duration, SystemTime};
 
 use geocoordinates::Height;
 use geocoordinates::fix::AxisOrder;
-use geocoordinates::parse::interchange::{from_geojson, from_gpx, from_kml, from_wkt};
-use geocoordinates::parse::sensors::from_nmea_sentence;
+use geocoordinates::parse::interchange::{parse_geojson, parse_gpx, parse_kml, parse_wkt};
+use geocoordinates::parse::sensors::parse_nmea_sentence;
 
 use crate::support::{DemoResult, assert_close};
 
 pub(crate) fn interchange_and_nmea() -> DemoResult {
-    let geojson = from_geojson(r#"{"type":"Point","coordinates":[2.0,9.0,100.0]}"#)?;
+    let geojson = parse_geojson(r#"{"type":"Point","coordinates":[2.0,9.0,100.0]}"#)?;
     assert_eq!(geojson.len(), 1);
     assert_eq!(geojson[0].coord.height(), Some(Height::Ellipsoidal(100.0)));
     assert_close(geojson[0].coord.lat(), 9.0, 1e-12);
@@ -27,14 +27,14 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
     );
 
     // WKT defines no axis order, so the caller states it.
-    let wkt = from_wkt("LINESTRING(0 0, 10 20)", AxisOrder::LonLat)?;
+    let wkt = parse_wkt("LINESTRING(0 0, 10 20)", AxisOrder::LonLat)?;
     assert_eq!(wkt.len(), 2);
     assert_close(wkt[1].coord.lat(), 20.0, 1e-12);
     assert_close(wkt[1].coord.lon(), 10.0, 1e-12);
-    let epsg_4326 = from_wkt("POINT(20 10)", AxisOrder::LatLon)?;
+    let epsg_4326 = parse_wkt("POINT(20 10)", AxisOrder::LatLon)?;
     assert_close(epsg_4326[0].coord.lat(), 20.0, 1e-12);
 
-    let gpx = from_gpx(
+    let gpx = parse_gpx(
         r#"<?xml version="1.0"?>
         <gpx version="1.1" creator="flagship" xmlns="http://www.topografix.com/GPX/1/1">
           <wpt lat="48.2" lon="16.3"><ele>183.0</ele>
@@ -56,7 +56,7 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
         1e-9,
     );
 
-    let kml = from_kml(
+    let kml = parse_kml(
         r#"<?xml version="1.0"?>
         <kml xmlns="http://www.opengis.net/kml/2.2"><Document>
           <Placemark><Point><coordinates>16.3,48.2,183</coordinates></Point></Placemark>
@@ -73,7 +73,7 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
     );
 
     let nmea =
-        from_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")?;
+        parse_nmea_sentence("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")?;
     assert_close(nmea.coord.lat(), 48.0 + 7.038 / 60.0, 1e-9);
     assert_close(nmea.coord.lon(), 11.0 + 31.0 / 60.0, 1e-9);
     assert_eq!(nmea.coord.height(), Some(Height::Orthometric(545.4)));
@@ -88,7 +88,8 @@ pub(crate) fn interchange_and_nmea() -> DemoResult {
     // RMC carries the UTC date and time, so its fix is timestamped
     // (1994-03-23T12:35:19Z); GGA has only a time of day, so it is not.
     assert_eq!(nmea.timestamp, None);
-    let rmc = from_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")?;
+    let rmc =
+        parse_nmea_sentence("$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")?;
     assert_close(rmc.coord.lat(), -(33.0 + 40.0 / 60.0), 1e-9);
     assert_eq!(
         rmc.timestamp,

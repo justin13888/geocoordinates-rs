@@ -433,13 +433,13 @@ pub fn parse_coordinate_with(input: String, options: ParseOptions) -> Result<Fix
 }
 
 /// Parse a `geo:` URI per RFC 5870 (lat-first; optional altitude; `crs`/`u`
-/// parameters) — the FFI form of the core `parse::from_geo_uri`.
+/// parameters) — the FFI form of the core `parse::parse_geo_uri`.
 ///
 /// # Errors
 /// Returns a [`GeoError`] when the input is not a well-formed `geo:` URI.
 #[uniffi::export]
 pub fn parse_geo_uri(input: String) -> Result<Fix, GeoError> {
-    gc::parse::from_geo_uri(&input)
+    gc::parse::parse_geo_uri(&input)
         .map(Into::into)
         .map_err(GeoError::from)
 }

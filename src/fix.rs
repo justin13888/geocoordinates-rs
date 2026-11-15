@@ -371,9 +371,9 @@ impl RawSource {
 ///
 /// ```
 /// use geocoordinates::fix::AxisOrder;
-/// use geocoordinates::parse::from_geo_uri;
+/// use geocoordinates::parse::parse_geo_uri;
 ///
-/// let fix = from_geo_uri("geo:48.2082,16.3738")?;
+/// let fix = parse_geo_uri("geo:48.2082,16.3738")?;
 /// assert_eq!(fix.source.and_then(|s| s.axis_order), Some(AxisOrder::LatLon));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```

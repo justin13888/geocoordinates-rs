@@ -36,7 +36,7 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
         "<Point><coordinates><!-- c -->1,2</coordinates></Point>",
     ];
     for input in rejected {
-        assert_parse_err!(from_kml(input), "kml: <Point> at byte ");
+        assert_parse_err!(parse_kml(input), "kml: <Point> at byte ");
     }
     // A `;` outside a reference is not whitespace: the pre-scan passes it,
     // and the `kml` parser rejects it as a coordinate.
@@ -60,7 +60,7 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
         "&#32&#32;",
     ];
     for coordinates in reaches_kml {
-        let r = from_kml(&format!(
+        let r = parse_kml(&format!(
             "<Point><coordinates>{coordinates}</coordinates></Point>"
         ));
         assert!(
@@ -69,18 +69,18 @@ fn kml_point_without_coordinates_is_rejected_instead_of_panicking() {
         );
         assert_parse_err!(r, "kml: ");
     }
-    let r = from_kml("<kml><Placemark><Point></Point></Placemark></kml>");
+    let r = parse_kml("<kml><Placemark><Point></Point></Placemark></kml>");
     assert_parse_err!(r, "kml: <Point> at byte 16 has no coordinates");
     // The nested `Point` is named: the outer one's coordinates do not count
     // for the reader the inner end tag stops.
-    let r = from_kml("<Point><coordinates>1,2</coordinates><Point></Point></Point>");
+    let r = parse_kml("<Point><coordinates>1,2</coordinates><Point></Point></Point>");
     assert_parse_err!(r, "kml: <Point> at byte 37 has no coordinates");
 }
 
 #[test]
 fn kml_point_with_coordinates_is_read() {
     let one = |input: &str| {
-        let fixes = from_kml(input).unwrap();
+        let fixes = parse_kml(input).unwrap();
         assert_eq!(fixes.len(), 1, "{input}");
         (fixes[0].coord.lat(), fixes[0].coord.lon())
     };
@@ -128,7 +128,10 @@ fn kml_point_with_coordinates_is_read() {
         (2.0, 1.0)
     );
     // A self-closing `<Point/>` builds no point, so it needs no coordinates.
-    assert_eq!(from_kml("<Placemark><Point/></Placemark>").unwrap(), vec![]);
+    assert_eq!(
+        parse_kml("<Placemark><Point/></Placemark>").unwrap(),
+        vec![]
+    );
     // A `LineString` with no coordinates was never a panic, and stays empty.
-    assert_eq!(from_kml("<LineString></LineString>").unwrap(), vec![]);
+    assert_eq!(parse_kml("<LineString></LineString>").unwrap(), vec![]);
 }

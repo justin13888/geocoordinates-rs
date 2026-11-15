@@ -12,8 +12,8 @@ use geocoordinates::grids::{
     Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere, utm_central_meridian_deg,
     utm_zone_for,
 };
-use geocoordinates::parse::sensors::from_nmea_sentence;
-use geocoordinates::parse::{from_geo_uri, parse_coordinate, parse_text};
+use geocoordinates::parse::sensors::parse_nmea_sentence;
+use geocoordinates::parse::{parse_coordinate, parse_geo_uri, parse_text};
 use geocoordinates::{Coordinate, Crs, Error, Height, Length, ParseErrorKind};
 
 use crate::support::{DemoResult, new_york};
@@ -252,8 +252,8 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
             ..
         })
     ));
-    assert!(from_geo_uri("geo:1,2;u=-1").is_err());
-    assert!(from_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
+    assert!(parse_geo_uri("geo:1,2;u=-1").is_err());
+    assert!(parse_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
     assert!(parse_text("40 60 N 74 0 W").is_err());
     assert!(matches!(
         Utm::try_from_coordinate(Coordinate::wgs84(85.0, 0.0)?),
@@ -314,7 +314,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         Err(Error::InvalidValue { field: "zone", .. })
     ));
     assert!(matches!(
-        from_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"),
+        parse_nmea_sentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"),
         Err(Error::Parse {
             kind: ParseErrorKind::Checksum,
             ..
@@ -323,14 +323,14 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     // A sentence reporting no fix is an error, never a position: RMC status V
     // (void) and GGA fix quality 0. Its kind lets a stream skip it.
     assert!(matches!(
-        from_nmea_sentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
+        parse_nmea_sentence("$GPRMC,123519,V,3340.000,S,07030.000,W,000.0,000.0,230394,,*07"),
         Err(Error::Parse {
             kind: ParseErrorKind::NoFix,
             ..
         })
     ));
     assert!(matches!(
-        from_nmea_sentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"),
+        parse_nmea_sentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"),
         Err(Error::Parse {
             kind: ParseErrorKind::NoFix,
             ..

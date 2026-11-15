@@ -13732,7 +13732,7 @@ public func parseCoordinateWith(input: String, options: ParseOptions)throws  -> 
 }
 /**
  * Parse a `geo:` URI per RFC 5870 (lat-first; optional altitude; `crs`/`u`
- * parameters) — the FFI form of the core `parse::from_geo_uri`.
+ * parameters) — the FFI form of the core `parse::parse_geo_uri`.
  *
  * # Errors
  * Returns a [`GeoError`] when the input is not a well-formed `geo:` URI.
@@ -14428,7 +14428,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 49235) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_geo_uri() != 18138) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_geo_uri() != 31893) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_options_default() != 13976) {

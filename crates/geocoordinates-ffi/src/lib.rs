@@ -52,9 +52,8 @@
 //! - **Ingestion is `parse_*`.** Every function that reads text into a
 //!   [`Fix`] is named for what it does: [`parse_coordinate`], [`parse_text`],
 //!   [`parse_geo_uri`], [`parse_geojson`], [`parse_wkt`], [`parse_gpx`],
-//!   [`parse_kml`], [`parse_nmea_sentence`]. (The core crate's readers are
-//!   `from_geojson` and so on, inside a module that says what they produce; a
-//!   top-level foreign function has no such module.)
+//!   [`parse_kml`], [`parse_nmea_sentence`]. (Rust and FFI use the same
+//!   names.)
 //! - **`*_validate` for every invariant record.** A record whose core type is
 //!   valid by construction has a `<record>_validate` that checks a hand-built
 //!   one ([`coordinate_validate`], [`utm_validate`], [`h3_validate`],
