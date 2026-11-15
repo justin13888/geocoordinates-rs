@@ -92,6 +92,14 @@ pub enum Error {
     /// band, a UPS conversion outside the polar caps, or Baidu Mercator beyond
     /// ±74° latitude.
     ///
+    /// `operation` names the operation or projection, so a caller can branch
+    /// on it without reading the message. Its values are stable across
+    /// releases: `"UTM"`, `"UPS"`, `"Baidu Mercator"`, `"BD-09"` (a forward
+    /// BD-09 conversion) and `"BD-09 inverse"`. Each names a projection rather
+    /// than a parameter, so it keeps the projection's own spelling instead of
+    /// snake_case; a new operation adds a value, and an existing one is never
+    /// renamed outside a breaking release.
+    ///
     /// ```
     /// use geocoordinates::grids::Utm;
     /// use geocoordinates::{Coordinate, Error};
@@ -105,8 +113,8 @@ pub enum Error {
     /// ```
     #[error("coordinate outside the domain of {operation}: lat={lat}, lon={lon}")]
     OutsideDomain {
-        /// Name of the operation or projection whose domain was left, such as
-        /// `"UTM"`.
+        /// Name of the operation or projection whose domain was left: one of
+        /// the stable names listed above, such as `"UTM"`.
         operation: &'static str,
         /// Latitude in degrees.
         lat: f64,
@@ -117,16 +125,29 @@ pub enum Error {
     /// A caller-provided option or numeric value was outside the operation's
     /// supported domain.
     ///
+    /// `field` is the snake_case name of what was invalid, read from the
+    /// signature: the parameter (`Dms::from_degrees(value, ..)` reports
+    /// `"value"`, `Geohash::encode(.., length)` reports `"length"`), the field
+    /// of the record or option struct (`"radius_px"` of `ClusterIndexOptions`),
+    /// or, where a constructor checks a quantity derived from several
+    /// parameters, that quantity's name (`"magnitude"` for an `Enu` / `Ned`
+    /// vector too long to be a position). The values are stable across
+    /// releases, so a caller may match on them; `detail` is for humans and its
+    /// wording is not stable.
+    ///
     /// ```
     /// use geocoordinates::Error;
-    /// use geocoordinates::angle::{Dms, Hemisphere};
+    /// use geocoordinates::angle::{Axis, Dms, Hemisphere};
     ///
     /// let err = Dms::new(10, 60, 0.0, Hemisphere::North).unwrap_err();
     /// assert!(matches!(err, Error::InvalidValue { field: "minutes", .. }));
+    /// let err = Dms::from_degrees(f64::NAN, Axis::Latitude).unwrap_err();
+    /// assert!(matches!(err, Error::InvalidValue { field: "value", .. }));
     /// ```
     #[error("invalid value for `{field}`: {detail}")]
     InvalidValue {
-        /// Name of the invalid field or option.
+        /// The snake_case name of the invalid parameter, record field or
+        /// option; stable across releases.
         field: &'static str,
         /// Human-readable description of the required domain.
         detail: String,
@@ -385,6 +406,105 @@ mod tests {
             parse(ParseErrorKind::TooDeep).to_string(),
             "could not parse coordinate: a"
         );
+    }
+
+    /// Every non-test source file under `src/`, with its path and text. A file
+    /// is a test file when it is named `tests.rs` or `*_tests.rs`, or sits in a
+    /// `tests` directory.
+    fn library_sources() -> Vec<(std::path::PathBuf, String)> {
+        fn walk(dir: &std::path::Path, out: &mut Vec<(std::path::PathBuf, String)>) {
+            for entry in std::fs::read_dir(dir).expect("readable directory") {
+                let path = entry.expect("directory entry").path();
+                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if path.is_dir() {
+                    if name != "tests" {
+                        walk(&path, out);
+                    }
+                } else if name.ends_with(".rs")
+                    && name != "tests.rs"
+                    && !name.ends_with("_tests.rs")
+                {
+                    let text = std::fs::read_to_string(&path).expect("readable source");
+                    out.push((path, text));
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+            &mut out,
+        );
+        assert!(out.len() > 50, "the walk found only {} files", out.len());
+        out
+    }
+
+    /// Each string literal written right after `key` (as in `field: "x"`),
+    /// with the file and line it appears on.
+    fn literals_after(key: &str) -> Vec<(String, String)> {
+        let mut found = Vec::new();
+        for (path, text) in library_sources() {
+            for (n, line) in text.lines().enumerate() {
+                let mut rest = line;
+                while let Some(at) = rest.find(key) {
+                    rest = &rest[at + key.len()..];
+                    if let Some(value) = rest.split('"').next().filter(|_| rest.contains('"')) {
+                        found.push((value.to_owned(), format!("{}:{}", path.display(), n + 1)));
+                    }
+                }
+            }
+        }
+        found
+    }
+
+    fn is_snake_case(s: &str) -> bool {
+        let mut chars = s.chars();
+        chars.next().is_some_and(|c| c.is_ascii_lowercase())
+            && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    }
+
+    #[test]
+    fn snake_case_check_accepts_only_identifiers() {
+        for good in ["value", "semi_major", "x_m", "level2"] {
+            assert!(is_snake_case(good), "{good}");
+        }
+        for bad in [
+            "",
+            "S2 level",
+            "decimal degrees",
+            "Value",
+            "2d",
+            "_x",
+            "semi-major",
+        ] {
+            assert!(!is_snake_case(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn invalid_value_fields_are_snake_case_names() {
+        let fields = literals_after("field: \"");
+        // The scan sees the producers and the doctests that match on them.
+        assert!(
+            fields.iter().any(|(v, _)| v == "minutes"),
+            "the scan found no `field:` literal"
+        );
+        let bad: Vec<_> = fields.iter().filter(|(v, _)| !is_snake_case(v)).collect();
+        assert!(bad.is_empty(), "`field` values not in snake_case: {bad:?}");
+    }
+
+    #[test]
+    fn outside_domain_operations_are_the_documented_names() {
+        const DOCUMENTED: [&str; 5] = ["UTM", "UPS", "Baidu Mercator", "BD-09", "BD-09 inverse"];
+        let operations = literals_after("operation: \"");
+        assert!(
+            operations.iter().any(|(v, _)| v == "UTM"),
+            "the scan found no `operation:` literal"
+        );
+        let bad: Vec<_> = operations
+            .iter()
+            .filter(|(v, _)| !DOCUMENTED.contains(&v.as_str()))
+            .collect();
+        assert!(bad.is_empty(), "undocumented `operation` values: {bad:?}");
     }
 
     #[cfg(feature = "serde")]

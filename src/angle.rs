@@ -205,7 +205,7 @@ impl Dms {
     /// responsibility (see [`crate::format`]). `-0.0` reads as North / East.
     ///
     /// # Errors
-    /// Returns [`Error::InvalidValue`] (field `"decimal degrees"`) for a
+    /// Returns [`Error::InvalidValue`] (field `"value"`) for a
     /// non-finite value or one beyond ±90° (latitude) / ±180° (longitude).
     ///
     /// ```
@@ -218,7 +218,7 @@ impl Dms {
     /// // 120 is a valid longitude but not a valid latitude.
     /// assert!(matches!(
     ///     Dms::from_degrees(120.0, Axis::Latitude),
-    ///     Err(Error::InvalidValue { field: "decimal degrees", .. })
+    ///     Err(Error::InvalidValue { field: "value", .. })
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -376,7 +376,7 @@ impl Ddm {
     /// North / East.
     ///
     /// # Errors
-    /// Returns [`Error::InvalidValue`] (field `"decimal degrees"`) for a
+    /// Returns [`Error::InvalidValue`] (field `"value"`) for a
     /// non-finite value or one beyond ±90° (latitude) / ±180° (longitude).
     ///
     /// ```
@@ -388,7 +388,7 @@ impl Ddm {
     /// assert!((ddm.minutes() - 12.558).abs() < 1e-9);
     /// assert!(matches!(
     ///     Ddm::from_degrees(f64::INFINITY, Axis::Longitude),
-    ///     Err(Error::InvalidValue { field: "decimal degrees", .. })
+    ///     Err(Error::InvalidValue { field: "value", .. })
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -498,7 +498,7 @@ fn validate_dd(value: f64, axis: Axis) -> Result<()> {
         return Ok(());
     }
     Err(Error::InvalidValue {
-        field: "decimal degrees",
+        field: "value",
         detail: format!("must be finite and within ±{}°", axis_max(axis)),
     })
 }

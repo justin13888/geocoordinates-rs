@@ -272,19 +272,19 @@ fn field_of<T: std::fmt::Debug>(r: Result<T>) -> &'static str {
 fn invalid_degrees_are_rejected() {
     assert_eq!(
         field_of(Dms::from_degrees(f64::NAN, Axis::Latitude)),
-        "decimal degrees"
+        "value"
     );
     assert_eq!(
         field_of(Ddm::from_degrees(f64::INFINITY, Axis::Longitude)),
-        "decimal degrees"
+        "value"
     );
     assert_eq!(
         field_of(Ddm::from_degrees(90.000_001, Axis::Latitude)),
-        "decimal degrees"
+        "value"
     );
     assert_eq!(
         field_of(Dms::from_degrees(-180.000_001, Axis::Longitude)),
-        "decimal degrees"
+        "value"
     );
     // The axis maximum itself is accepted on both axes.
     assert!(Dms::from_degrees(-90.0, Axis::Latitude).is_ok());

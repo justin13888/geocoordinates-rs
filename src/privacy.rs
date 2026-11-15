@@ -175,9 +175,10 @@ impl Precision {
     /// A precision of `level` on `grid`.
     ///
     /// # Errors
-    /// [`Error::InvalidValue`] when the grid does not define `level`: field
-    /// `geohash length` outside `1..=12`, `H3 resolution` above 15, or
-    /// `S2 level` above 30.
+    /// [`Error::InvalidValue`] when the grid does not define `level`, its
+    /// field named after the grid's own encoder parameter: `"length"` outside
+    /// `1..=12` (geohash), `"resolution"` above 15 (H3), or `"level"` above 30
+    /// (S2).
     ///
     /// ```
     /// use geocoordinates::Error;
@@ -186,17 +187,17 @@ impl Precision {
     /// assert_eq!(Precision::new(SnapGrid::Geohash, 5)?.level(), 5);
     /// assert!(matches!(
     ///     Precision::new(SnapGrid::Geohash, 0),
-    ///     Err(Error::InvalidValue { field: "geohash length", .. })
+    ///     Err(Error::InvalidValue { field: "length", .. })
     /// ));
     /// # Ok::<(), Error>(())
     /// ```
     pub fn new(grid: SnapGrid, level: u8) -> Result<Self> {
         let (field, range) = match grid {
-            SnapGrid::Geohash => ("geohash length", 1..=GEOHASH_MAX_LENGTH),
+            SnapGrid::Geohash => ("length", 1..=GEOHASH_MAX_LENGTH),
             #[cfg(feature = "h3")]
-            SnapGrid::H3 => ("H3 resolution", 0..=H3_MAX_RESOLUTION),
+            SnapGrid::H3 => ("resolution", 0..=H3_MAX_RESOLUTION),
             #[cfg(feature = "s2")]
-            SnapGrid::S2 => ("S2 level", 0..=S2_MAX_LEVEL),
+            SnapGrid::S2 => ("level", 0..=S2_MAX_LEVEL),
         };
         if !range.contains(&level) {
             return Err(Error::InvalidValue {
@@ -214,7 +215,7 @@ impl Precision {
     /// A geohash precision of `length` characters, 1 (coarsest) to 12.
     ///
     /// # Errors
-    /// [`Error::InvalidValue`] (field `geohash length`) outside `1..=12`.
+    /// [`Error::InvalidValue`] (field `"length"`) outside `1..=12`.
     ///
     /// ```
     /// use geocoordinates::Error;
@@ -223,7 +224,7 @@ impl Precision {
     /// assert_eq!(Precision::geohash(7)?.level(), 7);
     /// assert!(matches!(
     ///     Precision::geohash(13),
-    ///     Err(Error::InvalidValue { field: "geohash length", .. })
+    ///     Err(Error::InvalidValue { field: "length", .. })
     /// ));
     /// # Ok::<(), Error>(())
     /// ```
@@ -234,7 +235,7 @@ impl Precision {
     /// An H3 precision at `resolution`, 0 (coarsest) to 15.
     ///
     /// # Errors
-    /// [`Error::InvalidValue`] (field `H3 resolution`) above 15.
+    /// [`Error::InvalidValue`] (field `"resolution"`) above 15.
     ///
     /// ```
     /// use geocoordinates::Error;
@@ -243,7 +244,7 @@ impl Precision {
     /// assert_eq!(Precision::h3(7)?.grid(), SnapGrid::H3);
     /// assert!(matches!(
     ///     Precision::h3(16),
-    ///     Err(Error::InvalidValue { field: "H3 resolution", .. })
+    ///     Err(Error::InvalidValue { field: "resolution", .. })
     /// ));
     /// # Ok::<(), Error>(())
     /// ```
@@ -256,7 +257,7 @@ impl Precision {
     /// An S2 precision at `level`, 0 (coarsest) to 30.
     ///
     /// # Errors
-    /// [`Error::InvalidValue`] (field `S2 level`) above 30.
+    /// [`Error::InvalidValue`] (field `"level"`) above 30.
     ///
     /// ```
     /// use geocoordinates::Error;
@@ -265,7 +266,7 @@ impl Precision {
     /// assert_eq!(Precision::s2(13)?.grid(), SnapGrid::S2);
     /// assert!(matches!(
     ///     Precision::s2(31),
-    ///     Err(Error::InvalidValue { field: "S2 level", .. })
+    ///     Err(Error::InvalidValue { field: "level", .. })
     /// ));
     /// # Ok::<(), Error>(())
     /// ```

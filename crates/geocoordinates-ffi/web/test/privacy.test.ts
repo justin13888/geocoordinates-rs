@@ -58,7 +58,7 @@ describe("Location privacy", () => {
     assert.deepEqual(coarsen(shared.coord, precision), shared);
     const bad = thrown(() => precisionValidate({ grid: SnapGrid.S2, level: 31 }));
     assert.ok(GeoError.InvalidValue.instanceOf(bad), String(bad));
-    assert.equal(bad.inner.field, "S2 level");
+    assert.equal(bad.inner.field, "level");
   });
 
   it("strips or coarsens a fix inside a zone across the antimeridian", () => {

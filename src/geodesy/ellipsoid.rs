@@ -124,8 +124,8 @@ impl Ellipsoid {
     ///
     /// # Errors
     /// [`Error::InvalidValue`] when `semi_major` is not finite and positive
-    /// (field `"ellipsoid semi-major axis"`), or when `inverse_flattening` is
-    /// NaN or not greater than one (field `"ellipsoid inverse flattening"`).
+    /// (field `"semi_major"`), or when `inverse_flattening` is
+    /// NaN or not greater than one (field `"inverse_flattening"`).
     ///
     /// Crate-private: no public function takes an `Ellipsoid`, so callers get
     /// one from [`Ellipsoid::for_crs`] or a named constant. It is the
@@ -135,14 +135,14 @@ impl Ellipsoid {
         let a = semi_major.meters();
         if !a.is_finite() || a <= 0.0 {
             return Err(Error::InvalidValue {
-                field: "ellipsoid semi-major axis",
+                field: "semi_major",
                 detail: "must be finite and positive".into(),
             });
         }
         // −∞ is caught by `<= 1.0`; +∞ (a sphere) passes.
         if inverse_flattening.is_nan() || inverse_flattening <= 1.0 {
             return Err(Error::InvalidValue {
-                field: "ellipsoid inverse flattening",
+                field: "inverse_flattening",
                 detail: "must be greater than one (or positive infinity for a sphere)".into(),
             });
         }
@@ -284,7 +284,7 @@ mod tests {
             assert_eq!(
                 new(a, 298.0),
                 Err(Error::InvalidValue {
-                    field: "ellipsoid semi-major axis",
+                    field: "semi_major",
                     detail: "must be finite and positive".into(),
                 }),
                 "a = {a}"
@@ -299,7 +299,7 @@ mod tests {
                 matches!(
                     new(6_378_137.0, inv_f),
                     Err(Error::InvalidValue {
-                        field: "ellipsoid inverse flattening",
+                        field: "inverse_flattening",
                         ..
                     })
                 ),

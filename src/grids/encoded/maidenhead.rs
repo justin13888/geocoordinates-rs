@@ -57,7 +57,7 @@ impl Maidenhead {
         require_wgs84(&coord)?;
         if !(1..=3).contains(&pairs) {
             return Err(Error::InvalidValue {
-                field: "Maidenhead pairs",
+                field: "pairs",
                 detail: "must be in 1..=3".into(),
             });
         }

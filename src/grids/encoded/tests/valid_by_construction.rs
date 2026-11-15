@@ -73,7 +73,7 @@ fn geohash_longer_than_twelve_is_rejected() {
     // positioning, so a longer string adds only spurious precision.
     assert!(Geohash::try_from("u4pruydqqvjz").is_ok());
     assert_invalid_grid_ref("geohash", Geohash::try_from("u4pruydqqvjzz"));
-    assert_invalid_value(Geohash::encode(wgs(0.0, 0.0), 13), "geohash length");
+    assert_invalid_value(Geohash::encode(wgs(0.0, 0.0), 13), "length");
 }
 
 #[cfg(feature = "serde")]

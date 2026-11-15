@@ -37,9 +37,9 @@ fn precision_records_are_checked_against_their_grid() {
     })
     .unwrap();
     for (grid, level, field) in [
-        (SnapGrid::Geohash, 0, "geohash length"),
-        (SnapGrid::H3, 16, "H3 resolution"),
-        (SnapGrid::S2, 31, "S2 level"),
+        (SnapGrid::Geohash, 0, "length"),
+        (SnapGrid::H3, 16, "resolution"),
+        (SnapGrid::S2, 31, "level"),
     ] {
         match precision_validate(Precision { grid, level }) {
             Err(GeoError::InvalidValue { field: f, .. }) => assert_eq!(f, field),

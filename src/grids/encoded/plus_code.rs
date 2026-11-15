@@ -91,7 +91,7 @@ impl PlusCode {
         require_wgs84(&coord)?;
         if !matches!(length, 2 | 4 | 6 | 8 | 10..=15) {
             return Err(Error::InvalidValue {
-                field: "Plus Code length",
+                field: "length",
                 detail: "must be 2, 4, 6, 8, or 10 through 15".into(),
             });
         }

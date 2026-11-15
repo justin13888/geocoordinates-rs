@@ -118,7 +118,7 @@ fn levels_outside_a_grid_are_rejected() {
     assert!(matches!(
         Precision::geohash(0),
         Err(Error::InvalidValue {
-            field: "geohash length",
+            field: "length",
             ..
         })
     ));
@@ -130,7 +130,7 @@ fn levels_outside_a_grid_are_rejected() {
         assert!(matches!(
             Precision::new(SnapGrid::H3, 16),
             Err(Error::InvalidValue {
-                field: "H3 resolution",
+                field: "resolution",
                 ..
             })
         ));
@@ -141,10 +141,7 @@ fn levels_outside_a_grid_are_rejected() {
         assert!(Precision::s2(0).is_ok() && Precision::s2(30).is_ok());
         assert!(matches!(
             Precision::new(SnapGrid::S2, 31),
-            Err(Error::InvalidValue {
-                field: "S2 level",
-                ..
-            })
+            Err(Error::InvalidValue { field: "level", .. })
         ));
         assert_eq!(Precision::s2(9).unwrap().min_cell_height(), None);
     }
