@@ -9,7 +9,10 @@ use crate::{Coordinate, Crs, GeoError};
 ///
 /// Decimal degrees on `crs`, every edge inclusive. A `west` greater than `east`
 /// crosses the antimeridian. Plain data: every export taking one applies the core
-/// crate's rules, and [`geo_bounds_validate`] checks a hand-built one.
+/// crate's rules, and [`geo_bounds_validate`] checks a hand-built one. An invalid
+/// record is `GeoError::OutOfRange` when `(south, west)` or `(north, east)` is not
+/// a geographic position, and `GeoError::InvalidValue` (field `south_west`) when
+/// south lies north of north.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct GeoBounds {
     /// South edge, degrees.
@@ -40,12 +43,10 @@ impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds {
     type Error = gc::Error;
 
     fn try_from(bounds: GeoBounds) -> Result<Self, gc::Error> {
-        Self::new(
-            bounds.south,
-            bounds.west,
-            bounds.north,
-            bounds.east,
-            bounds.crs.into(),
+        let crs = bounds.crs.into();
+        Self::from_corners(
+            gc::Coordinate::new(bounds.south, bounds.west, crs)?,
+            gc::Coordinate::new(bounds.north, bounds.east, crs)?,
         )
     }
 }
@@ -53,8 +54,9 @@ impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds {
 /// Checks a hand-built [`GeoBounds`] against the core crate's rules.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` naming the edge when it is non-finite or out of range,
-/// and field `south` when south lies north of north.
+/// `GeoError::OutOfRange` when `(south, west)` or `(north, east)` is not a
+/// geographic position (an edge non-finite or out of range), and
+/// `GeoError::InvalidValue` with field `south_west` when south lies north of north.
 #[uniffi::export]
 pub fn geo_bounds_validate(bounds: GeoBounds) -> Result<(), GeoError> {
     gc::geodesy::GeoBounds::try_from(bounds)?;
@@ -82,7 +84,8 @@ pub fn geo_bounds_from_points(points: Vec<Coordinate>) -> Result<GeoBounds, GeoE
 /// edge.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
+/// record, as [`geo_bounds_validate`] reports it.
 #[uniffi::export]
 pub fn geo_bounds_crosses_antimeridian(bounds: GeoBounds) -> Result<bool, GeoError> {
     Ok(gc::geodesy::GeoBounds::try_from(bounds)?.crosses_antimeridian())
@@ -104,7 +107,8 @@ pub fn geo_bounds_contains(bounds: GeoBounds, point: Coordinate) -> Result<bool,
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` when the boxes are on different reference systems;
-/// `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
+/// record, as [`geo_bounds_validate`] reports it.
 #[uniffi::export]
 pub fn geo_bounds_intersects(a: GeoBounds, b: GeoBounds) -> Result<bool, GeoError> {
     let (a, b) = (
@@ -119,7 +123,8 @@ pub fn geo_bounds_intersects(a: GeoBounds, b: GeoBounds) -> Result<bool, GeoErro
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` when the boxes are on different reference systems;
-/// `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
+/// record, as [`geo_bounds_validate`] reports it.
 #[uniffi::export]
 pub fn geo_bounds_union(a: GeoBounds, b: GeoBounds) -> Result<GeoBounds, GeoError> {
     let (a, b) = (
@@ -133,7 +138,8 @@ pub fn geo_bounds_union(a: GeoBounds, b: GeoBounds) -> Result<GeoBounds, GeoErro
 /// a geodesic centroid.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
+/// record, as [`geo_bounds_validate`] reports it.
 #[uniffi::export]
 pub fn geo_bounds_center(bounds: GeoBounds) -> Result<Coordinate, GeoError> {
     Ok(gc::geodesy::GeoBounds::try_from(bounds)?.center().into())
@@ -144,7 +150,8 @@ pub fn geo_bounds_center(bounds: GeoBounds) -> Result<Coordinate, GeoError> {
 ///
 /// # Errors
 /// `GeoError::InvalidValue` (field `distance`) when `distance_m` is negative or
-/// non-finite, or for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` on
+/// non-finite; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
+/// [`GeoBounds`] record, as [`geo_bounds_validate`] reports it; `GeoError::CrsMismatch` on
 /// GCJ-02 / BD-09, which have no ellipsoid.
 #[uniffi::export]
 pub fn geo_bounds_expand_by(bounds: GeoBounds, distance_m: f64) -> Result<GeoBounds, GeoError> {

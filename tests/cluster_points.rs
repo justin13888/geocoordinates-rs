@@ -414,7 +414,8 @@ fn cluster_new_checks_its_parts() {
             })
         ));
     }
-    let tokyo = GeoBounds::new(1.0, 2.0, 1.0, 2.0, Crs::Tokyo).unwrap();
+    let corner = Coordinate::new(1.0, 2.0, Crs::Tokyo).unwrap();
+    let tokyo = GeoBounds::from_corners(corner, corner).unwrap();
     assert!(matches!(
         Cluster::new(0, centroid, tokyo, vec![1]),
         Err(Error::CrsMismatch { .. })

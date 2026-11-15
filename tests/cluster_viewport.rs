@@ -2,16 +2,16 @@
 //! whole level: it must lose nothing a scan of the level finds.
 #![cfg(feature = "cluster")]
 
+use geocoordinates::Coordinate;
 use geocoordinates::cluster::{ClusterIndex, ClusterIndexOptions, MapCluster};
 use geocoordinates::geodesy::GeoBounds;
-use geocoordinates::{Coordinate, Crs};
 
 fn wgs(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
 }
 
 fn world() -> GeoBounds {
-    GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap()
+    GeoBounds::from_corners(wgs(-90.0, -180.0), wgs(90.0, 180.0)).unwrap()
 }
 
 fn tight() -> ClusterIndexOptions {
@@ -64,7 +64,7 @@ fn viewports_over_many_pins_lose_nothing() {
             (80.0, -10.0, 90.0, 10.0),
             (-90.0, -10.0, -80.0, 10.0),
         ] {
-            let bounds = GeoBounds::new(south, west, north, east, Crs::Wgs84).unwrap();
+            let bounds = GeoBounds::from_corners(wgs(south, west), wgs(north, east)).unwrap();
             let expected: Vec<MapCluster> = pins
                 .iter()
                 .copied()
@@ -78,7 +78,7 @@ fn viewports_over_many_pins_lose_nothing() {
         }
     }
     // The poles are found in a box of other longitudes only by the full walk.
-    let cap = GeoBounds::new(80.0, -10.0, 90.0, 10.0, Crs::Wgs84).unwrap();
+    let cap = GeoBounds::from_corners(wgs(80.0, -10.0), wgs(90.0, 10.0)).unwrap();
     assert!(
         index
             .clusters(cap, 12)
@@ -86,7 +86,7 @@ fn viewports_over_many_pins_lose_nothing() {
             .iter()
             .any(|pin| pin.centroid().value().lat() == 90.0)
     );
-    let cap = GeoBounds::new(-90.0, -10.0, -80.0, 10.0, Crs::Wgs84).unwrap();
+    let cap = GeoBounds::from_corners(wgs(-90.0, -10.0), wgs(-80.0, 10.0)).unwrap();
     assert!(
         index
             .clusters(cap, 12)
@@ -117,7 +117,7 @@ fn viewports_find_pins_through_the_grid() {
             (2.0, 180.0, 3.0, 180.0),
             (80.0, 0.0, 85.0, 10.0),
         ] {
-            let bounds = GeoBounds::new(south, west, north, east, Crs::Wgs84).unwrap();
+            let bounds = GeoBounds::from_corners(wgs(south, west), wgs(north, east)).unwrap();
             let expected: Vec<MapCluster> = index
                 .clusters(world(), zoom)
                 .unwrap()
@@ -127,6 +127,6 @@ fn viewports_find_pins_through_the_grid() {
             assert_eq!(index.clusters(bounds, zoom).unwrap(), expected);
         }
     }
-    let inner = GeoBounds::new(-5.0, -40.0, 5.0, -20.0, Crs::Wgs84).unwrap();
+    let inner = GeoBounds::from_corners(wgs(-5.0, -40.0), wgs(5.0, -20.0)).unwrap();
     assert!(!index.clusters(inner, 12).unwrap().is_empty());
 }

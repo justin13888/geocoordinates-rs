@@ -17,11 +17,11 @@ use crate::{Approx, Length};
 /// [`ClusterIndex::leaves`] pages through the member ids instead.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
+/// use geocoordinates::{Coordinate, cluster::ClusterIndex, geodesy::GeoBounds};
 ///
 /// let here = Coordinate::wgs84(1.0, 2.0)?;
 /// let index = ClusterIndex::new([here, here], Default::default())?;
-/// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+/// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
 /// let pin = index.clusters(world, 3)?[0];
 /// assert_eq!(pin.count(), 2);
 /// assert_eq!(index.leaves(pin.id(), 10, 0)?, [0, 1]);
@@ -102,10 +102,10 @@ impl MapCluster {
     /// input, and stays the same across updates that leave the seed's role alone.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
+    /// use geocoordinates::{Coordinate, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
-    /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+    /// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
     /// let id = index.clusters(world, 5)?[0].id();
     /// assert_eq!(index.leaves(id, 1, 0)?, [0]);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -119,10 +119,10 @@ impl MapCluster {
     /// [`ClusterIndex::children`] of a cluster at [`MAX_ZOOM`] has one more.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
+    /// use geocoordinates::{Coordinate, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
-    /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+    /// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
     /// assert_eq!(index.clusters(world, 5)?[0].zoom(), 5);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -139,11 +139,11 @@ impl MapCluster {
     /// exact.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
+    /// use geocoordinates::{Coordinate, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let here = Coordinate::wgs84(1.0, 2.0)?;
     /// let index = ClusterIndex::new([here], Default::default())?;
-    /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+    /// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
     /// let pin = index.clusters(world, 5)?[0];
     /// assert_eq!(*pin.centroid().value(), here);
     /// assert_eq!(pin.centroid().max_error().meters(), 0.0);
@@ -158,10 +158,10 @@ impl MapCluster {
     /// it can be a little larger than the smallest such box.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
+    /// use geocoordinates::{Coordinate, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
-    /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+    /// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
     /// assert_eq!(index.clusters(world, 5)?[0].bounds().north(), 1.0);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -173,10 +173,10 @@ impl MapCluster {
     /// The number of points in the cluster.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
+    /// use geocoordinates::{Coordinate, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
-    /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+    /// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
     /// assert_eq!(index.clusters(world, 5)?[0].count(), 1);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```

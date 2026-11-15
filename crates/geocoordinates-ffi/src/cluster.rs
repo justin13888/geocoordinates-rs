@@ -455,8 +455,9 @@ impl ClusterIndex {
     ///
     /// # Errors
     /// `GeoError::InvalidValue` (field `zoom`) above 22, or for an invalid
-    /// [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
-    /// reference system than the points.
+    /// [`GeoBounds`] record, which is `GeoError::OutOfRange` when an edge is out of
+    /// range; `GeoError::CrsMismatch` when `bounds` is on another reference system
+    /// than the points.
     pub fn clusters(&self, bounds: GeoBounds, zoom: u8) -> Result<Vec<MapCluster>, GeoError> {
         Ok(pins(&self.read().clusters(bounds.try_into()?, zoom)?))
     }

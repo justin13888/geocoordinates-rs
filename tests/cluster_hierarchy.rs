@@ -13,7 +13,7 @@ fn wgs(lat: f64, lon: f64) -> Coordinate {
 }
 
 fn world() -> GeoBounds {
-    GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap()
+    GeoBounds::from_corners(wgs(-90.0, -180.0), wgs(90.0, 180.0)).unwrap()
 }
 
 fn tight() -> ClusterIndexOptions {
@@ -323,7 +323,7 @@ proptest! {
         zoom in 0..=MAX_ZOOM,
     ) {
         let (south, north) = (south.min(north), south.max(north));
-        let bounds = GeoBounds::new(south, west, north, east, Crs::Wgs84).unwrap();
+        let bounds = GeoBounds::from_corners(wgs(south, west), wgs(north, east)).unwrap();
         let index = ClusterIndex::new(points.iter().copied(), tight()).unwrap();
         let expected: Vec<MapCluster> = index
             .clusters(world(), zoom)
@@ -382,7 +382,7 @@ fn polar_points_flatten_onto_the_maps_edge() {
 
     // A box reaching the pole holds a centroid exactly on it, at any longitude.
     let index = ClusterIndex::new([wgs(90.0, 37.0)], tight()).unwrap();
-    let cap = GeoBounds::new(80.0, -10.0, 90.0, 10.0, Crs::Wgs84).unwrap();
+    let cap = GeoBounds::from_corners(wgs(80.0, -10.0), wgs(90.0, 10.0)).unwrap();
     assert_eq!(index.clusters(cap, 3).unwrap().len(), 1);
 }
 
@@ -501,7 +501,8 @@ fn updates_handle_every_id_and_crs_edge() {
         index.clusters(world(), 0),
         Err(Error::CrsMismatch { .. })
     ));
-    let tokyo_world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Tokyo).unwrap();
+    let tokyo = |lat, lon| Coordinate::new(lat, lon, Crs::Tokyo).unwrap();
+    let tokyo_world = GeoBounds::from_corners(tokyo(-90.0, -180.0), tokyo(90.0, 180.0)).unwrap();
     assert_eq!(
         index.clusters(tokyo_world, 0).unwrap()[0]
             .centroid()

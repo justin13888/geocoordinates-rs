@@ -262,7 +262,7 @@ fn tiles_and_quadkeys_round_trip_and_reject_bad_input() {
 }
 
 fn covering(south: f64, west: f64, north: f64, east: f64, z: u8) -> Vec<(u32, u32)> {
-    let bounds = GeoBounds::new(south, west, north, east, Crs::Wgs84).unwrap();
+    let bounds = GeoBounds::from_edges(south, west, north, east, Crs::Wgs84).unwrap();
     let mut found: Vec<(u32, u32)> = tiles_covering(bounds, z, 1_000)
         .unwrap()
         .iter()
@@ -310,7 +310,7 @@ fn covering_handles_edges_poles_and_its_bound() {
     // Almost all the way round, across the antimeridian: still each column once.
     assert_eq!(covering(-1.0, 10.0, 1.0, 9.9, 1), grid(0..=1, 0..=1));
     // Across the antimeridian, west to east: the last column first.
-    let bounds = GeoBounds::new(-1.0, 179.0, 1.0, -179.0, Crs::Wgs84).unwrap();
+    let bounds = GeoBounds::from_edges(-1.0, 179.0, 1.0, -179.0, Crs::Wgs84).unwrap();
     let order: Vec<u32> = tiles_covering(bounds, 3, 4)
         .unwrap()
         .iter()
@@ -320,7 +320,7 @@ fn covering_handles_edges_poles_and_its_bound() {
     // The 180 meridian alone, written either way.
     assert_eq!(covering(-1.0, 180.0, 1.0, 180.0, 1), [(0, 0), (0, 1)]);
     // The bound is checked before anything is built.
-    let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+    let world = GeoBounds::from_edges(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
     assert_eq!(tiles_covering(world, 3, 64).unwrap().len(), 64);
     assert!(matches!(
         tiles_covering(world, 3, 63),

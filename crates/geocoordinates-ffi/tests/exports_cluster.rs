@@ -221,7 +221,7 @@ fn cluster_index_answers_and_updates() {
         north: 0.0,
         ..world()
     };
-    assert!(is_field(index.clusters(bad_box, 0), "south"));
+    assert!(is_field(index.clusters(bad_box, 0), "south_west"));
 
     let empty = ClusterIndex::new(vec![], options).unwrap();
     assert!(empty.is_empty() && empty.crs().is_none());

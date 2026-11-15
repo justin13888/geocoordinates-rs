@@ -33,7 +33,16 @@ fn validate_checks_a_hand_built_record() {
     assert!(geo_bounds_validate(bounds(0.0, 170.0, 1.0, -170.0)).is_ok());
     assert!(matches!(
         geo_bounds_validate(bounds(1.0, 0.0, 0.0, 0.0)),
-        Err(GeoError::InvalidValue { field, .. }) if field == "south"
+        Err(GeoError::InvalidValue { field, .. }) if field == "south_west"
+    ));
+    // An edge out of range makes its corner no geographic position.
+    assert!(matches!(
+        geo_bounds_validate(bounds(0.0, 181.0, 1.0, 0.0)),
+        Err(GeoError::OutOfRange { lat, lon }) if lat == 0.0 && lon == 181.0
+    ));
+    assert!(matches!(
+        geo_bounds_validate(bounds(0.0, 0.0, 91.0, 0.0)),
+        Err(GeoError::OutOfRange { lat, lon }) if lat == 91.0 && lon == 0.0
     ));
 }
 
