@@ -30,7 +30,7 @@
 //! # Datums
 //!
 //! The data is WGS-84. A query on any other datum is converted to WGS-84 first with
-//! [`convert`](crate::convert::convert), and [`Place::query`] carries the position
+//! [`Coordinate::try_to_crs`](crate::Coordinate::try_to_crs), and [`Place::query`] carries the position
 //! the lookup ran at with that conversion's error bound. GCJ-02 and BD-09 inverses
 //! are approximate (about 0.5 m and 1 m), so a point that close to the edge between
 //! two places' catchments may resolve to either.

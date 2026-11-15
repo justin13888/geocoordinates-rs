@@ -49,7 +49,7 @@
 //! [`LatLon`], [`Approx`], [`Length`], [`LengthUnit`], [`Error`],
 //! [`ParseErrorKind`], [`Result`]);
 //! every other item lives flat in its subsystem module: [`angle`], [`china`],
-//! [`convert`], [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
+//! [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
 //! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
 //! `index` feature), `exif` (behind the `exif` feature), `cluster` (behind
 //! the `cluster` feature), `reverse` (behind the `reverse` feature), `map`
@@ -82,13 +82,13 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod approx;
+mod convert; // runtime CRS dispatch (`Coordinate::try_to_crs`)
 mod coord;
 mod error;
 mod units;
 
 pub mod angle;
 pub mod china;
-pub mod convert; // runtime CRS dispatch (China typed + classic-datum Helmert)
 pub mod fix;
 pub mod format; // DD/DMS/DDM and grid-string presentation
 pub mod geodesy;
@@ -208,7 +208,6 @@ pub mod prelude {
         Cluster, ClusterIndex, ClusterIndexOptions, Dbscan, GridBucket, MapCluster, PointLabel,
         Trip, Visit, bucket_by_geohash, centroid, dbscan, segment_trips, segment_visits,
     };
-    pub use crate::convert::convert;
     #[cfg(feature = "exif")]
     pub use crate::exif::{
         CaptureGeo, ExifGps, ExifOptions, ExifRational, NorthBearing, NorthReference,

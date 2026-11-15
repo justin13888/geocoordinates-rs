@@ -166,7 +166,6 @@ pub fn geocoordinates::prelude::LatLon::lat(&self) -> f64
 pub fn geocoordinates::prelude::LatLon::lon(&self) -> f64
 pub fn geocoordinates::prelude::along_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
 pub fn geocoordinates::prelude::along_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
-pub fn geocoordinates::prelude::convert(geocoordinates::Coordinate, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
 pub fn geocoordinates::prelude::cross_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
 pub fn geocoordinates::prelude::cross_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
 pub fn geocoordinates::prelude::destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>

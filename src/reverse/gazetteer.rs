@@ -6,7 +6,6 @@ use std::path::Path;
 use super::format::{Decoded, decode};
 use super::geocoder::{ReverseGeocoder, ReverseOptions};
 use super::place::Place;
-use crate::convert::convert;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::index::{Neighbor, SpatialIndex};
@@ -325,7 +324,7 @@ impl ReverseGeocoder for Gazetteer {
     fn reverse(&self, coordinate: Coordinate, options: &ReverseOptions) -> Result<Option<Place>> {
         let max_m = options.checked_max_distance_m()?;
         let flat = Coordinate::new(coordinate.lat(), coordinate.lon(), coordinate.crs())?;
-        let query = convert(flat, Crs::Wgs84)?;
+        let query = flat.try_to_crs(Crs::Wgs84)?;
         let at = *query.value();
         let languages = self.language_positions(&options.languages);
         // Each round asks for four times as many places and checks only the new

@@ -18,7 +18,7 @@
 //!   match a local realization of the datum only to meters or tens of meters.
 //!   Each carries that published accuracy as
 //!   [`DatumTransform::accuracy`], and
-//!   [`convert`](crate::convert::convert) reports it as the leg's
+//!   [`Coordinate::try_to_crs`](crate::Coordinate::try_to_crs) reports it as the leg's
 //!   [`max_error`](crate::Approx::max_error).
 //!
 //! This module owns only the lightweight parametric path (a small catalog of
@@ -518,7 +518,7 @@ impl DatumTransform {
 }
 
 /// How a reference system reaches the WGS-84 hub of
-/// [`convert`](crate::convert::convert): one variant per route, so the match
+/// [`Coordinate::try_to_crs`](crate::Coordinate::try_to_crs): one variant per route, so the match
 /// over [`Crs`] in [`HubRoute::of`] is the single, exhaustive catalog lookup.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum HubRoute {

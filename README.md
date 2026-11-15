@@ -27,7 +27,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Fix metadata** (`fix`) | `Fix`, `Accuracy`, `AccuracyKind`, `RawSource`, `AxisOrder`, `DatumAmbiguity`, `Confidence` | ✅ | ✅ |
 | **Angles** (`angle`) | `Dms`, `Ddm`, `Hemisphere`, `Axis`, `wrap_longitude`, `clamp_latitude`, `normalize_degrees` | ✅ | ✅ |
 | **China datums** (`china`) | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `Wgs84::is_outside_china` / `Gcj02::is_outside_china` | ✅ | ✅ |
-| **Runtime dispatch** (`convert`) | `convert` | ✅ | ✅ |
+| **Runtime dispatch** (crate root) | `Coordinate::try_to_crs` (FFI: `convert`) | ✅ | ✅ |
 | **Format** (`format`) | `format`, `format_fix`, `FormatOptions` (with `parse_options` for the round trip), `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ✅ | ✅ |
 | **Parse** (`parse`) | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `parse_geo_uri`, `parse_text`, `parse_text_with` | ✅ | ✅ |
 | **Interchange & sensors** *(feature-gated; `parse::interchange`, `parse::sensors`)* | `parse_geojson`, `parse_wkt`, `parse_gpx`, `parse_kml`, `parse_nmea_sentence` | ✅ | ✅ |

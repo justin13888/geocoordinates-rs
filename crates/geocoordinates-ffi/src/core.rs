@@ -644,8 +644,6 @@ pub(crate) fn approx_coordinate(approx: gc::Approx<gc::Coordinate>) -> ApproxCoo
 /// leg is a classic-datum Helmert shift.
 #[uniffi::export]
 pub fn convert(coord: Coordinate, to: Crs) -> Result<ApproxCoordinate, GeoError> {
-    Ok(approx_coordinate(gc::convert::convert(
-        coord.try_into()?,
-        to.into(),
-    )?))
+    let coord: gc::Coordinate = coord.try_into()?;
+    Ok(approx_coordinate(coord.try_to_crs(to.into())?))
 }

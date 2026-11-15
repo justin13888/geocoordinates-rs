@@ -286,7 +286,6 @@ pub fn geocoordinates::prelude::centroid(&[geocoordinates::Coordinate]) -> geoco
 pub fn geocoordinates::prelude::clusters_in_view(&geocoordinates::cluster::ClusterIndex, geocoordinates::geodesy::GeoBounds, f64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
 pub fn geocoordinates::prelude::clusters_to_geojson(&geocoordinates::cluster::ClusterIndex, &[geocoordinates::cluster::MapCluster], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
 pub fn geocoordinates::prelude::coarsen(geocoordinates::Coordinate, geocoordinates::privacy::Precision) -> geocoordinates::Result<geocoordinates::fix::Fix>
-pub fn geocoordinates::prelude::convert(geocoordinates::Coordinate, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
 pub fn geocoordinates::prelude::cross_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
 pub fn geocoordinates::prelude::cross_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
 pub fn geocoordinates::prelude::dbscan(&[geocoordinates::Coordinate], geocoordinates::Length, usize) -> geocoordinates::Result<geocoordinates::cluster::Dbscan>

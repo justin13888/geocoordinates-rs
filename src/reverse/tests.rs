@@ -295,15 +295,10 @@ fn converts_china_datums_and_carries_the_bound() {
     let gcj = Coordinate::gcj02(paris.lat(), paris.lon()).unwrap();
     let place = lookup(&g, gcj, &ReverseOptions::default()).unwrap();
     assert_eq!(place.name(), "Paris");
-    assert_eq!(
-        place.query(),
-        crate::convert::convert(gcj, Crs::Wgs84).unwrap()
-    );
+    assert_eq!(place.query(), gcj.try_to_crs(Crs::Wgs84).unwrap());
     assert_eq!(place.query().value().crs(), Crs::Wgs84);
     // BD-09 is offset everywhere; its inverse is approximate.
-    let bd = crate::convert::convert(paris, Crs::Bd09)
-        .unwrap()
-        .into_inner();
+    let bd = paris.try_to_crs(Crs::Bd09).unwrap().into_inner();
     let place = lookup(&g, bd, &ReverseOptions::default()).unwrap();
     assert_eq!(place.name(), "Paris");
     assert!(place.query().max_error().meters() > 0.0);
