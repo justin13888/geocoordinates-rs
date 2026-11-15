@@ -34,9 +34,7 @@ fn london() -> Coordinate {
 fn ellipsoid_constructors_carry_their_defining_parameters() {
     let cases = [
         (ellipsoid_wgs84(), 6_378_137.0, 298.257_223_563),
-        (ellipsoid_grs80(), 6_378_137.0, 298.257_222_101),
         (ellipsoid_krasovsky_1940(), 6_378_245.0, 298.3),
-        (ellipsoid_airy_1830(), 6_377_563.396, 299.324_964_6),
         (ellipsoid_bessel_1841(), 6_377_397.155, 299.152_812_8),
         (ellipsoid_clarke_1866(), 6_378_206.4, 294.978_698_2),
     ];
@@ -44,19 +42,18 @@ fn ellipsoid_constructors_carry_their_defining_parameters() {
         assert_eq!(ellipsoid.semi_major_m, a);
         assert_eq!(ellipsoid.inverse_flattening, inv_f);
         assert_eq!(ellipsoid_flattening(ellipsoid).unwrap(), 1.0 / inv_f);
-        assert_eq!(ellipsoid_new(a, inv_f).unwrap(), ellipsoid);
+        // A hand-built record of the same parameters is the same ellipsoid.
+        let hand_built = Ellipsoid {
+            semi_major_m: a,
+            inverse_flattening: inv_f,
+        };
+        assert_eq!(ellipsoid_validate(hand_built), Ok(()));
     }
 }
 
 #[test]
-fn ellipsoid_new_and_the_getters_validate() {
-    assert_eq!(
-        ellipsoid_new(6_371_000.0, f64::INFINITY).unwrap(),
-        Ellipsoid {
-            semi_major_m: 6_371_000.0,
-            inverse_flattening: f64::INFINITY,
-        }
-    );
+fn ellipsoid_validate_and_the_getters_accept_only_catalogued_records() {
+    // The catalogued records validate (above); every other record is refused.
     let bad_axis = Ellipsoid {
         semi_major_m: -1.0,
         inverse_flattening: 298.0,
@@ -65,15 +62,20 @@ fn ellipsoid_new_and_the_getters_validate() {
         semi_major_m: 6_378_137.0,
         inverse_flattening: 0.5,
     };
-    assert_eq!(ellipsoid_validate(ellipsoid_wgs84()), Ok(()));
-    for e in [bad_axis, bad_flattening] {
-        assert!(matches!(
-            ellipsoid_new(e.semi_major_m, e.inverse_flattening),
-            Err(GeoError::InvalidValue { .. })
-        ));
+    // Well-formed parameters, but no reference system names this ellipsoid
+    // (a sphere, and GRS80, which the core crate no longer catalogues).
+    let sphere = Ellipsoid {
+        semi_major_m: 6_371_000.0,
+        inverse_flattening: f64::INFINITY,
+    };
+    let grs80 = Ellipsoid {
+        semi_major_m: 6_378_137.0,
+        inverse_flattening: 298.257_222_101,
+    };
+    for e in [bad_axis, bad_flattening, sphere, grs80] {
         assert!(matches!(
             ellipsoid_validate(e),
-            Err(GeoError::InvalidValue { .. })
+            Err(GeoError::InvalidValue { ref field, .. }) if field == "ellipsoid"
         ));
         assert!(matches!(
             ellipsoid_flattening(e),

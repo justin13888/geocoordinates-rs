@@ -73,7 +73,7 @@ Every export follows one scheme, so a name reads the same in every language
   `<record>_new` is added that would only copy its arguments in and validate
   them; one exists where construction derives or normalizes a field
   (`aer_new`, `raw_source_new`, and `place_new`, which computes the distance), beside the constructors that predate that
-  rule (`coordinate_new`, `ellipsoid_new`, `accuracy_new`, `confidence_new`,
+  rule (`coordinate_new`, `accuracy_new`, `confidence_new`,
   `datum_transform_new`). The `Approx*` records are the exception: every
   export that returns one is a decoder, `convert`, `centroid` or a China inverse,
   and no export takes one as input, so they have no `_new` or `_validate` and

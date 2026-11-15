@@ -187,7 +187,10 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         Ecef::new(f64::NAN, 0.0, 0.0),
         Err(Error::InvalidValue { field: "x_m", .. })
     ));
-    assert!(Ellipsoid::new(Length::from_meters(-1.0), 298.257_223_563).is_err());
+    // No public constructor builds an ellipsoid; a hand-built record is
+    // validated when it deserializes.
+    let bad_ellipsoid_json = r#"{"semi_major":{"meters":-1.0},"inverse_flattening":298.257223563}"#;
+    assert!(serde_json::from_str::<Ellipsoid>(bad_ellipsoid_json).is_err());
     assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, Helmert::IDENTITY, None).is_err());
     assert!(
         Enu::try_from_coordinate(
