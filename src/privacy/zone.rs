@@ -30,13 +30,16 @@ use crate::units::Length;
 /// ```
 /// use geocoordinates::geodesy::GeoBounds;
 /// use geocoordinates::privacy::ExclusionZone;
-/// use geocoordinates::{Coordinate, Crs, Length};
+/// use geocoordinates::{Coordinate, Length};
 ///
 /// let circle = ExclusionZone::from_circle(Coordinate::wgs84(0.0, 179.999)?, Length::from_meters(500.0))?;
 /// // 0.002° of longitude at the equator is about 223 m, across the antimeridian.
 /// assert!(circle.contains(Coordinate::wgs84(0.0, -179.999)?)?);
 ///
-/// let fiji = ExclusionZone::from_bounds(GeoBounds::new(-21.0, 176.0, -12.0, -178.0, Crs::Wgs84)?);
+/// let fiji = ExclusionZone::from_bounds(GeoBounds::from_corners(
+///     Coordinate::wgs84(-21.0, 176.0)?,
+///     Coordinate::wgs84(-12.0, -178.0)?,
+/// )?);
 /// assert!(fiji.contains(Coordinate::wgs84(-17.0, 180.0)?)?);
 /// assert!(!fiji.contains(Coordinate::wgs84(-17.0, 0.0)?)?);
 /// # Ok::<(), geocoordinates::Error>(())
@@ -123,9 +126,10 @@ impl ExclusionZone {
     /// ```
     /// use geocoordinates::geodesy::GeoBounds;
     /// use geocoordinates::privacy::ExclusionZone;
-    /// use geocoordinates::Crs;
+    /// use geocoordinates::Coordinate;
     ///
-    /// let campus = GeoBounds::new(37.42, -122.18, 37.44, -122.16, Crs::Wgs84)?;
+    /// let campus =
+    ///     GeoBounds::from_corners(Coordinate::wgs84(37.42, -122.18)?, Coordinate::wgs84(37.44, -122.16)?)?;
     /// assert_eq!(ExclusionZone::from_bounds(campus).bounds(), Some(campus));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -141,9 +145,12 @@ impl ExclusionZone {
     /// ```
     /// use geocoordinates::geodesy::GeoBounds;
     /// use geocoordinates::privacy::ExclusionZone;
-    /// use geocoordinates::Crs;
+    /// use geocoordinates::Coordinate;
     ///
-    /// let zone = ExclusionZone::from_bounds(GeoBounds::new(0.0, 0.0, 1.0, 1.0, Crs::Wgs84)?);
+    /// let zone = ExclusionZone::from_bounds(GeoBounds::from_corners(
+    ///     Coordinate::wgs84(0.0, 0.0)?,
+    ///     Coordinate::wgs84(1.0, 1.0)?,
+    /// )?);
     /// assert_eq!(zone.circle(), None);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```

@@ -315,7 +315,10 @@ proptest! {
     fn geo_bounds(south in lat(), west in lon(), north in lat(), east in lon(), crs in crs()) {
         use crate::geodesy::GeoBounds;
         let record = json!({"south": south, "west": west, "north": north, "east": east, "crs": crs});
-        agrees(record, GeoBounds::new(south, west, north, east, crs))?;
+        let built = Coordinate::new(south, west, crs).and_then(|south_west| {
+            GeoBounds::from_corners(south_west, Coordinate::new(north, east, crs)?)
+        });
+        agrees(record, built)?;
     }
 }
 

@@ -152,7 +152,7 @@ fn covering_tiles_cross_the_antimeridian() {
         north: -1.0,
         ..fiji
     };
-    assert!(is_field(tiles_covering(backwards, 5, 16), "south"));
+    assert!(is_field(tiles_covering(backwards, 5, 16), "south_west"));
 }
 
 #[test]

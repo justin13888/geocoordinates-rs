@@ -17,10 +17,10 @@ use crate::geodesy::GeoBounds;
 /// The deepest zoom a [`ClusterIndex`] clusters at. Zooms run from 0 to this.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, Error, cluster::{ClusterIndex, MAX_ZOOM}, geodesy::GeoBounds};
+/// use geocoordinates::{Coordinate, Error, cluster::{ClusterIndex, MAX_ZOOM}, geodesy::GeoBounds};
 ///
 /// let index = ClusterIndex::new([Coordinate::wgs84(1.0, 2.0)?], Default::default())?;
-/// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+/// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
 /// assert_eq!(index.clusters(world, MAX_ZOOM)?.len(), 1);
 /// assert!(matches!(
 ///     index.clusters(world, MAX_ZOOM + 1),
@@ -117,13 +117,13 @@ impl ClusterIndexOptions {
 /// Heights are ignored, and every point shares a CRS with an ellipsoid.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, cluster::ClusterIndex, geodesy::GeoBounds};
+/// use geocoordinates::{Coordinate, cluster::ClusterIndex, geodesy::GeoBounds};
 ///
 /// let mut index = ClusterIndex::new(
 ///     [Coordinate::wgs84(0.0, 179.99)?, Coordinate::wgs84(0.0, -179.99)?],
 ///     Default::default(),
 /// )?;
-/// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+/// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
 /// // Merged across the antimeridian at low zoom, apart at high zoom.
 /// assert_eq!(index.clusters(world, 2)?.len(), 1);
 /// assert_eq!(index.clusters(world, 15)?.len(), 2);
@@ -386,13 +386,17 @@ impl ClusterIndex {
     ///     [Coordinate::wgs84(0.0, 179.0)?, Coordinate::wgs84(0.0, 0.0)?],
     ///     Default::default(),
     /// )?;
-    /// let pacific = GeoBounds::new(-5.0, 170.0, 5.0, -170.0, Crs::Wgs84)?;
+    /// let pacific =
+    ///     GeoBounds::from_corners(Coordinate::wgs84(-5.0, 170.0)?, Coordinate::wgs84(5.0, -170.0)?)?;
     /// assert_eq!(index.clusters(pacific, 4)?.len(), 1);
     /// assert!(matches!(
     ///     index.clusters(pacific, 23),
     ///     Err(Error::InvalidValue { field: "zoom", .. })
     /// ));
-    /// let tokyo = GeoBounds::new(-5.0, 170.0, 5.0, -170.0, Crs::Tokyo)?;
+    /// let tokyo = GeoBounds::from_corners(
+    ///     Coordinate::new(-5.0, 170.0, Crs::Tokyo)?,
+    ///     Coordinate::new(5.0, -170.0, Crs::Tokyo)?,
+    /// )?;
     /// assert!(matches!(index.clusters(tokyo, 4), Err(Error::CrsMismatch { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -442,13 +446,13 @@ impl ClusterIndex {
     /// [`Error::InvalidValue`] (`field: "cluster_id"`) when there is no such cluster.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, geodesy::GeoBounds};
+    /// use geocoordinates::{Coordinate, Error, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let index = ClusterIndex::new(
     ///     [Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 0.01)?],
     ///     Default::default(),
     /// )?;
-    /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+    /// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
     /// let top = index.clusters(world, 0)?[0];
     /// assert_eq!(top.count(), 2);
     /// let total: u64 = index.children(top.id())?.iter().map(|child| child.count()).sum();
@@ -485,11 +489,11 @@ impl ClusterIndex {
     /// [`Error::InvalidValue`] (`field: "cluster_id"`) when there is no such cluster.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, Error, cluster::ClusterIndex, geodesy::GeoBounds};
+    /// use geocoordinates::{Coordinate, Error, cluster::ClusterIndex, geodesy::GeoBounds};
     ///
     /// let here = Coordinate::wgs84(1.0, 2.0)?;
     /// let index = ClusterIndex::new([here, here, here], Default::default())?;
-    /// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+    /// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
     /// let pin = index.clusters(world, 0)?[0].id();
     /// assert_eq!(index.leaves(pin, 2, 0)?, [0, 1]);
     /// assert_eq!(index.leaves(pin, 2, 2)?, [2]);

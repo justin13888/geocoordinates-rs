@@ -64,7 +64,7 @@ fn fitted_camera_shows_the_whole_box() {
         (10.0, 179.0, 11.0, 180.0),
         (-80.0, -180.0, 89.0, 180.0),
     ] {
-        let bounds = GeoBounds::new(south, west, north, east, Crs::Wgs84).unwrap();
+        let bounds = GeoBounds::from_edges(south, west, north, east, Crs::Wgs84).unwrap();
         let camera = fit_bounds(bounds, viewport, 40.0, 20.0).unwrap();
         let shown = viewport_bounds(camera, viewport).unwrap();
         for corner in [
@@ -88,12 +88,12 @@ fn fitted_camera_shows_the_whole_box() {
 fn fit_bounds_limits() {
     let viewport = view(512.0, 512.0, 512.0);
     // A single point takes max_zoom, on its own position.
-    let point = GeoBounds::new(10.0, 20.0, 10.0, 20.0, Crs::Wgs84).unwrap();
+    let point = GeoBounds::from_edges(10.0, 20.0, 10.0, 20.0, Crs::Wgs84).unwrap();
     let camera = fit_bounds(point, viewport, 10.0, 17.5).unwrap();
     assert_eq!(camera.zoom(), 17.5);
     assert!(close(camera.center().lat(), 10.0) && close(camera.center().lon(), 20.0));
     // A box tall but not wide is limited by its height.
-    let tall = GeoBounds::new(-10.0, 5.0, 10.0, 5.0, Crs::Wgs84).unwrap();
+    let tall = GeoBounds::from_edges(-10.0, 5.0, 10.0, 5.0, Crs::Wgs84).unwrap();
     let height_only = fit_bounds(tall, viewport, 0.0, 22.0).unwrap();
     // 20° of latitude at the equator is 0.0558 of the map's height: 2^4.16 such boxes.
     assert!(
@@ -101,16 +101,16 @@ fn fit_bounds_limits() {
         "{height_only:?}"
     );
     // The world into a view smaller than one tile clamps to zoom 0.
-    let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+    let world = GeoBounds::from_edges(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
     let small = fit_bounds(world, view(100.0, 100.0, 512.0), 0.0, 22.0).unwrap();
     assert_eq!(small.zoom(), 0.0);
     // Padding narrows the view: twice the padding of half the view is one zoom out.
-    let alps = GeoBounds::new(44.0, 5.0, 48.0, 16.0, Crs::Wgs84).unwrap();
+    let alps = GeoBounds::from_edges(44.0, 5.0, 48.0, 16.0, Crs::Wgs84).unwrap();
     let bare = fit_bounds(alps, viewport, 0.0, 22.0).unwrap();
     let padded = fit_bounds(alps, viewport, 128.0, 22.0).unwrap();
     assert!(close(bare.zoom() - padded.zoom(), 1.0));
     // The centre keeps the box's CRS.
-    let tokyo = GeoBounds::new(35.0, 139.0, 36.0, 140.0, Crs::Tokyo).unwrap();
+    let tokyo = GeoBounds::from_edges(35.0, 139.0, 36.0, 140.0, Crs::Tokyo).unwrap();
     assert_eq!(
         fit_bounds(tokyo, viewport, 0.0, 22.0)
             .unwrap()
@@ -231,7 +231,7 @@ fn clusters_in_view_floors_and_caps_the_zoom() {
     ];
     let options = ClusterIndexOptions::default().with_tile_px(256.0);
     let index = ClusterIndex::new(points, options).unwrap();
-    let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+    let world = GeoBounds::from_edges(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
     for zoom in [0.0, 2.9, 5.5, 22.0, 22.99, 30.0] {
         let level = (zoom as u8).min(MAX_ZOOM);
         assert_eq!(
@@ -251,7 +251,7 @@ fn clusters_in_view_floors_and_caps_the_zoom() {
             Err(Error::InvalidValue { field: "zoom", .. })
         ));
     }
-    let tokyo = GeoBounds::new(-1.0, -1.0, 1.0, 1.0, Crs::Tokyo).unwrap();
+    let tokyo = GeoBounds::from_edges(-1.0, -1.0, 1.0, 1.0, Crs::Tokyo).unwrap();
     assert!(matches!(
         clusters_in_view(&index, tokyo, 3.0),
         Err(Error::CrsMismatch { .. })
