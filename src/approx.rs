@@ -215,9 +215,24 @@ impl<T> Approx<T> {
         self.value
     }
 
-    /// The estimated upper bound on positional error.
+    /// The error carried with the value: a distance the true position is
+    /// expected to lie within.
     ///
-    /// Never negative or NaN; `+∞` means no bound is known.
+    /// What the number promises depends on where it came from:
+    ///
+    /// - a decoded cell (geohash, Plus Code, Maidenhead, MGRS, H3, S2) and the
+    ///   GCJ-02 / BD-09 inverses report a **hard bound**: the true position is
+    ///   no farther away than this;
+    /// - a Helmert datum shift in
+    ///   [`Coordinate::try_to_crs`](crate::Coordinate::try_to_crs) reports the
+    ///   transform's published accuracy, NIMA TR8350.2's root-sum-square of its
+    ///   per-axis figures, which is a **statistical estimate, not a maximum**;
+    ///   a conversion with several legs sums the legs' figures, so its result
+    ///   is a hard bound only when every leg's is.
+    ///
+    /// Any other producer, including a caller of [`Approx::new`], documents
+    /// what its figure means. Never negative or NaN; `+∞` means no bound is
+    /// known.
     ///
     /// ```
     /// use geocoordinates::china::Gcj02;

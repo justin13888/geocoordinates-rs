@@ -95,12 +95,6 @@ pub mod geodesy;
 pub mod grids; // Plus Code, Geohash, Maidenhead, UTM/UPS, MGRS
 pub mod parse; // free text, geo: URI, interchange formats, NMEA sensors
 
-// --- Deferred: blocked on an external dependency (see STABILIZATION.md) ---
-// Neither ships in 0.x, and neither has any source in-tree. A PROJ-backed EPSG
-// long tail needs the system libproj C library; geoid (EGM) height conversion
-// needs multi-megabyte grid data files. Their Cargo features stay commented out
-// in Cargo.toml until a concrete consumer appears.
-
 /// Discrete global grid indexing (H3 / S2), via external crates (optional).
 ///
 /// ```
@@ -148,6 +142,12 @@ pub mod geotag;
 #[cfg(feature = "privacy")]
 #[cfg_attr(docsrs, doc(cfg(feature = "privacy")))]
 pub mod privacy;
+
+// --- Deferred: the `proj` and `geoid` features (see STABILIZATION.md) ---
+// Neither ships in 0.x, and neither has any source in-tree. `proj`, a
+// PROJ-backed EPSG long tail, needs the system libproj C library; `geoid`, EGM
+// geoid height conversion, needs multi-megabyte grid data files. Both features
+// stay commented out in Cargo.toml until a concrete consumer appears.
 
 /// Shared test-only helpers and reference vectors (compiled under `cfg(test)`).
 #[cfg(test)]
