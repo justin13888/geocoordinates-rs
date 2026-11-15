@@ -44,7 +44,8 @@
 //!
 //! ## One path per item
 //!
-//! Every public item has exactly one path, plus its [`prelude`] entry. The
+//! Every public item has exactly one path, plus a [`prelude`] entry for the
+//! nine types it holds. The
 //! crate root holds the core types ([`Coordinate`], [`Crs`], [`Height`],
 //! [`LatLon`], [`Approx`], [`Length`], [`LengthUnit`], [`Error`],
 //! [`ParseErrorKind`], [`Result`]);
@@ -158,9 +159,9 @@ pub(crate) mod test_support;
 mod promises;
 
 // The crate root holds the core types, each re-exported from its private
-// implementation module; it is their only path. [`prelude`] repeats them
-// (without `ParseErrorKind` and `Result`, plus `fix::Fix`) for a glob import;
-// every other item lives in its subsystem module.
+// implementation module; it is their only path besides the [`prelude`],
+// which repeats them for a glob import (without `ParseErrorKind` and
+// `Result`, plus `fix::Fix`). Every other item lives in its subsystem module.
 pub use approx::Approx;
 pub use coord::{Coordinate, Crs, LatLon};
 pub use error::{Error, ParseErrorKind, Result};
