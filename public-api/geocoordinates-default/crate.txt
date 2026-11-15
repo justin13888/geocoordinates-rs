@@ -114,7 +114,7 @@ impl core::marker::Unpin for geocoordinates::LengthUnit
 impl core::marker::UnsafeUnpin for geocoordinates::LengthUnit
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::LengthUnit
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::LengthUnit
-pub enum geocoordinates::ParseErrorKind
+#[non_exhaustive] pub enum geocoordinates::ParseErrorKind
 pub geocoordinates::ParseErrorKind::Ambiguous
 pub geocoordinates::ParseErrorKind::Checksum
 pub geocoordinates::ParseErrorKind::NoFix
