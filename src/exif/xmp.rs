@@ -54,89 +54,91 @@ pub struct XmpGps {
     pub track_ref: Option<String>,
 }
 
-/// Convert XMP GPS properties with the default [`ExifOptions`].
-///
-/// See [`from_xmp_with`] for the rules and errors.
-///
-/// # Errors
-/// As [`from_xmp_with`].
-///
-/// ```
-/// use geocoordinates::exif::{XmpGps, from_xmp};
-/// use geocoordinates::{Error, ParseErrorKind};
-///
-/// let mut gps = XmpGps::default();
-/// gps.latitude = Some("51,45,44.67N".to_string());
-/// gps.longitude = Some("0,19,4.41W".to_string());
-/// assert!((from_xmp(&gps)?.fix.coord.lat() - 51.762_408).abs() < 1e-6);
-///
-/// gps.longitude = Some("nowhere".to_string());
-/// assert!(matches!(
-///     from_xmp(&gps),
-///     Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })
-/// ));
-/// # Ok::<(), Error>(())
-/// ```
-pub fn from_xmp(gps: &XmpGps) -> Result<CaptureGeo> {
-    from_xmp_with(gps, ExifOptions::default())
-}
+impl CaptureGeo {
+    /// Convert XMP GPS properties with the default [`ExifOptions`].
+    ///
+    /// See [`from_xmp_with`](Self::from_xmp_with) for the rules and errors.
+    ///
+    /// # Errors
+    /// As [`from_xmp_with`](Self::from_xmp_with).
+    ///
+    /// ```
+    /// use geocoordinates::exif::{CaptureGeo, XmpGps};
+    /// use geocoordinates::{Error, ParseErrorKind};
+    ///
+    /// let mut gps = XmpGps::default();
+    /// gps.latitude = Some("51,45,44.67N".to_string());
+    /// gps.longitude = Some("0,19,4.41W".to_string());
+    /// assert!((CaptureGeo::from_xmp(&gps)?.fix.coord.lat() - 51.762_408).abs() < 1e-6);
+    ///
+    /// gps.longitude = Some("nowhere".to_string());
+    /// assert!(matches!(
+    ///     CaptureGeo::from_xmp(&gps),
+    ///     Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })
+    /// ));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn from_xmp(gps: &XmpGps) -> Result<Self> {
+        Self::from_xmp_with(gps, ExifOptions::default())
+    }
 
-/// Convert XMP GPS properties to a [`CaptureGeo`], under the rules of
-/// [`from_exif_with`](super::from_exif_with). The same values give the same result
-/// by either path, apart from [`RawSource::raw`](crate::fix::RawSource::raw).
-///
-/// A blank property reads as absent, so a blank latitude or longitude is
-/// [`ParseErrorKind::NoFix`]. A `time_stamp` missing its date, seconds or zone gives
-/// no timestamp, with a note.
-///
-/// # Errors
-/// As [`from_exif_with`](super::from_exif_with); [`Error::Parse`] with
-/// [`ParseErrorKind::Syntax`] for a coordinate or number that does not read in its
-/// XMP form, which includes `NaN` and infinities; and [`Error::InvalidValue`] naming
-/// the field for a rational whose quotient overflows to infinity, or a `time_stamp`
-/// zone outside `±23:59`.
-///
-/// ```
-/// use geocoordinates::Error;
-/// use geocoordinates::exif::{ExifOptions, XmpGps, from_xmp_with};
-///
-/// let mut gps = XmpGps::default();
-/// gps.latitude = Some("51,60.0N".to_string());
-/// gps.longitude = Some("0,19.5W".to_string());
-/// assert!(matches!(
-///     from_xmp_with(&gps, ExifOptions::default()),
-///     Err(Error::InvalidValue { field: "latitude", .. })
-/// ));
-/// ```
-pub fn from_xmp_with(gps: &XmpGps, options: ExifOptions) -> Result<CaptureGeo> {
-    let (Some(latitude), Some(longitude)) = (
-        present(gps.latitude.as_deref()),
-        present(gps.longitude.as_deref()),
-    ) else {
-        return Err(no_fix("GPSLatitude and GPSLongitude are both required"));
-    };
-    let (latitude_components, latitude_ref) = coordinate(latitude, "latitude")?;
-    let (longitude_components, longitude_ref) = coordinate(longitude, "longitude")?;
-    let tags = Tags {
-        raw: format!("GPSLatitude={latitude}; GPSLongitude={longitude}"),
-        latitude: latitude_components,
-        latitude_ref: Some(latitude_ref),
-        longitude: longitude_components,
-        longitude_ref: Some(longitude_ref),
-        altitude: number(gps.altitude.as_deref(), "altitude")?,
-        altitude_ref: altitude_ref(gps.altitude_ref.as_deref())?,
-        map_datum: gps.map_datum.as_deref(),
-        h_positioning_error: number(gps.h_positioning_error.as_deref(), "h_positioning_error")?,
-        dop: number(gps.dop.as_deref(), "dop")?,
-        stamp: stamp(gps.time_stamp.as_deref())?,
-        img_direction: number(gps.img_direction.as_deref(), "img_direction")?,
-        img_direction_ref: gps.img_direction_ref.as_deref(),
-        speed: number(gps.speed.as_deref(), "speed")?,
-        speed_ref: gps.speed_ref.as_deref(),
-        track: number(gps.track.as_deref(), "track")?,
-        track_ref: gps.track_ref.as_deref(),
-    };
-    tags.build(options)
+    /// Convert XMP GPS properties to a [`CaptureGeo`], under the rules of
+    /// [`from_exif_with`](Self::from_exif_with). The same values give the same result
+    /// by either path, apart from [`RawSource::raw`](crate::fix::RawSource::raw).
+    ///
+    /// A blank property reads as absent, so a blank latitude or longitude is
+    /// [`ParseErrorKind::NoFix`]. A `time_stamp` missing its date, seconds or zone
+    /// gives no timestamp, with a note.
+    ///
+    /// # Errors
+    /// As [`from_exif_with`](Self::from_exif_with); [`Error::Parse`] with
+    /// [`ParseErrorKind::Syntax`] for a coordinate or number that does not read in its
+    /// XMP form, which includes `NaN` and infinities; and [`Error::InvalidValue`]
+    /// naming the field for a rational whose quotient overflows to infinity, or a
+    /// `time_stamp` zone outside `±23:59`.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::exif::{CaptureGeo, ExifOptions, XmpGps};
+    ///
+    /// let mut gps = XmpGps::default();
+    /// gps.latitude = Some("51,60.0N".to_string());
+    /// gps.longitude = Some("0,19.5W".to_string());
+    /// assert!(matches!(
+    ///     CaptureGeo::from_xmp_with(&gps, ExifOptions::default()),
+    ///     Err(Error::InvalidValue { field: "latitude", .. })
+    /// ));
+    /// ```
+    pub fn from_xmp_with(gps: &XmpGps, options: ExifOptions) -> Result<Self> {
+        let (Some(latitude), Some(longitude)) = (
+            present(gps.latitude.as_deref()),
+            present(gps.longitude.as_deref()),
+        ) else {
+            return Err(no_fix("GPSLatitude and GPSLongitude are both required"));
+        };
+        let (latitude_components, latitude_ref) = coordinate(latitude, "latitude")?;
+        let (longitude_components, longitude_ref) = coordinate(longitude, "longitude")?;
+        let tags = Tags {
+            raw: format!("GPSLatitude={latitude}; GPSLongitude={longitude}"),
+            latitude: latitude_components,
+            latitude_ref: Some(latitude_ref),
+            longitude: longitude_components,
+            longitude_ref: Some(longitude_ref),
+            altitude: number(gps.altitude.as_deref(), "altitude")?,
+            altitude_ref: altitude_ref(gps.altitude_ref.as_deref())?,
+            map_datum: gps.map_datum.as_deref(),
+            h_positioning_error: number(gps.h_positioning_error.as_deref(), "h_positioning_error")?,
+            dop: number(gps.dop.as_deref(), "dop")?,
+            stamp: stamp(gps.time_stamp.as_deref())?,
+            img_direction: number(gps.img_direction.as_deref(), "img_direction")?,
+            img_direction_ref: gps.img_direction_ref.as_deref(),
+            speed: number(gps.speed.as_deref(), "speed")?,
+            speed_ref: gps.speed_ref.as_deref(),
+            track: number(gps.track.as_deref(), "track")?,
+            track_ref: gps.track_ref.as_deref(),
+        };
+        tags.build(options)
+    }
 }
 
 fn syntax(field: &str, value: &str) -> Error {

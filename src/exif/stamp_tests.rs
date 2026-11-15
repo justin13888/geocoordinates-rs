@@ -3,7 +3,7 @@
 use std::time::{Duration, SystemTime};
 
 use super::tests::{U, base, text, whole};
-use super::{ExifGps, ExifRational, NorthBearing, NorthReference, from_exif};
+use super::{CaptureGeo, ExifGps, ExifRational, NorthBearing, NorthReference};
 use crate::Error;
 
 fn stamped(date: &str, time: [ExifRational; 3]) -> Option<SystemTime> {
@@ -12,7 +12,7 @@ fn stamped(date: &str, time: [ExifRational; 3]) -> Option<SystemTime> {
         time_stamp: Some(time),
         ..base()
     };
-    from_exif(&gps).unwrap().fix.timestamp
+    CaptureGeo::from_exif(&gps).unwrap().fix.timestamp
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn partial_or_unreadable_stamps_give_no_timestamp() {
             time_stamp: Some(t),
             ..base()
         };
-        let capture = from_exif(&gps).unwrap();
+        let capture = CaptureGeo::from_exif(&gps).unwrap();
         let source = capture.fix.source.unwrap();
         assert!(
             source.notes.iter().any(|n| n.contains("unreadable")),
@@ -80,7 +80,7 @@ fn partial_or_unreadable_stamps_give_no_timestamp() {
             time_stamp: Some(t),
             ..base()
         };
-        let source = from_exif(&gps).unwrap().fix;
+        let source = CaptureGeo::from_exif(&gps).unwrap().fix;
         assert_eq!(source.timestamp, None);
         assert_eq!(source.source.unwrap().notes.len(), 1, "only the datum note");
     }
@@ -88,12 +88,18 @@ fn partial_or_unreadable_stamps_give_no_timestamp() {
         date_stamp: text("2024:02:29"),
         ..base()
     };
-    assert_eq!(from_exif(&date_only).unwrap().fix.timestamp, None);
+    assert_eq!(
+        CaptureGeo::from_exif(&date_only).unwrap().fix.timestamp,
+        None
+    );
     let time_only = ExifGps {
         time_stamp: Some(t),
         ..base()
     };
-    assert_eq!(from_exif(&time_only).unwrap().fix.timestamp, None);
+    assert_eq!(
+        CaptureGeo::from_exif(&time_only).unwrap().fix.timestamp,
+        None
+    );
 }
 
 #[test]
@@ -110,7 +116,7 @@ fn speed_units_convert_to_meters_per_second() {
             speed_ref: text(unit),
             ..base()
         };
-        let actual = from_exif(&gps).unwrap().speed_mps.unwrap();
+        let actual = CaptureGeo::from_exif(&gps).unwrap().speed_mps.unwrap();
         assert!((actual - expected).abs() < 1e-12, "{unit}: {actual}");
     }
 }
@@ -123,7 +129,7 @@ fn speed_without_a_unit_is_dropped_with_a_note() {
             speed_ref: unit,
             ..base()
         };
-        let capture = from_exif(&gps).unwrap();
+        let capture = CaptureGeo::from_exif(&gps).unwrap();
         assert_eq!(capture.speed_mps, None);
         assert!(
             capture
@@ -135,12 +141,12 @@ fn speed_without_a_unit_is_dropped_with_a_note() {
                 .any(|n| n.contains("GPSSpeedRef"))
         );
     }
-    assert_eq!(from_exif(&base()).unwrap().speed_mps, None);
+    assert_eq!(CaptureGeo::from_exif(&base()).unwrap().speed_mps, None);
     let unit_alone = ExifGps {
         speed_ref: text("K"),
         ..base()
     };
-    assert_eq!(from_exif(&unit_alone).unwrap().speed_mps, None);
+    assert_eq!(CaptureGeo::from_exif(&unit_alone).unwrap().speed_mps, None);
 }
 
 #[test]
@@ -160,7 +166,7 @@ fn bearings_keep_their_reference() {
             track_ref: letter,
             ..base()
         };
-        let capture = from_exif(&gps).unwrap();
+        let capture = CaptureGeo::from_exif(&gps).unwrap();
         assert_eq!(
             capture.direction,
             Some(NorthBearing::new(359.5, reference).unwrap())

@@ -86,6 +86,12 @@ pub geocoordinates::exif::CaptureGeo::dop: core::option::Option<f64>
 pub geocoordinates::exif::CaptureGeo::fix: geocoordinates::fix::Fix
 pub geocoordinates::exif::CaptureGeo::speed_mps: core::option::Option<f64>
 pub geocoordinates::exif::CaptureGeo::track: core::option::Option<geocoordinates::exif::NorthBearing>
+impl geocoordinates::exif::CaptureGeo
+pub fn geocoordinates::exif::CaptureGeo::from_exif(&geocoordinates::exif::ExifGps) -> geocoordinates::Result<Self>
+pub fn geocoordinates::exif::CaptureGeo::from_exif_with(&geocoordinates::exif::ExifGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<Self>
+impl geocoordinates::exif::CaptureGeo
+pub fn geocoordinates::exif::CaptureGeo::from_xmp(&geocoordinates::exif::XmpGps) -> geocoordinates::Result<Self>
+pub fn geocoordinates::exif::CaptureGeo::from_xmp_with(&geocoordinates::exif::XmpGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<Self>
 impl core::clone::Clone for geocoordinates::exif::CaptureGeo
 pub fn geocoordinates::exif::CaptureGeo::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::exif::CaptureGeo
@@ -232,7 +238,3 @@ impl core::marker::Unpin for geocoordinates::exif::XmpGps
 impl core::marker::UnsafeUnpin for geocoordinates::exif::XmpGps
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::XmpGps
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::XmpGps
-pub fn geocoordinates::exif::from_exif(&geocoordinates::exif::ExifGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
-pub fn geocoordinates::exif::from_exif_with(&geocoordinates::exif::ExifGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
-pub fn geocoordinates::exif::from_xmp(&geocoordinates::exif::XmpGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
-pub fn geocoordinates::exif::from_xmp_with(&geocoordinates::exif::XmpGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>

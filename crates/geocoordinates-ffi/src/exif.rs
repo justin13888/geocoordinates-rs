@@ -321,17 +321,17 @@ impl From<gc::exif::CaptureGeo> for CaptureGeo {
 }
 
 /// Read GPS IFD tag values, accepting a position of 0°, 0° — the FFI form of the core
-/// `exif::from_exif`.
+/// `CaptureGeo::from_exif`.
 ///
 /// # Errors
 /// As [`parse_exif_with`].
 #[uniffi::export]
 pub fn parse_exif(gps: ExifGps) -> Result<CaptureGeo, GeoError> {
-    Ok(gc::exif::from_exif(&gps.into())?.into())
+    Ok(gc::exif::CaptureGeo::from_exif(&gps.into())?.into())
 }
 
 /// Read GPS IFD tag values under `options` — the FFI form of the core
-/// `exif::from_exif_with`.
+/// `CaptureGeo::from_exif_with`.
 ///
 /// # Errors
 /// `GeoError::Parse` of kind `NoFix` when latitude or longitude is absent, the block
@@ -341,26 +341,26 @@ pub fn parse_exif(gps: ExifGps) -> Result<CaptureGeo, GeoError> {
 /// `[0, 360)`, or a bad Ref; `GeoError::OutOfRange` beyond ±90° / ±180°.
 #[uniffi::export]
 pub fn parse_exif_with(gps: ExifGps, options: ExifOptions) -> Result<CaptureGeo, GeoError> {
-    Ok(gc::exif::from_exif_with(&gps.into(), options.into())?.into())
+    Ok(gc::exif::CaptureGeo::from_exif_with(&gps.into(), options.into())?.into())
 }
 
 /// Read XMP `exif:GPS*` properties, accepting a position of 0°, 0° — the FFI form of
-/// the core `exif::from_xmp`.
+/// the core `CaptureGeo::from_xmp`.
 ///
 /// # Errors
 /// As [`parse_xmp_with`].
 #[uniffi::export]
 pub fn parse_xmp(gps: XmpGps) -> Result<CaptureGeo, GeoError> {
-    Ok(gc::exif::from_xmp(&gps.into())?.into())
+    Ok(gc::exif::CaptureGeo::from_xmp(&gps.into())?.into())
 }
 
 /// Read XMP `exif:GPS*` properties under `options` — the FFI form of the core
-/// `exif::from_xmp_with`.
+/// `CaptureGeo::from_xmp_with`.
 ///
 /// # Errors
 /// As [`parse_exif_with`], and `GeoError::Parse` of kind `Syntax` for a coordinate or
 /// number that does not read in its XMP form.
 #[uniffi::export]
 pub fn parse_xmp_with(gps: XmpGps, options: ExifOptions) -> Result<CaptureGeo, GeoError> {
-    Ok(gc::exif::from_xmp_with(&gps.into(), options.into())?.into())
+    Ok(gc::exif::CaptureGeo::from_xmp_with(&gps.into(), options.into())?.into())
 }

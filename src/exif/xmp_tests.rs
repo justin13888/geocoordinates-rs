@@ -3,11 +3,11 @@
 use std::time::{Duration, SystemTime};
 
 use super::tests::{U, text, whole, xmp_base};
-use super::{ExifGps, XmpGps, from_exif, from_xmp};
+use super::{CaptureGeo, ExifGps, XmpGps};
 use crate::{Error, ParseErrorKind};
 
 fn xmp_error(gps: &XmpGps) -> Error {
-    from_xmp(gps).unwrap_err()
+    CaptureGeo::from_xmp(gps).unwrap_err()
 }
 
 /// The same values by either path give the same result, apart from `raw`.
@@ -48,8 +48,8 @@ fn xmp_forms_match_the_ifd_path() {
         track: text("719/2"),
         track_ref: text("T"),
     };
-    let mut from_ifd = from_exif(&ifd).unwrap();
-    let mut from_text = from_xmp(&xmp).unwrap();
+    let mut from_ifd = CaptureGeo::from_exif(&ifd).unwrap();
+    let mut from_text = CaptureGeo::from_xmp(&xmp).unwrap();
     from_ifd.fix.source.as_mut().unwrap().raw.clear();
     from_text.fix.source.as_mut().unwrap().raw.clear();
     assert_eq!(from_ifd, from_text);
@@ -271,7 +271,7 @@ fn xmp_blank_numbers_read_as_absent() {
         time_stamp: text(""),
         ..xmp_base()
     };
-    let capture = from_xmp(&gps).unwrap();
+    let capture = CaptureGeo::from_xmp(&gps).unwrap();
     assert_eq!(capture.fix.coord.height(), None);
     assert_eq!(capture.dop, None);
     assert_eq!(capture.fix.timestamp, None);
@@ -337,7 +337,7 @@ fn xmp_time_stamp_zones_must_be_in_range() {
         ..xmp_base()
     };
     assert_eq!(
-        from_xmp(&widest).unwrap().fix.timestamp,
+        CaptureGeo::from_xmp(&widest).unwrap().fix.timestamp,
         Some(SystemTime::UNIX_EPOCH + Duration::from_secs(86_400))
     );
 }
@@ -359,7 +359,11 @@ fn xmp_time_stamps_honour_their_zone_and_need_every_part() {
             time_stamp: text(stamp),
             ..xmp_base()
         };
-        assert_eq!(from_xmp(&gps).unwrap().fix.timestamp, expected, "{stamp}");
+        assert_eq!(
+            CaptureGeo::from_xmp(&gps).unwrap().fix.timestamp,
+            expected,
+            "{stamp}"
+        );
     }
     for stamp in [
         "2024-02-29",
@@ -378,7 +382,7 @@ fn xmp_time_stamps_honour_their_zone_and_need_every_part() {
             time_stamp: text(stamp),
             ..xmp_base()
         };
-        let fix = from_xmp(&gps).unwrap().fix;
+        let fix = CaptureGeo::from_xmp(&gps).unwrap().fix;
         assert_eq!(fix.timestamp, None, "{stamp}");
         assert!(
             fix.source
@@ -393,7 +397,7 @@ fn xmp_time_stamps_honour_their_zone_and_need_every_part() {
         time_stamp: text("2024-13-01T00:00:00Z"),
         ..xmp_base()
     };
-    let fix = from_xmp(&bad_date).unwrap().fix;
+    let fix = CaptureGeo::from_xmp(&bad_date).unwrap().fix;
     assert_eq!(fix.timestamp, None);
     assert!(
         fix.source
