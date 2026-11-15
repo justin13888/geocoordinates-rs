@@ -58,7 +58,7 @@ exactly the [audit ledger](#audit-ledger)'s rows whose status reads `open`.
 Measured on `master` at the start of this effort (2026-09-01), and again on
 the 0.15.0 surface at `4238894` (2026-11-15), a commit of #298 whose Rust
 sources are `master@433f3a0`'s with only doc comments changed; the commits
-after it in #298 change only Markdown. Each 0.15.0 figure names the command
+after it in #298 change only Markdown and one doc comment, so no count moves. Each 0.15.0 figure names the command
 that produced it:
 
 | Signal | 2026-09-01 | 0.15.0 |
