@@ -1,16 +1,17 @@
 //! EXIF / XMP GPS tag values to a validated [`Fix`] (feature `exif`).
 //!
 //! This module starts from tag values a reader already extracted: it never parses
-//! JPEG, TIFF or HEIF bytes. Hand [`from_exif`] the GPS IFD's raw rationals in an
-//! [`ExifGps`], or [`from_xmp`] the `exif:GPS*` property strings in an [`XmpGps`],
-//! and get a [`CaptureGeo`]: the position and its metadata as a [`Fix`], plus the
-//! capture direction and motion, which a `Fix` deliberately leaves out.
+//! JPEG, TIFF or HEIF bytes. Hand [`CaptureGeo::from_exif`] the GPS IFD's raw
+//! rationals in an [`ExifGps`], or [`CaptureGeo::from_xmp`] the `exif:GPS*` property
+//! strings in an [`XmpGps`], and get a [`CaptureGeo`]: the position and its metadata
+//! as a [`Fix`], plus the capture direction and motion, which a `Fix` deliberately
+//! leaves out.
 //!
 //! Every item is reached flat at `exif::NAME`.
 //!
 //! ```
 //! use geocoordinates::Height;
-//! use geocoordinates::exif::{ExifGps, from_exif};
+//! use geocoordinates::exif::{CaptureGeo, ExifGps};
 //!
 //! let mut gps = ExifGps::default();
 //! gps.latitude = Some([(51_u32, 1_u32).into(), (45_u32, 1_u32).into(), (4467_u32, 100_u32).into()]);
@@ -20,14 +21,14 @@
 //! gps.altitude = Some((27704_u32, 249_u32).into());
 //! gps.altitude_ref = Some(0);
 //!
-//! let capture = from_exif(&gps)?;
+//! let capture = CaptureGeo::from_exif(&gps)?;
 //! assert!((capture.fix.coord.lat() - 51.762_408).abs() < 1e-6);
 //! assert!(capture.fix.coord.lon() < 0.0);
 //! assert!(matches!(capture.fix.coord.height(), Some(Height::Orthometric(_))));
 //!
 //! // A hemisphere letter is never guessed.
 //! gps.latitude_ref = Some("Q".to_string());
-//! assert!(from_exif(&gps).is_err());
+//! assert!(CaptureGeo::from_exif(&gps).is_err());
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 
@@ -46,13 +47,13 @@ mod xmp_tests;
 use crate::fix::Fix;
 use crate::{Error, ParseErrorKind, Result};
 
-pub use self::xmp::{XmpGps, from_xmp, from_xmp_with};
+pub use self::xmp::XmpGps;
 
 /// One EXIF rational exactly as stored: `RATIONAL` (`u32 / u32`) or `SRATIONAL`
 /// (`i32 / i32`).
 ///
 /// No validity is implied: a zero denominator or a negative value can be held
-/// here, and is rejected by [`from_exif`] with [`Error::InvalidValue`].
+/// here, and is rejected by [`CaptureGeo::from_exif`] with [`Error::InvalidValue`].
 ///
 /// ```
 /// use geocoordinates::exif::ExifRational;
@@ -307,7 +308,7 @@ pub enum NullIslandPolicy {
     Reject,
 }
 
-/// Options for [`from_exif_with`] and [`from_xmp_with`].
+/// Options for [`CaptureGeo::from_exif_with`] and [`CaptureGeo::from_xmp_with`].
 ///
 /// `#[non_exhaustive]`: build one from [`Default`] and the `const` `with_*` builder.
 ///
@@ -359,16 +360,16 @@ impl ExifOptions {
 /// A photo's capture position and metadata, with its direction and motion.
 ///
 /// `#[non_exhaustive]`, so a field can be added without a breaking release; it is
-/// produced by [`from_exif`] and [`from_xmp`].
+/// produced by [`CaptureGeo::from_exif`] and [`CaptureGeo::from_xmp`].
 ///
 /// ```
-/// use geocoordinates::exif::{XmpGps, from_xmp};
+/// use geocoordinates::exif::{CaptureGeo, XmpGps};
 ///
 /// let mut gps = XmpGps::default();
 /// gps.latitude = Some("51,45.0N".to_string());
 /// gps.longitude = Some("0,19.5W".to_string());
 /// gps.track = Some("90/1".to_string());
-/// let capture = from_xmp(&gps)?;
+/// let capture = CaptureGeo::from_xmp(&gps)?;
 /// assert_eq!(capture.track.map(|t| t.degrees()), Some(90.0));
 /// assert_eq!(capture.direction, None);
 /// # Ok::<(), geocoordinates::Error>(())
@@ -394,118 +395,120 @@ pub struct CaptureGeo {
     pub dop: Option<f64>,
 }
 
-/// Convert GPS IFD tag values with the default [`ExifOptions`].
-///
-/// See [`from_exif_with`] for the rules and errors.
-///
-/// # Errors
-/// As [`from_exif_with`].
-///
-/// ```
-/// use geocoordinates::exif::{ExifGps, from_exif};
-/// use geocoordinates::{Error, ParseErrorKind};
-///
-/// // A photo with no GPS block has no fix.
-/// assert!(matches!(
-///     from_exif(&ExifGps::default()),
-///     Err(Error::Parse { kind: ParseErrorKind::NoFix, .. })
-/// ));
-/// ```
-pub fn from_exif(gps: &ExifGps) -> Result<CaptureGeo> {
-    from_exif_with(gps, ExifOptions::default())
-}
-
-/// Convert GPS IFD tag values to a [`CaptureGeo`].
-///
-/// - **Position:** the hemisphere comes only from the Ref tag (`N`/`S`/`E`/`W`,
-///   case-insensitive, trimmed).
-/// - **Height:** `GPSAltitudeRef` 0 and 1 give [`Height::Orthometric`], 2 and 3
-///   give [`Height::Ellipsoidal`]; an absent Ref reads as 0, the Exif default.
-/// - **Datum:** `GPSMapDatum` spellings of WGS-84, Tokyo, GCJ-02 and BD-09 set the
-///   CRS. Empty, absent or unknown means WGS-84 at lowered confidence with a note,
-///   and inside China's bounding box also flags
-///   [`DatumAmbiguity::PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02).
-/// - **Timestamp:** needs a date and a time. A partial or unreadable date gives no
-///   timestamp rather than a guessed one, and an unreadable date adds a note.
-///
-/// [`Height::Orthometric`]: crate::Height::Orthometric
-/// [`Height::Ellipsoidal`]: crate::Height::Ellipsoidal
-///
-/// # Errors
-/// - [`Error::Parse`] with [`ParseErrorKind::NoFix`]: latitude or longitude is
-///   absent, the block is all `0/0` placeholders, or the position is 0°, 0° under
-///   [`NullIslandPolicy::Reject`].
-/// - [`Error::InvalidValue`] naming the field: a zero denominator or negative
-///   value, minutes or seconds of 60 or more, a time stamp's hour of 24 or more or
-///   seconds of 60 (so a UTC leap second is rejected), a bearing outside `[0, 360)`
-///   (so 360 is rejected), an absent or unrecognised latitude / longitude Ref, or
-///   an unrecognised other Ref, with or without the tag it qualifies.
-/// - [`Error::OutOfRange`]: the position is beyond ±90° / ±180°.
-///
-/// ```
-/// use geocoordinates::Error;
-/// use geocoordinates::exif::{ExifGps, ExifOptions, NullIslandPolicy, from_exif_with};
-///
-/// let mut gps = ExifGps::default();
-/// let zero = (0_u32, 1_u32).into();
-/// gps.latitude = Some([zero, zero, zero]);
-/// gps.latitude_ref = Some("N".to_string());
-/// gps.longitude = Some([zero, zero, zero]);
-/// gps.longitude_ref = Some("E".to_string());
-///
-/// assert!(from_exif_with(&gps, ExifOptions::default()).is_ok());
-/// let strict = ExifOptions::default().with_null_island(NullIslandPolicy::Reject);
-/// assert!(from_exif_with(&gps, strict).is_err());
-///
-/// gps.longitude = Some([zero, (60_u32, 1_u32).into(), zero]);
-/// assert!(matches!(
-///     from_exif_with(&gps, ExifOptions::default()),
-///     Err(Error::InvalidValue { field: "longitude", .. })
-/// ));
-/// ```
-pub fn from_exif_with(gps: &ExifGps, options: ExifOptions) -> Result<CaptureGeo> {
-    let (Some(latitude), Some(longitude)) = (gps.latitude, gps.longitude) else {
-        return Err(no_fix("GPSLatitude and GPSLongitude are both required"));
-    };
-    if latitude
-        .iter()
-        .chain(&longitude)
-        .all(|r| r.is_zero_over_zero())
-    {
-        return Err(no_fix("GPSLatitude and GPSLongitude are all 0/0"));
+impl CaptureGeo {
+    /// Convert GPS IFD tag values with the default [`ExifOptions`].
+    ///
+    /// See [`from_exif_with`](Self::from_exif_with) for the rules and errors.
+    ///
+    /// # Errors
+    /// As [`from_exif_with`](Self::from_exif_with).
+    ///
+    /// ```
+    /// use geocoordinates::exif::{CaptureGeo, ExifGps};
+    /// use geocoordinates::{Error, ParseErrorKind};
+    ///
+    /// // A photo with no GPS block has no fix.
+    /// assert!(matches!(
+    ///     CaptureGeo::from_exif(&ExifGps::default()),
+    ///     Err(Error::Parse { kind: ParseErrorKind::NoFix, .. })
+    /// ));
+    /// ```
+    pub fn from_exif(gps: &ExifGps) -> Result<Self> {
+        Self::from_exif_with(gps, ExifOptions::default())
     }
-    let tags = build::Tags {
-        raw: format!(
-            "GPSLatitude={} {}; GPSLongitude={} {}",
-            render(&latitude),
-            gps.latitude_ref.as_deref().map_or("", build::clean),
-            render(&longitude),
-            gps.longitude_ref.as_deref().map_or("", build::clean),
-        ),
-        latitude: triple(latitude, "latitude")?,
-        latitude_ref: gps.latitude_ref.as_deref(),
-        longitude: triple(longitude, "longitude")?,
-        longitude_ref: gps.longitude_ref.as_deref(),
-        altitude: single(gps.altitude, "altitude")?,
-        altitude_ref: gps.altitude_ref,
-        map_datum: gps.map_datum.as_deref(),
-        h_positioning_error: single(gps.h_positioning_error, "h_positioning_error")?,
-        dop: single(gps.dop, "dop")?,
-        stamp: build::Stamp::new(
-            gps.date_stamp.as_deref(),
-            gps.time_stamp
-                .map(|time| triple(time, "time_stamp"))
-                .transpose()?,
-            0,
-        )?,
-        img_direction: single(gps.img_direction, "img_direction")?,
-        img_direction_ref: gps.img_direction_ref.as_deref(),
-        speed: single(gps.speed, "speed")?,
-        speed_ref: gps.speed_ref.as_deref(),
-        track: single(gps.track, "track")?,
-        track_ref: gps.track_ref.as_deref(),
-    };
-    tags.build(options)
+
+    /// Convert GPS IFD tag values to a [`CaptureGeo`].
+    ///
+    /// - **Position:** the hemisphere comes only from the Ref tag (`N`/`S`/`E`/`W`,
+    ///   case-insensitive, trimmed).
+    /// - **Height:** `GPSAltitudeRef` 0 and 1 give [`Height::Orthometric`], 2 and 3
+    ///   give [`Height::Ellipsoidal`]; an absent Ref reads as 0, the Exif default.
+    /// - **Datum:** `GPSMapDatum` spellings of WGS-84, Tokyo, GCJ-02 and BD-09 set the
+    ///   CRS. Empty, absent or unknown means WGS-84 at lowered confidence with a note,
+    ///   and inside China's bounding box also flags
+    ///   [`DatumAmbiguity::PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02).
+    /// - **Timestamp:** needs a date and a time. A partial or unreadable date gives no
+    ///   timestamp rather than a guessed one, and an unreadable date adds a note.
+    ///
+    /// [`Height::Orthometric`]: crate::Height::Orthometric
+    /// [`Height::Ellipsoidal`]: crate::Height::Ellipsoidal
+    ///
+    /// # Errors
+    /// - [`Error::Parse`] with [`ParseErrorKind::NoFix`]: latitude or longitude is
+    ///   absent, the block is all `0/0` placeholders, or the position is 0°, 0° under
+    ///   [`NullIslandPolicy::Reject`].
+    /// - [`Error::InvalidValue`] naming the field: a zero denominator or negative
+    ///   value, minutes or seconds of 60 or more, a time stamp's hour of 24 or more or
+    ///   seconds of 60 (so a UTC leap second is rejected), a bearing outside `[0, 360)`
+    ///   (so 360 is rejected), an absent or unrecognised latitude / longitude Ref, or
+    ///   an unrecognised other Ref, with or without the tag it qualifies.
+    /// - [`Error::OutOfRange`]: the position is beyond ±90° / ±180°.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::exif::{CaptureGeo, ExifGps, ExifOptions, NullIslandPolicy};
+    ///
+    /// let mut gps = ExifGps::default();
+    /// let zero = (0_u32, 1_u32).into();
+    /// gps.latitude = Some([zero, zero, zero]);
+    /// gps.latitude_ref = Some("N".to_string());
+    /// gps.longitude = Some([zero, zero, zero]);
+    /// gps.longitude_ref = Some("E".to_string());
+    ///
+    /// assert!(CaptureGeo::from_exif_with(&gps, ExifOptions::default()).is_ok());
+    /// let strict = ExifOptions::default().with_null_island(NullIslandPolicy::Reject);
+    /// assert!(CaptureGeo::from_exif_with(&gps, strict).is_err());
+    ///
+    /// gps.longitude = Some([zero, (60_u32, 1_u32).into(), zero]);
+    /// assert!(matches!(
+    ///     CaptureGeo::from_exif_with(&gps, ExifOptions::default()),
+    ///     Err(Error::InvalidValue { field: "longitude", .. })
+    /// ));
+    /// ```
+    pub fn from_exif_with(gps: &ExifGps, options: ExifOptions) -> Result<Self> {
+        let (Some(latitude), Some(longitude)) = (gps.latitude, gps.longitude) else {
+            return Err(no_fix("GPSLatitude and GPSLongitude are both required"));
+        };
+        if latitude
+            .iter()
+            .chain(&longitude)
+            .all(|r| r.is_zero_over_zero())
+        {
+            return Err(no_fix("GPSLatitude and GPSLongitude are all 0/0"));
+        }
+        let tags = build::Tags {
+            raw: format!(
+                "GPSLatitude={} {}; GPSLongitude={} {}",
+                render(&latitude),
+                gps.latitude_ref.as_deref().map_or("", build::clean),
+                render(&longitude),
+                gps.longitude_ref.as_deref().map_or("", build::clean),
+            ),
+            latitude: triple(latitude, "latitude")?,
+            latitude_ref: gps.latitude_ref.as_deref(),
+            longitude: triple(longitude, "longitude")?,
+            longitude_ref: gps.longitude_ref.as_deref(),
+            altitude: single(gps.altitude, "altitude")?,
+            altitude_ref: gps.altitude_ref,
+            map_datum: gps.map_datum.as_deref(),
+            h_positioning_error: single(gps.h_positioning_error, "h_positioning_error")?,
+            dop: single(gps.dop, "dop")?,
+            stamp: build::Stamp::new(
+                gps.date_stamp.as_deref(),
+                gps.time_stamp
+                    .map(|time| triple(time, "time_stamp"))
+                    .transpose()?,
+                0,
+            )?,
+            img_direction: single(gps.img_direction, "img_direction")?,
+            img_direction_ref: gps.img_direction_ref.as_deref(),
+            speed: single(gps.speed, "speed")?,
+            speed_ref: gps.speed_ref.as_deref(),
+            track: single(gps.track, "track")?,
+            track_ref: gps.track_ref.as_deref(),
+        };
+        tags.build(options)
+    }
 }
 
 /// A [`ParseErrorKind::NoFix`] error.

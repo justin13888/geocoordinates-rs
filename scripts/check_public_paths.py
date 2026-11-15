@@ -23,7 +23,7 @@ SANCTIONED = {"prelude"}
 # Floor on the number of public items the walk must find (all features on).
 # An empty or truncated walk would otherwise pass. A change that removes
 # public items lowers this in the same diff; one that adds items may raise it.
-MIN_ITEMS = 146
+MIN_ITEMS = 142
 
 
 def main(argv):

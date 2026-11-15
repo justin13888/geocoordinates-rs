@@ -12,7 +12,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use super::{CaptureGeo, ExifGps, ExifRational, NorthReference, from_exif};
+use super::{CaptureGeo, ExifGps, ExifRational, NorthReference};
 use crate::fix::DatumAmbiguity;
 use crate::{Crs, Error, Height, ParseErrorKind};
 
@@ -58,7 +58,7 @@ fn iphone_6_with_a_malformed_date() {
         date_stamp: text("2014:09:259"),
         ..ExifGps::default()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     close(capture.fix.coord.lat(), 51.0 + 45.0 / 60.0 + 44.67 / 3600.0);
     close(capture.fix.coord.lon(), -(19.0 / 60.0 + 4.41 / 3600.0));
     assert_eq!(
@@ -89,7 +89,7 @@ fn iphone_6_plus_below_sea_level() {
         date_stamp: text("2014:10:31"),
         ..ExifGps::default()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     close(capture.fix.coord.lat(), 51.0 + 28.9797 / 60.0);
     assert_eq!(
         capture.fix.coord.height(),
@@ -114,7 +114,7 @@ fn iphone_5_time_without_date() {
         img_direction: rational(46616, 499),
         ..ExifGps::default()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     close(capture.fix.coord.lon(), -(122.0 + 20.24 / 60.0));
     assert_eq!(capture.fix.timestamp, None);
     assert_eq!(capture.direction.unwrap().degrees(), 46616.0 / 499.0);
@@ -132,7 +132,7 @@ fn dji_phantom_4_has_no_stamp() {
         altitude: rational(109_686, 1000),
         ..ExifGps::default()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     close(
         capture.fix.coord.lat(),
         32.0 + 28.0 / 60.0 + 42.9577 / 3600.0,
@@ -160,7 +160,7 @@ fn pixel_2_dop_invents_no_accuracy() {
         date_stamp: text("2019:01:19"),
         ..ExifGps::default()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     assert_eq!(capture.fix.accuracy, None);
     assert_eq!(capture.dop, Some(13.054));
     assert_eq!(capture.fix.timestamp, utc(1_547_925_171, 0));
@@ -184,7 +184,7 @@ fn oppo_r7_plus_outside_china_is_not_flagged() {
         date_stamp: text("2018:07:16"),
         ..ExifGps::default()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     assert_eq!(capture.fix.source.as_ref().unwrap().datum_ambiguity, None);
     assert_eq!(capture.fix.timestamp, utc(1_531_756_342, 0));
 }
@@ -208,7 +208,7 @@ fn xiaomi_inside_china_without_a_datum_is_flagged() {
         date_stamp: text("2023:12:21"),
         ..ExifGps::default()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     close(
         capture.fix.coord.lat(),
         34.0 + 16.0 / 60.0 + 17.7832 / 3600.0,
@@ -241,7 +241,7 @@ fn oneplus_8_placeholder_block_is_no_fix() {
         ..ExifGps::default()
     };
     assert!(matches!(
-        from_exif(&gps),
+        CaptureGeo::from_exif(&gps),
         Err(Error::Parse {
             kind: ParseErrorKind::NoFix,
             ..

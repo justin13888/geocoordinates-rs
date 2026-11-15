@@ -11721,7 +11721,7 @@ public func s2Validate(cell: S2CellId)throws   {try rustCallWithError(FfiConvert
 }
 /**
  * Read GPS IFD tag values, accepting a position of 0°, 0° — the FFI form of the core
- * `exif::from_exif`.
+ * `CaptureGeo::from_exif`.
  *
  * # Errors
  * As [`parse_exif_with`].
@@ -11735,7 +11735,7 @@ public func parseExif(gps: ExifGps)throws  -> CaptureGeo  {
 }
 /**
  * Read GPS IFD tag values under `options` — the FFI form of the core
- * `exif::from_exif_with`.
+ * `CaptureGeo::from_exif_with`.
  *
  * # Errors
  * `GeoError::Parse` of kind `NoFix` when latitude or longitude is absent, the block
@@ -11754,7 +11754,7 @@ public func parseExifWith(gps: ExifGps, options: ExifOptions)throws  -> CaptureG
 }
 /**
  * Read XMP `exif:GPS*` properties, accepting a position of 0°, 0° — the FFI form of
- * the core `exif::from_xmp`.
+ * the core `CaptureGeo::from_xmp`.
  *
  * # Errors
  * As [`parse_xmp_with`].
@@ -11768,7 +11768,7 @@ public func parseXmp(gps: XmpGps)throws  -> CaptureGeo  {
 }
 /**
  * Read XMP `exif:GPS*` properties under `options` — the FFI form of the core
- * `exif::from_xmp_with`.
+ * `CaptureGeo::from_xmp_with`.
  *
  * # Errors
  * As [`parse_exif_with`], and `GeoError::Parse` of kind `Syntax` for a coordinate or
@@ -14038,16 +14038,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_s2_validate() != 24086) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif() != 557) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif() != 64414) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif_with() != 40192) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif_with() != 32993) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_xmp() != 30757) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_xmp() != 59850) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_xmp_with() != 35954) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_xmp_with() != 40762) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_aer_from_coordinate() != 9329) {

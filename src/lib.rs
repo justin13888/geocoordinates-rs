@@ -211,7 +211,7 @@ pub mod prelude {
     #[cfg(feature = "exif")]
     pub use crate::exif::{
         CaptureGeo, ExifGps, ExifOptions, ExifRational, NorthBearing, NorthReference,
-        NullIslandPolicy, XmpGps, from_exif, from_exif_with, from_xmp, from_xmp_with,
+        NullIslandPolicy, XmpGps,
     };
     pub use crate::format::{
         DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,

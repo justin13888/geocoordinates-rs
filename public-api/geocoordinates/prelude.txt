@@ -296,10 +296,6 @@ pub fn geocoordinates::prelude::final_bearing(impl geocoordinates::LatLon, impl 
 pub fn geocoordinates::prelude::fit_bounds(geocoordinates::geodesy::GeoBounds, geocoordinates::map::Viewport, f64, f64) -> geocoordinates::Result<geocoordinates::map::Camera>
 pub fn geocoordinates::prelude::format(geocoordinates::Coordinate, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
 pub fn geocoordinates::prelude::format_fix(&geocoordinates::fix::Fix, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
-pub fn geocoordinates::prelude::from_exif(&geocoordinates::exif::ExifGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
-pub fn geocoordinates::prelude::from_exif_with(&geocoordinates::exif::ExifGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
-pub fn geocoordinates::prelude::from_xmp(&geocoordinates::exif::XmpGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
-pub fn geocoordinates::prelude::from_xmp_with(&geocoordinates::exif::XmpGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
 pub fn geocoordinates::prelude::geodesic_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
 pub fn geocoordinates::prelude::haversine_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
 pub fn geocoordinates::prelude::initial_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>

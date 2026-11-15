@@ -1,10 +1,7 @@
 //! Rules of the IFD and XMP paths, table-driven. Real device values are in
 //! `device_tests.rs`.
 
-use super::{
-    ExifGps, ExifOptions, ExifRational, NullIslandPolicy, XmpGps, from_exif, from_exif_with,
-    from_xmp, from_xmp_with,
-};
+use super::{CaptureGeo, ExifGps, ExifOptions, ExifRational, NullIslandPolicy, XmpGps};
 use crate::fix::{AccuracyKind, DatumAmbiguity};
 use crate::{Crs, Error, Height, ParseErrorKind};
 
@@ -42,7 +39,7 @@ pub(super) fn xmp_base() -> XmpGps {
 }
 
 fn field_of(gps: &ExifGps) -> &'static str {
-    match from_exif(gps) {
+    match CaptureGeo::from_exif(gps) {
         Err(Error::InvalidValue { field, .. }) => field,
         other => panic!("expected InvalidValue, got {other:?}"),
     }
@@ -61,7 +58,7 @@ fn ref_letters_set_the_sign_ignoring_case_and_padding() {
             longitude_ref: text(lon_ref),
             ..base()
         };
-        let coord = from_exif(&gps).unwrap().fix.coord;
+        let coord = CaptureGeo::from_exif(&gps).unwrap().fix.coord;
         assert_eq!(
             (coord.lat(), coord.lon()),
             (lat, lon),
@@ -298,7 +295,7 @@ fn out_of_range_positions_are_the_pair_error() {
         },
     ] {
         assert!(
-            matches!(from_exif(&gps), Err(Error::OutOfRange { .. })),
+            matches!(CaptureGeo::from_exif(&gps), Err(Error::OutOfRange { .. })),
             "{gps:?}"
         );
     }
@@ -307,7 +304,7 @@ fn out_of_range_positions_are_the_pair_error() {
         longitude: dms(180, 0, 0),
         ..base()
     };
-    assert_eq!(from_exif(&pole).unwrap().fix.coord.lat(), 90.0);
+    assert_eq!(CaptureGeo::from_exif(&pole).unwrap().fix.coord.lat(), 90.0);
 }
 
 #[test]
@@ -336,7 +333,7 @@ fn missing_position_or_placeholder_block_is_no_fix() {
     ] {
         assert!(
             matches!(
-                from_exif(&gps),
+                CaptureGeo::from_exif(&gps),
                 Err(Error::Parse {
                     kind: ParseErrorKind::NoFix,
                     ..
@@ -374,7 +371,7 @@ fn missing_position_or_placeholder_block_is_no_fix() {
         },
     ] {
         assert!(matches!(
-            from_xmp(&gps),
+            CaptureGeo::from_xmp(&gps),
             Err(Error::Parse {
                 kind: ParseErrorKind::NoFix,
                 ..
@@ -398,7 +395,7 @@ fn every_altitude_ref_maps_to_its_surface_and_sign() {
             ..base()
         };
         assert_eq!(
-            from_exif(&gps).unwrap().fix.coord.height(),
+            CaptureGeo::from_exif(&gps).unwrap().fix.coord.height(),
             Some(height),
             "{reference:?}"
         );
@@ -407,7 +404,8 @@ fn every_altitude_ref_maps_to_its_surface_and_sign() {
         altitude_ref: Some(1),
         ..base()
     };
-    assert_eq!(from_exif(&ref_alone).unwrap().fix.coord.height(), None);
+    let coord = CaptureGeo::from_exif(&ref_alone).unwrap().fix.coord;
+    assert_eq!(coord.height(), None);
 }
 
 #[test]
@@ -453,7 +451,8 @@ fn zero_altitude_below_the_ellipsoid_is_positive_zero() {
         altitude_ref: Some(3),
         ..base()
     };
-    let Some(Height::Ellipsoidal(meters)) = from_exif(&gps).unwrap().fix.coord.height() else {
+    let Some(Height::Ellipsoidal(meters)) = CaptureGeo::from_exif(&gps).unwrap().fix.coord.height()
+    else {
         panic!("expected an ellipsoidal height");
     };
     assert!(meters.is_sign_positive());
@@ -478,7 +477,7 @@ fn map_datum_spellings_set_the_crs_at_full_confidence() {
             map_datum: text(name),
             ..base()
         };
-        let fix = from_exif(&gps).unwrap().fix;
+        let fix = CaptureGeo::from_exif(&gps).unwrap().fix;
         assert_eq!(fix.coord.crs(), crs, "{name}");
         let source = fix.source.unwrap();
         assert_eq!(source.confidence.value(), 1.0, "{name}");
@@ -500,7 +499,7 @@ fn china_ambiguity_needs_no_explicit_datum_and_a_position_in_the_box() {
         (text(" \0"), "absent"),
         (text("NAD27"), "not recognised"),
     ] {
-        let fix = from_exif(&beijing(datum.clone())).unwrap().fix;
+        let fix = CaptureGeo::from_exif(&beijing(datum.clone())).unwrap().fix;
         assert_eq!(fix.coord.crs(), Crs::Wgs84, "{datum:?}");
         let source = fix.source.unwrap();
         assert_eq!(
@@ -513,11 +512,12 @@ fn china_ambiguity_needs_no_explicit_datum_and_a_position_in_the_box() {
     }
     // Explicit datums are taken at their word, and WGS-84 stays unflagged.
     for name in ["WGS-84", "TOKYO", "GCJ-02"] {
-        let source = from_exif(&beijing(text(name))).unwrap().fix.source.unwrap();
+        let fix = CaptureGeo::from_exif(&beijing(text(name))).unwrap().fix;
+        let source = fix.source.unwrap();
         assert_eq!(source.datum_ambiguity, None, "{name}");
     }
     // Outside the box an unstated datum is noted, not flagged.
-    let source = from_exif(&base()).unwrap().fix.source.unwrap();
+    let source = CaptureGeo::from_exif(&base()).unwrap().fix.source.unwrap();
     assert_eq!(source.datum_ambiguity, None);
     assert_eq!(source.confidence.value(), 0.7);
     assert_eq!(source.notes.len(), 1);
@@ -529,7 +529,7 @@ fn raw_records_the_position_tags_with_no_axis_order() {
         latitude_ref: text("n\0"),
         ..base()
     };
-    let source = from_exif(&gps).unwrap().fix.source.unwrap();
+    let source = CaptureGeo::from_exif(&gps).unwrap().fix.source.unwrap();
     assert_eq!(
         source.raw,
         "GPSLatitude=10/1,0/1,0/1 n; GPSLongitude=20/1,0/1,0/1 E"
@@ -540,7 +540,7 @@ fn raw_records_the_position_tags_with_no_axis_order() {
         ..base()
     };
     assert!(
-        from_exif(&signed)
+        CaptureGeo::from_exif(&signed)
             .unwrap()
             .fix
             .source
@@ -548,8 +548,11 @@ fn raw_records_the_position_tags_with_no_axis_order() {
             .raw
             .starts_with("GPSLatitude=10/1,")
     );
-    let xmp = from_xmp(&xmp_base()).unwrap().fix.source.unwrap();
-    assert_eq!(xmp.raw, "GPSLatitude=10,0.0N; GPSLongitude=20,0.0E");
+    let xmp = CaptureGeo::from_xmp(&xmp_base()).unwrap().fix;
+    assert_eq!(
+        xmp.source.unwrap().raw,
+        "GPSLatitude=10,0.0N; GPSLongitude=20,0.0E"
+    );
 }
 
 #[test]
@@ -559,7 +562,7 @@ fn accuracy_is_a_bound_only_from_the_positioning_error() {
         dop: Some(U(3, 2)),
         ..base()
     };
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     let accuracy = capture.fix.accuracy.unwrap();
     assert_eq!(accuracy.kind(), AccuracyKind::Bound);
     assert_eq!(accuracy.horizontal().map(|h| h.meters()), Some(4.5));
@@ -580,17 +583,17 @@ fn null_island_is_accepted_unless_rejected_by_policy() {
         longitude: text("0,0.0E"),
         ..XmpGps::default()
     };
-    assert!(from_exif(&ifd).is_ok());
-    assert!(from_xmp(&xmp).is_ok());
+    assert!(CaptureGeo::from_exif(&ifd).is_ok());
+    assert!(CaptureGeo::from_xmp(&xmp).is_ok());
     assert!(matches!(
-        from_exif_with(&ifd, strict),
+        CaptureGeo::from_exif_with(&ifd, strict),
         Err(Error::Parse {
             kind: ParseErrorKind::NoFix,
             ..
         })
     ));
     assert!(matches!(
-        from_xmp_with(&xmp, strict),
+        CaptureGeo::from_xmp_with(&xmp, strict),
         Err(Error::Parse {
             kind: ParseErrorKind::NoFix,
             ..
@@ -607,7 +610,7 @@ fn null_island_is_accepted_unless_rejected_by_policy() {
             ..base()
         },
     ] {
-        assert!(from_exif_with(&gps, strict).is_ok());
+        assert!(CaptureGeo::from_exif_with(&gps, strict).is_ok());
     }
 }
 
@@ -631,7 +634,7 @@ fn serde_round_trips_and_validates() {
         serde_json::from_str::<XmpGps>("{}").unwrap(),
         XmpGps::default()
     );
-    let capture = from_exif(&gps).unwrap();
+    let capture = CaptureGeo::from_exif(&gps).unwrap();
     let json = serde_json::to_string(&capture).unwrap();
     assert_eq!(
         serde_json::from_str::<super::CaptureGeo>(&json).unwrap(),
