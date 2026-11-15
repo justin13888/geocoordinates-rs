@@ -280,9 +280,11 @@ impl Error {
 /// | EXIF / XMP GPS tags (`exif`) | [`NoFix`](Self::NoFix), [`Syntax`](Self::Syntax) (XMP strings only) |
 /// | Gazetteer files (`reverse::Gazetteer::from_bytes`) | [`Syntax`](Self::Syntax), [`Checksum`](Self::Checksum) (payload CRC-32), [`Unsupported`](Self::Unsupported) (a format version or flag this build does not read) |
 ///
-/// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every
-/// variant, so adding one here is a deliberate, compile-forcing change on both
-/// sides.
+/// The enum is `#[non_exhaustive]`, like [`Error`]: each new input format
+/// brings failure modes of its own, so a kind can be added without a breaking
+/// release, and a `match` on it needs a wildcard arm. Treat an unknown kind as
+/// [`Syntax`](Self::Syntax), the generic "the text does not read", which the
+/// FFI mirror does too.
 ///
 /// ```
 /// use geocoordinates::parse::parse_text;
@@ -293,9 +295,19 @@ impl Error {
 ///     panic!("expected a parse error");
 /// };
 /// assert_eq!(kind, ParseErrorKind::Ambiguous);
+///
+/// // A match needs a wildcard arm, which also covers kinds added later.
+/// let reason = match kind {
+///     ParseErrorKind::Ambiguous => "no single reading",
+///     ParseErrorKind::Checksum => "corrupt",
+///     ParseErrorKind::NoFix => "no position reported",
+///     _ => "does not read",
+/// };
+/// assert_eq!(reason, "no single reading");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum ParseErrorKind {
     /// The input does not follow the format's grammar, or a field holds a
     /// value the format does not allow (minutes of 60, a negative HDOP, a

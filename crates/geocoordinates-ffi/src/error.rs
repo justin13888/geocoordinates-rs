@@ -126,6 +126,12 @@ impl From<gc::ParseErrorKind> for ParseErrorKind {
             gc::ParseErrorKind::Ambiguous => ParseErrorKind::Ambiguous,
             gc::ParseErrorKind::Unsupported => ParseErrorKind::Unsupported,
             gc::ParseErrorKind::TooDeep => ParseErrorKind::TooDeep,
+            // `gc::ParseErrorKind` is `#[non_exhaustive]`, so a kind added
+            // there reaches this arm until the mirror gains it. `Syntax`
+            // preserves meaning: any parse failure is, at the least, text
+            // that does not read as a position, and `GeoError::Parse` still
+            // carries the core error's `detail` unchanged.
+            _ => ParseErrorKind::Syntax,
         }
     }
 }
