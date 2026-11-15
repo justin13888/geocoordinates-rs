@@ -162,10 +162,12 @@ pub enum Error {
     /// [`ParseErrorKind::Checksum`] ones. `detail` is for humans and its
     /// wording is not stable.
     ///
-    /// A position that parsed but is not a valid coordinate is not a parse
-    /// error everywhere: the interchange parsers report it as
-    /// [`Error::OutOfRange`] or [`Error::InvalidValue`] instead, except a GPX
-    /// `lat` / `lon` out of range, which the `gpx` reader rejects as `Syntax`.
+    /// A position that parsed but is off the globe is not a parse error:
+    /// every text reader (`geo:` URI, free text, NMEA, GeoJSON / WKT / KML,
+    /// EXIF) reports it as [`Error::OutOfRange`] with the values as read, and
+    /// the interchange parsers report another invalid component as
+    /// [`Error::InvalidValue`]. The one exception is a GPX `lat` / `lon` out of
+    /// range, which the `gpx` reader rejects as `Syntax`.
     ///
     /// ```
     /// use geocoordinates::parse::parse_coordinate;

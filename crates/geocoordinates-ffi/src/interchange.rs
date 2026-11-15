@@ -89,6 +89,8 @@ pub fn parse_kml(input: String) -> Result<Vec<Fix>, GeoError> {
 /// `GGA` and `GLL` carry no date, so theirs is `None`.
 ///
 /// # Errors
+/// `GeoError::OutOfRange`, with the values as read, when well-formed
+/// coordinate fields describe a position off the globe. Otherwise
 /// `GeoError::Parse`, whose `kind` is `Checksum` on a malformed or mismatched
 /// checksum; `Unsupported` on a sentence other than `GGA` / `RMC` / `GLL`;
 /// `NoFix` on a sentence reporting no fix (`RMC`/`GLL` status `V` or mode

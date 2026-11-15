@@ -129,8 +129,6 @@ fn default_lonlat_swaps_assignment() {
 
 #[test]
 fn invalid_inputs_error() {
-    assert!(parse_text("200, 0").is_err()); // forced longitude 200 > 180
-    assert!(parse_text("100, 150").is_err()); // both exceed the latitude range
     assert!(parse_text("hello world").is_err()); // not numeric
     assert!(parse_text("42").is_err()); // only one component
     assert!(parse_text("").is_err()); // empty
@@ -139,6 +137,44 @@ fn invalid_inputs_error() {
     assert!(parse_text("4060.0N 07400.0W").is_err()); // invalid NMEA minutes
     assert!(parse_text("-40N 74W").is_err()); // sign contradicts hemisphere
     assert!(parse_text("NaN, 0").is_err());
+}
+
+/// A reading off the globe is the typed pair error with the values as read,
+/// on every resolution path; text with no reading stays a parse error.
+#[test]
+fn out_of_range_readings_are_the_pair_error() {
+    let out = |lat: f64, lon: f64| Err(Error::OutOfRange { lat, lon });
+    // Range rule: 200 must be the longitude.
+    assert_eq!(parse_text("200, 0"), out(0.0, 200.0));
+    assert_eq!(parse_text("40, 200"), out(40.0, 200.0));
+    // Both hemisphere letters, and one letter fixing the other axis.
+    assert_eq!(parse_text("95°N 10°E"), out(95.0, 10.0));
+    assert_eq!(parse_text("10°W 95°S"), out(-95.0, -10.0));
+    assert_eq!(parse_text("95N, 10"), out(95.0, 10.0));
+    assert_eq!(parse_text("10, 181E"), out(10.0, 181.0));
+    // Both beyond ±90: labelled in the default axis order.
+    assert_eq!(parse_text("100, 150"), out(100.0, 150.0));
+    let lon_first = ParseOptions::default().with_default_axis_order(AxisOrder::LonLat);
+    assert_eq!(parse_text_with("100, 150", &lon_first), out(150.0, 100.0));
+    assert_eq!(
+        parse_text_with("100,5; -150", &comma_options()),
+        out(100.5, -150.0)
+    );
+    // Same-axis letters and malformed fields have no reading at all.
+    assert!(matches!(
+        parse_text("95N 10S"),
+        Err(Error::Parse {
+            kind: ParseErrorKind::Syntax,
+            ..
+        })
+    ));
+    assert!(matches!(
+        parse_text("40 60 N 74 0 W"),
+        Err(Error::Parse {
+            kind: ParseErrorKind::Syntax,
+            ..
+        })
+    ));
 }
 
 #[test]

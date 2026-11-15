@@ -114,9 +114,12 @@ pub use text::{parse_text, parse_text_with};
 /// confidence and the assumed [`AxisOrder`] in its [`RawSource`].
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when no interpretation is found, with the
-/// [`ParseErrorKind`] of the route that rejected it:
-/// [`parse_geo_uri`]'s for a `geo:` URI, otherwise [`parse_text`]'s.
+/// Returns [`crate::Error::OutOfRange`], with the parsed latitude and
+/// longitude, when a `geo:` URI or the free text reads as a position outside
+/// `[-90, 90]` / `[-180, 180]`. Returns [`crate::Error::Parse`] when no
+/// interpretation is found, with the [`ParseErrorKind`] of the route that
+/// rejected it: [`parse_geo_uri`]'s for a `geo:` URI, otherwise
+/// [`parse_text`]'s.
 ///
 /// ```
 /// use geocoordinates::{Error, ParseErrorKind};
@@ -124,6 +127,12 @@ pub use text::{parse_text, parse_text_with};
 ///
 /// let fix = parse_coordinate("40.7128, -74.006")?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
+///
+/// // A position, but off the globe: the error carries what was read.
+/// assert_eq!(
+///     parse_coordinate("95°N 10°E"),
+///     Err(Error::OutOfRange { lat: 95.0, lon: 10.0 })
+/// );
 ///
 /// // A Plus Code decodes to its cell center, with the cell as the accuracy.
 /// let fix = parse_coordinate("87G7PX7V+4J")?;
@@ -154,12 +163,15 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// [`ParseOptions::for_format`].
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] when no interpretation is found, with the
-/// kind [`parse_coordinate`] gives. When `expect_grid` is set, the detail also
-/// gives why the input is not a valid reference of that kind.
+/// Returns [`crate::Error::OutOfRange`] when the input reads as a position
+/// off the globe, and [`crate::Error::Parse`] when no interpretation is
+/// found, as [`parse_coordinate`] does. When `expect_grid` is set, a parse
+/// error's detail also gives why the input is not a valid reference of that
+/// kind.
 ///
 /// ```
 /// use geocoordinates::Error;
+/// use geocoordinates::fix::AxisOrder;
 /// use geocoordinates::parse::{GridKind, ParseOptions, parse_coordinate_with};
 ///
 /// let options = ParseOptions::default().with_expect_grid(Some(GridKind::Maidenhead));
@@ -171,6 +183,14 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 ///     panic!("expected a parse error");
 /// };
 /// assert!(detail.starts_with("not a Maidenhead reference"));
+///
+/// // No order puts both 100 and 200 on the globe; the error labels them in
+/// // the default axis order.
+/// let lon_first = ParseOptions::default().with_default_axis_order(AxisOrder::LonLat);
+/// assert_eq!(
+///     parse_coordinate_with("100, 200", &lon_first),
+///     Err(Error::OutOfRange { lat: 200.0, lon: 100.0 })
+/// );
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix> {
@@ -240,11 +260,13 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 /// [`ParseErrorKind::Unsupported`].
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`] of kind
+/// Returns [`crate::Error::OutOfRange`], with the parsed latitude and
+/// longitude, when the URI is well-formed but its position is outside
+/// `[-90, 90]` / `[-180, 180]`. Returns [`crate::Error::Parse`] of kind
 /// [`Unsupported`](crate::ParseErrorKind::Unsupported) when the `crs`
 /// parameter names a reference system other than `wgs84`, and of kind
 /// [`Syntax`](crate::ParseErrorKind::Syntax) when the input is otherwise not a
-/// well-formed `geo:` URI or its position is out of range.
+/// well-formed `geo:` URI.
 ///
 /// ```
 /// use geocoordinates::fix::AccuracyKind;
@@ -266,6 +288,11 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 ///     parse_geo_uri("geo:48.2,16.3;crs=nad27"),
 ///     Err(Error::Parse { kind: ParseErrorKind::Unsupported, .. })
 /// ));
+/// // Well-formed, but latitude 91 is off the globe: the error carries both values.
+/// assert_eq!(
+///     parse_geo_uri("geo:91,16.3"),
+///     Err(Error::OutOfRange { lat: 91.0, lon: 16.3 })
+/// );
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn parse_geo_uri(input: &str) -> Result<Fix> {
@@ -335,12 +362,11 @@ pub fn parse_geo_uri(input: &str) -> Result<Fix> {
         }
     }
 
-    let out_of_range = |_| syntax(format!("geo: coordinate out of range: {input}"));
-    let mut coord = Coordinate::wgs84(lat, lon).map_err(out_of_range)?;
+    // A position off the globe is the typed pair error, carrying its values;
+    // `parse_number` already rejected a non-finite altitude.
+    let mut coord = Coordinate::wgs84(lat, lon)?;
     if let Some(alt) = altitude {
-        coord = coord
-            .with_height(Height::Ellipsoidal(alt))
-            .map_err(out_of_range)?;
+        coord = coord.with_height(Height::Ellipsoidal(alt))?;
     }
 
     let mut fix = Fix::from_coord(coord);
@@ -435,7 +461,6 @@ mod tests {
     fn geo_uri_errors() {
         assert!(parse_geo_uri("geo:").is_err());
         assert!(parse_geo_uri("geo:abc").is_err());
-        assert!(parse_geo_uri("geo:91,0").is_err()); // out of range
         assert!(parse_geo_uri("http:1,2").is_err()); // wrong scheme
         assert!(parse_geo_uri("geo:1,2;u=-1").is_err());
         assert!(parse_geo_uri("geo:1,2;u=NaN").is_err());
@@ -443,6 +468,19 @@ mod tests {
         assert!(parse_geo_uri("geo:1,2;u=1;u=2").is_err());
         assert!(parse_geo_uri("geo:1,2;").is_err());
         assert!(parse_geo_uri("geo:1,2,inf").is_err());
+    }
+
+    /// A `geo:` position off the globe is `OutOfRange`; malformed text is `Parse`.
+    #[test]
+    fn geo_uri_out_of_range_is_the_pair_error() {
+        let out = |lat, lon| Err(Error::OutOfRange { lat, lon });
+        assert_eq!(parse_geo_uri("geo:91,0"), out(91.0, 0.0));
+        assert_eq!(parse_geo_uri("geo:-45.5,180.25,12;u=3"), out(-45.5, 180.25));
+        assert_eq!(parse_coordinate("geo:0,-181"), out(0.0, -181.0));
+        let syntax = ParseErrorKind::Syntax;
+        assert!(
+            matches!(parse_geo_uri("geo:91"), Err(Error::Parse { kind, .. }) if kind == syntax)
+        );
     }
 
     /// RFC 5870 allows `u=0` (an exact position); only a negative value is

@@ -310,6 +310,35 @@ fn unsupported_and_malformed_are_errors() {
     assert!(parse_nmea_sentence("$GPGGA,0,4807.0,N,01131.0,E,1,8,NaN,0,M,0,M").is_err());
 }
 
+/// Well-formed fields that read as a position off the globe are the typed
+/// pair error with the values as read, in every sentence type; minutes of 60
+/// or more are a malformed field and stay a parse error.
+#[test]
+fn out_of_range_position_is_the_pair_error() {
+    let out = |lat: f64, lon: f64| Err(Error::OutOfRange { lat, lon });
+    assert_eq!(
+        parse_nmea_sentence("$GPGLL,9130.000,N,01130.000,E,225444,A"),
+        out(91.5, 11.5)
+    );
+    assert_eq!(
+        parse_nmea_sentence("$GPGLL,4830.000,S,18030.000,W,225444,A"),
+        out(-48.5, -180.5)
+    );
+    // 90° plus any minutes is past the pole.
+    assert_eq!(
+        parse_nmea_sentence("$GPGGA,123519,9000.750,N,00000.000,E,1,08,0.9,545.4,M,46.9,M,,"),
+        out(90.0 + 0.75 / 60.0, 0.0)
+    );
+    assert_eq!(
+        parse_nmea_sentence("$GPRMC,123519,A,4830.000,N,99900.000,E,022.4,084.4,230394,003.1,W"),
+        out(48.5, 999.0)
+    );
+    let detail = parse_error("$GPGLL,9160.000,N,01130.000,E,225444,A");
+    assert!(detail.contains("minutes"), "{detail}");
+    let detail = parse_error("$GPGLL,4830.000,N,18060.000,E,225444,A");
+    assert!(detail.contains("minutes"), "{detail}");
+}
+
 #[test]
 fn non_ascii_sentence_type_is_parse_error_not_panic() {
     assert!(matches!(

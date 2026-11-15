@@ -68,14 +68,15 @@ pub(super) fn resolve(a: Component, b: Component, default_order: AxisOrder) -> R
         _ => {}
     }
 
-    // No hemisphere letters: range rule, then the configured default.
+    // No hemisphere letters: range rule, then the configured default. When
+    // both components exceed the latitude range no order is on the globe; the
+    // default order labels them so the caller's range check reports the pair.
     let a_lon_only = a_val.abs() > 90.0;
     let b_lon_only = b_val.abs() > 90.0;
     match (a_lon_only, b_lon_only) {
-        (true, true) => Err(syntax("both components exceed the latitude range")),
         (true, false) => Ok(range_forced(b_val, a_val, AxisOrder::LonLat)),
         (false, true) => Ok(range_forced(a_val, b_val, AxisOrder::LatLon)),
-        (false, false) => Ok(match default_order {
+        (true, true) | (false, false) => Ok(match default_order {
             AxisOrder::LatLon => assumed(a_val, b_val, AxisOrder::LatLon),
             AxisOrder::LonLat => assumed(b_val, a_val, AxisOrder::LonLat),
         }),

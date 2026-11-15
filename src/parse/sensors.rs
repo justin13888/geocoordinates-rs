@@ -14,7 +14,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use crate::angle::{Ddm, Hemisphere};
+use crate::angle::Hemisphere;
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, ParseErrorKind, Result};
 use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
@@ -45,7 +45,11 @@ use super::{hdop_accuracy, syntax};
 /// date, so their timestamp is always `None`.
 ///
 /// # Errors
-/// Returns [`crate::Error::Parse`], whose [`ParseErrorKind`] is:
+/// Returns [`crate::Error::OutOfRange`], with the latitude and longitude as
+/// read, when well-formed coordinate fields describe a position outside
+/// `[-90, 90]` / `[-180, 180]` (e.g. latitude `9130.000,N`).
+///
+/// Otherwise returns [`crate::Error::Parse`], whose [`ParseErrorKind`] is:
 /// - [`Checksum`](ParseErrorKind::Checksum) when the `*HH` checksum is
 ///   malformed or does not match;
 /// - [`Unsupported`](ParseErrorKind::Unsupported) when the sentence type is
@@ -55,8 +59,8 @@ use super::{hdop_accuracy, syntax};
 ///   valid), or `GGA` fix quality `0`;
 /// - [`Syntax`](ParseErrorKind::Syntax) when a coordinate field is not
 ///   `ddmm[.m…]` (latitude) or `dddmm[.m…]` (longitude) — exactly two minute
-///   digits before the decimal point — or its hemisphere letter is missing or
-///   wrong for the axis (or the position it reads is out of range); when the
+///   digits before the decimal point, minutes below 60 — or its hemisphere
+///   letter is missing or wrong for the axis; when the
 ///   `GGA` altitude or geoid separation is present but its unit field is not
 ///   `M` (meters); or when a numeric field (altitude, geoid separation, HDOP)
 ///   is malformed or non-finite, or HDOP is negative.
@@ -87,6 +91,12 @@ use super::{hdop_accuracy, syntax};
 ///     parse_nmea_sentence(corrupt),
 ///     Err(Error::Parse { kind: ParseErrorKind::Checksum, .. })
 /// ));
+/// // Well-formed fields, but 91°30′ N is off the globe.
+/// let off_globe = "$GPGLL,9130.000,N,01130.000,E,225444,A";
+/// assert_eq!(
+///     parse_nmea_sentence(off_globe),
+///     Err(Error::OutOfRange { lat: 91.5, lon: 11.5 })
+/// );
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "nmea")]
@@ -171,16 +181,25 @@ fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f6
             )));
         }
     };
-    Ddm::new(degrees, minutes, hemisphere)
-        .map(Ddm::to_degrees)
-        .map_err(|error| syntax(format!("bad NMEA coordinate: {error}")))
+    // Minutes of 60 or more are a malformed field, not a position. Degrees
+    // beyond the axis range still read as one, so they are not checked here:
+    // `coordinate` reports the pair off the globe as `OutOfRange`.
+    if minutes >= 60.0 {
+        return Err(syntax(format!(
+            "bad NMEA coordinate: minutes must be within [0, 60): {raw}"
+        )));
+    }
+    // The value `Ddm::to_degrees` gives, without `Ddm`'s range check.
+    Ok((f64::from(degrees) + minutes / 60.0).copysign(hemisphere.sign()))
 }
 
 /// Latitude (2 degree digits) + longitude (3 degree digits) → coordinate.
+///
+/// A position off the globe is the typed pair error, carrying its values.
 fn coordinate(lat: &str, ns: &str, lon: &str, ew: &str, raw: &str) -> Result<Coordinate> {
     let lat = parse_ddm(lat, ns, 2, raw)?;
     let lon = parse_ddm(lon, ew, 3, raw)?;
-    Coordinate::wgs84(lat, lon).map_err(|error| syntax(format!("bad NMEA coordinate: {error}")))
+    Coordinate::wgs84(lat, lon)
 }
 
 /// The `i`-th comma-separated field, or `""` when absent.
