@@ -88,6 +88,26 @@ fn apply_reports_an_overflowing_shift_against_the_height() {
     );
 }
 
+/// A finite but huge parameter overflows even a 2-D position: that is an
+/// error in the parameters, not in a height the coordinate does not carry.
+#[test]
+fn apply_reports_an_overflowing_parameter_against_the_helmert() {
+    let huge = Helmert {
+        scale_ppm: f64::MAX,
+        ..Helmert::IDENTITY
+    };
+    let t = DatumTransform::new(Crs::Nad27, Crs::Wgs84, huge, None).unwrap();
+    let expected = Err(Error::InvalidValue {
+        field: "helmert",
+        detail: "the parameters are so large that the shifted position overflows f64".into(),
+    });
+    let flat = Coordinate::new(10.0, 20.0, Crs::Nad27).unwrap();
+    assert_eq!(t.apply(flat), expected);
+    // A modest height does not move the blame onto the height.
+    let raised = flat.with_height(Height::Ellipsoidal(100.0)).unwrap();
+    assert_eq!(t.apply(raised), expected);
+}
+
 #[test]
 fn apply_ecef_translation_only() {
     let h = Helmert {

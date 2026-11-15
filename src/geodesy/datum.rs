@@ -426,7 +426,10 @@ impl DatumTransform {
     ///   [`from_crs`](Self::from_crs);
     /// - [`Error::InvalidValue`] (field `"height"`) when `coord` carries an
     ///   orthometric height, which needs a geoid model to become ellipsoidal,
-    ///   or a height so large that the shifted position overflows.
+    ///   or a height so large that the shifted position overflows;
+    /// - [`Error::InvalidValue`] (field `"helmert"`) when the parameters are
+    ///   so large (finite, but near `f64::MAX`) that the shift overflows even
+    ///   at zero height.
     ///
     /// ```
     /// use geocoordinates::{Coordinate, Crs, Error, geodesy::DatumTransform};
@@ -450,14 +453,31 @@ impl DatumTransform {
             });
         }
         let had_height = coord.height().is_some();
-        // The parameters are finite by construction, so the only failure is a
-        // position so high that the shift overflows: an error in its height.
+        // The parameters are finite by construction, so the only failure is an
+        // overflowing shift. Finite parameters can still be huge (`new` checks
+        // only finiteness), so blame the height only when the same shift of
+        // the point at zero height does not overflow.
         let shifted = self
             .helmert
             .apply_ecef(Ecef::try_from_coordinate(coord)?)
-            .map_err(|_| Error::InvalidValue {
-                field: "height",
-                detail: "the shifted position overflows f64".into(),
+            .map_err(|_| {
+                let ground = Coordinate::from_valid(coord.lat(), coord.lon(), None, coord.crs());
+                let params_overflow = Ecef::try_from_coordinate(ground)
+                    .and_then(|e| self.helmert.apply_ecef(e))
+                    .is_err();
+                if params_overflow {
+                    Error::InvalidValue {
+                        field: "helmert",
+                        detail:
+                            "the parameters are so large that the shifted position overflows f64"
+                                .into(),
+                    }
+                } else {
+                    Error::InvalidValue {
+                        field: "height",
+                        detail: "the shifted position overflows f64".into(),
+                    }
+                }
             })?;
         let result = shifted.try_to_coordinate(self.to_crs)?;
         if had_height {

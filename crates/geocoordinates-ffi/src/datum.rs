@@ -188,7 +188,9 @@ pub fn datum_transform_catalog_to_wgs84(datum: Crs) -> Option<DatumTransform> {
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` when `coord` is not in `from_crs`;
-/// `GeoError::InvalidValue` (field `height`) for an orthometric height; and
+/// `GeoError::InvalidValue` (field `height`) for an orthometric height or a
+/// height so large that the shifted position overflows, and (field `helmert`)
+/// for parameters so large that the shift overflows even at zero height; and
 /// the errors of [`datum_transform_new`] for a malformed transform record.
 #[uniffi::export]
 pub fn datum_transform_apply(

@@ -11492,7 +11492,9 @@ public func rawSourceNew(raw: String, confidence: Confidence)throws  -> RawSourc
  *
  * # Errors
  * `GeoError::CrsMismatch` when `coord` is not in `from_crs`;
- * `GeoError::InvalidValue` (field `height`) for an orthometric height; and
+ * `GeoError::InvalidValue` (field `height`) for an orthometric height or a
+ * height so large that the shifted position overflows, and (field `helmert`)
+ * for parameters so large that the shift overflows even at zero height; and
  * the errors of [`datum_transform_new`] for a malformed transform record.
  */
 public func datumTransformApply(transform: DatumTransform, coord: Coordinate)throws  -> Coordinate  {
@@ -13988,7 +13990,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_raw_source_new() != 30305) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 58176) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 57977) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_catalog_to_wgs84() != 3243) {
