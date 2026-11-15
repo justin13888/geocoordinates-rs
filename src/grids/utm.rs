@@ -214,38 +214,7 @@ fn check_zone(zone: u8) -> Result<()> {
     }
 }
 
-/// The UTM longitude zone for a WGS-84 coordinate, applying the Norway and
-/// Svalbard exceptions.
-///
-/// ```
-/// use geocoordinates::grids::utm_zone_for;
-/// use geocoordinates::{Coordinate, Error};
-///
-/// assert_eq!(utm_zone_for(Coordinate::wgs84(40.7128, -74.006)?)?, 18);
-/// assert_eq!(utm_zone_for(Coordinate::wgs84(60.0, 5.0)?)?, 32); // Norway exception
-/// let pole = Coordinate::wgs84(85.0, 0.0)?;
-/// assert!(matches!(utm_zone_for(pole), Err(Error::OutsideDomain { .. })));
-/// # Ok::<(), geocoordinates::Error>(())
-/// ```
-///
-/// # Errors
-/// [`Error::CrsMismatch`] for a non-WGS-84 coordinate;
-/// [`Error::OutsideDomain`] (operation `"UTM"`) for a latitude outside the
-/// UTM band `[-80, 84)` — 84°N itself is UPS territory.
-pub fn utm_zone_for(coord: Coordinate) -> Result<u8> {
-    require_wgs84(&coord)?;
-    let (lat, lon) = (coord.lat(), coord.lon());
-    if !(-80.0..84.0).contains(&lat) {
-        return Err(Error::OutsideDomain {
-            operation: "UTM",
-            lat,
-            lon,
-        });
-    }
-    Ok(zone_in_band(lat, lon))
-}
-
-/// [`utm_zone_for`] on a latitude already inside the UTM band.
+/// [`Utm::zone_for`] on a latitude already inside the UTM band.
 fn zone_in_band(lat: f64, lon: f64) -> u8 {
     // `lon + 180.0` rounds, and a longitude a few ulps west of a zone
     // meridian can round up onto it, naming the zone east of the point; check
@@ -304,30 +273,61 @@ pub(crate) fn zone_span(zone: u8, lat: f64) -> Option<(f64, f64)> {
     Some((west, west + 6.0))
 }
 
-/// The central meridian (degrees) of a UTM zone.
-///
-/// ```
-/// use geocoordinates::Error;
-/// use geocoordinates::grids::utm_central_meridian_deg;
-///
-/// assert_eq!(utm_central_meridian_deg(18)?, -75.0);
-/// assert!(matches!(utm_central_meridian_deg(61), Err(Error::InvalidValue { .. })));
-/// # Ok::<(), geocoordinates::Error>(())
-/// ```
-///
-/// # Errors
-/// [`Error::InvalidValue`] (field `"zone"`) for a zone outside `1..=60`.
-pub fn utm_central_meridian_deg(zone: u8) -> Result<f64> {
-    check_zone(zone)?;
-    Ok(central_meridian(zone))
-}
-
-/// [`utm_central_meridian_deg`] for a zone already known to be in `1..=60`.
+/// [`Utm::central_meridian_deg`] for a zone already known to be in `1..=60`.
 pub(crate) fn central_meridian(zone: u8) -> f64 {
     f64::from(zone) * 6.0 - 183.0
 }
 
 impl Utm {
+    /// The UTM longitude zone for a WGS-84 coordinate, applying the Norway and
+    /// Svalbard exceptions.
+    ///
+    /// ```
+    /// use geocoordinates::grids::Utm;
+    /// use geocoordinates::{Coordinate, Error};
+    ///
+    /// assert_eq!(Utm::zone_for(Coordinate::wgs84(40.7128, -74.006)?)?, 18);
+    /// assert_eq!(Utm::zone_for(Coordinate::wgs84(60.0, 5.0)?)?, 32); // Norway exception
+    /// let pole = Coordinate::wgs84(85.0, 0.0)?;
+    /// assert!(matches!(Utm::zone_for(pole), Err(Error::OutsideDomain { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    /// [`Error::CrsMismatch`] for a non-WGS-84 coordinate;
+    /// [`Error::OutsideDomain`] (operation `"UTM"`) for a latitude outside the
+    /// UTM band `[-80, 84)` — 84°N itself is UPS territory.
+    pub fn zone_for(coord: Coordinate) -> Result<u8> {
+        require_wgs84(&coord)?;
+        let (lat, lon) = (coord.lat(), coord.lon());
+        if !(-80.0..84.0).contains(&lat) {
+            return Err(Error::OutsideDomain {
+                operation: "UTM",
+                lat,
+                lon,
+            });
+        }
+        Ok(zone_in_band(lat, lon))
+    }
+
+    /// The central meridian (degrees) of a UTM zone.
+    ///
+    /// ```
+    /// use geocoordinates::Error;
+    /// use geocoordinates::grids::Utm;
+    ///
+    /// assert_eq!(Utm::central_meridian_deg(18)?, -75.0);
+    /// assert!(matches!(Utm::central_meridian_deg(61), Err(Error::InvalidValue { .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    /// [`Error::InvalidValue`] (field `"zone"`) for a zone outside `1..=60`.
+    pub fn central_meridian_deg(zone: u8) -> Result<f64> {
+        check_zone(zone)?;
+        Ok(central_meridian(zone))
+    }
+
     /// Build a UTM coordinate from its parts, accepting only the forward
     /// image: a position [`Utm::try_from_coordinate`] can produce, so the
     /// value decodes to a point that projects back to it.
@@ -483,7 +483,7 @@ impl Utm {
     /// [`Error::OutsideDomain`] (operation `"UTM"`) for latitudes outside the
     /// UTM band (south of 80°S, or at or north of 84°N).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Utm> {
-        let zone = utm_zone_for(coord)?;
+        let zone = Utm::zone_for(coord)?;
         let (lat, lon) = (coord.lat(), coord.lon());
         let lon0 = central_meridian(zone);
         let phi = lat.to_radians();

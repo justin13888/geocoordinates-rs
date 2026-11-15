@@ -121,7 +121,7 @@ fn relinearizing_at_the_answer_keeps_it() {
 
 #[test]
 fn zone_spans_match_the_zone_rules() {
-    use crate::grids::utm::{utm_zone_for, zone_span};
+    use crate::grids::utm::{Utm, zone_span};
     // Every band's middle latitude, and a sweep of longitudes across the
     // exceptions and the antimeridian: the zone the rules pick holds the
     // longitude in its span, and no other zone's span does.
@@ -130,7 +130,7 @@ fn zone_spans_match_the_zone_rules() {
         let lat = if band == 19 { 78.0 } else { lat };
         for step in 0..=720 {
             let lon = -180.0 + 0.5 * f64::from(step);
-            let zone = utm_zone_for(c(lat, lon)).unwrap();
+            let zone = Utm::zone_for(c(lat, lon)).unwrap();
             for z in 1..=60 {
                 let holds = zone_span(z, lat)
                     .is_some_and(|(w, e)| (w..e).contains(&lon) || (z == 60 && lon == 180.0));

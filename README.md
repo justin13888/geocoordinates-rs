@@ -19,7 +19,7 @@ antimeridian / pole / round-trip edges.
 Every public item has exactly one path (plus its `prelude` entry): the core
 types sit at the crate root, and every other item sits flat in the module the
 table names, e.g. `geocoordinates::china::Wgs84` or
-`geocoordinates::grids::utm_zone_for`. `mise run public-api-check` enforces it.
+`geocoordinates::grids::Utm`. `mise run public-api-check` enforces it.
 
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
@@ -32,7 +32,7 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **Parse** (`parse`) | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions` (with `for_format` for the round trip), `GridKind`, `parse_geo_uri`, `parse_text`, `parse_text_with` | ✅ | ✅ |
 | **Interchange & sensors** *(feature-gated; `parse::interchange`, `parse::sensors`)* | `parse_geojson`, `parse_wkt`, `parse_gpx`, `parse_kml`, `parse_nmea_sentence` | ✅ | ✅ |
 | **Geodesy** (`geodesy`) | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer` (on any classic datum the origin and target share), `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate`, `intersection` / `GeodesicIntersection`, `cross_track_distance` / `along_track_distance` (on each datum's own ellipsoid), `intersection_spherical` / `SphericalIntersection`, `cross_track_distance_spherical` / `along_track_distance_spherical` (on the mean sphere), `rhumb_distance` / `rhumb_bearing` / `rhumb_destination` (on each datum's own ellipsoid), `Helmert`, `DatumTransform`, `GeoBounds` (antimeridian-aware box) | ✅ | ✅ |
-| **Projected grids** (`grids`) | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `utm_zone_for`, `utm_central_meridian_deg` | ✅ | ✅ |
+| **Projected grids** (`grids`) | `Utm` (with `Utm::zone_for` / `Utm::central_meridian_deg`; FFI: `utm_zone_for` / `utm_central_meridian_deg`), `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision` | ✅ | ✅ |
 | **Encoded grids** (`grids`) | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
 | **Discrete global grids** *(feature-gated; `dgg`)* | `H3Cell`, `S2CellId` | ✅ | ✅ |
 | **Spatial index** *(feature-gated; `index`)* | `SpatialIndex`, `Neighbor` | ✅ | ✅ |

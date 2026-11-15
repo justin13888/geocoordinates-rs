@@ -8,10 +8,7 @@ use geocoordinates::geodesy::{
     DatumTransform, Ecef, Ellipsoid, Enu, Helmert, destination, geodesic_distance,
     rhumb_destination,
 };
-use geocoordinates::grids::{
-    Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere, utm_central_meridian_deg,
-    utm_zone_for,
-};
+use geocoordinates::grids::{Geohash, Maidenhead, Mgrs, PlusCode, Ups, Utm, UtmHemisphere};
 use geocoordinates::parse::sensors::parse_nmea_sentence;
 use geocoordinates::parse::{parse_coordinate, parse_geo_uri, parse_text};
 use geocoordinates::{Coordinate, Crs, Error, Height, Length, ParseErrorKind};
@@ -309,14 +306,14 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     let edge = Utm::try_from_coordinate(Coordinate::wgs84(0.0, 180.0)?)?;
     assert_eq!(Utm::try_from_coordinate(edge.to_coordinate())?.zone(), 60);
     assert!(matches!(
-        utm_zone_for(Coordinate::wgs84(84.0, 9.0)?),
+        Utm::zone_for(Coordinate::wgs84(84.0, 9.0)?),
         Err(Error::OutsideDomain {
             operation: "UTM",
             ..
         })
     ));
     assert!(matches!(
-        utm_central_meridian_deg(0),
+        Utm::central_meridian_deg(0),
         Err(Error::InvalidValue { field: "zone", .. })
     ));
     assert!(matches!(
