@@ -114,6 +114,10 @@ fn invalid_cell_id_keeps_its_grid_and_value() {
 
 #[test]
 fn parse_keeps_its_kind_and_detail() {
+    // The core enum is `#[non_exhaustive]`, so the mirror's `From` has a
+    // wildcard arm (to `Syntax`) and the compiler no longer forces it to name
+    // a new kind. This list pins every current kind to its own mirror variant,
+    // so none of them can fall through to the wildcard unnoticed.
     let kinds = [
         (gc::ParseErrorKind::Syntax, ParseErrorKind::Syntax),
         (gc::ParseErrorKind::Checksum, ParseErrorKind::Checksum),
