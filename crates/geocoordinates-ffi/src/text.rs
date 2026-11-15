@@ -392,7 +392,7 @@ pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> 
 #[uniffi::export]
 pub fn format_options_parse_options(options: FormatOptions) -> ParseOptions {
     let options: gc::format::FormatOptions = options.into();
-    options.parse_options().into()
+    gc::parse::ParseOptions::for_format(&options).into()
 }
 
 // --- Coordinate parsing ---

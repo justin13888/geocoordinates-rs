@@ -2,7 +2,7 @@
 //! free-text parser, and the grid kinds a caller can ask it to expect.
 
 use crate::fix::AxisOrder;
-use crate::format::DecimalSeparator;
+use crate::format::{DecimalSeparator, FormatOptions, Representation};
 
 /// A grid reference system whose strings
 /// [`parse_coordinate_with`](super::parse_coordinate_with) can decode.
@@ -45,8 +45,7 @@ pub enum GridKind {
 ///
 /// The default reads lat-first, `.`-decimal text and expects no particular
 /// grid. To read back what [`format`](crate::format::format) rendered, take
-/// these from [`FormatOptions::parse_options`](crate::format::FormatOptions::parse_options)
-/// rather than building them by hand. The field types live with the module
+/// these from [`ParseOptions::for_format`] rather than building them by hand. The field types live with the module
 /// that owns them: [`AxisOrder`] in [`fix`](crate::fix) and
 /// [`DecimalSeparator`] in [`format`](crate::format); the
 /// [`prelude`](crate::prelude) brings all three.
@@ -94,6 +93,49 @@ pub struct ParseOptions {
 }
 
 impl ParseOptions {
+    /// The options that read back every string `options` renders through
+    /// [`format`](crate::format::format) with
+    /// [`parse_coordinate_with`](super::parse_coordinate_with): lat-first,
+    /// its [`decimal_separator`](FormatOptions::decimal_separator), and, for
+    /// a grid representation, that grid as
+    /// [`expect_grid`](Self::expect_grid) (so a Geohash or Maidenhead
+    /// rendering, which is never detected unasked, decodes too).
+    ///
+    /// ```
+    /// use geocoordinates::Coordinate;
+    /// use geocoordinates::format::{FormatOptions, Representation, format};
+    /// use geocoordinates::parse::{GridKind, ParseOptions, parse_coordinate_with};
+    ///
+    /// let options =
+    ///     FormatOptions::default().with_representation(Representation::Geohash { length: 5 });
+    /// let parse = ParseOptions::for_format(&options);
+    /// assert_eq!(parse.expect_grid, Some(GridKind::Geohash));
+    /// let c = Coordinate::wgs84(42.6, -5.6)?;
+    /// let text = format(c, &options)?; // "ezs42"
+    /// let fix = parse_coordinate_with(&text, &parse)?;
+    /// assert!((fix.coord.lat() - 42.6).abs() < 0.03);
+    /// // Without the expected grid, the bare geohash does not read.
+    /// assert!(parse_coordinate_with(&text, &ParseOptions::default()).is_err());
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn for_format(options: &FormatOptions) -> Self {
+        let expect_grid = match options.representation {
+            Representation::DecimalDegrees { .. }
+            | Representation::Dms { .. }
+            | Representation::Ddm { .. } => None,
+            Representation::PlusCode { .. } => Some(GridKind::PlusCode),
+            Representation::Geohash { .. } => Some(GridKind::Geohash),
+            Representation::Maidenhead { .. } => Some(GridKind::Maidenhead),
+            Representation::Mgrs { .. } => Some(GridKind::Mgrs),
+        };
+        Self {
+            default_axis_order: AxisOrder::LatLon,
+            decimal_separator: options.decimal_separator,
+            expect_grid,
+        }
+    }
+
     /// These options with `default_axis_order` as the
     /// [`default_axis_order`](Self::default_axis_order).
     ///

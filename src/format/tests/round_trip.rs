@@ -6,7 +6,7 @@
 use proptest::prelude::*;
 
 use super::*;
-use crate::parse::parse_coordinate_with;
+use crate::parse::{ParseOptions, parse_coordinate_with};
 
 /// A latitude biased toward the places formatting breaks: the poles, the
 /// equator, and values that round to zero or to a pole at the rendered
@@ -102,9 +102,9 @@ fn capped_options() -> impl Strategy<Value = FormatOptions> {
 }
 
 /// Parse a rendering back to a coordinate through `parse_coordinate_with`
-/// given the options' own `parse_options`, for every representation.
+/// given `ParseOptions::for_format` of the options, for every representation.
 fn reparse(text: &str, options: &FormatOptions) -> Coordinate {
-    parse_coordinate_with(text, &options.parse_options())
+    parse_coordinate_with(text, &ParseOptions::for_format(options))
         .unwrap_or_else(|e| panic!("{text:?} did not re-parse: {e}"))
         .coord
 }

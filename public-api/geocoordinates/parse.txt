@@ -38,6 +38,7 @@ pub geocoordinates::parse::ParseOptions::decimal_separator: geocoordinates::form
 pub geocoordinates::parse::ParseOptions::default_axis_order: geocoordinates::fix::AxisOrder
 pub geocoordinates::parse::ParseOptions::expect_grid: core::option::Option<geocoordinates::parse::GridKind>
 impl geocoordinates::parse::ParseOptions
+pub const fn geocoordinates::parse::ParseOptions::for_format(&geocoordinates::format::FormatOptions) -> Self
 pub const fn geocoordinates::parse::ParseOptions::with_decimal_separator(self, geocoordinates::format::DecimalSeparator) -> Self
 pub const fn geocoordinates::parse::ParseOptions::with_default_axis_order(self, geocoordinates::fix::AxisOrder) -> Self
 pub const fn geocoordinates::parse::ParseOptions::with_expect_grid(self, core::option::Option<geocoordinates::parse::GridKind>) -> Self

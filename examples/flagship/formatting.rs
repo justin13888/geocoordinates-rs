@@ -214,7 +214,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     assert_within_meters(reparsed.coord, new_york, 0.2);
 
     // Letter-style DMS re-parses through `parse_coordinate`; every other
-    // rendering re-parses given the format options' own `parse_options`.
+    // rendering re-parses given `ParseOptions::for_format` of its options.
     let letters = FormatOptions::default().with_representation(Representation::Dms {
         second_decimals: None,
         symbols: SymbolStyle::Letters,
@@ -231,12 +231,12 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
         .with_decimal_separator(DecimalSeparator::for_locale("de-DE"));
     let rendered = format(new_york, &german)?;
     assert!(parse_coordinate(&rendered).is_err());
-    let reparsed = parse_coordinate_with(&rendered, &german.parse_options())?;
+    let reparsed = parse_coordinate_with(&rendered, &ParseOptions::for_format(&german))?;
     assert_within_meters(reparsed.coord, new_york, 1.0);
     let maidenhead =
         FormatOptions::default().with_representation(Representation::Maidenhead { pairs: 3 });
     let locator = format(new_york, &maidenhead)?;
-    let cell = parse_coordinate_with(&locator, &maidenhead.parse_options())?;
+    let cell = parse_coordinate_with(&locator, &ParseOptions::for_format(&maidenhead))?;
     let bound = cell
         .accuracy
         .and_then(|accuracy| accuracy.horizontal())
