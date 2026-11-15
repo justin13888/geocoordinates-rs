@@ -68,9 +68,10 @@ Every export follows one scheme, so a name reads the same in every language
   names for the text readers.
 - **`<record>_validate` for every invariant record.** `Coordinate`, `Wgs84`,
   `Gcj02`, `Bd09`, `BaiduMercator`, `Dms`, `Ddm`, `Ellipsoid`, `Enu`, `Ned`,
-  `Aer`, `DatumTransform`, `Utm`, `Ups`, `H3Cell` (`h3_validate`), `S2CellId`
-  (`s2_validate`), `Accuracy`, `Confidence`, `Place`, `WebMercator`, `Tile`,
-  `Viewport`, `Camera`, `Precision` and `ExclusionZone` each have one. No
+  `Aer`, `Ecef`, `DatumTransform`, `Utm`, `Ups`, `H3Cell` (`h3_validate`),
+  `S2CellId` (`s2_validate`), `Accuracy`, `Confidence`, `GeoBounds`, `Cluster`,
+  `Visit`, `Place`, `WebMercator`, `Tile`, `Viewport`, `Camera`, `Precision` and
+  `ExclusionZone` each have one. No
   `<record>_new` is added that would only copy its arguments in and validate
   them; one exists where construction derives or normalizes a field
   (`aer_new`, `raw_source_new`, and `place_new`, which computes the distance), beside the constructors that predate that

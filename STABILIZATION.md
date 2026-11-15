@@ -70,7 +70,7 @@ that produced it:
 | `rustdoc -D missing_docs` | clean | clean, and denied in CI |
 | **Doctests** | **0 executable** — one ` ```ignore ` fence crate-wide | 520 executable (`cargo test --all-features --doc`) |
 | **FFI CI** | **red since 2026-08-05** — fixed by #37 | green; Rust tests for every export plus behavioural tests in all four languages |
-| Open issues | 0 | 12 on 2026-11-15 (`gh issue list --state open`): #247 (this correction), #260–#263, #265, #268, #270, #271, #274, #272 (the final reconciliation of this ledger), and #281 (the mutation-testing redo). #186, which this column used to name, closed through #213 |
+| Open issues | 0 | not copied here, since a hand-kept list goes stale as each issue closes: `gh issue list --state open` is the live list. #186, which this column used to name, closed through #213 |
 
 ## Audit ledger
 
