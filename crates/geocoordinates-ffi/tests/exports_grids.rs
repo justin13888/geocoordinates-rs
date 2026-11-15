@@ -498,6 +498,19 @@ fn parse_nmea_sentence_timestamps_rmc_and_rejects_no_fix() {
     }
 }
 
+#[test]
+fn parse_nmea_sentence_reports_a_position_off_the_globe_as_out_of_range() {
+    assert!(matches!(
+        parse_nmea_sentence("$GPGLL,9130.000,N,01130.000,E,225444,A".to_string()),
+        Err(GeoError::OutOfRange { lat, lon }) if lat == 91.5 && lon == 11.5
+    ));
+    // Minutes of 60 are a malformed field, not a position.
+    let (kind, _) = parse_error(parse_nmea_sentence(
+        "$GPGLL,4960.000,N,01130.000,E,225444,A".to_string(),
+    ));
+    assert_eq!(kind, ParseErrorKind::Syntax);
+}
+
 // --- H3 and S2 ---
 
 #[test]

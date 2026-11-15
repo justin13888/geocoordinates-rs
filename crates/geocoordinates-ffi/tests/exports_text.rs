@@ -283,3 +283,31 @@ fn parse_geo_uri_reads_altitude_and_uncertainty() {
         })
     ));
 }
+
+/// Text that reads as a position off the globe crosses as the typed pair
+/// error with the values as read, from every text reader.
+#[test]
+fn text_readers_report_a_position_off_the_globe_as_out_of_range() {
+    let off = |result: Result<Fix, GeoError>, want_lat: f64, want_lon: f64| match result {
+        Err(GeoError::OutOfRange { lat, lon }) => assert_eq!((lat, lon), (want_lat, want_lon)),
+        other => panic!("expected OutOfRange ({want_lat}, {want_lon}), got {other:?}"),
+    };
+    off(parse_geo_uri("geo:91,16.3".to_string()), 91.0, 16.3);
+    off(parse_coordinate("geo:0,-181".to_string()), 0.0, -181.0);
+    off(parse_text("40, 200".to_string()), 40.0, 200.0);
+    off(parse_coordinate("95°N 10°E".to_string()), 95.0, 10.0);
+    let lon_first = ParseOptions {
+        default_axis_order: AxisOrder::LonLat,
+        ..parse_options_default()
+    };
+    off(
+        parse_text_with("100, 150".to_string(), lon_first),
+        150.0,
+        100.0,
+    );
+    off(
+        parse_coordinate_with("100, 150".to_string(), lon_first),
+        150.0,
+        100.0,
+    );
+}
