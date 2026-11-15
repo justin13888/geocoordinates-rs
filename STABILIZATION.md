@@ -451,7 +451,8 @@ without bound at a constant `len()`, until the caller rebuilds it over the live 
 nearest populated place within `ReverseOptions::max_distance` (50 km by default) and to
 `None` beyond it; filters by class or population widen the k-nearest search fourfold
 until a place passes or the search passes the limit. GCJ-02 / BD-09 and the classic
-datums go through `convert` to WGS-84 first, and `Place::query` carries that bound.
+datums go through `Coordinate::try_to_crs` to WGS-84 first, and `Place::query` carries
+that bound.
 
 The file format (specified in `src/reverse/mod.rs`) is versioned, checksummed with
 CRC-32, and read by a loader that checks every count against the bytes left before
