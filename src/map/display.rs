@@ -2,7 +2,6 @@
 //! from [`map`](super).
 
 use crate::approx::Approx;
-use crate::convert::convert;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::units::Length;
@@ -66,8 +65,8 @@ pub fn display_coordinate(point: Coordinate, display: DisplayDatum) -> Result<Co
     require_wgs84(point)?;
     match display {
         DisplayDatum::Wgs84 => Ok(point),
-        // The forward offset is exact, so the bound `convert` reports is zero.
-        DisplayDatum::Gcj02 => Ok(convert(point, Crs::Gcj02)?.into_inner()),
+        // The forward offset is exact, so the bound `try_to_crs` reports is zero.
+        DisplayDatum::Gcj02 => Ok(point.try_to_crs(Crs::Gcj02)?.into_inner()),
     }
 }
 
@@ -97,7 +96,7 @@ pub fn display_coordinate(point: Coordinate, display: DisplayDatum) -> Result<Co
 pub fn tap_to_wgs84(tap: Coordinate) -> Result<Approx<Coordinate>> {
     match tap.crs() {
         Crs::Wgs84 => Approx::new(tap, Length::from_meters(0.0)),
-        Crs::Gcj02 => convert(tap, Crs::Wgs84),
+        Crs::Gcj02 => tap.try_to_crs(Crs::Wgs84),
         found => Err(Error::CrsMismatch {
             expected: Crs::Gcj02,
             found,

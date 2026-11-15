@@ -7,7 +7,6 @@
 use std::sync::OnceLock;
 
 use super::*;
-use crate::convert::convert;
 use crate::{Coordinate, Crs, Length, LengthUnit};
 
 fn bundled() -> &'static Gazetteer {
@@ -155,7 +154,7 @@ fn gcj02_input_resolves_where_it_is_not_where_it_reads() {
 #[test]
 fn bd09_input_resolves_too() {
     let taiyuan = Coordinate::wgs84(37.869_44, 112.560_28).unwrap();
-    let bd = convert(taiyuan, Crs::Bd09).unwrap().into_inner();
+    let bd = taiyuan.try_to_crs(Crs::Bd09).unwrap().into_inner();
     let found = bundled()
         .reverse(bd, &ReverseOptions::default())
         .unwrap()

@@ -192,6 +192,8 @@ pub fn geocoordinates::Coordinate::lon(&self) -> f64
 pub fn geocoordinates::Coordinate::new(f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
 pub fn geocoordinates::Coordinate::wgs84(f64, f64) -> geocoordinates::Result<Self>
 pub fn geocoordinates::Coordinate::with_height(self, geocoordinates::Height) -> geocoordinates::Result<Self>
+impl geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::try_to_crs(self, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
 impl core::clone::Clone for geocoordinates::Coordinate
 pub fn geocoordinates::Coordinate::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::Coordinate

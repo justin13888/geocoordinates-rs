@@ -26,7 +26,7 @@
 //!
 //! Every grid here is defined on WGS-84 latitude and longitude, so coarsening a
 //! coordinate on another datum is refused with [`Error::CrsMismatch`]; convert
-//! it with [`convert`](crate::convert::convert) first.
+//! it with [`Coordinate::try_to_crs`](crate::Coordinate::try_to_crs) first.
 //!
 //! Every item is reached flat at `privacy::NAME`.
 //!

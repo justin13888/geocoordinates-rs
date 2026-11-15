@@ -2,7 +2,7 @@
 //!
 //! Design (locked): a **lean** [`Coordinate`] (position + optional height +
 //! reference system) is what the geodetic math and the central
-//! `convert` dispatch operate on. Rich observation metadata
+//! [`Coordinate::try_to_crs`] dispatch operate on. Rich observation metadata
 //! (accuracy, timestamp, raw source, parse confidence) lives separately in
 //! [`crate::fix::Fix`], populated by the ingestion layer.
 //!
@@ -20,7 +20,7 @@ pub(crate) use crate::units::Height;
 ///
 /// GCJ-02 and BD-09 are obfuscation transforms rather than true geodetic
 /// datums, but are modeled here as reference systems so the central
-/// `convert` dispatch can dispatch over them uniformly.
+/// [`Coordinate::try_to_crs`] dispatch can dispatch over them uniformly.
 ///
 /// Exhaustive (no `#[non_exhaustive]`): the FFI mirror enumerates every variant,
 /// so adding a datum here is a deliberate, compile-forcing change on both sides

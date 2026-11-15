@@ -1,6 +1,5 @@
 //! Classic datum transforms (Helmert) and projected grids (UTM, UPS, MGRS).
 
-use geocoordinates::convert::convert;
 use geocoordinates::geodesy::{DatumTransform, Ecef, Helmert};
 use geocoordinates::grids::{
     Mgrs, MgrsPrecision, Ups, Utm, UtmHemisphere, utm_central_meridian_deg, utm_zone_for,
@@ -29,8 +28,8 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
         let restored = transform.inverse_first_order().apply(wgs)?;
         assert_eq!(restored.crs(), datum);
         assert_within_meters(restored, source, 1e-6);
-        // `convert` reports that accuracy as the Helmert leg's bound.
-        let converted = convert(source, Crs::Wgs84)?;
+        // `try_to_crs` reports that accuracy as the Helmert leg's bound.
+        let converted = source.try_to_crs(Crs::Wgs84)?;
         assert_eq!(
             converted.max_error().meters(),
             accuracy_m.unwrap_or(f64::INFINITY)

@@ -1,7 +1,6 @@
-//! China datums (GCJ-02, BD-09) and CRS dispatch through `convert`.
+//! China datums (GCJ-02, BD-09) and CRS dispatch through `Coordinate::try_to_crs`.
 
 use geocoordinates::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
-use geocoordinates::convert::convert;
 use geocoordinates::{Approx, Coordinate, Crs, Height, Length};
 
 use crate::support::{DemoResult, assert_close, assert_mercator_close, assert_within_meters};
@@ -91,7 +90,7 @@ pub(crate) fn china_datums_and_dispatch() -> DemoResult {
         let source =
             Coordinate::new(39.915, 116.404, from)?.with_height(Height::Ellipsoidal(12.0))?;
         for to in systems {
-            let converted = convert(source, to)?;
+            let converted = source.try_to_crs(to)?;
             let point = converted.value();
             assert_eq!(point.crs(), to);
             assert!(point.lat().is_finite() && point.lon().is_finite());
