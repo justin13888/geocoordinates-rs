@@ -247,7 +247,7 @@ ledger rows it closed are listed.
 | #282 | #295 | `privacy` no longer enables `index`, which it does not use | G52 |
 | #266 | #296 | `Height::length` replaces `Height::meters`, so a height reads in meters as `length().meters()` | G46 |
 | #267 | #297 | The UTM zone helpers are the associated functions `Utm::zone_for` / `Utm::central_meridian_deg` | G49 |
-| #260 | #299 | The prelude holds only the nine core types; everything else is imported from its module | G38 |
+| #260 | #299 | The prelude holds only nine types (the core types less `ParseErrorKind` and `Result`, plus `Fix`); everything else is imported from its module | G38 |
 
 ## 0.15.0 gate checklist
 

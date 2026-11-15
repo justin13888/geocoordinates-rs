@@ -167,7 +167,7 @@ pub use coord::{Coordinate, Crs, LatLon};
 pub use error::{Error, ParseErrorKind, Result};
 pub use units::{Height, Length, LengthUnit};
 
-/// The core types, for a glob import: `use geocoordinates::prelude::*;`.
+/// The nine prelude types, for a glob import: `use geocoordinates::prelude::*;`.
 ///
 /// It holds the nine types that appear in almost every signature across the
 /// subsystems: [`Coordinate`], [`Crs`], [`Height`], [`LatLon`], [`Approx`],

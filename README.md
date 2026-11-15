@@ -15,12 +15,13 @@ subsystem as stabilized on that side; the stabilization bar, and the evidence
 that each subsystem meets it, are in
 [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md#what-stabilized-means).
 
-Every public item has exactly one path (plus a `prelude` entry for a core type): the core
+Every public item has exactly one path (plus a `prelude` entry for each of the nine prelude types): the core
 types sit at the crate root, and every other item sits flat in the module the
 table names, e.g. `geocoordinates::china::Wgs84` or
 `geocoordinates::grids::Utm`. `mise run public-api-check` enforces it. The
-`prelude` holds only the core types (`Coordinate`, `Crs`, `Height`, `LatLon`,
-`Approx`, `Length`, `LengthUnit`, `Error`, and `fix::Fix`); functions and
+`prelude` holds only nine types (`Coordinate`, `Crs`, `Height`, `LatLon`,
+`Approx`, `Length`, `LengthUnit`, `Error`, and `fix::Fix`): the core types
+less `ParseErrorKind` and `Result`, plus `Fix`; functions and
 feature-gated items are imported from their modules.
 
 | Subsystem | Public surface | Rust | FFI |
