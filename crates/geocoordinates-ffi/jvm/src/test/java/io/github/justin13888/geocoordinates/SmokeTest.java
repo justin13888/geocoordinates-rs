@@ -17,6 +17,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformCatalogToWgs84;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ecefFromCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ecefValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidClarke1866;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidForCrs;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidValidate;
@@ -176,6 +177,13 @@ class SmokeTest {
                         GeoException.CrsMismatch.class,
                         () -> ecefFromCoordinate(coordinateNew(39.9, 116.4, Crs.GCJ02)));
         assertEquals(Crs.WGS84, noEllipsoid.getExpected());
+        // A hand-built ECEF record is validated, naming the non-finite component.
+        ecefValidate(nad27);
+        GeoException.InvalidValue notFinite =
+                assertThrows(
+                        GeoException.InvalidValue.class,
+                        () -> ecefValidate(new Ecef(Double.NaN, 0.0, 0.0)));
+        assertEquals("x_m", notFinite.getField());
 
         DatumTransform tokyo = datumTransformCatalogToWgs84(Crs.TOKYO);
         double accuracy = tokyo.getAccuracyM();

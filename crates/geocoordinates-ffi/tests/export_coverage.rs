@@ -21,9 +21,9 @@ use std::path::{Path, PathBuf};
 
 /// The number of exports: free functions, object constructors and methods, and
 /// foreign-trait methods. Update it in the diff that adds or removes one.
-const EXPORTS: usize = 242;
+const EXPORTS: usize = 243;
 /// The number of those exports whose return type resolves to a `Result`.
-const FALLIBLE_EXPORTS: usize = 195;
+const FALLIBLE_EXPORTS: usize = 197;
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).expect("readable directory") {

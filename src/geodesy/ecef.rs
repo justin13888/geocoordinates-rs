@@ -19,7 +19,7 @@
 //! // The same latitude and longitude sit at different places on two datums.
 //! let wgs = Ecef::try_from_coordinate(Coordinate::new(35.0, 139.0, Crs::Wgs84)?)?;
 //! let tokyo = Ecef::try_from_coordinate(Coordinate::new(35.0, 139.0, Crs::Tokyo)?)?;
-//! assert!((wgs.x_m - tokyo.x_m).abs() > 100.0);
+//! assert!((wgs.x_m() - tokyo.x_m()).abs() > 100.0);
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 
@@ -60,38 +60,110 @@ pub(crate) fn ellipsoid_of_argument(crs: Crs, field: &'static str) -> Result<Ell
 
 /// A geocentric ECEF position in meters.
 ///
+/// Valid by construction: build one with [`Ecef::new`] or
+/// [`Ecef::try_from_coordinate`]. Every component is finite, and
+/// deserialization goes through [`Ecef::new`].
+///
 /// ```
 /// use geocoordinates::{Coordinate, Crs, geodesy::Ecef};
 ///
 /// let ecef = Ecef::try_from_coordinate(Coordinate::wgs84(0.0, 0.0)?)?;
-/// assert_eq!((ecef.x_m, ecef.y_m, ecef.z_m), (6_378_137.0, 0.0, 0.0));
+/// assert_eq!((ecef.x_m(), ecef.y_m(), ecef.z_m()), (6_378_137.0, 0.0, 0.0));
 /// let back = ecef.try_to_coordinate(Crs::Wgs84)?;
 /// assert_eq!((back.lat(), back.lon()), (0.0, 0.0));
+/// assert!(Ecef::new(f64::NAN, 0.0, 0.0).is_err());
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "EcefRecord"))]
 pub struct Ecef {
-    /// X axis (meters), through the prime meridian at the equator.
-    pub x_m: f64,
-    /// Y axis (meters), 90° east at the equator.
-    pub y_m: f64,
-    /// Z axis (meters), through the north pole.
-    pub z_m: f64,
+    x_m: f64,
+    y_m: f64,
+    z_m: f64,
+}
+
+/// `value` if it is finite, else [`Error::InvalidValue`] naming `field`.
+fn finite(value: f64, field: &'static str) -> Result<f64> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(Error::InvalidValue {
+            field,
+            detail: "must be finite".into(),
+        })
+    }
 }
 
 impl Ecef {
     /// Construct from X/Y/Z in meters.
     ///
-    /// ```
-    /// use geocoordinates::geodesy::Ecef;
+    /// # Errors
+    /// [`Error::InvalidValue`] naming `"x_m"`, `"y_m"`, or `"z_m"` when that
+    /// component is not finite (the first such, in that order).
     ///
-    /// let p = Ecef::new(1.0, 2.0, 3.0);
-    /// assert_eq!((p.x_m, p.y_m, p.z_m), (1.0, 2.0, 3.0));
+    /// ```
+    /// use geocoordinates::{Error, geodesy::Ecef};
+    ///
+    /// let p = Ecef::new(1.0, 2.0, 3.0)?;
+    /// assert_eq!((p.x_m(), p.y_m(), p.z_m()), (1.0, 2.0, 3.0));
+    /// assert!(matches!(
+    ///     Ecef::new(0.0, f64::INFINITY, 0.0),
+    ///     Err(Error::InvalidValue { field: "y_m", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    pub fn new(x_m: f64, y_m: f64, z_m: f64) -> Result<Self> {
+        Ok(Self {
+            x_m: finite(x_m, "x_m")?,
+            y_m: finite(y_m, "y_m")?,
+            z_m: finite(z_m, "z_m")?,
+        })
+    }
+
+    /// Construct from components already known to be finite.
+    ///
+    /// For the conversions whose math keeps every component finite. Debug
+    /// builds assert it.
+    pub(crate) fn from_valid(x_m: f64, y_m: f64, z_m: f64) -> Self {
+        debug_assert!(
+            x_m.is_finite() && y_m.is_finite() && z_m.is_finite(),
+            "Ecef::from_valid not finite: x={x_m}, y={y_m}, z={z_m}"
+        );
+        Self { x_m, y_m, z_m }
+    }
+
+    /// X axis (meters), through the prime meridian at the equator.
+    ///
+    /// ```
+    /// assert_eq!(geocoordinates::geodesy::Ecef::new(1.0, 2.0, 3.0)?.x_m(), 1.0);
+    /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn new(x_m: f64, y_m: f64, z_m: f64) -> Self {
-        Self { x_m, y_m, z_m }
+    pub const fn x_m(self) -> f64 {
+        self.x_m
+    }
+
+    /// Y axis (meters), 90° east at the equator.
+    ///
+    /// ```
+    /// assert_eq!(geocoordinates::geodesy::Ecef::new(1.0, 2.0, 3.0)?.y_m(), 2.0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn y_m(self) -> f64 {
+        self.y_m
+    }
+
+    /// Z axis (meters), through the north pole.
+    ///
+    /// ```
+    /// assert_eq!(geocoordinates::geodesy::Ecef::new(1.0, 2.0, 3.0)?.z_m(), 3.0);
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[must_use]
+    pub const fn z_m(self) -> f64 {
+        self.z_m
     }
 
     /// ECEF → geodetic [`Coordinate`] (lat/lon/ellipsoidal height) on the
@@ -105,32 +177,25 @@ impl Ecef {
     /// # Errors
     /// - [`Error::InvalidValue`] (field `"crs"`) when `crs` is GCJ-02 or
     ///   BD-09, which are not geodetic datums and have no ellipsoid;
-    /// - [`Error::InvalidValue`] (field `"ECEF"`) when a component is not
-    ///   finite, and (field `"height"`) when the position is so far from the
-    ///   Earth that its height overflows.
+    /// - [`Error::InvalidValue`] (field `"height"`) when the position is so
+    ///   far from the Earth that its height overflows.
     ///
     /// ```
     /// use geocoordinates::{Crs, Error, Height, geodesy::Ecef};
     ///
     /// // 1000 m above the WGS-84 north pole.
-    /// let pole = Ecef::new(0.0, 0.0, 6_356_752.314_245 + 1000.0).try_to_coordinate(Crs::Wgs84)?;
+    /// let pole = Ecef::new(0.0, 0.0, 6_356_752.314_245 + 1000.0)?.try_to_coordinate(Crs::Wgs84)?;
     /// assert_eq!(pole.lat(), 90.0);
     /// assert!(matches!(pole.height(), Some(Height::Ellipsoidal(h)) if (h - 1000.0).abs() < 1e-6));
     /// // GCJ-02 is no datum, so an ECEF position cannot be expressed in it.
     /// assert!(matches!(
-    ///     Ecef::new(6_378_137.0, 0.0, 0.0).try_to_coordinate(Crs::Gcj02),
+    ///     Ecef::new(6_378_137.0, 0.0, 0.0)?.try_to_coordinate(Crs::Gcj02),
     ///     Err(Error::InvalidValue { field: "crs", .. })
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn try_to_coordinate(self, crs: Crs) -> Result<Coordinate> {
         let ellipsoid = ellipsoid_of_argument(crs, "crs")?;
-        if !self.x_m.is_finite() || !self.y_m.is_finite() || !self.z_m.is_finite() {
-            return Err(Error::InvalidValue {
-                field: "ECEF",
-                detail: "x, y, and z must be finite".into(),
-            });
-        }
         let (lat, h) = geodetic_latitude_and_height(self, ellipsoid);
         let lon = self.y_m.atan2(self.x_m).to_degrees();
         Coordinate::new(lat.to_degrees(), lon, crs)?.with_height(Height::Ellipsoidal(h))
@@ -151,7 +216,7 @@ impl Ecef {
     ///
     /// let raised = Coordinate::wgs84(0.0, 90.0)?.with_height(Height::Ellipsoidal(100.0))?;
     /// let p = Ecef::try_from_coordinate(raised)?;
-    /// assert!(p.x_m.abs() < 1e-6 && (p.y_m - 6_378_237.0).abs() < 1e-6 && p.z_m == 0.0);
+    /// assert!(p.x_m().abs() < 1e-6 && (p.y_m() - 6_378_237.0).abs() < 1e-6 && p.z_m() == 0.0);
     /// // An orthometric height needs a geoid model this crate does not ship.
     /// let msl = Coordinate::wgs84(0.0, 90.0)?.with_height(Height::Orthometric(100.0))?;
     /// assert!(matches!(
@@ -170,11 +235,13 @@ impl Ecef {
         let sin_phi = phi.sin();
         let cos_phi = phi.cos();
         let n = a / (1.0 - e2 * sin_phi * sin_phi).sqrt();
-        Ok(Ecef {
-            x_m: (n + h) * cos_phi * lambda.cos(),
-            y_m: (n + h) * cos_phi * lambda.sin(),
-            z_m: (n * (1.0 - e2) + h) * sin_phi,
-        })
+        // Finite: a valid coordinate's height is finite, `n` is bounded by the
+        // ellipsoid, and each product scales by a sine or cosine.
+        Ok(Ecef::from_valid(
+            (n + h) * cos_phi * lambda.cos(),
+            (n + h) * cos_phi * lambda.sin(),
+            (n * (1.0 - e2) + h) * sin_phi,
+        ))
     }
 }
 
@@ -251,6 +318,25 @@ fn vermeille(r: f64, z: f64, ellipsoid: Ellipsoid) -> (f64, f64) {
     let lat = (z / k).atan2(r / k2);
     let h = (1.0 - e2m / k) * (k * r / k2).hypot(z);
     (lat, h)
+}
+
+/// Unvalidated serde shape of [`Ecef`]; deserialization goes through
+/// [`Ecef::new`].
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct EcefRecord {
+    x_m: f64,
+    y_m: f64,
+    z_m: f64,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<EcefRecord> for Ecef {
+    type Error = Error;
+
+    fn try_from(r: EcefRecord) -> Result<Self> {
+        Ecef::new(r.x_m, r.y_m, r.z_m)
+    }
 }
 
 #[cfg(test)]

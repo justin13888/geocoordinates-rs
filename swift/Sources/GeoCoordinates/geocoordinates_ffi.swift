@@ -3420,6 +3420,10 @@ public func FfiConverterTypeDms_lower(_ value: Dms) -> RustBuffer {
 
 /**
  * A geocentric ECEF position in meters — mirror of [`gc::Ecef`](gc::geodesy::Ecef).
+ *
+ * Unvalidated until used: every export that takes one validates it as the
+ * core `Ecef::new` does (each component finite). Call [`ecef_validate`] to
+ * check a hand-built record up front.
  */
 public struct Ecef: Equatable, Hashable {
     /**
@@ -4741,9 +4745,10 @@ public func FfiConverterTypeH3Cell_lower(_ value: H3Cell) -> RustBuffer {
  * [`gc::Helmert`](gc::geodesy::Helmert). Translations in meters, rotations in
  * arc-seconds (position-vector convention), scale in parts-per-million.
  *
- * Unvalidated until used: [`helmert_apply_ecef`] and
- * [`helmert_inverse_first_order`] apply the parameters as given, and a
- * [`DatumTransform`] validates them (all finite) as it crosses in.
+ * Unvalidated until used: [`helmert_apply_ecef`] rejects a non-finite
+ * parameter, [`helmert_inverse_first_order`] negates the parameters as
+ * given, and a [`DatumTransform`] validates them (all finite) as it crosses
+ * in.
  */
 public struct Helmert: Equatable, Hashable {
     /**
@@ -11487,7 +11492,9 @@ public func rawSourceNew(raw: String, confidence: Confidence)throws  -> RawSourc
  *
  * # Errors
  * `GeoError::CrsMismatch` when `coord` is not in `from_crs`;
- * `GeoError::InvalidValue` (field `height`) for an orthometric height; and
+ * `GeoError::InvalidValue` (field `height`) for an orthometric height or a
+ * height so large that the shifted position overflows, and (field `helmert`)
+ * for parameters so large that the shift overflows even at zero height; and
  * the errors of [`datum_transform_new`] for a malformed transform record.
  */
 public func datumTransformApply(transform: DatumTransform, coord: Coordinate)throws  -> Coordinate  {
@@ -11562,9 +11569,15 @@ public func datumTransformValidate(transform: DatumTransform)throws   {try rustC
 }
 /**
  * Apply a Helmert transform to a geocentric (ECEF) position.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `x_m`, `y_m`, or `z_m` for a non-finite
+ * component of `ecef` (as [`ecef_validate`](crate::ecef_validate)), `helmert`
+ * for a non-finite parameter, and `ecef` when the transformed position
+ * overflows.
  */
-public func helmertApplyEcef(helmert: Helmert, ecef: Ecef) -> Ecef  {
-    return try!  FfiConverterTypeEcef_lift(try! rustCall() {
+public func helmertApplyEcef(helmert: Helmert, ecef: Ecef)throws  -> Ecef  {
+    return try  FfiConverterTypeEcef_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_helmert_apply_ecef(
         FfiConverterTypeHelmert_lower(helmert),
         FfiConverterTypeEcef_lower(ecef),$0
@@ -11900,9 +11913,9 @@ public func ecefFromCoordinate(coord: Coordinate)throws  -> Ecef  {
  * form, as refined in GeographicLib).
  *
  * # Errors
- * `GeoError::InvalidValue` (field `crs`) when `crs` is GCJ-02 or BD-09;
- * `GeoError::InvalidValue` (field `ECEF`) for a non-finite component, and
- * (field `height`) when the height overflows.
+ * `GeoError::InvalidValue` naming `x_m`, `y_m`, or `z_m` for a non-finite
+ * component of the record, as [`ecef_validate`]; (field `crs`) when `crs` is
+ * GCJ-02 or BD-09; and (field `height`) when the height overflows.
  */
 public func ecefToCoordinate(ecef: Ecef, crs: Crs)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -11911,6 +11924,19 @@ public func ecefToCoordinate(ecef: Ecef, crs: Crs)throws  -> Coordinate  {
         FfiConverterTypeCrs_lower(crs),$0
     )
 })
+}
+/**
+ * Validate a (possibly hand-built) ECEF record — the FFI form of `Ecef::new`.
+ *
+ * # Errors
+ * `GeoError::InvalidValue` naming `x_m`, `y_m`, or `z_m` when that component
+ * (the record's `x`, `y`, or `z`) is not finite.
+ */
+public func ecefValidate(ecef: Ecef)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_ecef_validate(
+        FfiConverterTypeEcef_lower(ecef),$0
+    )
+}
 }
 /**
  * The Airy-1830 ellipsoid (OSGB36).
@@ -13964,7 +13990,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_raw_source_new() != 30305) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 58176) {
+    if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_apply() != 57977) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_catalog_to_wgs84() != 3243) {
@@ -13979,7 +14005,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_datum_transform_validate() != 57246) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 15241) {
+    if (uniffi_geocoordinates_ffi_checksum_func_helmert_apply_ecef() != 23223) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_helmert_identity() != 60832) {
@@ -14048,7 +14074,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 4916) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 1466) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_to_coordinate() != 64234) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_ecef_validate() != 19813) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_airy_1830() != 49200) {

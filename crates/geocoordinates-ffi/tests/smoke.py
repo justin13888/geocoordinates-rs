@@ -423,6 +423,13 @@ try:
     raise AssertionError("expected CrsMismatch: GCJ-02 has no ellipsoid")
 except gc.GeoError.CrsMismatch:
     pass
+# A hand-built ECEF record is validated, naming the non-finite component.
+gc.ecef_validate(ecef)
+try:
+    gc.ecef_validate(gc.Ecef(x=0.0, y=0.0, z=float("nan")))
+    raise AssertionError("expected GeoError.InvalidValue for a NaN z")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "z_m", e.field
 origin = wgs84_coord(40.0, -75.0)
 enu = gc.enu_from_coordinate(wgs84_coord(40.1, -75.0), origin)
 # 0.1 deg of meridian arc at 40 N; the target sits below the tangent plane.

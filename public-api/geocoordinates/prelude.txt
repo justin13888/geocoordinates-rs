@@ -167,9 +167,6 @@ pub struct geocoordinates::prelude::Dbscan
 pub struct geocoordinates::prelude::Ddm
 pub struct geocoordinates::prelude::Dms
 pub struct geocoordinates::prelude::Ecef
-pub geocoordinates::prelude::Ecef::x_m: f64
-pub geocoordinates::prelude::Ecef::y_m: f64
-pub geocoordinates::prelude::Ecef::z_m: f64
 pub struct geocoordinates::prelude::Ellipsoid
 pub struct geocoordinates::prelude::Enu
 pub struct geocoordinates::prelude::ExclusionZone

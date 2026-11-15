@@ -9,9 +9,10 @@ use crate::{Coordinate, Crs, Ecef, GeoError};
 /// [`gc::Helmert`](gc::geodesy::Helmert). Translations in meters, rotations in
 /// arc-seconds (position-vector convention), scale in parts-per-million.
 ///
-/// Unvalidated until used: [`helmert_apply_ecef`] and
-/// [`helmert_inverse_first_order`] apply the parameters as given, and a
-/// [`DatumTransform`] validates them (all finite) as it crosses in.
+/// Unvalidated until used: [`helmert_apply_ecef`] rejects a non-finite
+/// parameter, [`helmert_inverse_first_order`] negates the parameters as
+/// given, and a [`DatumTransform`] validates them (all finite) as it crosses
+/// in.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Helmert {
     /// X-axis translation, meters.
@@ -112,11 +113,18 @@ pub fn helmert_identity() -> Helmert {
 }
 
 /// Apply a Helmert transform to a geocentric (ECEF) position.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming `x_m`, `y_m`, or `z_m` for a non-finite
+/// component of `ecef` (as [`ecef_validate`](crate::ecef_validate)), `helmert`
+/// for a non-finite parameter, and `ecef` when the transformed position
+/// overflows.
 #[uniffi::export]
-pub fn helmert_apply_ecef(helmert: Helmert, ecef: Ecef) -> Ecef {
+pub fn helmert_apply_ecef(helmert: Helmert, ecef: Ecef) -> Result<Ecef, GeoError> {
     gc::geodesy::Helmert::from(helmert)
-        .apply_ecef(ecef.into())
-        .into()
+        .apply_ecef(ecef.try_into()?)
+        .map(Into::into)
+        .map_err(Into::into)
 }
 
 /// The first-order inverse Helmert transform (negated parameters). Exact for
@@ -180,7 +188,9 @@ pub fn datum_transform_catalog_to_wgs84(datum: Crs) -> Option<DatumTransform> {
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` when `coord` is not in `from_crs`;
-/// `GeoError::InvalidValue` (field `height`) for an orthometric height; and
+/// `GeoError::InvalidValue` (field `height`) for an orthometric height or a
+/// height so large that the shifted position overflows, and (field `helmert`)
+/// for parameters so large that the shift overflows even at zero height; and
 /// the errors of [`datum_transform_new`] for a malformed transform record.
 #[uniffi::export]
 pub fn datum_transform_apply(

@@ -10,8 +10,8 @@ use geocoordinates::{Coordinate, Crs, Height, Length};
 use crate::support::{DemoResult, assert_close, assert_within_meters};
 
 pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
-    let ecef = Ecef::new(4_000_000.0, -2_000_000.0, 4_500_000.0);
-    assert_eq!(Helmert::IDENTITY.apply_ecef(ecef), ecef);
+    let ecef = Ecef::new(4_000_000.0, -2_000_000.0, 4_500_000.0)?;
+    assert_eq!(Helmert::IDENTITY.apply_ecef(ecef)?, ecef);
     assert_eq!(Helmert::IDENTITY.inverse_first_order(), Helmert::IDENTITY);
 
     // Each catalogued shift carries NIMA TR8350.2's published accuracy (the
