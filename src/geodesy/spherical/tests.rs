@@ -7,16 +7,18 @@ fn c(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
 }
 
-/// The crossing point of an [`Intersection`], if it has one.
+/// The crossing point of a [`SphericalIntersection`], if it has one.
 trait CrossingPoint {
     fn crossing(self) -> Option<Coordinate>;
 }
 
-impl CrossingPoint for Intersection {
+impl CrossingPoint for SphericalIntersection {
     fn crossing(self) -> Option<Coordinate> {
         match self {
-            Intersection::Crossing(p) => Some(p),
-            Intersection::SameGreatCircle | Intersection::NoForwardCrossing => None,
+            SphericalIntersection::Crossing(p) => Some(p),
+            SphericalIntersection::SameGreatCircle | SphericalIntersection::NoForwardCrossing => {
+                None
+            }
         }
     }
 }
@@ -54,16 +56,16 @@ fn coincident_great_circles_have_no_intersection() {
     // do two that run along it in opposite directions.
     assert_eq!(
         intersection_spherical(c(0.0, 0.0), 90.0, c(0.0, 5.0), 90.0).unwrap(),
-        Intersection::SameGreatCircle
+        SphericalIntersection::SameGreatCircle
     );
     assert_eq!(
         intersection_spherical(c(0.0, 0.0), 90.0, c(0.0, 5.0), 270.0).unwrap(),
-        Intersection::SameGreatCircle
+        SphericalIntersection::SameGreatCircle
     );
     // One start and one bearing twice over is one great circle too.
     assert_eq!(
         intersection_spherical(c(5.0, 5.0), 30.0, c(5.0, 5.0), 30.0).unwrap(),
-        Intersection::SameGreatCircle
+        SphericalIntersection::SameGreatCircle
     );
 }
 
@@ -223,12 +225,12 @@ fn intersection_behind_a_bearing_is_no_forward_crossing() {
     // its antipode beyond half a great circle along the northward one.
     assert_eq!(
         intersection_spherical(c(10.0, 0.0), 270.0, c(0.0, 10.0), 0.0).unwrap(),
-        Intersection::NoForwardCrossing
+        SphericalIntersection::NoForwardCrossing
     );
     // Antipodal starts: each crossing is a start, half a circle from the other.
     assert_eq!(
         intersection_spherical(c(0.0, 0.0), 0.0, c(0.0, 180.0), 90.0).unwrap(),
-        Intersection::NoForwardCrossing
+        SphericalIntersection::NoForwardCrossing
     );
 }
 
@@ -488,26 +490,32 @@ fn cross_and_along_track_across_the_antimeridian() {
 #[test]
 fn intersection_serde_round_trips_every_variant() {
     let crossing =
-        Intersection::Crossing(Coordinate::new(10.0, -170.0, crate::Crs::Tokyo).unwrap());
+        SphericalIntersection::Crossing(Coordinate::new(10.0, -170.0, crate::Crs::Tokyo).unwrap());
     let json = serde_json::to_string(&crossing).unwrap();
     assert!(json.starts_with(r#"{"Crossing":"#), "{json}");
     assert_eq!(
-        serde_json::from_str::<Intersection>(&json).unwrap(),
+        serde_json::from_str::<SphericalIntersection>(&json).unwrap(),
         crossing
     );
     for (variant, expected) in [
-        (Intersection::SameGreatCircle, r#""SameGreatCircle""#),
-        (Intersection::NoForwardCrossing, r#""NoForwardCrossing""#),
+        (
+            SphericalIntersection::SameGreatCircle,
+            r#""SameGreatCircle""#,
+        ),
+        (
+            SphericalIntersection::NoForwardCrossing,
+            r#""NoForwardCrossing""#,
+        ),
     ] {
         let json = serde_json::to_string(&variant).unwrap();
         assert_eq!(json, expected);
         assert_eq!(
-            serde_json::from_str::<Intersection>(&json).unwrap(),
+            serde_json::from_str::<SphericalIntersection>(&json).unwrap(),
             variant
         );
     }
     // The carried coordinate is validated on the way in.
     let bad = json.replace("10.0", "91.0");
     assert_ne!(bad, json);
-    assert!(serde_json::from_str::<Intersection>(&bad).is_err());
+    assert!(serde_json::from_str::<SphericalIntersection>(&bad).is_err());
 }

@@ -97,7 +97,7 @@ pub use geodesic::{
 };
 pub use rhumb::{rhumb_bearing, rhumb_destination, rhumb_distance};
 pub use spherical::{
-    Intersection, along_track_distance_spherical, cross_track_distance_spherical,
+    SphericalIntersection, along_track_distance_spherical, cross_track_distance_spherical,
     haversine_distance, intersection_spherical,
 };
 pub use track::{GeodesicIntersection, along_track_distance, cross_track_distance, intersection};

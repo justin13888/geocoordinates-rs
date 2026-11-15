@@ -45,7 +45,7 @@ proptest! {
         assert_valid(&destination(a, bearing, Length::from_meters(distance)).unwrap(), crs)?;
         assert_valid(&midpoint(a, b).unwrap(), crs)?;
         assert_valid(&intermediate(a, b, fraction).unwrap(), crs)?;
-        if let Intersection::Crossing(p) = intersection_spherical(a, bearing, b, bearing_b).unwrap() {
+        if let SphericalIntersection::Crossing(p) = intersection_spherical(a, bearing, b, bearing_b).unwrap() {
             assert_valid(&p, crs)?;
         }
         if let Ok(GeodesicIntersection::Crossing(p)) = intersection(a, bearing, b, bearing_b) {

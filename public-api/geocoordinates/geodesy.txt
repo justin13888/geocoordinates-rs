@@ -22,29 +22,29 @@ impl core::marker::Unpin for geocoordinates::geodesy::GeodesicIntersection
 impl core::marker::UnsafeUnpin for geocoordinates::geodesy::GeodesicIntersection
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::GeodesicIntersection
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::GeodesicIntersection
-pub enum geocoordinates::geodesy::Intersection
-pub geocoordinates::geodesy::Intersection::Crossing(geocoordinates::Coordinate)
-pub geocoordinates::geodesy::Intersection::NoForwardCrossing
-pub geocoordinates::geodesy::Intersection::SameGreatCircle
-impl core::clone::Clone for geocoordinates::geodesy::Intersection
-pub fn geocoordinates::geodesy::Intersection::clone(&self) -> Self
-impl core::cmp::PartialEq for geocoordinates::geodesy::Intersection
-pub fn geocoordinates::geodesy::Intersection::eq(&self, &Self) -> bool
-impl core::fmt::Debug for geocoordinates::geodesy::Intersection
-pub fn geocoordinates::geodesy::Intersection::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for geocoordinates::geodesy::Intersection
-impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Intersection
-impl serde_core::ser::Serialize for geocoordinates::geodesy::Intersection
-pub fn geocoordinates::geodesy::Intersection::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
-impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::geodesy::Intersection
-pub fn geocoordinates::geodesy::Intersection::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
-impl core::marker::Freeze for geocoordinates::geodesy::Intersection
-impl core::marker::Send for geocoordinates::geodesy::Intersection
-impl core::marker::Sync for geocoordinates::geodesy::Intersection
-impl core::marker::Unpin for geocoordinates::geodesy::Intersection
-impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Intersection
-impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Intersection
-impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Intersection
+pub enum geocoordinates::geodesy::SphericalIntersection
+pub geocoordinates::geodesy::SphericalIntersection::Crossing(geocoordinates::Coordinate)
+pub geocoordinates::geodesy::SphericalIntersection::NoForwardCrossing
+pub geocoordinates::geodesy::SphericalIntersection::SameGreatCircle
+impl core::clone::Clone for geocoordinates::geodesy::SphericalIntersection
+pub fn geocoordinates::geodesy::SphericalIntersection::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::SphericalIntersection
+pub fn geocoordinates::geodesy::SphericalIntersection::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::SphericalIntersection
+pub fn geocoordinates::geodesy::SphericalIntersection::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::SphericalIntersection
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::SphericalIntersection
+impl serde_core::ser::Serialize for geocoordinates::geodesy::SphericalIntersection
+pub fn geocoordinates::geodesy::SphericalIntersection::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::geodesy::SphericalIntersection
+pub fn geocoordinates::geodesy::SphericalIntersection::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::geodesy::SphericalIntersection
+impl core::marker::Send for geocoordinates::geodesy::SphericalIntersection
+impl core::marker::Sync for geocoordinates::geodesy::SphericalIntersection
+impl core::marker::Unpin for geocoordinates::geodesy::SphericalIntersection
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::SphericalIntersection
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::SphericalIntersection
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::SphericalIntersection
 pub struct geocoordinates::geodesy::Aer
 impl geocoordinates::geodesy::Aer
 pub fn geocoordinates::geodesy::Aer::azimuth_deg(&self) -> f64
@@ -322,7 +322,7 @@ pub fn geocoordinates::geodesy::haversine_distance(impl geocoordinates::LatLon, 
 pub fn geocoordinates::geodesy::initial_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
 pub fn geocoordinates::geodesy::intermediate(geocoordinates::Coordinate, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::Coordinate>
 pub fn geocoordinates::geodesy::intersection(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::GeodesicIntersection>
-pub fn geocoordinates::geodesy::intersection_spherical(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::Intersection>
+pub fn geocoordinates::geodesy::intersection_spherical(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::SphericalIntersection>
 pub fn geocoordinates::geodesy::midpoint(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
 pub fn geocoordinates::geodesy::rhumb_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
 pub fn geocoordinates::geodesy::rhumb_destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>

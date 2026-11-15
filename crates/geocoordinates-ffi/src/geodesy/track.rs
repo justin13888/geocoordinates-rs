@@ -51,13 +51,13 @@ pub fn along_track_distance_spherical_m(
 }
 
 /// The outcome of [`intersection_spherical`] — mirror of
-/// [`gc::geodesy::Intersection`].
+/// [`gc::geodesy::SphericalIntersection`].
 ///
-/// `gc::geodesy::Intersection` is exhaustive, so the `From` impl below is an
+/// `gc::geodesy::SphericalIntersection` is exhaustive, so the `From` impl below is an
 /// exhaustive match: a new outcome upstream fails this crate's build until
 /// mirrored here.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Enum)]
-pub enum IntersectionResult {
+pub enum SphericalIntersectionResult {
     /// The paths cross at `point`, less than half a great circle ahead of each
     /// start (in the inputs' CRS, with no height).
     Crossing {
@@ -71,14 +71,14 @@ pub enum IntersectionResult {
     NoForwardCrossing,
 }
 
-impl From<gc::geodesy::Intersection> for IntersectionResult {
-    fn from(x: gc::geodesy::Intersection) -> Self {
+impl From<gc::geodesy::SphericalIntersection> for SphericalIntersectionResult {
+    fn from(x: gc::geodesy::SphericalIntersection) -> Self {
         match x {
-            gc::geodesy::Intersection::Crossing(point) => Self::Crossing {
+            gc::geodesy::SphericalIntersection::Crossing(point) => Self::Crossing {
                 point: point.into(),
             },
-            gc::geodesy::Intersection::SameGreatCircle => Self::SameGreatCircle,
-            gc::geodesy::Intersection::NoForwardCrossing => Self::NoForwardCrossing,
+            gc::geodesy::SphericalIntersection::SameGreatCircle => Self::SameGreatCircle,
+            gc::geodesy::SphericalIntersection::NoForwardCrossing => Self::NoForwardCrossing,
         }
     }
 }
@@ -100,7 +100,7 @@ pub fn intersection_spherical(
     bearing_a_deg: f64,
     b: Coordinate,
     bearing_b_deg: f64,
-) -> Result<IntersectionResult, GeoError> {
+) -> Result<SphericalIntersectionResult, GeoError> {
     gc::geodesy::intersection_spherical(a.try_into()?, bearing_a_deg, b.try_into()?, bearing_b_deg)
         .map(Into::into)
         .map_err(Into::into)
