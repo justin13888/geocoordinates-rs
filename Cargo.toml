@@ -124,8 +124,9 @@ nmea = [] # NMEA 0183 sentences (GGA/RMC/GLL), hand-rolled — no external dep
 h3 = ["dep:h3o"] # Uber H3 indexing
 s2 = ["dep:s2"] # Google S2 indexing
 #
-# Geographic bounds and geodesic spatial queries, on an in-crate k-d tree (no
-# external dep; STABILIZATION.md records the benchmark behind that choice):
+# Geodesic spatial queries, on an in-crate k-d tree (no external dep;
+# STABILIZATION.md records the benchmark behind that choice). The `GeoBounds` box
+# is `geodesy::GeoBounds` and needs no feature:
 index = []
 #
 # EXIF / XMP GPS tag values to a `Fix`, with capture direction and motion. No
@@ -155,7 +156,8 @@ geotag = []
 #
 # Location privacy: deterministic coarsening to a grid cell centre with a stated
 # bound, and geodesic exclusion zones that strip or coarsen a fix. No external dep
-# and no randomness; it builds on `index` for box zones, and snaps to H3 or S2
+# and no randomness; it still enables `index`, though its box zones now need only
+# the ungated `geodesy::GeoBounds`, and it snaps to H3 or S2
 # cells where `h3` or `s2` is on:
 privacy = ["index"]
 #

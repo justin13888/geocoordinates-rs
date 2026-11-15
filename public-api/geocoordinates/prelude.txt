@@ -286,7 +286,7 @@ pub fn geocoordinates::prelude::apply(geocoordinates::fix::Fix, &[geocoordinates
 pub fn geocoordinates::prelude::bucket_by_geohash(&[geocoordinates::Coordinate], u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::GridBucket>>
 pub fn geocoordinates::prelude::bucket_by_h3(&[geocoordinates::Coordinate], u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::GridBucket>>
 pub fn geocoordinates::prelude::centroid(&[geocoordinates::Coordinate]) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
-pub fn geocoordinates::prelude::clusters_in_view(&geocoordinates::cluster::ClusterIndex, geocoordinates::index::GeoBounds, f64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
+pub fn geocoordinates::prelude::clusters_in_view(&geocoordinates::cluster::ClusterIndex, geocoordinates::geodesy::GeoBounds, f64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
 pub fn geocoordinates::prelude::clusters_to_geojson(&geocoordinates::cluster::ClusterIndex, &[geocoordinates::cluster::MapCluster], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
 pub fn geocoordinates::prelude::coarsen(geocoordinates::Coordinate, geocoordinates::privacy::Precision) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::prelude::convert(geocoordinates::Coordinate, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
@@ -297,7 +297,7 @@ pub fn geocoordinates::prelude::destination(geocoordinates::Coordinate, f64, geo
 pub fn geocoordinates::prelude::display_coordinate(geocoordinates::Coordinate, geocoordinates::map::DisplayDatum) -> geocoordinates::Result<geocoordinates::Coordinate>
 pub fn geocoordinates::prelude::estimate_offset(&geocoordinates::geotag::Track, &[(std::time::SystemTime, geocoordinates::Coordinate)]) -> geocoordinates::Result<i64>
 pub fn geocoordinates::prelude::final_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
-pub fn geocoordinates::prelude::fit_bounds(geocoordinates::index::GeoBounds, geocoordinates::map::Viewport, f64, f64) -> geocoordinates::Result<geocoordinates::map::Camera>
+pub fn geocoordinates::prelude::fit_bounds(geocoordinates::geodesy::GeoBounds, geocoordinates::map::Viewport, f64, f64) -> geocoordinates::Result<geocoordinates::map::Camera>
 pub fn geocoordinates::prelude::format(geocoordinates::Coordinate, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
 pub fn geocoordinates::prelude::format_fix(&geocoordinates::fix::Fix, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
 pub fn geocoordinates::prelude::from_exif(&geocoordinates::exif::ExifGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
@@ -320,5 +320,5 @@ pub fn geocoordinates::prelude::rhumb_distance(impl geocoordinates::LatLon, impl
 pub fn geocoordinates::prelude::segment_trips(&[geocoordinates::cluster::Visit], core::time::Duration) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::Trip>>
 pub fn geocoordinates::prelude::segment_visits(&[geocoordinates::fix::Fix], geocoordinates::Length, core::time::Duration) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::Visit>>
 pub fn geocoordinates::prelude::tap_to_wgs84(geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
-pub fn geocoordinates::prelude::tiles_covering(geocoordinates::index::GeoBounds, u8, usize) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::map::Tile>>
-pub fn geocoordinates::prelude::viewport_bounds(geocoordinates::map::Camera, geocoordinates::map::Viewport) -> geocoordinates::Result<geocoordinates::index::GeoBounds>
+pub fn geocoordinates::prelude::tiles_covering(geocoordinates::geodesy::GeoBounds, u8, usize) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::map::Tile>>
+pub fn geocoordinates::prelude::viewport_bounds(geocoordinates::map::Camera, geocoordinates::map::Viewport) -> geocoordinates::Result<geocoordinates::geodesy::GeoBounds>

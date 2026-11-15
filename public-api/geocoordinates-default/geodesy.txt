@@ -181,6 +181,36 @@ impl core::marker::Unpin for geocoordinates::geodesy::Enu
 impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Enu
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Enu
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Enu
+pub struct geocoordinates::geodesy::GeoBounds
+impl geocoordinates::geodesy::GeoBounds
+pub fn geocoordinates::geodesy::GeoBounds::center(&self) -> geocoordinates::Coordinate
+pub fn geocoordinates::geodesy::GeoBounds::contains(&self, geocoordinates::Coordinate) -> geocoordinates::Result<bool>
+pub const fn geocoordinates::geodesy::GeoBounds::crosses_antimeridian(&self) -> bool
+pub const fn geocoordinates::geodesy::GeoBounds::crs(&self) -> geocoordinates::Crs
+pub const fn geocoordinates::geodesy::GeoBounds::east(&self) -> f64
+pub fn geocoordinates::geodesy::GeoBounds::expand_by(&self, geocoordinates::Length) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::GeoBounds::from_points(impl core::iter::traits::collect::IntoIterator<Item = geocoordinates::Coordinate>) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::GeoBounds::intersects(&self, &Self) -> geocoordinates::Result<bool>
+pub fn geocoordinates::geodesy::GeoBounds::new(f64, f64, f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::geodesy::GeoBounds::north(&self) -> f64
+pub const fn geocoordinates::geodesy::GeoBounds::south(&self) -> f64
+pub fn geocoordinates::geodesy::GeoBounds::union(&self, &Self) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::geodesy::GeoBounds::west(&self) -> f64
+impl core::clone::Clone for geocoordinates::geodesy::GeoBounds
+pub fn geocoordinates::geodesy::GeoBounds::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::GeoBounds
+pub fn geocoordinates::geodesy::GeoBounds::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::GeoBounds
+pub fn geocoordinates::geodesy::GeoBounds::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::GeoBounds
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::GeoBounds
+impl core::marker::Freeze for geocoordinates::geodesy::GeoBounds
+impl core::marker::Send for geocoordinates::geodesy::GeoBounds
+impl core::marker::Sync for geocoordinates::geodesy::GeoBounds
+impl core::marker::Unpin for geocoordinates::geodesy::GeoBounds
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::GeoBounds
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::GeoBounds
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::GeoBounds
 pub struct geocoordinates::geodesy::Helmert
 pub geocoordinates::geodesy::Helmert::rx_arcsec: f64
 pub geocoordinates::geodesy::Helmert::ry_arcsec: f64

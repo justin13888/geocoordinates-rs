@@ -1,38 +1,4 @@
 pub mod geocoordinates::index
-pub struct geocoordinates::index::GeoBounds
-impl geocoordinates::index::GeoBounds
-pub fn geocoordinates::index::GeoBounds::center(&self) -> geocoordinates::Coordinate
-pub fn geocoordinates::index::GeoBounds::contains(&self, geocoordinates::Coordinate) -> geocoordinates::Result<bool>
-pub const fn geocoordinates::index::GeoBounds::crosses_antimeridian(&self) -> bool
-pub const fn geocoordinates::index::GeoBounds::crs(&self) -> geocoordinates::Crs
-pub const fn geocoordinates::index::GeoBounds::east(&self) -> f64
-pub fn geocoordinates::index::GeoBounds::expand_by(&self, geocoordinates::Length) -> geocoordinates::Result<Self>
-pub fn geocoordinates::index::GeoBounds::from_points(impl core::iter::traits::collect::IntoIterator<Item = geocoordinates::Coordinate>) -> geocoordinates::Result<Self>
-pub fn geocoordinates::index::GeoBounds::intersects(&self, &Self) -> geocoordinates::Result<bool>
-pub fn geocoordinates::index::GeoBounds::new(f64, f64, f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
-pub const fn geocoordinates::index::GeoBounds::north(&self) -> f64
-pub const fn geocoordinates::index::GeoBounds::south(&self) -> f64
-pub fn geocoordinates::index::GeoBounds::union(&self, &Self) -> geocoordinates::Result<Self>
-pub const fn geocoordinates::index::GeoBounds::west(&self) -> f64
-impl core::clone::Clone for geocoordinates::index::GeoBounds
-pub fn geocoordinates::index::GeoBounds::clone(&self) -> Self
-impl core::cmp::PartialEq for geocoordinates::index::GeoBounds
-pub fn geocoordinates::index::GeoBounds::eq(&self, &Self) -> bool
-impl core::fmt::Debug for geocoordinates::index::GeoBounds
-pub fn geocoordinates::index::GeoBounds::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for geocoordinates::index::GeoBounds
-impl core::marker::StructuralPartialEq for geocoordinates::index::GeoBounds
-impl serde_core::ser::Serialize for geocoordinates::index::GeoBounds
-pub fn geocoordinates::index::GeoBounds::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
-impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::index::GeoBounds
-pub fn geocoordinates::index::GeoBounds::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
-impl core::marker::Freeze for geocoordinates::index::GeoBounds
-impl core::marker::Send for geocoordinates::index::GeoBounds
-impl core::marker::Sync for geocoordinates::index::GeoBounds
-impl core::marker::Unpin for geocoordinates::index::GeoBounds
-impl core::marker::UnsafeUnpin for geocoordinates::index::GeoBounds
-impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::index::GeoBounds
-impl core::panic::unwind_safe::UnwindSafe for geocoordinates::index::GeoBounds
 pub struct geocoordinates::index::Neighbor<'a, T>
 impl<'a, T> geocoordinates::index::Neighbor<'a, T>
 pub const fn geocoordinates::index::Neighbor<'a, T>::coordinate(&self) -> geocoordinates::Coordinate
