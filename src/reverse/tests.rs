@@ -447,7 +447,7 @@ mod serde_round_trip {
         assert!(reject(&|j| j["country_code"] = "fr".into()).contains("country_code"));
         assert!(reject(&|j| j["admin1_name"] = serde_json::Value::Null).contains("admin1"));
         assert!(reject(&|j| j["admin2_code"] = serde_json::Value::Null).contains("admin2"));
-        assert!(reject(&|j| j["distance"]["meters"] = 1.0.into()).contains("distance"));
+        assert!(reject(&|j| j["distance_m"] = 1.0.into()).contains("distance"));
         assert!(reject(&|j| j["localized_names"]["not a tag"] = "x".into()).contains("language"));
         assert!(reject(&|j| j["name"] = "".into()).contains("name"));
     }
@@ -457,18 +457,36 @@ mod serde_round_trip {
         let at = wgs(1.0, 2.0);
         let place = Place::new("Bare", at, "AB", Approx::new(at, Length::ZERO).unwrap()).unwrap();
         let mut json = serde_json::to_value(&place).unwrap();
-        assert_eq!(json["admin1_code"], serde_json::Value::Null);
+        let coordinate =
+            serde_json::json!({"lat": 1.0, "lon": 2.0, "height": null, "crs": "Wgs84"});
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "name": "Bare",
+                "coordinate": coordinate,
+                "country_code": "AB",
+                "admin1_code": null,
+                "admin1_name": null,
+                "admin2_code": null,
+                "admin2_name": null,
+                "feature_class": null,
+                "population": null,
+                "distance_m": 0.0,
+                "query": {"value": coordinate, "max_error_m": 0.0},
+                "localized_names": {},
+            })
+        );
         assert_eq!(
             serde_json::from_value::<Place>(json.clone()).unwrap(),
             place
         );
         // The stated distance may be off by up to a millimetre, inclusive.
-        json["distance"]["meters"] = 1e-3.into();
+        json["distance_m"] = 1e-3.into();
         assert_eq!(
             serde_json::from_value::<Place>(json.clone()).unwrap(),
             place
         );
-        json["distance"]["meters"] = 1.001e-3.into();
+        json["distance_m"] = 1.001e-3.into();
         assert!(serde_json::from_value::<Place>(json).is_err());
     }
 
@@ -477,6 +495,15 @@ mod serde_round_trip {
         let options = ReverseOptions::default()
             .with_languages(["ja"])
             .with_min_feature_class(FeatureClass::Admin1Seat);
+        assert_eq!(
+            serde_json::to_value(&options).unwrap(),
+            serde_json::json!({
+                "languages": ["ja"],
+                "max_distance_m": 50_000.0,
+                "min_population": 0,
+                "min_feature_class": "Admin1Seat",
+            })
+        );
         let json = serde_json::to_string(&options).unwrap();
         assert_eq!(
             serde_json::from_str::<ReverseOptions>(&json).unwrap(),
@@ -484,5 +511,7 @@ mod serde_round_trip {
         );
         let sparse: ReverseOptions = serde_json::from_str(r#"{"min_population":5}"#).unwrap();
         assert_eq!(sparse, ReverseOptions::default().with_min_population(5));
+        let near: ReverseOptions = serde_json::from_str(r#"{"max_distance_m":10.0}"#).unwrap();
+        assert_eq!(near.max_distance, Length::from_meters(10.0));
     }
 }

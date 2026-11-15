@@ -238,6 +238,7 @@ pub struct DatumTransform {
     from_crs: Crs,
     to_crs: Crs,
     helmert: Helmert,
+    #[cfg_attr(feature = "serde", serde(rename = "accuracy_m"))]
     accuracy: Option<Length>,
 }
 
@@ -249,6 +250,7 @@ struct DatumTransformRecord {
     from_crs: Crs,
     to_crs: Crs,
     helmert: Helmert,
+    #[serde(rename = "accuracy_m")]
     accuracy: Option<Length>,
 }
 

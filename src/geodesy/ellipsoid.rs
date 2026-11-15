@@ -32,7 +32,7 @@ use crate::units::Length;
 /// # #[cfg(feature = "serde")]
 /// # {
 /// // A hand-built record with a negative semi-major axis does not deserialize.
-/// let bad = r#"{"semi_major":{"meters":-1.0},"inverse_flattening":298.0}"#;
+/// let bad = r#"{"semi_major_m":-1.0,"inverse_flattening":298.0}"#;
 /// assert!(serde_json::from_str::<Ellipsoid>(bad).is_err());
 /// # }
 /// ```
@@ -40,6 +40,7 @@ use crate::units::Length;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "EllipsoidRecord"))]
 pub struct Ellipsoid {
+    #[cfg_attr(feature = "serde", serde(rename = "semi_major_m"))]
     semi_major: Length,
     #[cfg_attr(
         feature = "serde",
@@ -53,6 +54,7 @@ pub struct Ellipsoid {
 #[cfg(feature = "serde")]
 #[derive(serde::Deserialize)]
 struct EllipsoidRecord {
+    #[serde(rename = "semi_major_m")]
     semi_major: Length,
     #[serde(with = "crate::approx::infinity_as_none")]
     inverse_flattening: f64,
@@ -322,17 +324,24 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn serde_round_trips_and_validates() {
+        assert_eq!(
+            serde_json::to_value(Ellipsoid::BESSEL_1841).unwrap(),
+            serde_json::json!({"semi_major_m": 6_377_397.155, "inverse_flattening": 299.152_812_8})
+        );
         let json = serde_json::to_string(&Ellipsoid::BESSEL_1841).unwrap();
         assert_eq!(
             json,
-            r#"{"semi_major":{"meters":6377397.155},"inverse_flattening":299.1528128}"#
+            r#"{"semi_major_m":6377397.155,"inverse_flattening":299.1528128}"#
         );
         let back: Ellipsoid = serde_json::from_str(&json).unwrap();
         assert_eq!(back, Ellipsoid::BESSEL_1841);
-        let bad = r#"{"semi_major":{"meters":-1.0},"inverse_flattening":298.0}"#;
+        let bad = r#"{"semi_major_m":-1.0,"inverse_flattening":298.0}"#;
         assert!(serde_json::from_str::<Ellipsoid>(bad).is_err());
-        let bad = r#"{"semi_major":{"meters":6378137.0},"inverse_flattening":0.5}"#;
+        let bad = r#"{"semi_major_m":6378137.0,"inverse_flattening":0.5}"#;
         assert!(serde_json::from_str::<Ellipsoid>(bad).is_err());
+        // The pre-0.15 wrapped shape no longer reads.
+        let old = r#"{"semi_major":{"meters":6377397.155},"inverse_flattening":299.1528128}"#;
+        assert!(serde_json::from_str::<Ellipsoid>(old).is_err());
     }
 
     #[cfg(feature = "serde")]
@@ -343,14 +352,14 @@ mod tests {
         // JSON has no infinity: the sphere's inverse flattening is `null`.
         assert_eq!(
             json,
-            r#"{"semi_major":{"meters":6371000.0},"inverse_flattening":null}"#
+            r#"{"semi_major_m":6371000.0,"inverse_flattening":null}"#
         );
         let back: Ellipsoid = serde_json::from_str(&json).unwrap();
         assert_eq!(back, sphere);
         assert_eq!(back.inverse_flattening(), f64::INFINITY);
         assert_eq!(back.flattening(), 0.0);
         // The field stays required; only an explicit `null` means a sphere.
-        let missing = r#"{"semi_major":{"meters":6371000.0}}"#;
+        let missing = r#"{"semi_major_m":6371000.0}"#;
         assert!(serde_json::from_str::<Ellipsoid>(missing).is_err());
     }
 }

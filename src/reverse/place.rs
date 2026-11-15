@@ -137,6 +137,7 @@ struct PlaceRepr {
     admin2_name: Option<String>,
     feature_class: Option<FeatureClass>,
     population: Option<u64>,
+    #[serde(rename = "distance_m")]
     distance: Length,
     query: Approx<Coordinate>,
     #[serde(default)]

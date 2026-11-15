@@ -99,6 +99,7 @@ pub struct Ned {
 pub struct Aer {
     azimuth_deg: f64,
     elevation_deg: f64,
+    #[cfg_attr(feature = "serde", serde(rename = "range_m"))]
     range: Length,
 }
 
@@ -553,6 +554,7 @@ impl TryFrom<NedRecord> for Ned {
 struct AerRecord {
     azimuth_deg: f64,
     elevation_deg: f64,
+    #[serde(rename = "range_m")]
     range: Length,
 }
 

@@ -220,10 +220,17 @@ fn coarsening_a_zone_fix_off_wgs84_is_refused() {
 #[test]
 fn serde_round_trips_and_validates() {
     let zone = circle(1.0, 2.0, 3.0);
+    assert_eq!(
+        serde_json::to_value(zone).unwrap(),
+        serde_json::json!({"Circle": {
+            "center": {"lat": 1.0, "lon": 2.0, "height": null, "crs": "Wgs84"},
+            "radius_m": 3.0,
+        }})
+    );
     let json = serde_json::to_string(&zone).unwrap();
-    assert!(json.starts_with("{\"Circle\":{\"center\":"), "{json}");
     assert_eq!(serde_json::from_str::<ExclusionZone>(&json).unwrap(), zone);
-    let negative = json.replace("\"meters\":3.0", "\"meters\":-3.0");
+    let negative = json.replace("\"radius_m\":3.0", "\"radius_m\":-3.0");
+    assert_ne!(negative, json);
     assert!(
         serde_json::from_str::<ExclusionZone>(&negative).is_err(),
         "{negative}"

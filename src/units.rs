@@ -13,6 +13,10 @@ use core::ops::{Add, Mul, Sub};
 /// Infallible: any `f64` is stored as given, and `+`, `-`, and `* f64` are
 /// sugar over arithmetic on [`meters`](Self::meters).
 ///
+/// Under the `serde` feature a `Length` is a bare number of meters (`5.0`,
+/// not `{"meters":5.0}`), and every serialized field holding one carries the
+/// unit in its key, which ends in `_m` (`horizontal_m`, `semi_major_m`).
+///
 /// ```
 /// use geocoordinates::{Length, LengthUnit};
 ///
@@ -20,9 +24,17 @@ use core::ops::{Add, Mul, Sub};
 /// let total = leg + Length::from_meters(500.0) - Length::ZERO;
 /// assert_eq!(total.meters(), 2500.0);
 /// assert_eq!((total * 2.0).to_unit(LengthUnit::Kilometer), 5.0);
+/// # #[cfg(feature = "serde")]
+/// # {
+/// assert_eq!(serde_json::to_string(&total).unwrap(), "2500.0");
+/// assert_eq!(serde_json::from_str::<Length>("2500.0").unwrap(), total);
+/// // The old wrapped shape no longer reads.
+/// assert!(serde_json::from_str::<Length>(r#"{"meters":2500.0}"#).is_err());
+/// # }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 pub struct Length {
     meters: f64,
 }
@@ -237,6 +249,19 @@ mod tests {
         LengthUnit::Mile,
         LengthUnit::Yard,
     ];
+
+    /// A `Length` is a bare JSON number of meters, both ways.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn length_serializes_as_bare_meters() {
+        let length = Length::from_unit(1.0, LengthUnit::Kilometer);
+        assert_eq!(
+            serde_json::to_value(length).unwrap(),
+            serde_json::json!(1000.0)
+        );
+        assert_eq!(serde_json::from_str::<Length>("1000").unwrap(), length);
+        assert!(serde_json::from_str::<Length>(r#"{"meters":1000.0}"#).is_err());
+    }
 
     #[test]
     fn unit_round_trip() {

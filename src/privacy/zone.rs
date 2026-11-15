@@ -24,7 +24,7 @@ use crate::units::Length;
 /// Valid by construction: [`from_circle`](Self::from_circle) refuses a radius
 /// that is negative, NaN or infinite, and a centre on GCJ-02 or BD-09, which
 /// have no ellipsoid to measure on. Under the `serde` feature it deserializes
-/// through the same checks, from `{"Circle":{"center":…,"radius":…}}` or
+/// through the same checks, from `{"Circle":{"center":…,"radius_m":…}}` or
 /// `{"Bounds":{…}}`.
 ///
 /// ```
@@ -55,7 +55,11 @@ pub struct ExclusionZone {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 enum Shape {
-    Circle { center: Coordinate, radius: Length },
+    Circle {
+        center: Coordinate,
+        #[cfg_attr(feature = "serde", serde(rename = "radius_m"))]
+        radius: Length,
+    },
     Bounds(GeoBounds),
 }
 

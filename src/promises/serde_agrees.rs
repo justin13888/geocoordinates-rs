@@ -178,7 +178,7 @@ proptest! {
         semi_major in length(-1e7, 1e7, &[0.0, -0.0, 6_378_137.0, f64::MIN_POSITIVE]),
         inverse_flattening in around(-10.0, 400.0, &[0.0, 1.0, 1.000_000_1, 298.257_223_563]),
     ) {
-        let record = json!({"semi_major": semi_major, "inverse_flattening": inverse_flattening});
+        let record = json!({"semi_major_m": semi_major, "inverse_flattening": inverse_flattening});
         agrees(record, Ellipsoid::new(semi_major, inverse_flattening))?;
     }
 
@@ -198,7 +198,7 @@ proptest! {
         elevation in around(-100.0, 100.0, &[-90.0, 90.0, 90.000_000_1, -90.000_000_1]),
         range in length(-10.0, 1e7, &[0.0, -0.0, -1e-9, 1.7e308]),
     ) {
-        let record = json!({"azimuth_deg": azimuth, "elevation_deg": elevation, "range": range});
+        let record = json!({"azimuth_deg": azimuth, "elevation_deg": elevation, "range_m": range});
         agrees(record, Aer::new(azimuth, elevation, range))?;
     }
 
@@ -235,7 +235,7 @@ proptest! {
         let [tx_m, ty_m, tz_m, rx_arcsec, ry_arcsec, rz_arcsec, scale_ppm] = params;
         let helmert = Helmert { tx_m, ty_m, tz_m, rx_arcsec, ry_arcsec, rz_arcsec, scale_ppm };
         let record = json!({
-            "from_crs": from_crs, "to_crs": to_crs, "helmert": helmert, "accuracy": accuracy,
+            "from_crs": from_crs, "to_crs": to_crs, "helmert": helmert, "accuracy_m": accuracy,
         });
         agrees(record, DatumTransform::new(from_crs, to_crs, helmert, accuracy))?;
     }
@@ -248,7 +248,7 @@ proptest! {
         horizontal in proptest::option::of(length(-10.0, 100.0, &[0.0, -0.0, -1e-9])),
         vertical in proptest::option::of(length(-10.0, 100.0, &[0.0, -0.0, -1e-9])),
     ) {
-        let record = json!({"kind": kind, "horizontal": horizontal, "vertical": vertical});
+        let record = json!({"kind": kind, "horizontal_m": horizontal, "vertical_m": vertical});
         agrees(record, Accuracy::new(kind, horizontal, vertical))?;
     }
 

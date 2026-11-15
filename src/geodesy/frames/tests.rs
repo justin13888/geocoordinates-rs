@@ -266,8 +266,19 @@ fn serde_round_trips_and_rejects_invalid_values() {
     let json = serde_json::to_string(&n).unwrap();
     assert_eq!(serde_json::from_str::<Ned>(&json).unwrap(), n);
     let a = aer(30.0, 10.0, 7.0);
+    assert_eq!(
+        serde_json::to_value(a).unwrap(),
+        serde_json::json!({"azimuth_deg": 30.0, "elevation_deg": 10.0, "range_m": 7.0})
+    );
     let json = serde_json::to_string(&a).unwrap();
     assert_eq!(serde_json::from_str::<Aer>(&json).unwrap(), a);
+    // The pre-0.15 wrapped range no longer reads.
+    assert!(
+        serde_json::from_str::<Aer>(
+            r#"{"azimuth_deg":30.0,"elevation_deg":10.0,"range":{"meters":7.0}}"#
+        )
+        .is_err()
+    );
 
     // An out-of-range literal never becomes a value.
     assert!(serde_json::from_str::<Enu>(r#"{"east_m":1e999,"north_m":0.0,"up_m":0.0}"#).is_err());
