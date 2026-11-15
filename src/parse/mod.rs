@@ -237,7 +237,7 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 /// The `crs` parameter does not select a reference system: it must be absent
 /// or `wgs84` (compared case-insensitively), and the returned position is
 /// always WGS-84. Any other value is rejected as
-/// [`ParseErrorKind::Unsupported`](crate::ParseErrorKind::Unsupported).
+/// [`ParseErrorKind::Unsupported`].
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] of kind
