@@ -1,0 +1,173 @@
+pub mod geocoordinates::map
+pub enum geocoordinates::map::DisplayDatum
+pub geocoordinates::map::DisplayDatum::Gcj02
+pub geocoordinates::map::DisplayDatum::Wgs84
+impl core::clone::Clone for geocoordinates::map::DisplayDatum
+pub fn geocoordinates::map::DisplayDatum::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::map::DisplayDatum
+impl core::cmp::PartialEq for geocoordinates::map::DisplayDatum
+pub fn geocoordinates::map::DisplayDatum::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::map::DisplayDatum
+pub fn geocoordinates::map::DisplayDatum::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::map::DisplayDatum
+pub fn geocoordinates::map::DisplayDatum::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::map::DisplayDatum
+impl core::marker::StructuralPartialEq for geocoordinates::map::DisplayDatum
+impl serde_core::ser::Serialize for geocoordinates::map::DisplayDatum
+pub fn geocoordinates::map::DisplayDatum::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::map::DisplayDatum
+pub fn geocoordinates::map::DisplayDatum::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::map::DisplayDatum
+impl core::marker::Send for geocoordinates::map::DisplayDatum
+impl core::marker::Sync for geocoordinates::map::DisplayDatum
+impl core::marker::Unpin for geocoordinates::map::DisplayDatum
+impl core::marker::UnsafeUnpin for geocoordinates::map::DisplayDatum
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::DisplayDatum
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::DisplayDatum
+pub struct geocoordinates::map::Camera
+impl geocoordinates::map::Camera
+pub const fn geocoordinates::map::Camera::center(&self) -> geocoordinates::Coordinate
+pub fn geocoordinates::map::Camera::new(geocoordinates::Coordinate, f64) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::map::Camera::zoom(&self) -> f64
+impl core::clone::Clone for geocoordinates::map::Camera
+pub fn geocoordinates::map::Camera::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::map::Camera
+pub fn geocoordinates::map::Camera::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::map::Camera
+pub fn geocoordinates::map::Camera::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::map::Camera
+impl core::marker::StructuralPartialEq for geocoordinates::map::Camera
+impl serde_core::ser::Serialize for geocoordinates::map::Camera
+pub fn geocoordinates::map::Camera::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::map::Camera
+pub fn geocoordinates::map::Camera::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::map::Camera
+impl core::marker::Send for geocoordinates::map::Camera
+impl core::marker::Sync for geocoordinates::map::Camera
+impl core::marker::Unpin for geocoordinates::map::Camera
+impl core::marker::UnsafeUnpin for geocoordinates::map::Camera
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::Camera
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::Camera
+pub struct geocoordinates::map::Tile
+impl geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::bounds(&self, geocoordinates::Crs) -> geocoordinates::index::GeoBounds
+pub fn geocoordinates::map::Tile::from_coordinate(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
+pub fn geocoordinates::map::Tile::from_quadkey(&str) -> geocoordinates::Result<Self>
+pub fn geocoordinates::map::Tile::new(u8, u32, u32) -> geocoordinates::Result<Self>
+pub fn geocoordinates::map::Tile::quadkey(&self) -> alloc::string::String
+pub const fn geocoordinates::map::Tile::x(&self) -> u32
+pub const fn geocoordinates::map::Tile::y(&self) -> u32
+pub const fn geocoordinates::map::Tile::z(&self) -> u8
+impl core::clone::Clone for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::map::Tile
+impl core::cmp::Ord for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::map::Tile
+impl core::marker::StructuralPartialEq for geocoordinates::map::Tile
+impl serde_core::ser::Serialize for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::map::Tile
+pub fn geocoordinates::map::Tile::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::map::Tile
+impl core::marker::Send for geocoordinates::map::Tile
+impl core::marker::Sync for geocoordinates::map::Tile
+impl core::marker::Unpin for geocoordinates::map::Tile
+impl core::marker::UnsafeUnpin for geocoordinates::map::Tile
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::Tile
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::Tile
+pub struct geocoordinates::map::Viewport
+impl geocoordinates::map::Viewport
+pub const fn geocoordinates::map::Viewport::height_px(&self) -> f64
+pub fn geocoordinates::map::Viewport::new(f64, f64, f64) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::map::Viewport::tile_px(&self) -> f64
+pub const fn geocoordinates::map::Viewport::width_px(&self) -> f64
+impl core::clone::Clone for geocoordinates::map::Viewport
+pub fn geocoordinates::map::Viewport::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::map::Viewport
+pub fn geocoordinates::map::Viewport::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::map::Viewport
+pub fn geocoordinates::map::Viewport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::map::Viewport
+impl core::marker::StructuralPartialEq for geocoordinates::map::Viewport
+impl serde_core::ser::Serialize for geocoordinates::map::Viewport
+pub fn geocoordinates::map::Viewport::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::map::Viewport
+pub fn geocoordinates::map::Viewport::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::map::Viewport
+impl core::marker::Send for geocoordinates::map::Viewport
+impl core::marker::Sync for geocoordinates::map::Viewport
+impl core::marker::Unpin for geocoordinates::map::Viewport
+impl core::marker::UnsafeUnpin for geocoordinates::map::Viewport
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::Viewport
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::Viewport
+pub struct geocoordinates::map::WebMercator
+impl geocoordinates::map::WebMercator
+pub const fn geocoordinates::map::WebMercator::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::map::WebMercator::from_coordinate(geocoordinates::Coordinate) -> Self
+pub fn geocoordinates::map::WebMercator::new(f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
+pub fn geocoordinates::map::WebMercator::to_coordinate(self) -> geocoordinates::Coordinate
+pub const fn geocoordinates::map::WebMercator::x_m(&self) -> f64
+pub const fn geocoordinates::map::WebMercator::y_m(&self) -> f64
+impl core::clone::Clone for geocoordinates::map::WebMercator
+pub fn geocoordinates::map::WebMercator::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::map::WebMercator
+pub fn geocoordinates::map::WebMercator::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::map::WebMercator
+pub fn geocoordinates::map::WebMercator::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::map::WebMercator
+impl core::marker::StructuralPartialEq for geocoordinates::map::WebMercator
+impl serde_core::ser::Serialize for geocoordinates::map::WebMercator
+pub fn geocoordinates::map::WebMercator::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::map::WebMercator
+pub fn geocoordinates::map::WebMercator::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::map::WebMercator
+impl core::marker::Send for geocoordinates::map::WebMercator
+impl core::marker::Sync for geocoordinates::map::WebMercator
+impl core::marker::Unpin for geocoordinates::map::WebMercator
+impl core::marker::UnsafeUnpin for geocoordinates::map::WebMercator
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::WebMercator
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::WebMercator
+pub struct geocoordinates::map::WorldPixel
+pub geocoordinates::map::WorldPixel::x: f64
+pub geocoordinates::map::WorldPixel::y: f64
+impl geocoordinates::map::WorldPixel
+pub fn geocoordinates::map::WorldPixel::from_coordinate(geocoordinates::Coordinate, f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::map::WorldPixel::to_coordinate(self, f64, f64, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Coordinate>
+impl core::clone::Clone for geocoordinates::map::WorldPixel
+pub fn geocoordinates::map::WorldPixel::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::map::WorldPixel
+pub fn geocoordinates::map::WorldPixel::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::map::WorldPixel
+pub fn geocoordinates::map::WorldPixel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::map::WorldPixel
+impl core::marker::StructuralPartialEq for geocoordinates::map::WorldPixel
+impl serde_core::ser::Serialize for geocoordinates::map::WorldPixel
+pub fn geocoordinates::map::WorldPixel::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::map::WorldPixel
+pub fn geocoordinates::map::WorldPixel::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::map::WorldPixel
+impl core::marker::Send for geocoordinates::map::WorldPixel
+impl core::marker::Sync for geocoordinates::map::WorldPixel
+impl core::marker::Unpin for geocoordinates::map::WorldPixel
+impl core::marker::UnsafeUnpin for geocoordinates::map::WorldPixel
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::WorldPixel
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::WorldPixel
+pub const geocoordinates::map::MAX_LATITUDE: f64
+pub const geocoordinates::map::MAX_TILE_ZOOM: u8
+pub fn geocoordinates::map::clusters_in_view(&geocoordinates::cluster::ClusterIndex, geocoordinates::index::GeoBounds, f64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
+pub fn geocoordinates::map::clusters_to_geojson(&geocoordinates::cluster::ClusterIndex, &[geocoordinates::cluster::MapCluster], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::map::display_coordinate(geocoordinates::Coordinate, geocoordinates::map::DisplayDatum) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::map::fit_bounds(geocoordinates::index::GeoBounds, geocoordinates::map::Viewport, f64, f64) -> geocoordinates::Result<geocoordinates::map::Camera>
+pub fn geocoordinates::map::points_to_geojson(&[geocoordinates::Coordinate], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::map::tap_to_wgs84(geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
+pub fn geocoordinates::map::tiles_covering(geocoordinates::index::GeoBounds, u8, usize) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::map::Tile>>
+pub fn geocoordinates::map::viewport_bounds(geocoordinates::map::Camera, geocoordinates::map::Viewport) -> geocoordinates::Result<geocoordinates::index::GeoBounds>

@@ -1,0 +1,166 @@
+pub mod geocoordinates::china
+pub struct geocoordinates::china::BaiduMercator
+impl geocoordinates::china::BaiduMercator
+pub fn geocoordinates::china::BaiduMercator::new(f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::china::BaiduMercator::try_from_bd09(geocoordinates::china::Bd09) -> geocoordinates::Result<Self>
+pub fn geocoordinates::china::BaiduMercator::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+pub fn geocoordinates::china::BaiduMercator::try_to_bd09(self) -> geocoordinates::Result<geocoordinates::china::Bd09>
+pub fn geocoordinates::china::BaiduMercator::try_to_coordinate(self) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::china::BaiduMercator::x_m(&self) -> f64
+pub fn geocoordinates::china::BaiduMercator::y_m(&self) -> f64
+impl core::clone::Clone for geocoordinates::china::BaiduMercator
+pub fn geocoordinates::china::BaiduMercator::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::china::BaiduMercator
+pub fn geocoordinates::china::BaiduMercator::eq(&self, &Self) -> bool
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::BaiduMercator
+pub type geocoordinates::china::BaiduMercator::Error = geocoordinates::Error
+pub fn geocoordinates::china::BaiduMercator::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::BaiduMercator> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::china::BaiduMercator) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::Bd09> for geocoordinates::china::BaiduMercator
+pub type geocoordinates::china::BaiduMercator::Error = geocoordinates::Error
+pub fn geocoordinates::china::BaiduMercator::try_from(geocoordinates::china::Bd09) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::china::BaiduMercator
+pub fn geocoordinates::china::BaiduMercator::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::china::BaiduMercator
+impl core::marker::StructuralPartialEq for geocoordinates::china::BaiduMercator
+impl core::marker::Freeze for geocoordinates::china::BaiduMercator
+impl core::marker::Send for geocoordinates::china::BaiduMercator
+impl core::marker::Sync for geocoordinates::china::BaiduMercator
+impl core::marker::Unpin for geocoordinates::china::BaiduMercator
+impl core::marker::UnsafeUnpin for geocoordinates::china::BaiduMercator
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::china::BaiduMercator
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::china::BaiduMercator
+pub struct geocoordinates::china::Bd09
+impl geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::lat(&self) -> f64
+pub fn geocoordinates::china::Bd09::lon(&self) -> f64
+pub fn geocoordinates::china::Bd09::new(f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::china::Bd09::to_coordinate(self) -> geocoordinates::Coordinate
+pub fn geocoordinates::china::Bd09::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::try_to_gcj02_fast(self) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::china::Gcj02>>
+pub fn geocoordinates::china::Bd09::try_to_gcj02_refined(self) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::china::Gcj02>>
+impl geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::try_to_wgs84_fast(self) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::china::Wgs84>>
+pub fn geocoordinates::china::Bd09::try_to_wgs84_refined(self) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::china::Wgs84>>
+impl core::clone::Clone for geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::china::Bd09> for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::from(geocoordinates::china::Bd09) -> Self
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::BaiduMercator> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::china::BaiduMercator) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::Bd09> for geocoordinates::china::BaiduMercator
+pub type geocoordinates::china::BaiduMercator::Error = geocoordinates::Error
+pub fn geocoordinates::china::BaiduMercator::try_from(geocoordinates::china::Bd09) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::Gcj02> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::china::Gcj02) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::Wgs84> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::china::Wgs84) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::china::Bd09
+impl core::marker::StructuralPartialEq for geocoordinates::china::Bd09
+impl geocoordinates::LatLon for geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Bd09::lat(&self) -> f64
+pub fn geocoordinates::china::Bd09::lon(&self) -> f64
+impl core::marker::Freeze for geocoordinates::china::Bd09
+impl core::marker::Send for geocoordinates::china::Bd09
+impl core::marker::Sync for geocoordinates::china::Bd09
+impl core::marker::Unpin for geocoordinates::china::Bd09
+impl core::marker::UnsafeUnpin for geocoordinates::china::Bd09
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::china::Bd09
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::china::Bd09
+pub struct geocoordinates::china::Gcj02
+impl geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::is_outside_china(&self) -> bool
+pub fn geocoordinates::china::Gcj02::to_wgs84_fast(self) -> geocoordinates::Approx<geocoordinates::china::Wgs84>
+pub fn geocoordinates::china::Gcj02::to_wgs84_refined(self) -> geocoordinates::Approx<geocoordinates::china::Wgs84>
+impl geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::lat(&self) -> f64
+pub fn geocoordinates::china::Gcj02::lon(&self) -> f64
+pub fn geocoordinates::china::Gcj02::new(f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::china::Gcj02::to_coordinate(self) -> geocoordinates::Coordinate
+pub fn geocoordinates::china::Gcj02::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::try_to_bd09(self) -> geocoordinates::Result<geocoordinates::china::Bd09>
+impl core::clone::Clone for geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::china::Gcj02> for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::from(geocoordinates::china::Gcj02) -> Self
+impl core::convert::From<geocoordinates::china::Wgs84> for geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::from(geocoordinates::china::Wgs84) -> Self
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::Gcj02
+pub type geocoordinates::china::Gcj02::Error = geocoordinates::Error
+pub fn geocoordinates::china::Gcj02::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::Gcj02> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::china::Gcj02) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::china::Gcj02
+impl core::marker::StructuralPartialEq for geocoordinates::china::Gcj02
+impl geocoordinates::LatLon for geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Gcj02::lat(&self) -> f64
+pub fn geocoordinates::china::Gcj02::lon(&self) -> f64
+impl core::marker::Freeze for geocoordinates::china::Gcj02
+impl core::marker::Send for geocoordinates::china::Gcj02
+impl core::marker::Sync for geocoordinates::china::Gcj02
+impl core::marker::Unpin for geocoordinates::china::Gcj02
+impl core::marker::UnsafeUnpin for geocoordinates::china::Gcj02
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::china::Gcj02
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::china::Gcj02
+pub struct geocoordinates::china::Wgs84
+impl geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::is_outside_china(&self) -> bool
+pub fn geocoordinates::china::Wgs84::to_gcj02(self) -> geocoordinates::china::Gcj02
+impl geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::lat(&self) -> f64
+pub fn geocoordinates::china::Wgs84::lon(&self) -> f64
+pub fn geocoordinates::china::Wgs84::new(f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::china::Wgs84::to_coordinate(self) -> geocoordinates::Coordinate
+pub fn geocoordinates::china::Wgs84::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::try_to_bd09(self) -> geocoordinates::Result<geocoordinates::china::Bd09>
+impl core::clone::Clone for geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::china::Wgs84> for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::from(geocoordinates::china::Wgs84) -> Self
+impl core::convert::From<geocoordinates::china::Wgs84> for geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::from(geocoordinates::china::Wgs84) -> Self
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::Wgs84
+pub type geocoordinates::china::Wgs84::Error = geocoordinates::Error
+pub fn geocoordinates::china::Wgs84::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::china::Wgs84> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::china::Wgs84) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::china::Wgs84
+impl core::marker::StructuralPartialEq for geocoordinates::china::Wgs84
+impl geocoordinates::LatLon for geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Wgs84::lat(&self) -> f64
+pub fn geocoordinates::china::Wgs84::lon(&self) -> f64
+impl core::marker::Freeze for geocoordinates::china::Wgs84
+impl core::marker::Send for geocoordinates::china::Wgs84
+impl core::marker::Sync for geocoordinates::china::Wgs84
+impl core::marker::Unpin for geocoordinates::china::Wgs84
+impl core::marker::UnsafeUnpin for geocoordinates::china::Wgs84
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::china::Wgs84
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::china::Wgs84

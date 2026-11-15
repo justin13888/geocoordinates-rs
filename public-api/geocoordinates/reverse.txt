@@ -1,0 +1,132 @@
+pub mod geocoordinates::reverse
+pub enum geocoordinates::reverse::FeatureClass
+pub geocoordinates::reverse::FeatureClass::Admin1Seat
+pub geocoordinates::reverse::FeatureClass::Admin2Seat
+pub geocoordinates::reverse::FeatureClass::Admin3Seat
+pub geocoordinates::reverse::FeatureClass::Admin4Seat
+pub geocoordinates::reverse::FeatureClass::Capital
+pub geocoordinates::reverse::FeatureClass::Locality
+pub geocoordinates::reverse::FeatureClass::Section
+impl core::clone::Clone for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::reverse::FeatureClass
+impl core::cmp::Ord for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::reverse::FeatureClass
+impl core::marker::StructuralPartialEq for geocoordinates::reverse::FeatureClass
+impl serde_core::ser::Serialize for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::reverse::FeatureClass
+pub fn geocoordinates::reverse::FeatureClass::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::reverse::FeatureClass
+impl core::marker::Send for geocoordinates::reverse::FeatureClass
+impl core::marker::Sync for geocoordinates::reverse::FeatureClass
+impl core::marker::Unpin for geocoordinates::reverse::FeatureClass
+impl core::marker::UnsafeUnpin for geocoordinates::reverse::FeatureClass
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::reverse::FeatureClass
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::reverse::FeatureClass
+pub struct geocoordinates::reverse::Gazetteer
+impl geocoordinates::reverse::Gazetteer
+pub fn geocoordinates::reverse::Gazetteer::attribution(&self) -> &str
+pub fn geocoordinates::reverse::Gazetteer::bundled() -> Self
+pub fn geocoordinates::reverse::Gazetteer::from_bytes(&[u8]) -> geocoordinates::Result<Self>
+pub fn geocoordinates::reverse::Gazetteer::is_empty(&self) -> bool
+pub fn geocoordinates::reverse::Gazetteer::languages(&self) -> &[alloc::string::String]
+pub fn geocoordinates::reverse::Gazetteer::len(&self) -> usize
+pub fn geocoordinates::reverse::Gazetteer::open(impl core::convert::AsRef<std::path::Path>) -> geocoordinates::Result<Self>
+pub fn geocoordinates::reverse::Gazetteer::source_date(&self) -> &str
+impl core::clone::Clone for geocoordinates::reverse::Gazetteer
+pub fn geocoordinates::reverse::Gazetteer::clone(&self) -> Self
+impl core::fmt::Debug for geocoordinates::reverse::Gazetteer
+pub fn geocoordinates::reverse::Gazetteer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl geocoordinates::reverse::ReverseGeocoder for geocoordinates::reverse::Gazetteer
+pub fn geocoordinates::reverse::Gazetteer::reverse(&self, geocoordinates::Coordinate, &geocoordinates::reverse::ReverseOptions) -> geocoordinates::Result<core::option::Option<geocoordinates::reverse::Place>>
+impl core::marker::Freeze for geocoordinates::reverse::Gazetteer
+impl core::marker::Send for geocoordinates::reverse::Gazetteer
+impl core::marker::Sync for geocoordinates::reverse::Gazetteer
+impl core::marker::Unpin for geocoordinates::reverse::Gazetteer
+impl core::marker::UnsafeUnpin for geocoordinates::reverse::Gazetteer
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::reverse::Gazetteer
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::reverse::Gazetteer
+pub struct geocoordinates::reverse::Place
+impl geocoordinates::reverse::Place
+pub fn geocoordinates::reverse::Place::admin1_code(&self) -> core::option::Option<&str>
+pub fn geocoordinates::reverse::Place::admin1_name(&self) -> core::option::Option<&str>
+pub fn geocoordinates::reverse::Place::admin2_code(&self) -> core::option::Option<&str>
+pub fn geocoordinates::reverse::Place::admin2_name(&self) -> core::option::Option<&str>
+pub const fn geocoordinates::reverse::Place::coordinate(&self) -> geocoordinates::Coordinate
+pub fn geocoordinates::reverse::Place::country_code(&self) -> &str
+pub const fn geocoordinates::reverse::Place::distance(&self) -> geocoordinates::Length
+pub const fn geocoordinates::reverse::Place::feature_class(&self) -> core::option::Option<geocoordinates::reverse::FeatureClass>
+pub fn geocoordinates::reverse::Place::localized_name(&self, &str) -> core::option::Option<&str>
+pub const fn geocoordinates::reverse::Place::localized_names(&self) -> &alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>
+pub fn geocoordinates::reverse::Place::name(&self) -> &str
+pub fn geocoordinates::reverse::Place::new(impl core::convert::Into<alloc::string::String>, geocoordinates::Coordinate, &str, geocoordinates::Approx<geocoordinates::Coordinate>) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::reverse::Place::population(&self) -> core::option::Option<u64>
+pub const fn geocoordinates::reverse::Place::query(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::reverse::Place::with_admin1(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn geocoordinates::reverse::Place::with_admin2(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub const fn geocoordinates::reverse::Place::with_feature_class(self, geocoordinates::reverse::FeatureClass) -> Self
+pub fn geocoordinates::reverse::Place::with_localized_name(self, &str, impl core::convert::Into<alloc::string::String>) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::reverse::Place::with_population(self, u64) -> Self
+impl core::clone::Clone for geocoordinates::reverse::Place
+pub fn geocoordinates::reverse::Place::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::reverse::Place
+pub fn geocoordinates::reverse::Place::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::reverse::Place
+pub fn geocoordinates::reverse::Place::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::reverse::Place
+impl serde_core::ser::Serialize for geocoordinates::reverse::Place
+pub fn geocoordinates::reverse::Place::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::reverse::Place
+pub fn geocoordinates::reverse::Place::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::reverse::Place
+impl core::marker::Send for geocoordinates::reverse::Place
+impl core::marker::Sync for geocoordinates::reverse::Place
+impl core::marker::Unpin for geocoordinates::reverse::Place
+impl core::marker::UnsafeUnpin for geocoordinates::reverse::Place
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::reverse::Place
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::reverse::Place
+#[non_exhaustive] pub struct geocoordinates::reverse::ReverseOptions
+pub geocoordinates::reverse::ReverseOptions::languages: alloc::vec::Vec<alloc::string::String>
+pub geocoordinates::reverse::ReverseOptions::max_distance: geocoordinates::Length
+pub geocoordinates::reverse::ReverseOptions::min_feature_class: core::option::Option<geocoordinates::reverse::FeatureClass>
+pub geocoordinates::reverse::ReverseOptions::min_population: u64
+impl geocoordinates::reverse::ReverseOptions
+pub const fn geocoordinates::reverse::ReverseOptions::new() -> Self
+pub fn geocoordinates::reverse::ReverseOptions::with_languages(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<alloc::string::String>>) -> Self
+pub const fn geocoordinates::reverse::ReverseOptions::with_max_distance(self, geocoordinates::Length) -> Self
+pub const fn geocoordinates::reverse::ReverseOptions::with_min_feature_class(self, geocoordinates::reverse::FeatureClass) -> Self
+pub const fn geocoordinates::reverse::ReverseOptions::with_min_population(self, u64) -> Self
+impl core::clone::Clone for geocoordinates::reverse::ReverseOptions
+pub fn geocoordinates::reverse::ReverseOptions::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::reverse::ReverseOptions
+pub fn geocoordinates::reverse::ReverseOptions::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::reverse::ReverseOptions
+pub fn geocoordinates::reverse::ReverseOptions::default() -> Self
+impl core::fmt::Debug for geocoordinates::reverse::ReverseOptions
+pub fn geocoordinates::reverse::ReverseOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::reverse::ReverseOptions
+impl serde_core::ser::Serialize for geocoordinates::reverse::ReverseOptions
+pub fn geocoordinates::reverse::ReverseOptions::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::reverse::ReverseOptions where geocoordinates::reverse::ReverseOptions: core::default::Default
+pub fn geocoordinates::reverse::ReverseOptions::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::reverse::ReverseOptions
+impl core::marker::Send for geocoordinates::reverse::ReverseOptions
+impl core::marker::Sync for geocoordinates::reverse::ReverseOptions
+impl core::marker::Unpin for geocoordinates::reverse::ReverseOptions
+impl core::marker::UnsafeUnpin for geocoordinates::reverse::ReverseOptions
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::reverse::ReverseOptions
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::reverse::ReverseOptions
+pub trait geocoordinates::reverse::ReverseGeocoder
+pub fn geocoordinates::reverse::ReverseGeocoder::reverse(&self, geocoordinates::Coordinate, &geocoordinates::reverse::ReverseOptions) -> geocoordinates::Result<core::option::Option<geocoordinates::reverse::Place>>
+impl geocoordinates::reverse::ReverseGeocoder for geocoordinates::reverse::Gazetteer
+pub fn geocoordinates::reverse::Gazetteer::reverse(&self, geocoordinates::Coordinate, &geocoordinates::reverse::ReverseOptions) -> geocoordinates::Result<core::option::Option<geocoordinates::reverse::Place>>

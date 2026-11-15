@@ -1,0 +1,138 @@
+pub mod geocoordinates::format
+pub enum geocoordinates::format::DecimalSeparator
+pub geocoordinates::format::DecimalSeparator::Comma
+pub geocoordinates::format::DecimalSeparator::Point
+impl geocoordinates::format::DecimalSeparator
+pub fn geocoordinates::format::DecimalSeparator::for_locale(&str) -> Self
+impl core::clone::Clone for geocoordinates::format::DecimalSeparator
+pub fn geocoordinates::format::DecimalSeparator::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::format::DecimalSeparator
+impl core::cmp::PartialEq for geocoordinates::format::DecimalSeparator
+pub fn geocoordinates::format::DecimalSeparator::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::format::DecimalSeparator
+pub fn geocoordinates::format::DecimalSeparator::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::format::DecimalSeparator
+pub fn geocoordinates::format::DecimalSeparator::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::format::DecimalSeparator
+impl core::marker::StructuralPartialEq for geocoordinates::format::DecimalSeparator
+impl core::marker::Freeze for geocoordinates::format::DecimalSeparator
+impl core::marker::Send for geocoordinates::format::DecimalSeparator
+impl core::marker::Sync for geocoordinates::format::DecimalSeparator
+impl core::marker::Unpin for geocoordinates::format::DecimalSeparator
+impl core::marker::UnsafeUnpin for geocoordinates::format::DecimalSeparator
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::format::DecimalSeparator
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::format::DecimalSeparator
+pub enum geocoordinates::format::HemisphereStyle
+pub geocoordinates::format::HemisphereStyle::Cardinal
+pub geocoordinates::format::HemisphereStyle::Signed
+impl core::clone::Clone for geocoordinates::format::HemisphereStyle
+pub fn geocoordinates::format::HemisphereStyle::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::format::HemisphereStyle
+impl core::cmp::PartialEq for geocoordinates::format::HemisphereStyle
+pub fn geocoordinates::format::HemisphereStyle::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::format::HemisphereStyle
+pub fn geocoordinates::format::HemisphereStyle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::format::HemisphereStyle
+pub fn geocoordinates::format::HemisphereStyle::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::format::HemisphereStyle
+impl core::marker::StructuralPartialEq for geocoordinates::format::HemisphereStyle
+impl core::marker::Freeze for geocoordinates::format::HemisphereStyle
+impl core::marker::Send for geocoordinates::format::HemisphereStyle
+impl core::marker::Sync for geocoordinates::format::HemisphereStyle
+impl core::marker::Unpin for geocoordinates::format::HemisphereStyle
+impl core::marker::UnsafeUnpin for geocoordinates::format::HemisphereStyle
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::format::HemisphereStyle
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::format::HemisphereStyle
+pub enum geocoordinates::format::Representation
+pub geocoordinates::format::Representation::Ddm
+pub geocoordinates::format::Representation::Ddm::hemisphere: geocoordinates::format::HemisphereStyle
+pub geocoordinates::format::Representation::Ddm::minute_decimals: core::option::Option<u8>
+pub geocoordinates::format::Representation::Ddm::symbols: geocoordinates::format::SymbolStyle
+pub geocoordinates::format::Representation::DecimalDegrees
+pub geocoordinates::format::Representation::DecimalDegrees::decimals: core::option::Option<u8>
+pub geocoordinates::format::Representation::DecimalDegrees::hemisphere: geocoordinates::format::HemisphereStyle
+pub geocoordinates::format::Representation::Dms
+pub geocoordinates::format::Representation::Dms::hemisphere: geocoordinates::format::HemisphereStyle
+pub geocoordinates::format::Representation::Dms::second_decimals: core::option::Option<u8>
+pub geocoordinates::format::Representation::Dms::symbols: geocoordinates::format::SymbolStyle
+pub geocoordinates::format::Representation::Geohash
+pub geocoordinates::format::Representation::Geohash::length: u8
+pub geocoordinates::format::Representation::Maidenhead
+pub geocoordinates::format::Representation::Maidenhead::pairs: u8
+pub geocoordinates::format::Representation::Mgrs
+pub geocoordinates::format::Representation::Mgrs::precision: geocoordinates::grids::MgrsPrecision
+pub geocoordinates::format::Representation::PlusCode
+pub geocoordinates::format::Representation::PlusCode::length: u8
+impl geocoordinates::format::Representation
+pub const geocoordinates::format::Representation::MAX_DDM_MINUTE_DECIMALS: u8
+pub const geocoordinates::format::Representation::MAX_DD_DECIMALS: u8
+pub const geocoordinates::format::Representation::MAX_DMS_SECOND_DECIMALS: u8
+impl core::clone::Clone for geocoordinates::format::Representation
+pub fn geocoordinates::format::Representation::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::format::Representation
+impl core::cmp::PartialEq for geocoordinates::format::Representation
+pub fn geocoordinates::format::Representation::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::format::Representation
+pub fn geocoordinates::format::Representation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::format::Representation
+pub fn geocoordinates::format::Representation::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::format::Representation
+impl core::marker::StructuralPartialEq for geocoordinates::format::Representation
+impl core::marker::Freeze for geocoordinates::format::Representation
+impl core::marker::Send for geocoordinates::format::Representation
+impl core::marker::Sync for geocoordinates::format::Representation
+impl core::marker::Unpin for geocoordinates::format::Representation
+impl core::marker::UnsafeUnpin for geocoordinates::format::Representation
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::format::Representation
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::format::Representation
+pub enum geocoordinates::format::SymbolStyle
+pub geocoordinates::format::SymbolStyle::Ascii
+pub geocoordinates::format::SymbolStyle::Letters
+pub geocoordinates::format::SymbolStyle::Unicode
+impl core::clone::Clone for geocoordinates::format::SymbolStyle
+pub fn geocoordinates::format::SymbolStyle::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::format::SymbolStyle
+impl core::cmp::PartialEq for geocoordinates::format::SymbolStyle
+pub fn geocoordinates::format::SymbolStyle::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::format::SymbolStyle
+pub fn geocoordinates::format::SymbolStyle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::format::SymbolStyle
+pub fn geocoordinates::format::SymbolStyle::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::format::SymbolStyle
+impl core::marker::StructuralPartialEq for geocoordinates::format::SymbolStyle
+impl core::marker::Freeze for geocoordinates::format::SymbolStyle
+impl core::marker::Send for geocoordinates::format::SymbolStyle
+impl core::marker::Sync for geocoordinates::format::SymbolStyle
+impl core::marker::Unpin for geocoordinates::format::SymbolStyle
+impl core::marker::UnsafeUnpin for geocoordinates::format::SymbolStyle
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::format::SymbolStyle
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::format::SymbolStyle
+#[non_exhaustive] pub struct geocoordinates::format::FormatOptions
+pub geocoordinates::format::FormatOptions::decimal_separator: geocoordinates::format::DecimalSeparator
+pub geocoordinates::format::FormatOptions::representation: geocoordinates::format::Representation
+impl geocoordinates::format::FormatOptions
+pub const fn geocoordinates::format::FormatOptions::parse_options(&self) -> geocoordinates::parse::ParseOptions
+pub const fn geocoordinates::format::FormatOptions::with_decimal_separator(self, geocoordinates::format::DecimalSeparator) -> Self
+pub const fn geocoordinates::format::FormatOptions::with_representation(self, geocoordinates::format::Representation) -> Self
+impl core::clone::Clone for geocoordinates::format::FormatOptions
+pub fn geocoordinates::format::FormatOptions::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::format::FormatOptions
+impl core::cmp::PartialEq for geocoordinates::format::FormatOptions
+pub fn geocoordinates::format::FormatOptions::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::format::FormatOptions
+pub fn geocoordinates::format::FormatOptions::default() -> Self
+impl core::fmt::Debug for geocoordinates::format::FormatOptions
+pub fn geocoordinates::format::FormatOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::format::FormatOptions
+pub fn geocoordinates::format::FormatOptions::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::format::FormatOptions
+impl core::marker::StructuralPartialEq for geocoordinates::format::FormatOptions
+impl core::marker::Freeze for geocoordinates::format::FormatOptions
+impl core::marker::Send for geocoordinates::format::FormatOptions
+impl core::marker::Sync for geocoordinates::format::FormatOptions
+impl core::marker::Unpin for geocoordinates::format::FormatOptions
+impl core::marker::UnsafeUnpin for geocoordinates::format::FormatOptions
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::format::FormatOptions
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::format::FormatOptions
+pub fn geocoordinates::format::format(geocoordinates::Coordinate, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::format::format_fix(&geocoordinates::fix::Fix, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>

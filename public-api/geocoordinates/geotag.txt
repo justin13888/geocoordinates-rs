@@ -1,0 +1,85 @@
+pub mod geocoordinates::geotag
+pub enum geocoordinates::geotag::Interpolation
+pub geocoordinates::geotag::Interpolation::Geodesic
+pub geocoordinates::geotag::Interpolation::Nearest
+impl core::clone::Clone for geocoordinates::geotag::Interpolation
+pub fn geocoordinates::geotag::Interpolation::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::geotag::Interpolation
+impl core::cmp::PartialEq for geocoordinates::geotag::Interpolation
+pub fn geocoordinates::geotag::Interpolation::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::geotag::Interpolation
+pub fn geocoordinates::geotag::Interpolation::default() -> Self
+impl core::fmt::Debug for geocoordinates::geotag::Interpolation
+pub fn geocoordinates::geotag::Interpolation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::geotag::Interpolation
+pub fn geocoordinates::geotag::Interpolation::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::geotag::Interpolation
+impl core::marker::StructuralPartialEq for geocoordinates::geotag::Interpolation
+impl serde_core::ser::Serialize for geocoordinates::geotag::Interpolation
+pub fn geocoordinates::geotag::Interpolation::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::geotag::Interpolation
+pub fn geocoordinates::geotag::Interpolation::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::geotag::Interpolation
+impl core::marker::Send for geocoordinates::geotag::Interpolation
+impl core::marker::Sync for geocoordinates::geotag::Interpolation
+impl core::marker::Unpin for geocoordinates::geotag::Interpolation
+impl core::marker::UnsafeUnpin for geocoordinates::geotag::Interpolation
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geotag::Interpolation
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geotag::Interpolation
+#[non_exhaustive] pub struct geocoordinates::geotag::GeotagOptions
+pub geocoordinates::geotag::GeotagOptions::clock_offset_ms: i64
+pub geocoordinates::geotag::GeotagOptions::interpolation: geocoordinates::geotag::Interpolation
+pub geocoordinates::geotag::GeotagOptions::max_extrapolation: core::time::Duration
+pub geocoordinates::geotag::GeotagOptions::max_gap: core::time::Duration
+pub geocoordinates::geotag::GeotagOptions::max_speed_mps: f64
+impl geocoordinates::geotag::GeotagOptions
+pub const fn geocoordinates::geotag::GeotagOptions::with_clock_offset_ms(self, i64) -> Self
+pub const fn geocoordinates::geotag::GeotagOptions::with_interpolation(self, geocoordinates::geotag::Interpolation) -> Self
+pub const fn geocoordinates::geotag::GeotagOptions::with_max_extrapolation(self, core::time::Duration) -> Self
+pub const fn geocoordinates::geotag::GeotagOptions::with_max_gap(self, core::time::Duration) -> Self
+pub const fn geocoordinates::geotag::GeotagOptions::with_max_speed_mps(self, f64) -> Self
+impl core::clone::Clone for geocoordinates::geotag::GeotagOptions
+pub fn geocoordinates::geotag::GeotagOptions::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geotag::GeotagOptions
+pub fn geocoordinates::geotag::GeotagOptions::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::geotag::GeotagOptions
+pub fn geocoordinates::geotag::GeotagOptions::default() -> Self
+impl core::fmt::Debug for geocoordinates::geotag::GeotagOptions
+pub fn geocoordinates::geotag::GeotagOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geotag::GeotagOptions
+impl core::marker::StructuralPartialEq for geocoordinates::geotag::GeotagOptions
+impl serde_core::ser::Serialize for geocoordinates::geotag::GeotagOptions
+pub fn geocoordinates::geotag::GeotagOptions::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::geotag::GeotagOptions where geocoordinates::geotag::GeotagOptions: core::default::Default
+pub fn geocoordinates::geotag::GeotagOptions::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::geotag::GeotagOptions
+impl core::marker::Send for geocoordinates::geotag::GeotagOptions
+impl core::marker::Sync for geocoordinates::geotag::GeotagOptions
+impl core::marker::Unpin for geocoordinates::geotag::GeotagOptions
+impl core::marker::UnsafeUnpin for geocoordinates::geotag::GeotagOptions
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geotag::GeotagOptions
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geotag::GeotagOptions
+pub struct geocoordinates::geotag::Track
+impl geocoordinates::geotag::Track
+pub fn geocoordinates::geotag::Track::crs(&self) -> core::option::Option<geocoordinates::Crs>
+pub fn geocoordinates::geotag::Track::dropped_untimed(&self) -> usize
+pub fn geocoordinates::geotag::Track::fixes(&self) -> &[geocoordinates::fix::Fix]
+pub fn geocoordinates::geotag::Track::is_empty(&self) -> bool
+pub fn geocoordinates::geotag::Track::len(&self) -> usize
+pub fn geocoordinates::geotag::Track::locate(&self, std::time::SystemTime, &geocoordinates::geotag::GeotagOptions) -> geocoordinates::Result<core::option::Option<geocoordinates::fix::Fix>>
+pub fn geocoordinates::geotag::Track::new(alloc::vec::Vec<geocoordinates::fix::Fix>) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::geotag::Track
+pub fn geocoordinates::geotag::Track::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geotag::Track
+pub fn geocoordinates::geotag::Track::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geotag::Track
+pub fn geocoordinates::geotag::Track::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::geotag::Track
+impl core::marker::Freeze for geocoordinates::geotag::Track
+impl core::marker::Send for geocoordinates::geotag::Track
+impl core::marker::Sync for geocoordinates::geotag::Track
+impl core::marker::Unpin for geocoordinates::geotag::Track
+impl core::marker::UnsafeUnpin for geocoordinates::geotag::Track
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geotag::Track
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geotag::Track
+pub fn geocoordinates::geotag::estimate_offset(&geocoordinates::geotag::Track, &[(std::time::SystemTime, geocoordinates::Coordinate)]) -> geocoordinates::Result<i64>

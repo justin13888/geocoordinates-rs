@@ -1,0 +1,113 @@
+pub mod geocoordinates::privacy
+pub enum geocoordinates::privacy::SnapGrid
+pub geocoordinates::privacy::SnapGrid::Geohash
+pub geocoordinates::privacy::SnapGrid::H3
+pub geocoordinates::privacy::SnapGrid::S2
+impl core::clone::Clone for geocoordinates::privacy::SnapGrid
+pub fn geocoordinates::privacy::SnapGrid::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::privacy::SnapGrid
+impl core::cmp::PartialEq for geocoordinates::privacy::SnapGrid
+pub fn geocoordinates::privacy::SnapGrid::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::privacy::SnapGrid
+pub fn geocoordinates::privacy::SnapGrid::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::privacy::SnapGrid
+pub fn geocoordinates::privacy::SnapGrid::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::privacy::SnapGrid
+impl core::marker::StructuralPartialEq for geocoordinates::privacy::SnapGrid
+impl serde_core::ser::Serialize for geocoordinates::privacy::SnapGrid
+pub fn geocoordinates::privacy::SnapGrid::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::privacy::SnapGrid
+pub fn geocoordinates::privacy::SnapGrid::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::privacy::SnapGrid
+impl core::marker::Send for geocoordinates::privacy::SnapGrid
+impl core::marker::Sync for geocoordinates::privacy::SnapGrid
+impl core::marker::Unpin for geocoordinates::privacy::SnapGrid
+impl core::marker::UnsafeUnpin for geocoordinates::privacy::SnapGrid
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::privacy::SnapGrid
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::privacy::SnapGrid
+pub enum geocoordinates::privacy::ZoneAction
+pub geocoordinates::privacy::ZoneAction::Coarsen(geocoordinates::privacy::Precision)
+pub geocoordinates::privacy::ZoneAction::Strip
+impl core::clone::Clone for geocoordinates::privacy::ZoneAction
+pub fn geocoordinates::privacy::ZoneAction::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::privacy::ZoneAction
+impl core::cmp::PartialEq for geocoordinates::privacy::ZoneAction
+pub fn geocoordinates::privacy::ZoneAction::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::privacy::ZoneAction
+pub fn geocoordinates::privacy::ZoneAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::privacy::ZoneAction
+pub fn geocoordinates::privacy::ZoneAction::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::privacy::ZoneAction
+impl core::marker::StructuralPartialEq for geocoordinates::privacy::ZoneAction
+impl serde_core::ser::Serialize for geocoordinates::privacy::ZoneAction
+pub fn geocoordinates::privacy::ZoneAction::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::privacy::ZoneAction
+pub fn geocoordinates::privacy::ZoneAction::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::privacy::ZoneAction
+impl core::marker::Send for geocoordinates::privacy::ZoneAction
+impl core::marker::Sync for geocoordinates::privacy::ZoneAction
+impl core::marker::Unpin for geocoordinates::privacy::ZoneAction
+impl core::marker::UnsafeUnpin for geocoordinates::privacy::ZoneAction
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::privacy::ZoneAction
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::privacy::ZoneAction
+pub struct geocoordinates::privacy::ExclusionZone
+impl geocoordinates::privacy::ExclusionZone
+pub const fn geocoordinates::privacy::ExclusionZone::bounds(&self) -> core::option::Option<geocoordinates::index::GeoBounds>
+pub const fn geocoordinates::privacy::ExclusionZone::circle(&self) -> core::option::Option<(geocoordinates::Coordinate, geocoordinates::Length)>
+pub fn geocoordinates::privacy::ExclusionZone::contains(&self, geocoordinates::Coordinate) -> geocoordinates::Result<bool>
+pub fn geocoordinates::privacy::ExclusionZone::crs(&self) -> geocoordinates::Crs
+pub const fn geocoordinates::privacy::ExclusionZone::from_bounds(geocoordinates::index::GeoBounds) -> Self
+pub fn geocoordinates::privacy::ExclusionZone::from_circle(geocoordinates::Coordinate, geocoordinates::Length) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::privacy::ExclusionZone
+pub fn geocoordinates::privacy::ExclusionZone::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::privacy::ExclusionZone
+pub fn geocoordinates::privacy::ExclusionZone::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::privacy::ExclusionZone
+pub fn geocoordinates::privacy::ExclusionZone::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::privacy::ExclusionZone
+impl core::marker::StructuralPartialEq for geocoordinates::privacy::ExclusionZone
+impl serde_core::ser::Serialize for geocoordinates::privacy::ExclusionZone
+pub fn geocoordinates::privacy::ExclusionZone::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::privacy::ExclusionZone
+pub fn geocoordinates::privacy::ExclusionZone::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::privacy::ExclusionZone
+impl core::marker::Send for geocoordinates::privacy::ExclusionZone
+impl core::marker::Sync for geocoordinates::privacy::ExclusionZone
+impl core::marker::Unpin for geocoordinates::privacy::ExclusionZone
+impl core::marker::UnsafeUnpin for geocoordinates::privacy::ExclusionZone
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::privacy::ExclusionZone
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::privacy::ExclusionZone
+pub struct geocoordinates::privacy::Precision
+impl geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::Precision::at_least(geocoordinates::Length) -> geocoordinates::Result<Self>
+pub fn geocoordinates::privacy::Precision::geohash(u8) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::privacy::Precision::grid(self) -> geocoordinates::privacy::SnapGrid
+pub fn geocoordinates::privacy::Precision::h3(u8) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::privacy::Precision::level(self) -> u8
+pub fn geocoordinates::privacy::Precision::min_cell_height(self) -> core::option::Option<geocoordinates::Length>
+pub fn geocoordinates::privacy::Precision::new(geocoordinates::privacy::SnapGrid, u8) -> geocoordinates::Result<Self>
+pub fn geocoordinates::privacy::Precision::s2(u8) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::Precision::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::privacy::Precision
+impl core::cmp::PartialEq for geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::Precision::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::Precision::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::Precision::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::privacy::Precision
+impl core::marker::StructuralPartialEq for geocoordinates::privacy::Precision
+impl serde_core::ser::Serialize for geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::Precision::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::Precision::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::privacy::Precision
+impl core::marker::Send for geocoordinates::privacy::Precision
+impl core::marker::Sync for geocoordinates::privacy::Precision
+impl core::marker::Unpin for geocoordinates::privacy::Precision
+impl core::marker::UnsafeUnpin for geocoordinates::privacy::Precision
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::privacy::Precision
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::privacy::Precision
+pub fn geocoordinates::privacy::apply(geocoordinates::fix::Fix, &[geocoordinates::privacy::ExclusionZone], geocoordinates::privacy::ZoneAction) -> geocoordinates::Result<core::option::Option<geocoordinates::fix::Fix>>
+pub fn geocoordinates::privacy::coarsen(geocoordinates::Coordinate, geocoordinates::privacy::Precision) -> geocoordinates::Result<geocoordinates::fix::Fix>

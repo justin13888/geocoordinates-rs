@@ -7,8 +7,9 @@ crate root, follows each public `use` re-export to the item it names, and
 records every path an item is reachable at. The `prelude` module is skipped:
 it exists to re-export, so its entries are the one sanctioned second path.
 
-Exit status is 0 when every item has exactly one non-prelude path, and 1
-otherwise, listing each item with all of its paths. Run through
+Exit status is 0 when every item has exactly one non-prelude path and the
+walk finds at least `MIN_ITEMS` items, and 1 otherwise, listing each item
+with all of its paths or the count against the floor. Run through
 `mise run public-api-check`.
 """
 
@@ -18,6 +19,11 @@ from collections import defaultdict
 
 # Modules whose re-exports are a deliberate second path to an item.
 SANCTIONED = {"prelude"}
+
+# Floor on the number of public items the walk must find (all features on).
+# An empty or truncated walk would otherwise pass. A change that removes
+# public items lowers this in the same diff; one that adds items may raise it.
+MIN_ITEMS = 147
 
 
 def main(argv):
@@ -83,6 +89,14 @@ def main(argv):
         )
         for found in sorted(duplicates.values()):
             print("  " + "  |  ".join(found), file=sys.stderr)
+        return 1
+    if len(paths) < MIN_ITEMS:
+        print(
+            f"public-api-check: found {len(paths)} public items, fewer than the "
+            f"floor of {MIN_ITEMS}; if items were removed on purpose, lower "
+            "MIN_ITEMS in scripts/check_public_paths.py in the same change",
+            file=sys.stderr,
+        )
         return 1
     print(f"public-api-check: {len(paths)} public items, each at exactly one path.")
     return 0

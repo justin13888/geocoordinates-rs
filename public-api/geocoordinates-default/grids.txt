@@ -1,0 +1,257 @@
+pub mod geocoordinates::grids
+pub enum geocoordinates::grids::MgrsPrecision
+pub geocoordinates::grids::MgrsPrecision::Km1
+pub geocoordinates::grids::MgrsPrecision::Km10
+pub geocoordinates::grids::MgrsPrecision::Km100
+pub geocoordinates::grids::MgrsPrecision::M1
+pub geocoordinates::grids::MgrsPrecision::M10
+pub geocoordinates::grids::MgrsPrecision::M100
+impl geocoordinates::grids::MgrsPrecision
+pub fn geocoordinates::grids::MgrsPrecision::side(self) -> geocoordinates::Length
+impl core::clone::Clone for geocoordinates::grids::MgrsPrecision
+pub fn geocoordinates::grids::MgrsPrecision::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::grids::MgrsPrecision
+impl core::cmp::PartialEq for geocoordinates::grids::MgrsPrecision
+pub fn geocoordinates::grids::MgrsPrecision::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::grids::MgrsPrecision
+pub fn geocoordinates::grids::MgrsPrecision::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::grids::MgrsPrecision
+pub fn geocoordinates::grids::MgrsPrecision::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::grids::MgrsPrecision
+impl core::marker::StructuralPartialEq for geocoordinates::grids::MgrsPrecision
+impl core::marker::Freeze for geocoordinates::grids::MgrsPrecision
+impl core::marker::Send for geocoordinates::grids::MgrsPrecision
+impl core::marker::Sync for geocoordinates::grids::MgrsPrecision
+impl core::marker::Unpin for geocoordinates::grids::MgrsPrecision
+impl core::marker::UnsafeUnpin for geocoordinates::grids::MgrsPrecision
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::MgrsPrecision
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::MgrsPrecision
+pub enum geocoordinates::grids::UtmHemisphere
+pub geocoordinates::grids::UtmHemisphere::North
+pub geocoordinates::grids::UtmHemisphere::South
+impl core::clone::Clone for geocoordinates::grids::UtmHemisphere
+pub fn geocoordinates::grids::UtmHemisphere::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::grids::UtmHemisphere
+impl core::cmp::PartialEq for geocoordinates::grids::UtmHemisphere
+pub fn geocoordinates::grids::UtmHemisphere::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::grids::UtmHemisphere
+pub fn geocoordinates::grids::UtmHemisphere::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::grids::UtmHemisphere
+pub fn geocoordinates::grids::UtmHemisphere::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::grids::UtmHemisphere
+impl core::marker::StructuralPartialEq for geocoordinates::grids::UtmHemisphere
+impl core::marker::Freeze for geocoordinates::grids::UtmHemisphere
+impl core::marker::Send for geocoordinates::grids::UtmHemisphere
+impl core::marker::Sync for geocoordinates::grids::UtmHemisphere
+impl core::marker::Unpin for geocoordinates::grids::UtmHemisphere
+impl core::marker::UnsafeUnpin for geocoordinates::grids::UtmHemisphere
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::UtmHemisphere
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::UtmHemisphere
+pub struct geocoordinates::grids::Geohash(_)
+impl geocoordinates::grids::Geohash
+pub fn geocoordinates::grids::Geohash::as_str(&self) -> &str
+pub fn geocoordinates::grids::Geohash::decode(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::grids::Geohash::encode(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
+pub fn geocoordinates::grids::Geohash::parse(&str) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::grids::Geohash
+pub fn geocoordinates::grids::Geohash::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::grids::Geohash
+impl core::cmp::PartialEq for geocoordinates::grids::Geohash
+pub fn geocoordinates::grids::Geohash::eq(&self, &Self) -> bool
+impl core::convert::AsRef<str> for geocoordinates::grids::Geohash
+pub fn geocoordinates::grids::Geohash::as_ref(&self) -> &str
+impl core::convert::From<geocoordinates::grids::Geohash> for alloc::string::String
+pub fn alloc::string::String::from(geocoordinates::grids::Geohash) -> alloc::string::String
+impl core::convert::TryFrom<&str> for geocoordinates::grids::Geohash
+pub type geocoordinates::grids::Geohash::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Geohash::try_from(&str) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<alloc::string::String> for geocoordinates::grids::Geohash
+pub type geocoordinates::grids::Geohash::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Geohash::try_from(alloc::string::String) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::grids::Geohash
+pub fn geocoordinates::grids::Geohash::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for geocoordinates::grids::Geohash
+pub fn geocoordinates::grids::Geohash::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::grids::Geohash
+pub fn geocoordinates::grids::Geohash::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for geocoordinates::grids::Geohash
+impl core::str::traits::FromStr for geocoordinates::grids::Geohash
+pub type geocoordinates::grids::Geohash::Err = geocoordinates::Error
+pub fn geocoordinates::grids::Geohash::from_str(&str) -> geocoordinates::Result<Self>
+impl core::marker::Freeze for geocoordinates::grids::Geohash
+impl core::marker::Send for geocoordinates::grids::Geohash
+impl core::marker::Sync for geocoordinates::grids::Geohash
+impl core::marker::Unpin for geocoordinates::grids::Geohash
+impl core::marker::UnsafeUnpin for geocoordinates::grids::Geohash
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::Geohash
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::Geohash
+pub struct geocoordinates::grids::Maidenhead(_)
+impl geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::as_str(&self) -> &str
+pub fn geocoordinates::grids::Maidenhead::decode(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::grids::Maidenhead::encode(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
+impl geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::parse(&str) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::grids::Maidenhead
+impl core::cmp::PartialEq for geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::eq(&self, &Self) -> bool
+impl core::convert::AsRef<str> for geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::as_ref(&self) -> &str
+impl core::convert::From<geocoordinates::grids::Maidenhead> for alloc::string::String
+pub fn alloc::string::String::from(geocoordinates::grids::Maidenhead) -> alloc::string::String
+impl core::convert::TryFrom<&str> for geocoordinates::grids::Maidenhead
+pub type geocoordinates::grids::Maidenhead::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Maidenhead::try_from(&str) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<alloc::string::String> for geocoordinates::grids::Maidenhead
+pub type geocoordinates::grids::Maidenhead::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Maidenhead::try_from(alloc::string::String) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::grids::Maidenhead
+pub fn geocoordinates::grids::Maidenhead::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for geocoordinates::grids::Maidenhead
+impl core::str::traits::FromStr for geocoordinates::grids::Maidenhead
+pub type geocoordinates::grids::Maidenhead::Err = geocoordinates::Error
+pub fn geocoordinates::grids::Maidenhead::from_str(&str) -> geocoordinates::Result<Self>
+impl core::marker::Freeze for geocoordinates::grids::Maidenhead
+impl core::marker::Send for geocoordinates::grids::Maidenhead
+impl core::marker::Sync for geocoordinates::grids::Maidenhead
+impl core::marker::Unpin for geocoordinates::grids::Maidenhead
+impl core::marker::UnsafeUnpin for geocoordinates::grids::Maidenhead
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::Maidenhead
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::Maidenhead
+pub struct geocoordinates::grids::Mgrs
+impl geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::as_str(&self) -> &str
+pub fn geocoordinates::grids::Mgrs::precision(&self) -> geocoordinates::grids::MgrsPrecision
+pub fn geocoordinates::grids::Mgrs::to_coordinate(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::grids::Mgrs::try_from_coordinate(geocoordinates::Coordinate, geocoordinates::grids::MgrsPrecision) -> geocoordinates::Result<Self>
+impl geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::parse(&str) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::grids::Mgrs
+impl core::cmp::PartialEq for geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::grids::Mgrs> for alloc::string::String
+pub fn alloc::string::String::from(geocoordinates::grids::Mgrs) -> alloc::string::String
+impl core::convert::TryFrom<&str> for geocoordinates::grids::Mgrs
+pub type geocoordinates::grids::Mgrs::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Mgrs::try_from(&str) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<alloc::string::String> for geocoordinates::grids::Mgrs
+pub type geocoordinates::grids::Mgrs::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Mgrs::try_from(alloc::string::String) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::hash<H: core::hash::Hasher>(&self, &mut H)
+impl core::str::traits::FromStr for geocoordinates::grids::Mgrs
+pub type geocoordinates::grids::Mgrs::Err = geocoordinates::Error
+pub fn geocoordinates::grids::Mgrs::from_str(&str) -> geocoordinates::Result<Self>
+impl core::marker::Freeze for geocoordinates::grids::Mgrs
+impl core::marker::Send for geocoordinates::grids::Mgrs
+impl core::marker::Sync for geocoordinates::grids::Mgrs
+impl core::marker::Unpin for geocoordinates::grids::Mgrs
+impl core::marker::UnsafeUnpin for geocoordinates::grids::Mgrs
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::Mgrs
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::Mgrs
+pub struct geocoordinates::grids::PlusCode(_)
+impl geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::as_str(&self) -> &str
+pub fn geocoordinates::grids::PlusCode::decode(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::grids::PlusCode::encode(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
+impl geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::parse(&str) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::grids::PlusCode
+impl core::cmp::PartialEq for geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::eq(&self, &Self) -> bool
+impl core::convert::AsRef<str> for geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::as_ref(&self) -> &str
+impl core::convert::From<geocoordinates::grids::PlusCode> for alloc::string::String
+pub fn alloc::string::String::from(geocoordinates::grids::PlusCode) -> alloc::string::String
+impl core::convert::TryFrom<&str> for geocoordinates::grids::PlusCode
+pub type geocoordinates::grids::PlusCode::Error = geocoordinates::Error
+pub fn geocoordinates::grids::PlusCode::try_from(&str) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<alloc::string::String> for geocoordinates::grids::PlusCode
+pub type geocoordinates::grids::PlusCode::Error = geocoordinates::Error
+pub fn geocoordinates::grids::PlusCode::try_from(alloc::string::String) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::grids::PlusCode
+pub fn geocoordinates::grids::PlusCode::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for geocoordinates::grids::PlusCode
+impl core::str::traits::FromStr for geocoordinates::grids::PlusCode
+pub type geocoordinates::grids::PlusCode::Err = geocoordinates::Error
+pub fn geocoordinates::grids::PlusCode::from_str(&str) -> geocoordinates::Result<Self>
+impl core::marker::Freeze for geocoordinates::grids::PlusCode
+impl core::marker::Send for geocoordinates::grids::PlusCode
+impl core::marker::Sync for geocoordinates::grids::PlusCode
+impl core::marker::Unpin for geocoordinates::grids::PlusCode
+impl core::marker::UnsafeUnpin for geocoordinates::grids::PlusCode
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::PlusCode
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::PlusCode
+pub struct geocoordinates::grids::Ups
+impl geocoordinates::grids::Ups
+pub fn geocoordinates::grids::Ups::easting_m(&self) -> f64
+pub fn geocoordinates::grids::Ups::hemisphere(&self) -> geocoordinates::grids::UtmHemisphere
+pub fn geocoordinates::grids::Ups::new(geocoordinates::grids::UtmHemisphere, f64, f64) -> geocoordinates::Result<geocoordinates::grids::Ups>
+pub fn geocoordinates::grids::Ups::northing_m(&self) -> f64
+pub fn geocoordinates::grids::Ups::to_coordinate(&self) -> geocoordinates::Coordinate
+pub fn geocoordinates::grids::Ups::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::grids::Ups>
+impl core::clone::Clone for geocoordinates::grids::Ups
+pub fn geocoordinates::grids::Ups::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::grids::Ups
+pub fn geocoordinates::grids::Ups::eq(&self, &Self) -> bool
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::grids::Ups
+pub type geocoordinates::grids::Ups::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Ups::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::grids::Ups
+pub fn geocoordinates::grids::Ups::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::grids::Ups
+impl core::marker::StructuralPartialEq for geocoordinates::grids::Ups
+impl core::marker::Freeze for geocoordinates::grids::Ups
+impl core::marker::Send for geocoordinates::grids::Ups
+impl core::marker::Sync for geocoordinates::grids::Ups
+impl core::marker::Unpin for geocoordinates::grids::Ups
+impl core::marker::UnsafeUnpin for geocoordinates::grids::Ups
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::Ups
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::Ups
+pub struct geocoordinates::grids::Utm
+impl geocoordinates::grids::Utm
+pub fn geocoordinates::grids::Utm::easting_m(&self) -> f64
+pub fn geocoordinates::grids::Utm::hemisphere(&self) -> geocoordinates::grids::UtmHemisphere
+pub fn geocoordinates::grids::Utm::new(u8, geocoordinates::grids::UtmHemisphere, f64, f64) -> geocoordinates::Result<geocoordinates::grids::Utm>
+pub fn geocoordinates::grids::Utm::northing_m(&self) -> f64
+pub fn geocoordinates::grids::Utm::to_coordinate(&self) -> geocoordinates::Coordinate
+pub fn geocoordinates::grids::Utm::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::grids::Utm>
+pub fn geocoordinates::grids::Utm::zone(&self) -> u8
+impl core::clone::Clone for geocoordinates::grids::Utm
+pub fn geocoordinates::grids::Utm::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::grids::Utm
+pub fn geocoordinates::grids::Utm::eq(&self, &Self) -> bool
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::grids::Utm
+pub type geocoordinates::grids::Utm::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Utm::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::grids::Utm
+pub fn geocoordinates::grids::Utm::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::grids::Utm
+impl core::marker::StructuralPartialEq for geocoordinates::grids::Utm
+impl core::marker::Freeze for geocoordinates::grids::Utm
+impl core::marker::Send for geocoordinates::grids::Utm
+impl core::marker::Sync for geocoordinates::grids::Utm
+impl core::marker::Unpin for geocoordinates::grids::Utm
+impl core::marker::UnsafeUnpin for geocoordinates::grids::Utm
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::Utm
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::Utm
+pub fn geocoordinates::grids::utm_central_meridian_deg(u8) -> geocoordinates::Result<f64>
+pub fn geocoordinates::grids::utm_zone_for(geocoordinates::Coordinate) -> geocoordinates::Result<u8>

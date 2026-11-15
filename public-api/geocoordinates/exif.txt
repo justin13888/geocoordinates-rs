@@ -1,0 +1,238 @@
+pub mod geocoordinates::exif
+pub enum geocoordinates::exif::ExifRational
+pub geocoordinates::exif::ExifRational::Signed(i32, i32)
+pub geocoordinates::exif::ExifRational::Unsigned(u32, u32)
+impl core::clone::Clone for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::exif::ExifRational
+impl core::cmp::PartialEq for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::eq(&self, &Self) -> bool
+impl core::convert::From<(i32, i32)> for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::from((i32, i32)) -> Self
+impl core::convert::From<(u32, u32)> for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::from((u32, u32)) -> Self
+impl core::fmt::Debug for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::exif::ExifRational
+impl core::marker::StructuralPartialEq for geocoordinates::exif::ExifRational
+impl serde_core::ser::Serialize for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::ExifRational
+pub fn geocoordinates::exif::ExifRational::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::ExifRational
+impl core::marker::Send for geocoordinates::exif::ExifRational
+impl core::marker::Sync for geocoordinates::exif::ExifRational
+impl core::marker::Unpin for geocoordinates::exif::ExifRational
+impl core::marker::UnsafeUnpin for geocoordinates::exif::ExifRational
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::ExifRational
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::ExifRational
+pub enum geocoordinates::exif::NorthReference
+pub geocoordinates::exif::NorthReference::Magnetic
+pub geocoordinates::exif::NorthReference::True
+impl core::clone::Clone for geocoordinates::exif::NorthReference
+pub fn geocoordinates::exif::NorthReference::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::exif::NorthReference
+impl core::cmp::PartialEq for geocoordinates::exif::NorthReference
+pub fn geocoordinates::exif::NorthReference::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::exif::NorthReference
+pub fn geocoordinates::exif::NorthReference::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::exif::NorthReference
+pub fn geocoordinates::exif::NorthReference::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::exif::NorthReference
+impl core::marker::StructuralPartialEq for geocoordinates::exif::NorthReference
+impl serde_core::ser::Serialize for geocoordinates::exif::NorthReference
+pub fn geocoordinates::exif::NorthReference::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::NorthReference
+pub fn geocoordinates::exif::NorthReference::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::NorthReference
+impl core::marker::Send for geocoordinates::exif::NorthReference
+impl core::marker::Sync for geocoordinates::exif::NorthReference
+impl core::marker::Unpin for geocoordinates::exif::NorthReference
+impl core::marker::UnsafeUnpin for geocoordinates::exif::NorthReference
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::NorthReference
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::NorthReference
+pub enum geocoordinates::exif::NullIslandPolicy
+pub geocoordinates::exif::NullIslandPolicy::Accept
+pub geocoordinates::exif::NullIslandPolicy::Reject
+impl core::clone::Clone for geocoordinates::exif::NullIslandPolicy
+pub fn geocoordinates::exif::NullIslandPolicy::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::exif::NullIslandPolicy
+impl core::cmp::PartialEq for geocoordinates::exif::NullIslandPolicy
+pub fn geocoordinates::exif::NullIslandPolicy::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::exif::NullIslandPolicy
+pub fn geocoordinates::exif::NullIslandPolicy::default() -> Self
+impl core::fmt::Debug for geocoordinates::exif::NullIslandPolicy
+pub fn geocoordinates::exif::NullIslandPolicy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::exif::NullIslandPolicy
+pub fn geocoordinates::exif::NullIslandPolicy::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::exif::NullIslandPolicy
+impl core::marker::StructuralPartialEq for geocoordinates::exif::NullIslandPolicy
+impl serde_core::ser::Serialize for geocoordinates::exif::NullIslandPolicy
+pub fn geocoordinates::exif::NullIslandPolicy::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::NullIslandPolicy
+pub fn geocoordinates::exif::NullIslandPolicy::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::NullIslandPolicy
+impl core::marker::Send for geocoordinates::exif::NullIslandPolicy
+impl core::marker::Sync for geocoordinates::exif::NullIslandPolicy
+impl core::marker::Unpin for geocoordinates::exif::NullIslandPolicy
+impl core::marker::UnsafeUnpin for geocoordinates::exif::NullIslandPolicy
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::NullIslandPolicy
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::NullIslandPolicy
+#[non_exhaustive] pub struct geocoordinates::exif::CaptureGeo
+pub geocoordinates::exif::CaptureGeo::direction: core::option::Option<geocoordinates::exif::NorthBearing>
+pub geocoordinates::exif::CaptureGeo::dop: core::option::Option<f64>
+pub geocoordinates::exif::CaptureGeo::fix: geocoordinates::fix::Fix
+pub geocoordinates::exif::CaptureGeo::speed_mps: core::option::Option<f64>
+pub geocoordinates::exif::CaptureGeo::track: core::option::Option<geocoordinates::exif::NorthBearing>
+impl core::clone::Clone for geocoordinates::exif::CaptureGeo
+pub fn geocoordinates::exif::CaptureGeo::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::exif::CaptureGeo
+pub fn geocoordinates::exif::CaptureGeo::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::exif::CaptureGeo
+pub fn geocoordinates::exif::CaptureGeo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::exif::CaptureGeo
+impl serde_core::ser::Serialize for geocoordinates::exif::CaptureGeo
+pub fn geocoordinates::exif::CaptureGeo::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::CaptureGeo
+pub fn geocoordinates::exif::CaptureGeo::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::CaptureGeo
+impl core::marker::Send for geocoordinates::exif::CaptureGeo
+impl core::marker::Sync for geocoordinates::exif::CaptureGeo
+impl core::marker::Unpin for geocoordinates::exif::CaptureGeo
+impl core::marker::UnsafeUnpin for geocoordinates::exif::CaptureGeo
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::CaptureGeo
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::CaptureGeo
+#[non_exhaustive] pub struct geocoordinates::exif::ExifGps
+pub geocoordinates::exif::ExifGps::altitude: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::exif::ExifGps::altitude_ref: core::option::Option<u8>
+pub geocoordinates::exif::ExifGps::date_stamp: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::ExifGps::dop: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::exif::ExifGps::h_positioning_error: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::exif::ExifGps::img_direction: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::exif::ExifGps::img_direction_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::ExifGps::latitude: core::option::Option<[geocoordinates::exif::ExifRational; 3]>
+pub geocoordinates::exif::ExifGps::latitude_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::ExifGps::longitude: core::option::Option<[geocoordinates::exif::ExifRational; 3]>
+pub geocoordinates::exif::ExifGps::longitude_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::ExifGps::map_datum: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::ExifGps::speed: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::exif::ExifGps::speed_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::ExifGps::time_stamp: core::option::Option<[geocoordinates::exif::ExifRational; 3]>
+pub geocoordinates::exif::ExifGps::track: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::exif::ExifGps::track_ref: core::option::Option<alloc::string::String>
+impl core::clone::Clone for geocoordinates::exif::ExifGps
+pub fn geocoordinates::exif::ExifGps::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::exif::ExifGps
+impl core::cmp::PartialEq for geocoordinates::exif::ExifGps
+pub fn geocoordinates::exif::ExifGps::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::exif::ExifGps
+pub fn geocoordinates::exif::ExifGps::default() -> Self
+impl core::fmt::Debug for geocoordinates::exif::ExifGps
+pub fn geocoordinates::exif::ExifGps::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::exif::ExifGps
+impl serde_core::ser::Serialize for geocoordinates::exif::ExifGps
+pub fn geocoordinates::exif::ExifGps::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::ExifGps where geocoordinates::exif::ExifGps: core::default::Default
+pub fn geocoordinates::exif::ExifGps::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::ExifGps
+impl core::marker::Send for geocoordinates::exif::ExifGps
+impl core::marker::Sync for geocoordinates::exif::ExifGps
+impl core::marker::Unpin for geocoordinates::exif::ExifGps
+impl core::marker::UnsafeUnpin for geocoordinates::exif::ExifGps
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::ExifGps
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::ExifGps
+#[non_exhaustive] pub struct geocoordinates::exif::ExifOptions
+pub geocoordinates::exif::ExifOptions::null_island: geocoordinates::exif::NullIslandPolicy
+impl geocoordinates::exif::ExifOptions
+pub const fn geocoordinates::exif::ExifOptions::new() -> Self
+pub const fn geocoordinates::exif::ExifOptions::with_null_island(self, geocoordinates::exif::NullIslandPolicy) -> Self
+impl core::clone::Clone for geocoordinates::exif::ExifOptions
+pub fn geocoordinates::exif::ExifOptions::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::exif::ExifOptions
+impl core::cmp::PartialEq for geocoordinates::exif::ExifOptions
+pub fn geocoordinates::exif::ExifOptions::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::exif::ExifOptions
+pub fn geocoordinates::exif::ExifOptions::default() -> Self
+impl core::fmt::Debug for geocoordinates::exif::ExifOptions
+pub fn geocoordinates::exif::ExifOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::exif::ExifOptions
+pub fn geocoordinates::exif::ExifOptions::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::exif::ExifOptions
+impl core::marker::StructuralPartialEq for geocoordinates::exif::ExifOptions
+impl serde_core::ser::Serialize for geocoordinates::exif::ExifOptions
+pub fn geocoordinates::exif::ExifOptions::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::ExifOptions where geocoordinates::exif::ExifOptions: core::default::Default
+pub fn geocoordinates::exif::ExifOptions::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::ExifOptions
+impl core::marker::Send for geocoordinates::exif::ExifOptions
+impl core::marker::Sync for geocoordinates::exif::ExifOptions
+impl core::marker::Unpin for geocoordinates::exif::ExifOptions
+impl core::marker::UnsafeUnpin for geocoordinates::exif::ExifOptions
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::ExifOptions
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::ExifOptions
+pub struct geocoordinates::exif::NorthBearing
+impl geocoordinates::exif::NorthBearing
+pub const fn geocoordinates::exif::NorthBearing::degrees(self) -> f64
+pub fn geocoordinates::exif::NorthBearing::new(f64, core::option::Option<geocoordinates::exif::NorthReference>) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::exif::NorthBearing::reference(self) -> core::option::Option<geocoordinates::exif::NorthReference>
+impl core::clone::Clone for geocoordinates::exif::NorthBearing
+pub fn geocoordinates::exif::NorthBearing::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::exif::NorthBearing
+pub fn geocoordinates::exif::NorthBearing::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::exif::NorthBearing
+pub fn geocoordinates::exif::NorthBearing::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::exif::NorthBearing
+impl core::marker::StructuralPartialEq for geocoordinates::exif::NorthBearing
+impl serde_core::ser::Serialize for geocoordinates::exif::NorthBearing
+pub fn geocoordinates::exif::NorthBearing::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::NorthBearing
+pub fn geocoordinates::exif::NorthBearing::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::NorthBearing
+impl core::marker::Send for geocoordinates::exif::NorthBearing
+impl core::marker::Sync for geocoordinates::exif::NorthBearing
+impl core::marker::Unpin for geocoordinates::exif::NorthBearing
+impl core::marker::UnsafeUnpin for geocoordinates::exif::NorthBearing
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::NorthBearing
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::NorthBearing
+#[non_exhaustive] pub struct geocoordinates::exif::XmpGps
+pub geocoordinates::exif::XmpGps::altitude: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::altitude_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::dop: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::h_positioning_error: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::img_direction: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::img_direction_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::latitude: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::longitude: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::map_datum: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::speed: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::speed_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::time_stamp: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::track: core::option::Option<alloc::string::String>
+pub geocoordinates::exif::XmpGps::track_ref: core::option::Option<alloc::string::String>
+impl core::clone::Clone for geocoordinates::exif::XmpGps
+pub fn geocoordinates::exif::XmpGps::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::exif::XmpGps
+impl core::cmp::PartialEq for geocoordinates::exif::XmpGps
+pub fn geocoordinates::exif::XmpGps::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::exif::XmpGps
+pub fn geocoordinates::exif::XmpGps::default() -> Self
+impl core::fmt::Debug for geocoordinates::exif::XmpGps
+pub fn geocoordinates::exif::XmpGps::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::exif::XmpGps
+impl serde_core::ser::Serialize for geocoordinates::exif::XmpGps
+pub fn geocoordinates::exif::XmpGps::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::XmpGps where geocoordinates::exif::XmpGps: core::default::Default
+pub fn geocoordinates::exif::XmpGps::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::XmpGps
+impl core::marker::Send for geocoordinates::exif::XmpGps
+impl core::marker::Sync for geocoordinates::exif::XmpGps
+impl core::marker::Unpin for geocoordinates::exif::XmpGps
+impl core::marker::UnsafeUnpin for geocoordinates::exif::XmpGps
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::XmpGps
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::XmpGps
+pub fn geocoordinates::exif::from_exif(&geocoordinates::exif::ExifGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
+pub fn geocoordinates::exif::from_exif_with(&geocoordinates::exif::ExifGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
+pub fn geocoordinates::exif::from_xmp(&geocoordinates::exif::XmpGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
+pub fn geocoordinates::exif::from_xmp_with(&geocoordinates::exif::XmpGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>

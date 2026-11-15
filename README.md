@@ -202,7 +202,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run version-check`    | Every crate and binding manifest ships the workspace version (`mise run version-sync` fixes npm) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
-| `mise run public-api-check` | Every public item has one path besides its prelude entry (pinned nightly rustdoc JSON) |
+| `mise run public-api-check` | Every public item has one path besides its prelude entry, no fewer items than the floor in `scripts/check_public_paths.py`, and the surface matches the snapshots in `public-api/` (pinned nightly rustdoc JSON, `cargo-public-api`) |
 | `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
 | `mise run index-test`       | Tests and doctests for the `index` feature alone; compiles its benchmark |
 | `mise run reverse-test`     | Tests and doctests for `reverse` and `reverse-bundled` alone and for the gazetteer build tool; compiles the benchmark |
@@ -220,7 +220,16 @@ Other common tasks:
 | ----------------------- | ------------------------------------- |
 | `cargo build`           | Build the crate                       |
 | `mise run check`        | Core gates: fmt-check + lint + test   |
+| `mise run public-api-snapshot` | Regenerate the public API snapshots in `public-api/` |
 | `mise run bindings`     | Generate FFI bindings (all languages) |
+
+A pull request that changes the public API runs `mise run public-api-snapshot`
+and commits the regenerated `public-api/` files in the same diff, so every
+intended change to the surface is a reviewable diff and an unintended one fails
+`public-api-check`. `public-api/geocoordinates/` is the surface with every
+feature on and `public-api/geocoordinates-default/` the surface with none, one
+file per public module. A change that removes public items also lowers
+`MIN_ITEMS` in `scripts/check_public_paths.py`.
 
 Each gate is defined once, in [`.mise.toml`](https://github.com/justin13888/geocoordinates-rs/blob/master/.mise.toml), and CI and the git hooks
 both invoke these same tasks, so no gate definition needs syncing by hand. Tool

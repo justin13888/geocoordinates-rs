@@ -1,0 +1,259 @@
+pub mod geocoordinates::geodesy
+pub enum geocoordinates::geodesy::GeodesicIntersection
+pub geocoordinates::geodesy::GeodesicIntersection::Crossing(geocoordinates::Coordinate)
+pub geocoordinates::geodesy::GeodesicIntersection::NoForwardCrossing
+pub geocoordinates::geodesy::GeodesicIntersection::SameGeodesic
+impl core::clone::Clone for geocoordinates::geodesy::GeodesicIntersection
+pub fn geocoordinates::geodesy::GeodesicIntersection::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::GeodesicIntersection
+pub fn geocoordinates::geodesy::GeodesicIntersection::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::GeodesicIntersection
+pub fn geocoordinates::geodesy::GeodesicIntersection::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::GeodesicIntersection
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::GeodesicIntersection
+impl core::marker::Freeze for geocoordinates::geodesy::GeodesicIntersection
+impl core::marker::Send for geocoordinates::geodesy::GeodesicIntersection
+impl core::marker::Sync for geocoordinates::geodesy::GeodesicIntersection
+impl core::marker::Unpin for geocoordinates::geodesy::GeodesicIntersection
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::GeodesicIntersection
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::GeodesicIntersection
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::GeodesicIntersection
+pub enum geocoordinates::geodesy::Intersection
+pub geocoordinates::geodesy::Intersection::Crossing(geocoordinates::Coordinate)
+pub geocoordinates::geodesy::Intersection::NoForwardCrossing
+pub geocoordinates::geodesy::Intersection::SameGreatCircle
+impl core::clone::Clone for geocoordinates::geodesy::Intersection
+pub fn geocoordinates::geodesy::Intersection::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::Intersection
+pub fn geocoordinates::geodesy::Intersection::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::Intersection
+pub fn geocoordinates::geodesy::Intersection::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::Intersection
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Intersection
+impl core::marker::Freeze for geocoordinates::geodesy::Intersection
+impl core::marker::Send for geocoordinates::geodesy::Intersection
+impl core::marker::Sync for geocoordinates::geodesy::Intersection
+impl core::marker::Unpin for geocoordinates::geodesy::Intersection
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Intersection
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Intersection
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Intersection
+pub struct geocoordinates::geodesy::Aer
+impl geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::azimuth_deg(&self) -> f64
+pub fn geocoordinates::geodesy::Aer::elevation_deg(&self) -> f64
+pub fn geocoordinates::geodesy::Aer::new(f64, f64, geocoordinates::Length) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::Aer::range(&self) -> geocoordinates::Length
+pub fn geocoordinates::geodesy::Aer::to_enu(self) -> geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Aer::to_ned(self) -> geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Aer::try_from_coordinate(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::Aer::try_to_coordinate(self, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
+impl core::clone::Clone for geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::geodesy::Aer> for geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::from(geocoordinates::geodesy::Aer) -> geocoordinates::geodesy::Enu
+impl core::convert::From<geocoordinates::geodesy::Aer> for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::from(geocoordinates::geodesy::Aer) -> geocoordinates::geodesy::Ned
+impl core::convert::From<geocoordinates::geodesy::Enu> for geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::from(geocoordinates::geodesy::Enu) -> geocoordinates::geodesy::Aer
+impl core::convert::From<geocoordinates::geodesy::Ned> for geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::from(geocoordinates::geodesy::Ned) -> geocoordinates::geodesy::Aer
+impl core::fmt::Debug for geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::Aer
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Aer
+impl core::marker::Freeze for geocoordinates::geodesy::Aer
+impl core::marker::Send for geocoordinates::geodesy::Aer
+impl core::marker::Sync for geocoordinates::geodesy::Aer
+impl core::marker::Unpin for geocoordinates::geodesy::Aer
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Aer
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Aer
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Aer
+pub struct geocoordinates::geodesy::DatumTransform
+impl geocoordinates::geodesy::DatumTransform
+pub fn geocoordinates::geodesy::DatumTransform::accuracy(&self) -> core::option::Option<geocoordinates::Length>
+pub fn geocoordinates::geodesy::DatumTransform::apply(&self, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::geodesy::DatumTransform::catalog_to_wgs84(geocoordinates::Crs) -> core::option::Option<geocoordinates::geodesy::DatumTransform>
+pub fn geocoordinates::geodesy::DatumTransform::from_crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::geodesy::DatumTransform::helmert(&self) -> geocoordinates::geodesy::Helmert
+pub fn geocoordinates::geodesy::DatumTransform::inverse_first_order(&self) -> geocoordinates::geodesy::DatumTransform
+pub fn geocoordinates::geodesy::DatumTransform::new(geocoordinates::Crs, geocoordinates::Crs, geocoordinates::geodesy::Helmert, core::option::Option<geocoordinates::Length>) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::DatumTransform::to_crs(&self) -> geocoordinates::Crs
+impl core::clone::Clone for geocoordinates::geodesy::DatumTransform
+pub fn geocoordinates::geodesy::DatumTransform::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::DatumTransform
+pub fn geocoordinates::geodesy::DatumTransform::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::DatumTransform
+pub fn geocoordinates::geodesy::DatumTransform::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::DatumTransform
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::DatumTransform
+impl core::marker::Freeze for geocoordinates::geodesy::DatumTransform
+impl core::marker::Send for geocoordinates::geodesy::DatumTransform
+impl core::marker::Sync for geocoordinates::geodesy::DatumTransform
+impl core::marker::Unpin for geocoordinates::geodesy::DatumTransform
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::DatumTransform
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::DatumTransform
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::DatumTransform
+pub struct geocoordinates::geodesy::Ecef
+pub geocoordinates::geodesy::Ecef::x_m: f64
+pub geocoordinates::geodesy::Ecef::y_m: f64
+pub geocoordinates::geodesy::Ecef::z_m: f64
+impl geocoordinates::geodesy::Ecef
+pub fn geocoordinates::geodesy::Ecef::new(f64, f64, f64) -> Self
+pub fn geocoordinates::geodesy::Ecef::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::Ecef::try_to_coordinate(self, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Coordinate>
+impl core::clone::Clone for geocoordinates::geodesy::Ecef
+pub fn geocoordinates::geodesy::Ecef::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::Ecef
+pub fn geocoordinates::geodesy::Ecef::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::Ecef
+pub fn geocoordinates::geodesy::Ecef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::Ecef
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Ecef
+impl core::marker::Freeze for geocoordinates::geodesy::Ecef
+impl core::marker::Send for geocoordinates::geodesy::Ecef
+impl core::marker::Sync for geocoordinates::geodesy::Ecef
+impl core::marker::Unpin for geocoordinates::geodesy::Ecef
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Ecef
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Ecef
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Ecef
+pub struct geocoordinates::geodesy::Ellipsoid
+impl geocoordinates::geodesy::Ellipsoid
+pub const geocoordinates::geodesy::Ellipsoid::AIRY_1830: geocoordinates::geodesy::Ellipsoid
+pub const geocoordinates::geodesy::Ellipsoid::BESSEL_1841: geocoordinates::geodesy::Ellipsoid
+pub const geocoordinates::geodesy::Ellipsoid::CLARKE_1866: geocoordinates::geodesy::Ellipsoid
+pub const geocoordinates::geodesy::Ellipsoid::GRS80: geocoordinates::geodesy::Ellipsoid
+pub const geocoordinates::geodesy::Ellipsoid::KRASOVSKY_1940: geocoordinates::geodesy::Ellipsoid
+pub const geocoordinates::geodesy::Ellipsoid::WGS84: geocoordinates::geodesy::Ellipsoid
+pub const fn geocoordinates::geodesy::Ellipsoid::eccentricity_sq(&self) -> f64
+pub const fn geocoordinates::geodesy::Ellipsoid::flattening(&self) -> f64
+pub const fn geocoordinates::geodesy::Ellipsoid::for_crs(geocoordinates::Crs) -> core::option::Option<geocoordinates::geodesy::Ellipsoid>
+pub const fn geocoordinates::geodesy::Ellipsoid::inverse_flattening(&self) -> f64
+pub fn geocoordinates::geodesy::Ellipsoid::new(geocoordinates::Length, f64) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::geodesy::Ellipsoid::semi_major(&self) -> geocoordinates::Length
+pub const fn geocoordinates::geodesy::Ellipsoid::semi_minor(&self) -> geocoordinates::Length
+impl core::clone::Clone for geocoordinates::geodesy::Ellipsoid
+pub fn geocoordinates::geodesy::Ellipsoid::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::Ellipsoid
+pub fn geocoordinates::geodesy::Ellipsoid::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::Ellipsoid
+pub fn geocoordinates::geodesy::Ellipsoid::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::Ellipsoid
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Ellipsoid
+impl core::marker::Freeze for geocoordinates::geodesy::Ellipsoid
+impl core::marker::Send for geocoordinates::geodesy::Ellipsoid
+impl core::marker::Sync for geocoordinates::geodesy::Ellipsoid
+impl core::marker::Unpin for geocoordinates::geodesy::Ellipsoid
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Ellipsoid
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Ellipsoid
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Ellipsoid
+pub struct geocoordinates::geodesy::Enu
+impl geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::east_m(&self) -> f64
+pub fn geocoordinates::geodesy::Enu::new(f64, f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::Enu::north_m(&self) -> f64
+pub fn geocoordinates::geodesy::Enu::to_aer(self) -> geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Enu::to_ned(self) -> geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Enu::try_from_coordinate(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::Enu::try_to_coordinate(self, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::geodesy::Enu::up_m(&self) -> f64
+impl core::clone::Clone for geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::geodesy::Aer> for geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::from(geocoordinates::geodesy::Aer) -> geocoordinates::geodesy::Enu
+impl core::convert::From<geocoordinates::geodesy::Enu> for geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::from(geocoordinates::geodesy::Enu) -> geocoordinates::geodesy::Aer
+impl core::convert::From<geocoordinates::geodesy::Enu> for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::from(geocoordinates::geodesy::Enu) -> geocoordinates::geodesy::Ned
+impl core::convert::From<geocoordinates::geodesy::Ned> for geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::from(geocoordinates::geodesy::Ned) -> geocoordinates::geodesy::Enu
+impl core::fmt::Debug for geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::Enu
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Enu
+impl core::marker::Freeze for geocoordinates::geodesy::Enu
+impl core::marker::Send for geocoordinates::geodesy::Enu
+impl core::marker::Sync for geocoordinates::geodesy::Enu
+impl core::marker::Unpin for geocoordinates::geodesy::Enu
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Enu
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Enu
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Enu
+pub struct geocoordinates::geodesy::Helmert
+pub geocoordinates::geodesy::Helmert::rx_arcsec: f64
+pub geocoordinates::geodesy::Helmert::ry_arcsec: f64
+pub geocoordinates::geodesy::Helmert::rz_arcsec: f64
+pub geocoordinates::geodesy::Helmert::scale_ppm: f64
+pub geocoordinates::geodesy::Helmert::tx_m: f64
+pub geocoordinates::geodesy::Helmert::ty_m: f64
+pub geocoordinates::geodesy::Helmert::tz_m: f64
+impl geocoordinates::geodesy::Helmert
+pub const geocoordinates::geodesy::Helmert::IDENTITY: geocoordinates::geodesy::Helmert
+pub fn geocoordinates::geodesy::Helmert::apply_ecef(&self, geocoordinates::geodesy::Ecef) -> geocoordinates::geodesy::Ecef
+pub fn geocoordinates::geodesy::Helmert::inverse_first_order(&self) -> geocoordinates::geodesy::Helmert
+impl core::clone::Clone for geocoordinates::geodesy::Helmert
+pub fn geocoordinates::geodesy::Helmert::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::Helmert
+pub fn geocoordinates::geodesy::Helmert::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::geodesy::Helmert
+pub fn geocoordinates::geodesy::Helmert::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::Helmert
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Helmert
+impl core::marker::Freeze for geocoordinates::geodesy::Helmert
+impl core::marker::Send for geocoordinates::geodesy::Helmert
+impl core::marker::Sync for geocoordinates::geodesy::Helmert
+impl core::marker::Unpin for geocoordinates::geodesy::Helmert
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Helmert
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Helmert
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Helmert
+pub struct geocoordinates::geodesy::Ned
+impl geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::down_m(&self) -> f64
+pub fn geocoordinates::geodesy::Ned::east_m(&self) -> f64
+pub fn geocoordinates::geodesy::Ned::new(f64, f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::Ned::north_m(&self) -> f64
+pub fn geocoordinates::geodesy::Ned::to_aer(self) -> geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Ned::to_enu(self) -> geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Ned::try_from_coordinate(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::Ned::try_to_coordinate(self, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
+impl core::clone::Clone for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::geodesy::Aer> for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::from(geocoordinates::geodesy::Aer) -> geocoordinates::geodesy::Ned
+impl core::convert::From<geocoordinates::geodesy::Enu> for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::from(geocoordinates::geodesy::Enu) -> geocoordinates::geodesy::Ned
+impl core::convert::From<geocoordinates::geodesy::Ned> for geocoordinates::geodesy::Aer
+pub fn geocoordinates::geodesy::Aer::from(geocoordinates::geodesy::Ned) -> geocoordinates::geodesy::Aer
+impl core::convert::From<geocoordinates::geodesy::Ned> for geocoordinates::geodesy::Enu
+pub fn geocoordinates::geodesy::Enu::from(geocoordinates::geodesy::Ned) -> geocoordinates::geodesy::Enu
+impl core::fmt::Debug for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::Ned::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::Ned
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::Ned
+impl core::marker::Freeze for geocoordinates::geodesy::Ned
+impl core::marker::Send for geocoordinates::geodesy::Ned
+impl core::marker::Sync for geocoordinates::geodesy::Ned
+impl core::marker::Unpin for geocoordinates::geodesy::Ned
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::Ned
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Ned
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Ned
+pub fn geocoordinates::geodesy::along_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::geodesy::along_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::geodesy::cross_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::geodesy::cross_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::geodesy::destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::geodesy::final_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
+pub fn geocoordinates::geodesy::geodesic_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::geodesy::haversine_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::geodesy::initial_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
+pub fn geocoordinates::geodesy::intermediate(geocoordinates::Coordinate, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::geodesy::intersection(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::GeodesicIntersection>
+pub fn geocoordinates::geodesy::intersection_spherical(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::Intersection>
+pub fn geocoordinates::geodesy::midpoint(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::geodesy::rhumb_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
+pub fn geocoordinates::geodesy::rhumb_destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::geodesy::rhumb_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>

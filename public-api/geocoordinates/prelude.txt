@@ -1,0 +1,324 @@
+pub mod geocoordinates::prelude
+pub enum geocoordinates::prelude::AccuracyKind
+pub geocoordinates::prelude::AccuracyKind::Bound
+pub geocoordinates::prelude::AccuracyKind::Cep50
+pub geocoordinates::prelude::AccuracyKind::OneSigma
+pub geocoordinates::prelude::AccuracyKind::Unspecified
+pub enum geocoordinates::prelude::Axis
+pub geocoordinates::prelude::Axis::Latitude
+pub geocoordinates::prelude::Axis::Longitude
+pub enum geocoordinates::prelude::AxisOrder
+pub geocoordinates::prelude::AxisOrder::LatLon
+pub geocoordinates::prelude::AxisOrder::LonLat
+pub enum geocoordinates::prelude::Crs
+pub geocoordinates::prelude::Crs::Bd09
+pub geocoordinates::prelude::Crs::Gcj02
+pub geocoordinates::prelude::Crs::Nad27
+pub geocoordinates::prelude::Crs::Pulkovo42
+pub geocoordinates::prelude::Crs::Tokyo
+pub geocoordinates::prelude::Crs::Wgs84
+pub enum geocoordinates::prelude::DatumAmbiguity
+pub geocoordinates::prelude::DatumAmbiguity::PossiblyGcj02
+pub enum geocoordinates::prelude::DecimalSeparator
+pub geocoordinates::prelude::DecimalSeparator::Comma
+pub geocoordinates::prelude::DecimalSeparator::Point
+pub enum geocoordinates::prelude::DisplayDatum
+pub geocoordinates::prelude::DisplayDatum::Gcj02
+pub geocoordinates::prelude::DisplayDatum::Wgs84
+#[non_exhaustive] pub enum geocoordinates::prelude::Error
+pub geocoordinates::prelude::Error::CrsMismatch
+pub geocoordinates::prelude::Error::CrsMismatch::expected: geocoordinates::Crs
+pub geocoordinates::prelude::Error::CrsMismatch::found: geocoordinates::Crs
+pub geocoordinates::prelude::Error::InvalidCellId
+pub geocoordinates::prelude::Error::InvalidCellId::grid: &'static str
+pub geocoordinates::prelude::Error::InvalidCellId::value: u64
+pub geocoordinates::prelude::Error::InvalidGridRef(alloc::string::String)
+pub geocoordinates::prelude::Error::InvalidValue
+pub geocoordinates::prelude::Error::InvalidValue::detail: alloc::string::String
+pub geocoordinates::prelude::Error::InvalidValue::field: &'static str
+pub geocoordinates::prelude::Error::OutOfRange
+pub geocoordinates::prelude::Error::OutOfRange::lat: f64
+pub geocoordinates::prelude::Error::OutOfRange::lon: f64
+pub geocoordinates::prelude::Error::OutsideDomain
+pub geocoordinates::prelude::Error::OutsideDomain::lat: f64
+pub geocoordinates::prelude::Error::OutsideDomain::lon: f64
+pub geocoordinates::prelude::Error::OutsideDomain::operation: &'static str
+pub geocoordinates::prelude::Error::Parse
+pub geocoordinates::prelude::Error::Parse::detail: alloc::string::String
+pub geocoordinates::prelude::Error::Parse::kind: geocoordinates::ParseErrorKind
+pub enum geocoordinates::prelude::ExifRational
+pub geocoordinates::prelude::ExifRational::Signed(i32, i32)
+pub geocoordinates::prelude::ExifRational::Unsigned(u32, u32)
+pub enum geocoordinates::prelude::FeatureClass
+pub geocoordinates::prelude::FeatureClass::Admin1Seat
+pub geocoordinates::prelude::FeatureClass::Admin2Seat
+pub geocoordinates::prelude::FeatureClass::Admin3Seat
+pub geocoordinates::prelude::FeatureClass::Admin4Seat
+pub geocoordinates::prelude::FeatureClass::Capital
+pub geocoordinates::prelude::FeatureClass::Locality
+pub geocoordinates::prelude::FeatureClass::Section
+pub enum geocoordinates::prelude::GeodesicIntersection
+pub geocoordinates::prelude::GeodesicIntersection::Crossing(geocoordinates::Coordinate)
+pub geocoordinates::prelude::GeodesicIntersection::NoForwardCrossing
+pub geocoordinates::prelude::GeodesicIntersection::SameGeodesic
+pub enum geocoordinates::prelude::GridKind
+pub geocoordinates::prelude::GridKind::Geohash
+pub geocoordinates::prelude::GridKind::Maidenhead
+pub geocoordinates::prelude::GridKind::Mgrs
+pub geocoordinates::prelude::GridKind::PlusCode
+pub enum geocoordinates::prelude::Height
+pub geocoordinates::prelude::Height::Ellipsoidal(f64)
+pub geocoordinates::prelude::Height::Orthometric(f64)
+pub enum geocoordinates::prelude::Hemisphere
+pub geocoordinates::prelude::Hemisphere::East
+pub geocoordinates::prelude::Hemisphere::North
+pub geocoordinates::prelude::Hemisphere::South
+pub geocoordinates::prelude::Hemisphere::West
+pub enum geocoordinates::prelude::HemisphereStyle
+pub geocoordinates::prelude::HemisphereStyle::Cardinal
+pub geocoordinates::prelude::HemisphereStyle::Signed
+pub enum geocoordinates::prelude::Interpolation
+pub geocoordinates::prelude::Interpolation::Geodesic
+pub geocoordinates::prelude::Interpolation::Nearest
+pub enum geocoordinates::prelude::Intersection
+pub geocoordinates::prelude::Intersection::Crossing(geocoordinates::Coordinate)
+pub geocoordinates::prelude::Intersection::NoForwardCrossing
+pub geocoordinates::prelude::Intersection::SameGreatCircle
+pub enum geocoordinates::prelude::LengthUnit
+pub geocoordinates::prelude::LengthUnit::Foot
+pub geocoordinates::prelude::LengthUnit::Kilometer
+pub geocoordinates::prelude::LengthUnit::Meter
+pub geocoordinates::prelude::LengthUnit::Mile
+pub geocoordinates::prelude::LengthUnit::NauticalMile
+pub geocoordinates::prelude::LengthUnit::UsSurveyFoot
+pub geocoordinates::prelude::LengthUnit::Yard
+pub enum geocoordinates::prelude::MgrsPrecision
+pub geocoordinates::prelude::MgrsPrecision::Km1
+pub geocoordinates::prelude::MgrsPrecision::Km10
+pub geocoordinates::prelude::MgrsPrecision::Km100
+pub geocoordinates::prelude::MgrsPrecision::M1
+pub geocoordinates::prelude::MgrsPrecision::M10
+pub geocoordinates::prelude::MgrsPrecision::M100
+pub enum geocoordinates::prelude::NorthReference
+pub geocoordinates::prelude::NorthReference::Magnetic
+pub geocoordinates::prelude::NorthReference::True
+pub enum geocoordinates::prelude::NullIslandPolicy
+pub geocoordinates::prelude::NullIslandPolicy::Accept
+pub geocoordinates::prelude::NullIslandPolicy::Reject
+pub enum geocoordinates::prelude::PointLabel
+pub geocoordinates::prelude::PointLabel::Cluster
+pub geocoordinates::prelude::PointLabel::Cluster::id: usize
+pub geocoordinates::prelude::PointLabel::Noise
+pub enum geocoordinates::prelude::Representation
+pub geocoordinates::prelude::Representation::Ddm
+pub geocoordinates::prelude::Representation::Ddm::hemisphere: geocoordinates::format::HemisphereStyle
+pub geocoordinates::prelude::Representation::Ddm::minute_decimals: core::option::Option<u8>
+pub geocoordinates::prelude::Representation::Ddm::symbols: geocoordinates::format::SymbolStyle
+pub geocoordinates::prelude::Representation::DecimalDegrees
+pub geocoordinates::prelude::Representation::DecimalDegrees::decimals: core::option::Option<u8>
+pub geocoordinates::prelude::Representation::DecimalDegrees::hemisphere: geocoordinates::format::HemisphereStyle
+pub geocoordinates::prelude::Representation::Dms
+pub geocoordinates::prelude::Representation::Dms::hemisphere: geocoordinates::format::HemisphereStyle
+pub geocoordinates::prelude::Representation::Dms::second_decimals: core::option::Option<u8>
+pub geocoordinates::prelude::Representation::Dms::symbols: geocoordinates::format::SymbolStyle
+pub geocoordinates::prelude::Representation::Geohash
+pub geocoordinates::prelude::Representation::Geohash::length: u8
+pub geocoordinates::prelude::Representation::Maidenhead
+pub geocoordinates::prelude::Representation::Maidenhead::pairs: u8
+pub geocoordinates::prelude::Representation::Mgrs
+pub geocoordinates::prelude::Representation::Mgrs::precision: geocoordinates::grids::MgrsPrecision
+pub geocoordinates::prelude::Representation::PlusCode
+pub geocoordinates::prelude::Representation::PlusCode::length: u8
+pub enum geocoordinates::prelude::SnapGrid
+pub geocoordinates::prelude::SnapGrid::Geohash
+pub geocoordinates::prelude::SnapGrid::H3
+pub geocoordinates::prelude::SnapGrid::S2
+pub enum geocoordinates::prelude::SymbolStyle
+pub geocoordinates::prelude::SymbolStyle::Ascii
+pub geocoordinates::prelude::SymbolStyle::Letters
+pub geocoordinates::prelude::SymbolStyle::Unicode
+pub enum geocoordinates::prelude::UtmHemisphere
+pub geocoordinates::prelude::UtmHemisphere::North
+pub geocoordinates::prelude::UtmHemisphere::South
+pub enum geocoordinates::prelude::ZoneAction
+pub geocoordinates::prelude::ZoneAction::Coarsen(geocoordinates::privacy::Precision)
+pub geocoordinates::prelude::ZoneAction::Strip
+pub struct geocoordinates::prelude::Accuracy
+pub struct geocoordinates::prelude::Aer
+pub struct geocoordinates::prelude::Approx<T>
+pub struct geocoordinates::prelude::BaiduMercator
+pub struct geocoordinates::prelude::Bd09
+pub struct geocoordinates::prelude::Camera
+#[non_exhaustive] pub struct geocoordinates::prelude::CaptureGeo
+pub geocoordinates::prelude::CaptureGeo::direction: core::option::Option<geocoordinates::exif::NorthBearing>
+pub geocoordinates::prelude::CaptureGeo::dop: core::option::Option<f64>
+pub geocoordinates::prelude::CaptureGeo::fix: geocoordinates::fix::Fix
+pub geocoordinates::prelude::CaptureGeo::speed_mps: core::option::Option<f64>
+pub geocoordinates::prelude::CaptureGeo::track: core::option::Option<geocoordinates::exif::NorthBearing>
+pub struct geocoordinates::prelude::Cluster
+pub struct geocoordinates::prelude::ClusterIndex
+#[non_exhaustive] pub struct geocoordinates::prelude::ClusterIndexOptions
+pub geocoordinates::prelude::ClusterIndexOptions::radius_px: f64
+pub geocoordinates::prelude::ClusterIndexOptions::tile_px: f64
+pub struct geocoordinates::prelude::Confidence(_)
+pub struct geocoordinates::prelude::Coordinate
+pub struct geocoordinates::prelude::DatumTransform
+pub struct geocoordinates::prelude::Dbscan
+pub struct geocoordinates::prelude::Ddm
+pub struct geocoordinates::prelude::Dms
+pub struct geocoordinates::prelude::Ecef
+pub geocoordinates::prelude::Ecef::x_m: f64
+pub geocoordinates::prelude::Ecef::y_m: f64
+pub geocoordinates::prelude::Ecef::z_m: f64
+pub struct geocoordinates::prelude::Ellipsoid
+pub struct geocoordinates::prelude::Enu
+pub struct geocoordinates::prelude::ExclusionZone
+#[non_exhaustive] pub struct geocoordinates::prelude::ExifGps
+pub geocoordinates::prelude::ExifGps::altitude: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::prelude::ExifGps::altitude_ref: core::option::Option<u8>
+pub geocoordinates::prelude::ExifGps::date_stamp: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::ExifGps::dop: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::prelude::ExifGps::h_positioning_error: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::prelude::ExifGps::img_direction: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::prelude::ExifGps::img_direction_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::ExifGps::latitude: core::option::Option<[geocoordinates::exif::ExifRational; 3]>
+pub geocoordinates::prelude::ExifGps::latitude_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::ExifGps::longitude: core::option::Option<[geocoordinates::exif::ExifRational; 3]>
+pub geocoordinates::prelude::ExifGps::longitude_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::ExifGps::map_datum: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::ExifGps::speed: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::prelude::ExifGps::speed_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::ExifGps::time_stamp: core::option::Option<[geocoordinates::exif::ExifRational; 3]>
+pub geocoordinates::prelude::ExifGps::track: core::option::Option<geocoordinates::exif::ExifRational>
+pub geocoordinates::prelude::ExifGps::track_ref: core::option::Option<alloc::string::String>
+#[non_exhaustive] pub struct geocoordinates::prelude::ExifOptions
+pub geocoordinates::prelude::ExifOptions::null_island: geocoordinates::exif::NullIslandPolicy
+#[non_exhaustive] pub struct geocoordinates::prelude::Fix
+pub geocoordinates::prelude::Fix::accuracy: core::option::Option<geocoordinates::fix::Accuracy>
+pub geocoordinates::prelude::Fix::coord: geocoordinates::Coordinate
+pub geocoordinates::prelude::Fix::source: core::option::Option<geocoordinates::fix::RawSource>
+pub geocoordinates::prelude::Fix::timestamp: core::option::Option<std::time::SystemTime>
+#[non_exhaustive] pub struct geocoordinates::prelude::FormatOptions
+pub geocoordinates::prelude::FormatOptions::decimal_separator: geocoordinates::format::DecimalSeparator
+pub geocoordinates::prelude::FormatOptions::representation: geocoordinates::format::Representation
+pub struct geocoordinates::prelude::Gazetteer
+pub struct geocoordinates::prelude::Gcj02
+pub struct geocoordinates::prelude::GeoBounds
+pub struct geocoordinates::prelude::Geohash(_)
+#[non_exhaustive] pub struct geocoordinates::prelude::GeotagOptions
+pub geocoordinates::prelude::GeotagOptions::clock_offset_ms: i64
+pub geocoordinates::prelude::GeotagOptions::interpolation: geocoordinates::geotag::Interpolation
+pub geocoordinates::prelude::GeotagOptions::max_extrapolation: core::time::Duration
+pub geocoordinates::prelude::GeotagOptions::max_gap: core::time::Duration
+pub geocoordinates::prelude::GeotagOptions::max_speed_mps: f64
+pub struct geocoordinates::prelude::GridBucket
+pub struct geocoordinates::prelude::Helmert
+pub geocoordinates::prelude::Helmert::rx_arcsec: f64
+pub geocoordinates::prelude::Helmert::ry_arcsec: f64
+pub geocoordinates::prelude::Helmert::rz_arcsec: f64
+pub geocoordinates::prelude::Helmert::scale_ppm: f64
+pub geocoordinates::prelude::Helmert::tx_m: f64
+pub geocoordinates::prelude::Helmert::ty_m: f64
+pub geocoordinates::prelude::Helmert::tz_m: f64
+pub struct geocoordinates::prelude::Length
+pub struct geocoordinates::prelude::Maidenhead(_)
+pub struct geocoordinates::prelude::MapCluster
+pub struct geocoordinates::prelude::Mgrs
+pub struct geocoordinates::prelude::Ned
+pub struct geocoordinates::prelude::Neighbor<'a, T>
+pub struct geocoordinates::prelude::NorthBearing
+#[non_exhaustive] pub struct geocoordinates::prelude::ParseOptions
+pub geocoordinates::prelude::ParseOptions::decimal_separator: geocoordinates::format::DecimalSeparator
+pub geocoordinates::prelude::ParseOptions::default_axis_order: geocoordinates::fix::AxisOrder
+pub geocoordinates::prelude::ParseOptions::expect_grid: core::option::Option<geocoordinates::parse::GridKind>
+pub struct geocoordinates::prelude::Place
+pub struct geocoordinates::prelude::PlusCode(_)
+pub struct geocoordinates::prelude::Precision
+#[non_exhaustive] pub struct geocoordinates::prelude::RawSource
+pub geocoordinates::prelude::RawSource::axis_order: core::option::Option<geocoordinates::fix::AxisOrder>
+pub geocoordinates::prelude::RawSource::confidence: geocoordinates::fix::Confidence
+pub geocoordinates::prelude::RawSource::datum_ambiguity: core::option::Option<geocoordinates::fix::DatumAmbiguity>
+pub geocoordinates::prelude::RawSource::geoid_separation: core::option::Option<geocoordinates::Length>
+pub geocoordinates::prelude::RawSource::notes: alloc::vec::Vec<alloc::string::String>
+pub geocoordinates::prelude::RawSource::raw: alloc::string::String
+#[non_exhaustive] pub struct geocoordinates::prelude::ReverseOptions
+pub geocoordinates::prelude::ReverseOptions::languages: alloc::vec::Vec<alloc::string::String>
+pub geocoordinates::prelude::ReverseOptions::max_distance: geocoordinates::Length
+pub geocoordinates::prelude::ReverseOptions::min_feature_class: core::option::Option<geocoordinates::reverse::FeatureClass>
+pub geocoordinates::prelude::ReverseOptions::min_population: u64
+pub struct geocoordinates::prelude::SpatialIndex<T>
+pub struct geocoordinates::prelude::Tile
+pub struct geocoordinates::prelude::Track
+pub struct geocoordinates::prelude::Trip
+pub struct geocoordinates::prelude::Ups
+pub struct geocoordinates::prelude::Utm
+pub struct geocoordinates::prelude::Viewport
+pub struct geocoordinates::prelude::Visit
+pub struct geocoordinates::prelude::WebMercator
+pub struct geocoordinates::prelude::Wgs84
+pub struct geocoordinates::prelude::WorldPixel
+pub geocoordinates::prelude::WorldPixel::x: f64
+pub geocoordinates::prelude::WorldPixel::y: f64
+#[non_exhaustive] pub struct geocoordinates::prelude::XmpGps
+pub geocoordinates::prelude::XmpGps::altitude: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::altitude_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::dop: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::h_positioning_error: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::img_direction: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::img_direction_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::latitude: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::longitude: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::map_datum: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::speed: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::speed_ref: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::time_stamp: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::track: core::option::Option<alloc::string::String>
+pub geocoordinates::prelude::XmpGps::track_ref: core::option::Option<alloc::string::String>
+pub trait geocoordinates::prelude::LatLon: geocoordinates::coord::sealed::Sealed + core::marker::Copy
+pub fn geocoordinates::prelude::LatLon::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::prelude::LatLon::lat(&self) -> f64
+pub fn geocoordinates::prelude::LatLon::lon(&self) -> f64
+pub trait geocoordinates::prelude::ReverseGeocoder
+pub fn geocoordinates::prelude::ReverseGeocoder::reverse(&self, geocoordinates::Coordinate, &geocoordinates::reverse::ReverseOptions) -> geocoordinates::Result<core::option::Option<geocoordinates::reverse::Place>>
+pub fn geocoordinates::prelude::along_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::prelude::along_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::prelude::apply(geocoordinates::fix::Fix, &[geocoordinates::privacy::ExclusionZone], geocoordinates::privacy::ZoneAction) -> geocoordinates::Result<core::option::Option<geocoordinates::fix::Fix>>
+pub fn geocoordinates::prelude::bucket_by_geohash(&[geocoordinates::Coordinate], u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::GridBucket>>
+pub fn geocoordinates::prelude::bucket_by_h3(&[geocoordinates::Coordinate], u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::GridBucket>>
+pub fn geocoordinates::prelude::centroid(&[geocoordinates::Coordinate]) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
+pub fn geocoordinates::prelude::clusters_in_view(&geocoordinates::cluster::ClusterIndex, geocoordinates::index::GeoBounds, f64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
+pub fn geocoordinates::prelude::clusters_to_geojson(&geocoordinates::cluster::ClusterIndex, &[geocoordinates::cluster::MapCluster], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::prelude::coarsen(geocoordinates::Coordinate, geocoordinates::privacy::Precision) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::prelude::convert(geocoordinates::Coordinate, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
+pub fn geocoordinates::prelude::cross_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::prelude::cross_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::prelude::dbscan(&[geocoordinates::Coordinate], geocoordinates::Length, usize) -> geocoordinates::Result<geocoordinates::cluster::Dbscan>
+pub fn geocoordinates::prelude::destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::prelude::display_coordinate(geocoordinates::Coordinate, geocoordinates::map::DisplayDatum) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::prelude::estimate_offset(&geocoordinates::geotag::Track, &[(std::time::SystemTime, geocoordinates::Coordinate)]) -> geocoordinates::Result<i64>
+pub fn geocoordinates::prelude::final_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
+pub fn geocoordinates::prelude::fit_bounds(geocoordinates::index::GeoBounds, geocoordinates::map::Viewport, f64, f64) -> geocoordinates::Result<geocoordinates::map::Camera>
+pub fn geocoordinates::prelude::format(geocoordinates::Coordinate, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::prelude::format_fix(&geocoordinates::fix::Fix, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::prelude::from_exif(&geocoordinates::exif::ExifGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
+pub fn geocoordinates::prelude::from_exif_with(&geocoordinates::exif::ExifGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
+pub fn geocoordinates::prelude::from_xmp(&geocoordinates::exif::XmpGps) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
+pub fn geocoordinates::prelude::from_xmp_with(&geocoordinates::exif::XmpGps, geocoordinates::exif::ExifOptions) -> geocoordinates::Result<geocoordinates::exif::CaptureGeo>
+pub fn geocoordinates::prelude::geodesic_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::prelude::haversine_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::prelude::initial_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
+pub fn geocoordinates::prelude::intermediate(geocoordinates::Coordinate, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::prelude::intersection(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::GeodesicIntersection>
+pub fn geocoordinates::prelude::intersection_spherical(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::Intersection>
+pub fn geocoordinates::prelude::midpoint(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::prelude::parse_coordinate(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::prelude::parse_coordinate_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::prelude::points_to_geojson(&[geocoordinates::Coordinate], geocoordinates::map::DisplayDatum) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::prelude::rhumb_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
+pub fn geocoordinates::prelude::rhumb_destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::prelude::rhumb_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
+pub fn geocoordinates::prelude::segment_trips(&[geocoordinates::cluster::Visit], core::time::Duration) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::Trip>>
+pub fn geocoordinates::prelude::segment_visits(&[geocoordinates::fix::Fix], geocoordinates::Length, core::time::Duration) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::Visit>>
+pub fn geocoordinates::prelude::tap_to_wgs84(geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
+pub fn geocoordinates::prelude::tiles_covering(geocoordinates::index::GeoBounds, u8, usize) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::map::Tile>>
+pub fn geocoordinates::prelude::viewport_bounds(geocoordinates::map::Camera, geocoordinates::map::Viewport) -> geocoordinates::Result<geocoordinates::index::GeoBounds>

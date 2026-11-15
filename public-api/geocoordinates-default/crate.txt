@@ -1,0 +1,271 @@
+pub mod geocoordinates
+pub enum geocoordinates::Crs
+pub geocoordinates::Crs::Bd09
+pub geocoordinates::Crs::Gcj02
+pub geocoordinates::Crs::Nad27
+pub geocoordinates::Crs::Pulkovo42
+pub geocoordinates::Crs::Tokyo
+pub geocoordinates::Crs::Wgs84
+impl core::clone::Clone for geocoordinates::Crs
+pub fn geocoordinates::Crs::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::Crs
+impl core::cmp::PartialEq for geocoordinates::Crs
+pub fn geocoordinates::Crs::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::Crs
+pub fn geocoordinates::Crs::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for geocoordinates::Crs
+pub fn geocoordinates::Crs::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::Crs
+pub fn geocoordinates::Crs::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::Crs
+impl core::marker::StructuralPartialEq for geocoordinates::Crs
+impl core::marker::Freeze for geocoordinates::Crs
+impl core::marker::Send for geocoordinates::Crs
+impl core::marker::Sync for geocoordinates::Crs
+impl core::marker::Unpin for geocoordinates::Crs
+impl core::marker::UnsafeUnpin for geocoordinates::Crs
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::Crs
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::Crs
+#[non_exhaustive] pub enum geocoordinates::Error
+pub geocoordinates::Error::CrsMismatch
+pub geocoordinates::Error::CrsMismatch::expected: geocoordinates::Crs
+pub geocoordinates::Error::CrsMismatch::found: geocoordinates::Crs
+pub geocoordinates::Error::InvalidCellId
+pub geocoordinates::Error::InvalidCellId::grid: &'static str
+pub geocoordinates::Error::InvalidCellId::value: u64
+pub geocoordinates::Error::InvalidGridRef(alloc::string::String)
+pub geocoordinates::Error::InvalidValue
+pub geocoordinates::Error::InvalidValue::detail: alloc::string::String
+pub geocoordinates::Error::InvalidValue::field: &'static str
+pub geocoordinates::Error::OutOfRange
+pub geocoordinates::Error::OutOfRange::lat: f64
+pub geocoordinates::Error::OutOfRange::lon: f64
+pub geocoordinates::Error::OutsideDomain
+pub geocoordinates::Error::OutsideDomain::lat: f64
+pub geocoordinates::Error::OutsideDomain::lon: f64
+pub geocoordinates::Error::OutsideDomain::operation: &'static str
+pub geocoordinates::Error::Parse
+pub geocoordinates::Error::Parse::detail: alloc::string::String
+pub geocoordinates::Error::Parse::kind: geocoordinates::ParseErrorKind
+impl core::clone::Clone for geocoordinates::Error
+pub fn geocoordinates::Error::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::Error
+pub fn geocoordinates::Error::eq(&self, &Self) -> bool
+impl core::error::Error for geocoordinates::Error
+impl core::fmt::Debug for geocoordinates::Error
+pub fn geocoordinates::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for geocoordinates::Error
+pub fn geocoordinates::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::Error
+impl core::marker::Freeze for geocoordinates::Error
+impl core::marker::Send for geocoordinates::Error
+impl core::marker::Sync for geocoordinates::Error
+impl core::marker::Unpin for geocoordinates::Error
+impl core::marker::UnsafeUnpin for geocoordinates::Error
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::Error
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::Error
+pub enum geocoordinates::Height
+pub geocoordinates::Height::Ellipsoidal(f64)
+pub geocoordinates::Height::Orthometric(f64)
+impl geocoordinates::Height
+pub const fn geocoordinates::Height::meters(self) -> geocoordinates::Length
+impl core::clone::Clone for geocoordinates::Height
+pub fn geocoordinates::Height::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::Height
+pub fn geocoordinates::Height::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::Height
+pub fn geocoordinates::Height::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::Height
+impl core::marker::StructuralPartialEq for geocoordinates::Height
+impl core::marker::Freeze for geocoordinates::Height
+impl core::marker::Send for geocoordinates::Height
+impl core::marker::Sync for geocoordinates::Height
+impl core::marker::Unpin for geocoordinates::Height
+impl core::marker::UnsafeUnpin for geocoordinates::Height
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::Height
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::Height
+pub enum geocoordinates::LengthUnit
+pub geocoordinates::LengthUnit::Foot
+pub geocoordinates::LengthUnit::Kilometer
+pub geocoordinates::LengthUnit::Meter
+pub geocoordinates::LengthUnit::Mile
+pub geocoordinates::LengthUnit::NauticalMile
+pub geocoordinates::LengthUnit::UsSurveyFoot
+pub geocoordinates::LengthUnit::Yard
+impl geocoordinates::LengthUnit
+pub const fn geocoordinates::LengthUnit::meters_per_unit(self) -> f64
+impl core::clone::Clone for geocoordinates::LengthUnit
+pub fn geocoordinates::LengthUnit::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::LengthUnit
+impl core::cmp::PartialEq for geocoordinates::LengthUnit
+pub fn geocoordinates::LengthUnit::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::LengthUnit
+pub fn geocoordinates::LengthUnit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::LengthUnit
+pub fn geocoordinates::LengthUnit::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::LengthUnit
+impl core::marker::StructuralPartialEq for geocoordinates::LengthUnit
+impl core::marker::Freeze for geocoordinates::LengthUnit
+impl core::marker::Send for geocoordinates::LengthUnit
+impl core::marker::Sync for geocoordinates::LengthUnit
+impl core::marker::Unpin for geocoordinates::LengthUnit
+impl core::marker::UnsafeUnpin for geocoordinates::LengthUnit
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::LengthUnit
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::LengthUnit
+pub enum geocoordinates::ParseErrorKind
+pub geocoordinates::ParseErrorKind::Ambiguous
+pub geocoordinates::ParseErrorKind::Checksum
+pub geocoordinates::ParseErrorKind::NoFix
+pub geocoordinates::ParseErrorKind::Syntax
+pub geocoordinates::ParseErrorKind::TooDeep
+pub geocoordinates::ParseErrorKind::Unsupported
+impl core::clone::Clone for geocoordinates::ParseErrorKind
+pub fn geocoordinates::ParseErrorKind::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::ParseErrorKind
+impl core::cmp::PartialEq for geocoordinates::ParseErrorKind
+pub fn geocoordinates::ParseErrorKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::ParseErrorKind
+pub fn geocoordinates::ParseErrorKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::ParseErrorKind
+pub fn geocoordinates::ParseErrorKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::ParseErrorKind
+impl core::marker::StructuralPartialEq for geocoordinates::ParseErrorKind
+impl core::marker::Freeze for geocoordinates::ParseErrorKind
+impl core::marker::Send for geocoordinates::ParseErrorKind
+impl core::marker::Sync for geocoordinates::ParseErrorKind
+impl core::marker::Unpin for geocoordinates::ParseErrorKind
+impl core::marker::UnsafeUnpin for geocoordinates::ParseErrorKind
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::ParseErrorKind
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::ParseErrorKind
+pub struct geocoordinates::Approx<T>
+impl<T> geocoordinates::Approx<T>
+pub fn geocoordinates::Approx<T>::into_inner(self) -> T
+pub fn geocoordinates::Approx<T>::map<U>(self, impl core::ops::function::FnOnce(T) -> U) -> geocoordinates::Approx<U>
+pub fn geocoordinates::Approx<T>::max_error(&self) -> geocoordinates::Length
+pub fn geocoordinates::Approx<T>::new(T, geocoordinates::Length) -> geocoordinates::Result<Self>
+pub fn geocoordinates::Approx<T>::value(&self) -> &T
+impl<T: core::clone::Clone> core::clone::Clone for geocoordinates::Approx<T>
+pub fn geocoordinates::Approx<T>::clone(&self) -> Self
+impl<T: core::cmp::PartialEq> core::cmp::PartialEq for geocoordinates::Approx<T>
+pub fn geocoordinates::Approx<T>::eq(&self, &Self) -> bool
+impl<T: core::cmp::PartialEq> core::marker::StructuralPartialEq for geocoordinates::Approx<T>
+impl<T: core::fmt::Debug> core::fmt::Debug for geocoordinates::Approx<T>
+pub fn geocoordinates::Approx<T>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<T: core::marker::Copy> core::marker::Copy for geocoordinates::Approx<T>
+impl<T> core::marker::Freeze for geocoordinates::Approx<T> where T: core::marker::Freeze
+impl<T> core::marker::Send for geocoordinates::Approx<T> where T: core::marker::Send
+impl<T> core::marker::Sync for geocoordinates::Approx<T> where T: core::marker::Sync
+impl<T> core::marker::Unpin for geocoordinates::Approx<T> where T: core::marker::Unpin
+impl<T> core::marker::UnsafeUnpin for geocoordinates::Approx<T> where T: core::marker::UnsafeUnpin
+impl<T> core::panic::unwind_safe::RefUnwindSafe for geocoordinates::Approx<T> where T: core::panic::unwind_safe::RefUnwindSafe
+impl<T> core::panic::unwind_safe::UnwindSafe for geocoordinates::Approx<T> where T: core::panic::unwind_safe::UnwindSafe
+pub struct geocoordinates::Coordinate
+impl geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::bd09(f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::Coordinate::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::Coordinate::from_lon_lat(f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
+pub fn geocoordinates::Coordinate::gcj02(f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::Coordinate::height(&self) -> core::option::Option<geocoordinates::Height>
+pub fn geocoordinates::Coordinate::is_null_island(&self) -> bool
+pub fn geocoordinates::Coordinate::lat(&self) -> f64
+pub fn geocoordinates::Coordinate::lon(&self) -> f64
+pub fn geocoordinates::Coordinate::new(f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
+pub fn geocoordinates::Coordinate::wgs84(f64, f64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::Coordinate::with_height(self, geocoordinates::Height) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::china::Bd09> for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::from(geocoordinates::china::Bd09) -> Self
+impl core::convert::From<geocoordinates::china::Gcj02> for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::from(geocoordinates::china::Gcj02) -> Self
+impl core::convert::From<geocoordinates::china::Wgs84> for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::from(geocoordinates::china::Wgs84) -> Self
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::BaiduMercator
+pub type geocoordinates::china::BaiduMercator::Error = geocoordinates::Error
+pub fn geocoordinates::china::BaiduMercator::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::Bd09
+pub type geocoordinates::china::Bd09::Error = geocoordinates::Error
+pub fn geocoordinates::china::Bd09::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::Gcj02
+pub type geocoordinates::china::Gcj02::Error = geocoordinates::Error
+pub fn geocoordinates::china::Gcj02::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::china::Wgs84
+pub type geocoordinates::china::Wgs84::Error = geocoordinates::Error
+pub fn geocoordinates::china::Wgs84::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::grids::Ups
+pub type geocoordinates::grids::Ups::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Ups::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::convert::TryFrom<geocoordinates::Coordinate> for geocoordinates::grids::Utm
+pub type geocoordinates::grids::Utm::Error = geocoordinates::Error
+pub fn geocoordinates::grids::Utm::try_from(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::Coordinate
+impl core::marker::StructuralPartialEq for geocoordinates::Coordinate
+impl geocoordinates::LatLon for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::Coordinate::lat(&self) -> f64
+pub fn geocoordinates::Coordinate::lon(&self) -> f64
+impl core::marker::Freeze for geocoordinates::Coordinate
+impl core::marker::Send for geocoordinates::Coordinate
+impl core::marker::Sync for geocoordinates::Coordinate
+impl core::marker::Unpin for geocoordinates::Coordinate
+impl core::marker::UnsafeUnpin for geocoordinates::Coordinate
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::Coordinate
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::Coordinate
+pub struct geocoordinates::Length
+impl geocoordinates::Length
+pub const geocoordinates::Length::ZERO: geocoordinates::Length
+pub const fn geocoordinates::Length::from_meters(f64) -> Self
+pub fn geocoordinates::Length::from_unit(f64, geocoordinates::LengthUnit) -> Self
+pub const fn geocoordinates::Length::meters(&self) -> f64
+pub fn geocoordinates::Length::to_unit(&self, geocoordinates::LengthUnit) -> f64
+impl core::clone::Clone for geocoordinates::Length
+pub fn geocoordinates::Length::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::Length
+pub fn geocoordinates::Length::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for geocoordinates::Length
+pub fn geocoordinates::Length::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for geocoordinates::Length
+pub fn geocoordinates::Length::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::Length
+impl core::marker::StructuralPartialEq for geocoordinates::Length
+impl core::ops::arith::Add for geocoordinates::Length
+pub type geocoordinates::Length::Output = geocoordinates::Length
+pub fn geocoordinates::Length::add(self, geocoordinates::Length) -> geocoordinates::Length
+impl core::ops::arith::Mul<f64> for geocoordinates::Length
+pub type geocoordinates::Length::Output = geocoordinates::Length
+pub fn geocoordinates::Length::mul(self, f64) -> geocoordinates::Length
+impl core::ops::arith::Sub for geocoordinates::Length
+pub type geocoordinates::Length::Output = geocoordinates::Length
+pub fn geocoordinates::Length::sub(self, geocoordinates::Length) -> geocoordinates::Length
+impl core::marker::Freeze for geocoordinates::Length
+impl core::marker::Send for geocoordinates::Length
+impl core::marker::Sync for geocoordinates::Length
+impl core::marker::Unpin for geocoordinates::Length
+impl core::marker::UnsafeUnpin for geocoordinates::Length
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::Length
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::Length
+pub trait geocoordinates::LatLon: geocoordinates::coord::sealed::Sealed + core::marker::Copy
+pub fn geocoordinates::LatLon::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::LatLon::lat(&self) -> f64
+pub fn geocoordinates::LatLon::lon(&self) -> f64
+impl geocoordinates::LatLon for geocoordinates::Coordinate
+pub fn geocoordinates::Coordinate::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::Coordinate::lat(&self) -> f64
+pub fn geocoordinates::Coordinate::lon(&self) -> f64
+impl geocoordinates::LatLon for geocoordinates::china::Bd09
+pub fn geocoordinates::china::Bd09::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Bd09::lat(&self) -> f64
+pub fn geocoordinates::china::Bd09::lon(&self) -> f64
+impl geocoordinates::LatLon for geocoordinates::china::Gcj02
+pub fn geocoordinates::china::Gcj02::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Gcj02::lat(&self) -> f64
+pub fn geocoordinates::china::Gcj02::lon(&self) -> f64
+impl geocoordinates::LatLon for geocoordinates::china::Wgs84
+pub fn geocoordinates::china::Wgs84::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Wgs84::lat(&self) -> f64
+pub fn geocoordinates::china::Wgs84::lon(&self) -> f64
+pub type geocoordinates::Result<T, E> = core::result::Result<T, E>

@@ -1,0 +1,69 @@
+pub mod geocoordinates::dgg
+pub struct geocoordinates::dgg::H3Cell(_)
+impl geocoordinates::dgg::H3Cell
+pub fn geocoordinates::dgg::H3Cell::as_u64(self) -> u64
+pub fn geocoordinates::dgg::H3Cell::decode(self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::dgg::H3Cell::encode(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
+pub fn geocoordinates::dgg::H3Cell::new(u64) -> geocoordinates::Result<Self>
+pub fn geocoordinates::dgg::H3Cell::resolution(self) -> u8
+impl core::clone::Clone for geocoordinates::dgg::H3Cell
+pub fn geocoordinates::dgg::H3Cell::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::dgg::H3Cell
+impl core::cmp::PartialEq for geocoordinates::dgg::H3Cell
+pub fn geocoordinates::dgg::H3Cell::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::dgg::H3Cell> for u64
+pub fn u64::from(geocoordinates::dgg::H3Cell) -> Self
+impl core::convert::TryFrom<u64> for geocoordinates::dgg::H3Cell
+pub type geocoordinates::dgg::H3Cell::Error = geocoordinates::Error
+pub fn geocoordinates::dgg::H3Cell::try_from(u64) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::dgg::H3Cell
+pub fn geocoordinates::dgg::H3Cell::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::dgg::H3Cell
+pub fn geocoordinates::dgg::H3Cell::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::dgg::H3Cell
+impl core::marker::StructuralPartialEq for geocoordinates::dgg::H3Cell
+impl serde_core::ser::Serialize for geocoordinates::dgg::H3Cell
+pub fn geocoordinates::dgg::H3Cell::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::dgg::H3Cell
+pub fn geocoordinates::dgg::H3Cell::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::dgg::H3Cell
+impl core::marker::Send for geocoordinates::dgg::H3Cell
+impl core::marker::Sync for geocoordinates::dgg::H3Cell
+impl core::marker::Unpin for geocoordinates::dgg::H3Cell
+impl core::marker::UnsafeUnpin for geocoordinates::dgg::H3Cell
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::dgg::H3Cell
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::dgg::H3Cell
+pub struct geocoordinates::dgg::S2CellId(_)
+impl geocoordinates::dgg::S2CellId
+pub fn geocoordinates::dgg::S2CellId::as_u64(self) -> u64
+pub fn geocoordinates::dgg::S2CellId::decode(self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::dgg::S2CellId::encode(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
+pub fn geocoordinates::dgg::S2CellId::level(self) -> u8
+pub fn geocoordinates::dgg::S2CellId::new(u64) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::dgg::S2CellId
+pub fn geocoordinates::dgg::S2CellId::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::dgg::S2CellId
+impl core::cmp::PartialEq for geocoordinates::dgg::S2CellId
+pub fn geocoordinates::dgg::S2CellId::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::dgg::S2CellId> for u64
+pub fn u64::from(geocoordinates::dgg::S2CellId) -> Self
+impl core::convert::TryFrom<u64> for geocoordinates::dgg::S2CellId
+pub type geocoordinates::dgg::S2CellId::Error = geocoordinates::Error
+pub fn geocoordinates::dgg::S2CellId::try_from(u64) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::dgg::S2CellId
+pub fn geocoordinates::dgg::S2CellId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::dgg::S2CellId
+pub fn geocoordinates::dgg::S2CellId::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::dgg::S2CellId
+impl core::marker::StructuralPartialEq for geocoordinates::dgg::S2CellId
+impl serde_core::ser::Serialize for geocoordinates::dgg::S2CellId
+pub fn geocoordinates::dgg::S2CellId::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::dgg::S2CellId
+pub fn geocoordinates::dgg::S2CellId::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::dgg::S2CellId
+impl core::marker::Send for geocoordinates::dgg::S2CellId
+impl core::marker::Sync for geocoordinates::dgg::S2CellId
+impl core::marker::Unpin for geocoordinates::dgg::S2CellId
+impl core::marker::UnsafeUnpin for geocoordinates::dgg::S2CellId
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::dgg::S2CellId
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::dgg::S2CellId
