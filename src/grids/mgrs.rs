@@ -2,7 +2,7 @@
 //!
 //! An MGRS string (e.g. `4QFJ12345678`) is a grid-zone designator, 100 km
 //! square ID, and easting/northing digits. It is validated at construction
-//! ([`Mgrs::parse`], its `TryFrom<&str>` / [`FromStr`] sugar, and serde deserialization),
+//! ([`Mgrs::parse`], its `TryFrom<&str>` / [`FromStr`](core::str::FromStr) sugar, and serde deserialization),
 //! which fails on invalid grid letters or digits and on a square wholly outside
 //! its grid-zone designator. Because the reference is
 //! then valid by construction, decoding is infallible; it yields a square with
@@ -12,8 +12,6 @@
 //! Both the UTM band (zones 1–60, latitude bands C–X) and the polar UPS caps
 //! (zone letters A/B/Y/Z) are supported.
 
-use core::str::FromStr;
-
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
@@ -22,6 +20,7 @@ use crate::grids::utm::{FALSE_NORTHING_SOUTH, Ups, Utm, UtmHemisphere, zone_span
 use crate::units::Length;
 
 mod clip;
+mod strings;
 use clip::Gzd;
 
 // --- 100 km square lettering tables (I and O are always excluded) ---
@@ -109,7 +108,7 @@ impl MgrsPrecision {
 }
 
 /// A validated MGRS reference. Construct via [`Mgrs::parse`] (or its sugar
-/// `TryFrom<&str>`, `TryFrom<String>`, [`FromStr`]) or
+/// `TryFrom<&str>`, `TryFrom<String>`, [`FromStr`](core::str::FromStr)) or
 /// [`Mgrs::try_from_coordinate`].
 ///
 /// [`Display`](core::fmt::Display) writes the canonical string, which parses
@@ -288,7 +287,7 @@ impl Mgrs {
     /// so the stored string is canonical: the same form
     /// [`Mgrs::try_from_coordinate`] emits.
     ///
-    /// `TryFrom<&str>`, `TryFrom<String>`, [`FromStr`], and serde all route
+    /// `TryFrom<&str>`, `TryFrom<String>`, [`FromStr`](core::str::FromStr), and serde all route
     /// through this.
     ///
     /// ```
@@ -334,56 +333,6 @@ impl Mgrs {
             center,
             max_error_m,
         })
-    }
-}
-
-impl TryFrom<&str> for Mgrs {
-    type Error = crate::Error;
-
-    /// Validate as [`Mgrs::parse`] does.
-    ///
-    /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for a malformed reference.
-    fn try_from(s: &str) -> Result<Self> {
-        Self::parse(s)
-    }
-}
-
-impl TryFrom<String> for Mgrs {
-    type Error = crate::Error;
-
-    /// Validate as [`Mgrs::parse`] does; this is the serde route.
-    ///
-    /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for a malformed reference.
-    fn try_from(s: String) -> Result<Self> {
-        Self::parse(&s)
-    }
-}
-
-impl FromStr for Mgrs {
-    type Err = crate::Error;
-
-    /// Equivalent to [`Mgrs::parse`].
-    ///
-    /// # Errors
-    /// Returns [`crate::Error::InvalidGridRef`] for a malformed reference.
-    fn from_str(s: &str) -> Result<Self> {
-        Self::parse(s)
-    }
-}
-
-impl From<Mgrs> for String {
-    /// The canonical string.
-    fn from(mgrs: Mgrs) -> String {
-        mgrs.text
-    }
-}
-
-impl core::fmt::Display for Mgrs {
-    /// Writes the canonical string, which parses back to an equal value.
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(&self.text)
     }
 }
 

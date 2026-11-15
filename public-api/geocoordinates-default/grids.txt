@@ -137,6 +137,8 @@ pub fn geocoordinates::grids::Mgrs::clone(&self) -> Self
 impl core::cmp::Eq for geocoordinates::grids::Mgrs
 impl core::cmp::PartialEq for geocoordinates::grids::Mgrs
 pub fn geocoordinates::grids::Mgrs::eq(&self, &Self) -> bool
+impl core::convert::AsRef<str> for geocoordinates::grids::Mgrs
+pub fn geocoordinates::grids::Mgrs::as_ref(&self) -> &str
 impl core::convert::From<geocoordinates::grids::Mgrs> for alloc::string::String
 pub fn alloc::string::String::from(geocoordinates::grids::Mgrs) -> alloc::string::String
 impl core::convert::TryFrom<&str> for geocoordinates::grids::Mgrs
