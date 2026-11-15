@@ -202,6 +202,11 @@ fn invalid_grid_ref_names_its_grid_and_quotes_the_input() {
         message(Geohash::parse(" ezs4é").map(drop)),
         r#"invalid geohash reference: " ezs4é" holds 'é', not a base-32 digit"#
     );
+    // An uppercase excluded letter is reported as written, not lowercased.
+    assert_eq!(
+        message(Geohash::parse("EZS4A").map(drop)),
+        r#"invalid geohash reference: "EZS4A" holds 'A', not a base-32 digit"#
+    );
     assert_eq!(
         message(PlusCode::parse("2222+22").map(drop)),
         r#"invalid Plus Code reference: "2222+22" is not a full Plus Code"#

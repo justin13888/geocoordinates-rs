@@ -76,10 +76,11 @@ impl Geohash {
                 format_args!("is longer than {GEOHASH_MAX_LENGTH} characters"),
             ));
         }
-        if let Some(c) = lower
-            .chars()
-            .find(|&c| !u8::try_from(c).is_ok_and(|b| GEOHASH_ALPHABET.contains(&b)))
-        {
+        // Search the trimmed input, not `lower`, so the reported character is
+        // the one the caller wrote (an uppercase `A`, not `a`).
+        if let Some(c) = s.trim().chars().find(|&c| {
+            !u8::try_from(c.to_ascii_lowercase()).is_ok_and(|b| GEOHASH_ALPHABET.contains(&b))
+        }) {
             return Err(Error::invalid_grid_ref(
                 "geohash",
                 s,
