@@ -47,8 +47,9 @@ return an `Approx*` record and keep the `_fast` / `_refined` suffix.
 Every export follows one scheme, so a name reads the same in every language
 (the generators only change its case, e.g. `parse_geojson` → `parseGeojson`):
 
-- **Units in the name.** A function returning a bare length names its unit
-  (`geodesic_distance_m`, `height_meters`), and one returning an angle ends in
+- **Units in the name.** A function returning a bare length names its unit:
+  `_m` (`geodesic_distance_m`), or `_meters` in exactly two exports,
+  `height_meters` and `mgrs_precision_meters`. One returning an angle ends in
   `_deg` (`initial_bearing_deg`, `final_bearing_deg`, `rhumb_bearing_deg`,
   `wrap_longitude_deg`, `clamp_latitude_deg`, `utm_central_meridian_deg`) or
   names degrees as its target (`dms_to_degrees`, `normalize_degrees`). Length
@@ -84,7 +85,11 @@ Every export follows one scheme, so a name reads the same in every language
   `geohash_canonicalize`, `maidenhead_canonicalize`, `mgrs_canonicalize` and
   `quadkey_canonicalize` validate a code and return its canonical form.
 - **Errors.** Every function that can fail throws the one `GeoError` type and
-  documents which variants it raises.
+  documents which variants it raises under `# Errors`.
+  `tests/export_coverage.rs` enforces that, and that every export is called
+  by a Rust test.
+- **Exactness survives the boundary.** Approximate inverses keep their
+  `_fast` / `_refined` suffixes, and names stay language-neutral.
 
 ## Surface
 
