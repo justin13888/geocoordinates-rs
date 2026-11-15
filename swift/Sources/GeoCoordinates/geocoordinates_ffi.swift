@@ -13025,6 +13025,8 @@ public func parseKml(input: String)throws  -> [Fix]  {
  * `GGA` and `GLL` carry no date, so theirs is `None`.
  *
  * # Errors
+ * `GeoError::OutOfRange`, with the values as read, when well-formed
+ * coordinate fields describe a position off the globe. Otherwise
  * `GeoError::Parse`, whose `kind` is `Checksum` on a malformed or mismatched
  * checksum; `Unsupported` on a sentence other than `GGA` / `RMC` / `GLL`;
  * `NoFix` on a sentence reporting no fix (`RMC`/`GLL` status `V` or mode
@@ -13680,7 +13682,9 @@ public func formatOptionsParseOptions(options: FormatOptions) -> ParseOptions  {
  * the assumed axis order and parse confidence.
  *
  * # Errors
- * Returns a [`GeoError`] when no interpretation is found.
+ * `GeoError::OutOfRange`, with the values as read, when a `geo:` URI or the
+ * free text reads as a position off the globe; otherwise a [`GeoError`]
+ * (`Parse`) when no interpretation is found.
  */
 public func parseCoordinate(input: String)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -13695,7 +13699,8 @@ public func parseCoordinate(input: String)throws  -> Fix  {
  * text. Pass [`format_options_parse_options`] to read back a rendering.
  *
  * # Errors
- * Returns a [`GeoError`] when no interpretation is found.
+ * `GeoError::OutOfRange` when the input reads as a position off the globe;
+ * otherwise a [`GeoError`] (`Parse`) when no interpretation is found.
  */
 public func parseCoordinateWith(input: String, options: ParseOptions)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -13710,7 +13715,9 @@ public func parseCoordinateWith(input: String, options: ParseOptions)throws  -> 
  * parameters) — the FFI form of the core `parse::parse_geo_uri`.
  *
  * # Errors
- * Returns a [`GeoError`] when the input is not a well-formed `geo:` URI.
+ * `GeoError::OutOfRange`, with the values as read, when the URI is
+ * well-formed but its position is off the globe; otherwise a [`GeoError`]
+ * (`Parse`) when the input is not a well-formed `geo:` URI.
  */
 public func parseGeoUri(input: String)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -13736,11 +13743,13 @@ public func parseOptionsDefault() -> ParseOptions  {
  * confidence. Use [`parse_text_with`] for other options.
  *
  * # Errors
- * `GeoError::Parse` when the input cannot be interpreted: kind `Ambiguous`
- * when it has no single reading (concatenated `DDMM.mmm` without a
- * hemisphere letter, a fraction on any field but the last, exponent
- * notation), and `Syntax` otherwise, including a reading out of range and a
- * grid reference, which is not free text.
+ * `GeoError::OutOfRange`, with the values as read, when the input reads as
+ * a position off the globe (unlabelled components both beyond ±90 are
+ * labelled lat-first); `GeoError::Parse` when the input cannot be
+ * interpreted: kind `Ambiguous` when it has no single reading (concatenated
+ * `DDMM.mmm` without a hemisphere letter, a fraction on any field but the
+ * last, exponent notation), and `Syntax` otherwise, including a grid
+ * reference, which is not free text.
  */
 public func parseText(input: String)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -13756,7 +13765,9 @@ public func parseText(input: String)throws  -> Fix  {
  *
  * # Errors
  * `GeoError::InvalidValue` (field `expect_grid`) when `options.expect_grid`
- * is set; `GeoError::Parse` when the input cannot be interpreted.
+ * is set; `GeoError::OutOfRange` when the input reads as a position off the
+ * globe (components both beyond ±90 are labelled in `default_axis_order`);
+ * `GeoError::Parse` when the input cannot be interpreted.
  */
 public func parseTextWith(input: String, options: ParseOptions)throws  -> Fix  {
     return try  FfiConverterTypeFix_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -14262,7 +14273,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_parse_kml() != 42642) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_nmea_sentence() != 43851) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_nmea_sentence() != 39057) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_wkt() != 58076) {
@@ -14388,22 +14399,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_format_options_parse_options() != 23577) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 41462) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate() != 13007) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 49235) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_coordinate_with() != 1287) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_geo_uri() != 31893) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_geo_uri() != 17193) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_options_default() != 13976) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_text() != 9770) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_text() != 52032) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 10027) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 37071) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_children() != 47930) {
