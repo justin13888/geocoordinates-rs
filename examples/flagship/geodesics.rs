@@ -116,20 +116,13 @@ pub(crate) fn geodesics_and_local_frames() -> DemoResult {
 
     for ellipsoid in [
         Ellipsoid::WGS84,
-        Ellipsoid::GRS80,
         Ellipsoid::KRASOVSKY_1940,
-        Ellipsoid::AIRY_1830,
         Ellipsoid::BESSEL_1841,
         Ellipsoid::CLARKE_1866,
     ] {
         assert!(ellipsoid.flattening() > 0.0);
         assert!(ellipsoid.semi_minor() < ellipsoid.semi_major());
         assert!((0.0..1.0).contains(&ellipsoid.eccentricity_sq()));
-        // Valid by construction: rebuilding from the parameters round-trips.
-        assert_eq!(
-            Ellipsoid::new(ellipsoid.semi_major(), ellipsoid.inverse_flattening())?,
-            ellipsoid
-        );
     }
     // Every geodetic datum names its own ellipsoid; ECEF and datum transforms
     // derive it from the coordinate's CRS rather than taking it as an argument.

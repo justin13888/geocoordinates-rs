@@ -3504,11 +3504,12 @@ public func FfiConverterTypeEcef_lower(_ value: Ecef) -> RustBuffer {
 /**
  * A reference ellipsoid — mirror of [`gc::Ellipsoid`](gc::geodesy::Ellipsoid).
  *
- * Unvalidated until used: every export that takes one validates it as the
- * core `Ellipsoid::new` does (semi-major axis finite and positive, inverse
- * flattening greater than one or positive infinity). Build one with
- * [`ellipsoid_new`] to fail at construction instead, or call
- * [`ellipsoid_validate`] on a hand-built record.
+ * Get one from [`ellipsoid_for_crs`] or a named export ([`ellipsoid_wgs84`],
+ * …). The core crate has no public constructor from raw parameters, because
+ * no function takes an arbitrary ellipsoid, so neither does this mirror.
+ * Unvalidated until used: every export that takes one accepts only a record
+ * equal to an ellipsoid [`ellipsoid_for_crs`] returns. Call
+ * [`ellipsoid_validate`] to check a hand-built record up front.
  */
 public struct Ellipsoid: Equatable, Hashable {
     /**
@@ -11939,15 +11940,6 @@ public func ecefValidate(ecef: Ecef)throws   {try rustCallWithError(FfiConverter
 }
 }
 /**
- * The Airy-1830 ellipsoid (OSGB36).
- */
-public func ellipsoidAiry1830() -> Ellipsoid  {
-    return try!  FfiConverterTypeEllipsoid_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_ellipsoid_airy_1830($0
-    )
-})
-}
-/**
  * The Bessel-1841 ellipsoid (Tokyo datum).
  */
 public func ellipsoidBessel1841() -> Ellipsoid  {
@@ -11969,7 +11961,7 @@ public func ellipsoidClarke1866() -> Ellipsoid  {
  * First eccentricity squared `e²` of the ellipsoid.
  *
  * # Errors
- * `GeoError::InvalidValue` for a malformed ellipsoid record.
+ * As [`ellipsoid_validate`].
  */
 public func ellipsoidEccentricitySq(ellipsoid: Ellipsoid)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -11982,7 +11974,7 @@ public func ellipsoidEccentricitySq(ellipsoid: Ellipsoid)throws  -> Double  {
  * Flattening `f` of the ellipsoid.
  *
  * # Errors
- * `GeoError::InvalidValue` for a malformed ellipsoid record.
+ * As [`ellipsoid_validate`].
  */
 public func ellipsoidFlattening(ellipsoid: Ellipsoid)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12004,15 +11996,6 @@ public func ellipsoidForCrs(crs: Crs) -> Ellipsoid?  {
 })
 }
 /**
- * The GRS80 ellipsoid (NAD83 / ETRS89).
- */
-public func ellipsoidGrs80() -> Ellipsoid  {
-    return try!  FfiConverterTypeEllipsoid_lift(try! rustCall() {
-    uniffi_geocoordinates_ffi_fn_func_ellipsoid_grs80($0
-    )
-})
-}
-/**
  * The Krasovsky-1940 ellipsoid (Pulkovo-1942 / SK-42).
  */
 public func ellipsoidKrasovsky1940() -> Ellipsoid  {
@@ -12022,27 +12005,10 @@ public func ellipsoidKrasovsky1940() -> Ellipsoid  {
 })
 }
 /**
- * Build a validated ellipsoid from its semi-major axis (meters) and inverse
- * flattening (positive infinity for a sphere) — the FFI form of
- * `Ellipsoid::new`.
- *
- * # Errors
- * `GeoError::InvalidValue` when the semi-major axis is not finite and
- * positive, or the inverse flattening is NaN or not greater than one.
- */
-public func ellipsoidNew(semiMajorM: Double, inverseFlattening: Double)throws  -> Ellipsoid  {
-    return try  FfiConverterTypeEllipsoid_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
-    uniffi_geocoordinates_ffi_fn_func_ellipsoid_new(
-        FfiConverterDouble.lower(semiMajorM),
-        FfiConverterDouble.lower(inverseFlattening),$0
-    )
-})
-}
-/**
  * Semi-minor axis `b` (meters) of the ellipsoid.
  *
  * # Errors
- * `GeoError::InvalidValue` for a malformed ellipsoid record.
+ * As [`ellipsoid_validate`].
  */
 public func ellipsoidSemiMinorM(ellipsoid: Ellipsoid)throws  -> Double  {
     return try  FfiConverterDouble.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12052,11 +12018,13 @@ public func ellipsoidSemiMinorM(ellipsoid: Ellipsoid)throws  -> Double  {
 })
 }
 /**
- * Validate a (possibly hand-built) ellipsoid record as `Ellipsoid::new`
- * does.
+ * Validate a (possibly hand-built) ellipsoid record: it must equal an
+ * ellipsoid [`ellipsoid_for_crs`] returns, since those are the only ones the
+ * core crate builds.
  *
  * # Errors
- * As [`ellipsoid_new`].
+ * `GeoError::InvalidValue` (field `ellipsoid`) for a record equal to no
+ * catalogued ellipsoid.
  */
 public func ellipsoidValidate(ellipsoid: Ellipsoid)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_ellipsoid_validate(
@@ -14080,37 +14048,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ecef_validate() != 19813) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_airy_1830() != 49200) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_bessel_1841() != 15190) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_clarke_1866() != 61807) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_eccentricity_sq() != 20351) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_eccentricity_sq() != 50121) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_flattening() != 62698) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_flattening() != 56932) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_for_crs() != 56780) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_grs80() != 9218) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_krasovsky_1940() != 4146) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_new() != 53844) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_semi_minor_m() != 15454) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_semi_minor_m() != 42590) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_validate() != 45902) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_validate() != 33906) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ellipsoid_wgs84() != 31681) {

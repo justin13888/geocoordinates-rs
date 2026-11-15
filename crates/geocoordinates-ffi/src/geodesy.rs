@@ -36,11 +36,12 @@ pub fn haversine_distance_m(a: Coordinate, b: Coordinate) -> Result<f64, GeoErro
 
 /// A reference ellipsoid — mirror of [`gc::Ellipsoid`](gc::geodesy::Ellipsoid).
 ///
-/// Unvalidated until used: every export that takes one validates it as the
-/// core `Ellipsoid::new` does (semi-major axis finite and positive, inverse
-/// flattening greater than one or positive infinity). Build one with
-/// [`ellipsoid_new`] to fail at construction instead, or call
-/// [`ellipsoid_validate`] on a hand-built record.
+/// Get one from [`ellipsoid_for_crs`] or a named export ([`ellipsoid_wgs84`],
+/// …). The core crate has no public constructor from raw parameters, because
+/// no function takes an arbitrary ellipsoid, so neither does this mirror.
+/// Unvalidated until used: every export that takes one accepts only a record
+/// equal to an ellipsoid [`ellipsoid_for_crs`] returns. Call
+/// [`ellipsoid_validate`] to check a hand-built record up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ellipsoid {
     /// Semi-major axis `a`, in meters.
@@ -118,15 +119,33 @@ impl From<gc::geodesy::Ellipsoid> for Ellipsoid {
         }
     }
 }
+/// The ellipsoids a caller can hold: those `ellipsoid_for_crs` returns.
+fn catalogued_ellipsoids() -> impl Iterator<Item = gc::geodesy::Ellipsoid> {
+    use Crs::{Bd09, Gcj02, Nad27, Pulkovo42, Tokyo, Wgs84};
+    // Exhaustive: a new `Crs` variant fails this build until listed below.
+    let _ = |crs: Crs| match crs {
+        Wgs84 | Gcj02 | Bd09 | Nad27 | Tokyo | Pulkovo42 => {}
+    };
+    [Wgs84, Gcj02, Bd09, Nad27, Tokyo, Pulkovo42]
+        .into_iter()
+        .filter_map(|crs| gc::geodesy::Ellipsoid::for_crs(crs.into()))
+}
 impl TryFrom<Ellipsoid> for gc::geodesy::Ellipsoid {
     type Error = GeoError;
 
+    /// Resolve the record to the catalogued ellipsoid it equals, since the
+    /// core crate builds an `Ellipsoid` only from its catalogue.
     fn try_from(e: Ellipsoid) -> Result<Self, GeoError> {
-        gc::geodesy::Ellipsoid::new(
-            gc::Length::from_meters(e.semi_major_m),
-            e.inverse_flattening,
-        )
-        .map_err(GeoError::from)
+        catalogued_ellipsoids()
+            .find(|catalogued| Ellipsoid::from(*catalogued) == e)
+            .ok_or_else(|| {
+                gc::Error::InvalidValue {
+                    field: "ellipsoid",
+                    detail: "not the ellipsoid of any reference system (see ellipsoid_for_crs)"
+                        .into(),
+                }
+                .into()
+            })
     }
 }
 impl From<gc::geodesy::Ecef> for Ecef {
@@ -204,20 +223,10 @@ impl TryFrom<Aer> for gc::geodesy::Aer {
 pub fn ellipsoid_wgs84() -> Ellipsoid {
     gc::geodesy::Ellipsoid::WGS84.into()
 }
-/// The GRS80 ellipsoid (NAD83 / ETRS89).
-#[uniffi::export]
-pub fn ellipsoid_grs80() -> Ellipsoid {
-    gc::geodesy::Ellipsoid::GRS80.into()
-}
 /// The Krasovsky-1940 ellipsoid (Pulkovo-1942 / SK-42).
 #[uniffi::export]
 pub fn ellipsoid_krasovsky_1940() -> Ellipsoid {
     gc::geodesy::Ellipsoid::KRASOVSKY_1940.into()
-}
-/// The Airy-1830 ellipsoid (OSGB36).
-#[uniffi::export]
-pub fn ellipsoid_airy_1830() -> Ellipsoid {
-    gc::geodesy::Ellipsoid::AIRY_1830.into()
 }
 /// The Bessel-1841 ellipsoid (Tokyo datum).
 #[uniffi::export]
@@ -230,24 +239,13 @@ pub fn ellipsoid_clarke_1866() -> Ellipsoid {
     gc::geodesy::Ellipsoid::CLARKE_1866.into()
 }
 
-/// Build a validated ellipsoid from its semi-major axis (meters) and inverse
-/// flattening (positive infinity for a sphere) — the FFI form of
-/// `Ellipsoid::new`.
+/// Validate a (possibly hand-built) ellipsoid record: it must equal an
+/// ellipsoid [`ellipsoid_for_crs`] returns, since those are the only ones the
+/// core crate builds.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` when the semi-major axis is not finite and
-/// positive, or the inverse flattening is NaN or not greater than one.
-#[uniffi::export]
-pub fn ellipsoid_new(semi_major_m: f64, inverse_flattening: f64) -> Result<Ellipsoid, GeoError> {
-    gc::geodesy::Ellipsoid::new(gc::Length::from_meters(semi_major_m), inverse_flattening)
-        .map(Into::into)
-        .map_err(Into::into)
-}
-/// Validate a (possibly hand-built) ellipsoid record as `Ellipsoid::new`
-/// does.
-///
-/// # Errors
-/// As [`ellipsoid_new`].
+/// `GeoError::InvalidValue` (field `ellipsoid`) for a record equal to no
+/// catalogued ellipsoid.
 #[uniffi::export]
 pub fn ellipsoid_validate(ellipsoid: Ellipsoid) -> Result<(), GeoError> {
     gc::geodesy::Ellipsoid::try_from(ellipsoid).map(drop)
@@ -263,7 +261,7 @@ pub fn ellipsoid_for_crs(crs: Crs) -> Option<Ellipsoid> {
 /// Flattening `f` of the ellipsoid.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` for a malformed ellipsoid record.
+/// As [`ellipsoid_validate`].
 #[uniffi::export]
 pub fn ellipsoid_flattening(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
     Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?.flattening())
@@ -271,7 +269,7 @@ pub fn ellipsoid_flattening(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
 /// Semi-minor axis `b` (meters) of the ellipsoid.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` for a malformed ellipsoid record.
+/// As [`ellipsoid_validate`].
 #[uniffi::export]
 pub fn ellipsoid_semi_minor_m(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
     Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?
@@ -281,7 +279,7 @@ pub fn ellipsoid_semi_minor_m(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
 /// First eccentricity squared `e²` of the ellipsoid.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` for a malformed ellipsoid record.
+/// As [`ellipsoid_validate`].
 #[uniffi::export]
 pub fn ellipsoid_eccentricity_sq(ellipsoid: Ellipsoid) -> Result<f64, GeoError> {
     Ok(gc::geodesy::Ellipsoid::try_from(ellipsoid)?.eccentricity_sq())

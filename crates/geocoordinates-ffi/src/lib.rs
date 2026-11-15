@@ -62,8 +62,8 @@
 //!   where construction derives or normalizes a field ([`aer_new`] normalizes
 //!   the azimuth, [`raw_source_new`] fills the optional fields), and the
 //!   constructors that predate this rule ([`coordinate_new`],
-//!   [`ellipsoid_new`], [`accuracy_new`], [`confidence_new`],
-//!   [`datum_transform_new`]) fail at construction rather than at first use.
+//!   [`accuracy_new`], [`confidence_new`], [`datum_transform_new`]) fail at
+//!   construction rather than at first use.
 //!   The `Approx*` records are the exception: every export that returns one
 //!   is a decoder, [`convert`], [`centroid`] or a China inverse, and no export
 //!   takes one as input, so they have no `_new` or `_validate` and `Approx::new`

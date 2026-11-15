@@ -140,17 +140,14 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Ecef
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Ecef
 pub struct geocoordinates::geodesy::Ellipsoid
 impl geocoordinates::geodesy::Ellipsoid
-pub const geocoordinates::geodesy::Ellipsoid::AIRY_1830: geocoordinates::geodesy::Ellipsoid
 pub const geocoordinates::geodesy::Ellipsoid::BESSEL_1841: geocoordinates::geodesy::Ellipsoid
 pub const geocoordinates::geodesy::Ellipsoid::CLARKE_1866: geocoordinates::geodesy::Ellipsoid
-pub const geocoordinates::geodesy::Ellipsoid::GRS80: geocoordinates::geodesy::Ellipsoid
 pub const geocoordinates::geodesy::Ellipsoid::KRASOVSKY_1940: geocoordinates::geodesy::Ellipsoid
 pub const geocoordinates::geodesy::Ellipsoid::WGS84: geocoordinates::geodesy::Ellipsoid
 pub const fn geocoordinates::geodesy::Ellipsoid::eccentricity_sq(&self) -> f64
 pub const fn geocoordinates::geodesy::Ellipsoid::flattening(&self) -> f64
 pub const fn geocoordinates::geodesy::Ellipsoid::for_crs(geocoordinates::Crs) -> core::option::Option<geocoordinates::geodesy::Ellipsoid>
 pub const fn geocoordinates::geodesy::Ellipsoid::inverse_flattening(&self) -> f64
-pub fn geocoordinates::geodesy::Ellipsoid::new(geocoordinates::Length, f64) -> geocoordinates::Result<Self>
 pub const fn geocoordinates::geodesy::Ellipsoid::semi_major(&self) -> geocoordinates::Length
 pub const fn geocoordinates::geodesy::Ellipsoid::semi_minor(&self) -> geocoordinates::Length
 impl core::clone::Clone for geocoordinates::geodesy::Ellipsoid

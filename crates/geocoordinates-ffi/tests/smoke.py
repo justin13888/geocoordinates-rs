@@ -404,10 +404,10 @@ except gc.GeoError.InvalidGridRef:
 # --- Geodesy: ellipsoid, ECEF, ENU/AER ---
 wgs84 = gc.ellipsoid_wgs84()
 assert approx(gc.ellipsoid_semi_minor_m(wgs84), 6_356_752.314_245, 1e-3)
-assert gc.ellipsoid_new(6_378_137.0, 298.257_223_563) == wgs84
+gc.ellipsoid_validate(gc.Ellipsoid(semi_major_m=6_378_137.0, inverse_flattening=298.257_223_563))
 try:
-    gc.ellipsoid_new(-1.0, 298.257_223_563)
-    raise AssertionError("expected InvalidValue for a negative semi-major axis")
+    gc.ellipsoid_validate(gc.Ellipsoid(semi_major_m=-1.0, inverse_flattening=298.257_223_563))
+    raise AssertionError("expected InvalidValue for a record no reference system names")
 except gc.GeoError.InvalidValue:
     pass
 # The ellipsoid comes from the coordinate's CRS: NAD27 sits on Clarke 1866.
