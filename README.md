@@ -10,11 +10,10 @@ Low-level geospatial coordinate primitives for Rust — China datums (GCJ-02/BD-
 
 ## API surface
 
-The whole public surface, by subsystem. A ✅ in **Rust** or **FFI** means the
-subsystem meets all five points of the stabilization bar defined in
-[STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md) on that side: conversion naming, honest
-exactness, a compiling doctest on every item, one canonical FFI form, and tested
-antimeridian / pole / round-trip edges.
+The whole public surface, by subsystem. A ✅ in **Rust** or **FFI** marks the
+subsystem as stabilized on that side; the stabilization bar, and the evidence
+that each subsystem meets it, are in
+[STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md#what-stabilized-means).
 
 Every public item has exactly one path (plus its `prelude` entry): the core
 types sit at the crate root, and every other item sits flat in the module the
@@ -46,8 +45,9 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 Optional serde `Serialize` / `Deserialize` is derived on every public value,
 option and id type under the `serde` feature.
 
-**Known open defects:** none. Every finding of the stabilization audit and the
-pre-1.0 audit is closed in the ledger.
+**Known defects:** the [audit ledger](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md#audit-ledger)
+records every finding of the stabilization and pre-1.0 audits and whether it is
+still open.
 
 **Deferred:** PROJ-backed EPSG conversion and geoid grid models, both blocked on
 a system library or multi-megabyte external data.
@@ -105,13 +105,7 @@ column of the surface table above records it subsystem by subsystem.
 The FFI surface is deliberately flatter than the idiomatic Rust API; the
 [bindings README](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md#how-each-rust-idiom-is-re-expressed) states how each Rust idiom
 is re-expressed, and its [naming section](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md#naming)
-the one scheme every export follows: a unit suffix on every returned length
-and angle (`initial_bearing_deg`), with two stated exceptions; `parse_*` for
-every reader (Rust and FFI use the same names, such as `parse_geojson`); a
-`*_validate` for every invariant record an export takes as input (the
-output-only `ApproxCoordinate` / `ApproxWgs84` / `ApproxGcj02` have none, so
-`Approx::new` stays Rust-only); and `*_canonicalize` for every grid
-code. The published `geocoordinates` crate is unaffected — the
+states the one naming scheme every export follows. The published `geocoordinates` crate is unaffected — the
 bindings build from their own `cdylib`/`staticlib` crate.
 
 > Java is served by the Kotlin/JVM bindings (directly callable from Java), so it

@@ -37,8 +37,8 @@ evidence:
    asserted (C3, C13, C15, C9b), and every routine that runs on the mean sphere
    says so in its name (C1 / C14).
 3. Every public item carries a compiling doctest (G12):
-   `cargo test --all-features --doc` runs 299 of them (295 examples and 4
-   `compile_fail` pins).
+   `cargo test --all-features --doc` runs 520 of them (510 examples and 10
+   `compile_fail` pins) at `4238894`, as measured in the [baseline](#baseline).
 4. Every `#[uniffi::export]` is called by a Rust test, and carries `# Errors`
    when it is fallible, both enforced by
    `crates/geocoordinates-ffi/tests/export_coverage.rs`; the exports follow
@@ -49,21 +49,28 @@ evidence:
    added. Since G18 and G18b closed, neither round-trip property excludes any
    case.
 
+This section and the ledger below are the only place these claims are made;
+`README.md` links here rather than repeating them. **Known open defects** are
+exactly the [audit ledger](#audit-ledger)'s rows whose status reads `open`.
+
 ## Baseline
 
-Measured on `master` at the start of this effort (2026-09-01), and again at the
-0.15.0 surface after the pre-1.0 audit (`master@8a55fcb`, 2026-10-17):
+Measured on `master` at the start of this effort (2026-09-01), and again on
+the 0.15.0 surface at `4238894` (2026-11-15), a commit of #298 whose Rust
+sources are `master@433f3a0`'s with only doc comments changed; the commits
+after it in #298 change only Markdown and one doc comment, so no count moves. Each 0.15.0 figure names the command
+that produced it:
 
 | Signal | 2026-09-01 | 0.15.0 |
 |---|---|---|
-| Tests | 199 passing (191 unit + 8 flagship example) | 820 core-crate (513 unit, 8 flagship, 295 doctests and 4 `compile_fail` doctests, all features) + 107 FFI-crate Rust tests |
-| Coverage | 96.0% lines, 93.2% functions | 98.85% lines, 97.66% functions; CI fails under a 98% line floor |
+| Tests | 199 passing (191 unit + 8 flagship example) | 1358 core-crate, all features (`cargo test --all-features`: 783 unit, 47 integration in `tests/`, 8 flagship, and 510 doctests and 10 `compile_fail` doctests) + 161 FFI-crate Rust tests (`cargo test -p geocoordinates-ffi`) |
+| Coverage | 96.0% lines, 93.2% functions | 98.63% lines, 97.62% functions (`mise run coverage`, i.e. `cargo llvm-cov --all-features`); CI fails under a 98% line floor |
 | `cargo fmt --check` | clean | clean |
 | `clippy -D warnings` (both crates) | clean | clean |
 | `rustdoc -D missing_docs` | clean | clean, and denied in CI |
-| **Doctests** | **0 executable** — one ` ```ignore ` fence crate-wide | 299 executable |
+| **Doctests** | **0 executable** — one ` ```ignore ` fence crate-wide | 520 executable (`cargo test --all-features --doc`) |
 | **FFI CI** | **red since 2026-08-05** — fixed by #37 | green; Rust tests for every export plus behavioural tests in all four languages |
-| Open issues | 0 | none besides #186, the reconciliation that records this column |
+| Open issues | 0 | not copied here, since a hand-kept list goes stale as each issue closes: `gh issue list --state open` is the live list. #186, which this column used to name, closed through #213 |
 
 ## Audit ledger
 
@@ -242,27 +249,31 @@ ledger rows it closed are listed.
 
 ## 0.15.0 gate checklist
 
-0.15.0 is not cut until all of these hold. Evidence is from `master@8a55fcb`
-(2026-10-17), the surface the release PR (#133) ships once the pre-1.0 audit
-has landed:
+0.15.0 is not cut until all of these hold. Each item names the ref its
+evidence is from: the CI runs and the `cargo semver-checks` report are from
+`master@8a55fcb` (2026-10-17), and the counts are from `4238894` (2026-11-15),
+as in the [baseline](#baseline). The release PR (#133) ships the surface once
+the pre-1.0 audit has landed.
 
-- [x] Every ledger finding above is closed: no row is open and none is
-  deferred. G17 (#135) and G18 (#149), deferred to a patch release at
-  `4dcd177`, closed inside 0.15.0 (#206, #196), together with the G17b and
-  G18b defects found while fixing them.
+- [ ] Every ledger finding above is closed: no row is open and none is
+  deferred. Not yet: rows G32–G52 read `open` until #272 reconciles them with
+  the pull requests that delivered them. G17 (#135) and G18 (#149), deferred
+  to a patch release at `4dcd177`, closed inside 0.15.0 (#206, #196),
+  together with the G17b and G18b defects found while fixing them.
 - [x] `mise run check` and `mise run ffi-check` green — CI run 39014700571 at
   `8a55fcb`, and CI run 39013401942 and FFI run 39013401997 at #212's head
   `ef195ff`, whose tree is identical to `8a55fcb`.
 - [x] `cargo test --all-features --doc` executes a non-zero number of doctests —
-  299 pass (295 examples and 4 `compile_fail` pins).
+  520 pass at `4238894` (510 examples and 10 `compile_fail` pins).
 - [x] `mise run bindings` regenerates cleanly for all four languages — the FFI
   run above generates Python, Kotlin and Swift (and checks the committed Swift
   bindings are current) and builds the WASM / TypeScript package, and each
   language's tests pass.
 - [x] `cargo run --all-features --example flagship` passes and exercises the
   full surface — "All 8 shipped Rust capability groups passed."
-- [x] Coverage threshold enabled in CI and met — a 98% line floor (measured 98.85%)
-  in `.coverage-baseline`, held shrink-only by `mise run coverage-ratchet` (#128).
+- [x] Coverage threshold enabled in CI and met — a 98% line floor in
+  `.coverage-baseline` (`mise run coverage` measured 98.63% at `4238894`), held
+  shrink-only by `mise run coverage-ratchet` (#128).
 - [x] `cargo semver-checks` output reconciled against the release PR's
   changelog — every break recorded; see below.
 

@@ -330,10 +330,11 @@ impl DatumTransform {
     /// | Tokyo | App. B.3, TOY-M, mean solution (Japan, Okinawa, South Korea) | −148, 507, 685 | ±20, ±5, ±20 m → √825 ≈ 28.72 m |
     /// | Pulkovo-1942 | App. C.2, PUK, Russia | 28, −130, −95 | none published (`None`) |
     ///
-    /// Returns `None` for [`Crs::Wgs84`] (no shift needed), for the China
-    /// obfuscation systems (use the [`china`](crate::china) typed conversions),
-    /// and for datums reachable only through the deferred `proj` feature (see
-    /// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
+    /// Returns `None` for exactly three values: [`Crs::Wgs84`] (no shift
+    /// needed), and [`Crs::Gcj02`] and [`Crs::Bd09`], the China obfuscation
+    /// systems, which are not Helmert-related to WGS-84 (use the
+    /// [`china`](crate::china) typed conversions). Every other [`Crs`] has an
+    /// entry in the table above.
     ///
     /// ```
     /// use geocoordinates::{Crs, geodesy::DatumTransform};

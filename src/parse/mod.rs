@@ -230,10 +230,14 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 /// e.g. `geo:13.4125,103.8667` or `geo:48.2,16.3,183;crs=wgs84;u=40`.
 ///
 /// Latitude comes first (the RFC fixes the axis order), an optional third
-/// number is the altitude in meters, and the `crs`/`u` parameters set the
-/// reference system and the horizontal accuracy (meters) on the returned
-/// [`Fix`]. The RFC states no confidence level for `u=`, so that accuracy is
-/// [`AccuracyKind::Unspecified`].
+/// number is the altitude in meters, and the `u` parameter sets the horizontal
+/// accuracy (meters) on the returned [`Fix`]. The RFC states no confidence
+/// level for `u=`, so that accuracy is [`AccuracyKind::Unspecified`].
+///
+/// The `crs` parameter does not select a reference system: it must be absent
+/// or `wgs84` (compared case-insensitively), and the returned position is
+/// always WGS-84. Any other value is rejected as
+/// [`ParseErrorKind::Unsupported`].
 ///
 /// # Errors
 /// Returns [`crate::Error::Parse`] of kind
