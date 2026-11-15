@@ -8447,105 +8447,6 @@ public func FfiConverterTypeInterpolation_lower(_ value: Interpolation) -> RustB
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The outcome of [`intersection_spherical`] — mirror of
- * [`gc::geodesy::Intersection`].
- *
- * `gc::geodesy::Intersection` is exhaustive, so the `From` impl below is an
- * exhaustive match: a new outcome upstream fails this crate's build until
- * mirrored here.
- */
-
-public enum IntersectionResult: Equatable, Hashable {
-    
-    /**
-     * The paths cross at `point`, less than half a great circle ahead of each
-     * start (in the inputs' CRS, with no height).
-     */
-    case crossing(
-        /**
-         * The crossing point.
-         */point: Coordinate
-    )
-    /**
-     * Both paths run along the same great circle, so no single crossing
-     * exists.
-     */
-    case sameGreatCircle
-    /**
-     * Neither crossing of the two great circles lies ahead of both starts.
-     */
-    case noForwardCrossing
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension IntersectionResult: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeIntersectionResult: FfiConverterRustBuffer {
-    typealias SwiftType = IntersectionResult
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IntersectionResult {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .crossing(point: try FfiConverterTypeCoordinate.read(from: &buf)
-        )
-        
-        case 2: return .sameGreatCircle
-        
-        case 3: return .noForwardCrossing
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: IntersectionResult, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case let .crossing(point):
-            writeInt(&buf, Int32(1))
-            FfiConverterTypeCoordinate.write(point, into: &buf)
-            
-        
-        case .sameGreatCircle:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .noForwardCrossing:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeIntersectionResult_lift(_ buf: RustBuffer) throws -> IntersectionResult {
-    return try FfiConverterTypeIntersectionResult.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeIntersectionResult_lower(_ value: IntersectionResult) -> RustBuffer {
-    return FfiConverterTypeIntersectionResult.lower(value)
-}
-
-
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-/**
  * A length unit — mirror of [`gc::LengthUnit`].
  */
 
@@ -9421,6 +9322,105 @@ public func FfiConverterTypeSnapGrid_lift(_ buf: RustBuffer) throws -> SnapGrid 
 #endif
 public func FfiConverterTypeSnapGrid_lower(_ value: SnapGrid) -> RustBuffer {
     return FfiConverterTypeSnapGrid.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The outcome of [`intersection_spherical`] — mirror of
+ * [`gc::geodesy::SphericalIntersection`].
+ *
+ * `gc::geodesy::SphericalIntersection` is exhaustive, so the `From` impl below is an
+ * exhaustive match: a new outcome upstream fails this crate's build until
+ * mirrored here.
+ */
+
+public enum SphericalIntersectionResult: Equatable, Hashable {
+    
+    /**
+     * The paths cross at `point`, less than half a great circle ahead of each
+     * start (in the inputs' CRS, with no height).
+     */
+    case crossing(
+        /**
+         * The crossing point.
+         */point: Coordinate
+    )
+    /**
+     * Both paths run along the same great circle, so no single crossing
+     * exists.
+     */
+    case sameGreatCircle
+    /**
+     * Neither crossing of the two great circles lies ahead of both starts.
+     */
+    case noForwardCrossing
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SphericalIntersectionResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSphericalIntersectionResult: FfiConverterRustBuffer {
+    typealias SwiftType = SphericalIntersectionResult
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SphericalIntersectionResult {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .crossing(point: try FfiConverterTypeCoordinate.read(from: &buf)
+        )
+        
+        case 2: return .sameGreatCircle
+        
+        case 3: return .noForwardCrossing
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SphericalIntersectionResult, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .crossing(point):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeCoordinate.write(point, into: &buf)
+            
+        
+        case .sameGreatCircle:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .noForwardCrossing:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSphericalIntersectionResult_lift(_ buf: RustBuffer) throws -> SphericalIntersectionResult {
+    return try FfiConverterTypeSphericalIntersectionResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSphericalIntersectionResult_lower(_ value: SphericalIntersectionResult) -> RustBuffer {
+    return FfiConverterTypeSphericalIntersectionResult.lower(value)
 }
 
 
@@ -12621,8 +12621,8 @@ public func intersection(a: Coordinate, bearingADeg: Double, b: Coordinate, bear
  * bearing; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
  * coordinate record.
  */
-public func intersectionSpherical(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> IntersectionResult  {
-    return try  FfiConverterTypeIntersectionResult_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+public func intersectionSpherical(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> SphericalIntersectionResult  {
+    return try  FfiConverterTypeSphericalIntersectionResult_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_intersection_spherical(
         FfiConverterTypeCoordinate_lower(a),
         FfiConverterDouble.lower(bearingADeg),
@@ -14212,7 +14212,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_intersection() != 47656) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 63057) {
+    if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 56812) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_estimate_offset_ms() != 12166) {

@@ -1,6 +1,6 @@
 use super::*;
 use crate::geodesy::{
-    Intersection, along_track_distance_spherical, cross_track_distance_spherical,
+    SphericalIntersection, along_track_distance_spherical, cross_track_distance_spherical,
     haversine_distance, intersection_spherical, rhumb_bearing, rhumb_destination, rhumb_distance,
 };
 use crate::test_support::assert_close;

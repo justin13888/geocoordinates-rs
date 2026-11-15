@@ -376,7 +376,7 @@ fn ellipsoidal_intersection_names_each_outcome() {
 
 #[test]
 fn intersection_of_the_equator_and_the_prime_meridian_is_null_island() {
-    let IntersectionResult::Crossing { point: hit } =
+    let SphericalIntersectionResult::Crossing { point: hit } =
         intersection_spherical(wgs84(0.0, -10.0), 90.0, wgs84(-10.0, 0.0), 0.0).unwrap()
     else {
         panic!("the equator and the prime meridian intersect");
@@ -389,7 +389,7 @@ fn intersection_of_the_equator_and_the_prime_meridian_is_null_island() {
 #[test]
 fn intersection_names_each_outcome() {
     // From the north pole, 180° runs down the given meridian to (0, 10).
-    let IntersectionResult::Crossing { point } =
+    let SphericalIntersectionResult::Crossing { point } =
         intersection_spherical(wgs84(90.0, 10.0), 180.0, wgs84(0.0, 0.0), 90.0).unwrap()
     else {
         panic!("the meridian meets the equator");
@@ -398,11 +398,11 @@ fn intersection_names_each_outcome() {
     close(point.lon, 10.0, 1e-9);
     assert_eq!(
         intersection_spherical(wgs84(0.0, 0.0), 90.0, wgs84(0.0, 5.0), 90.0).unwrap(),
-        IntersectionResult::SameGreatCircle
+        SphericalIntersectionResult::SameGreatCircle
     );
     assert_eq!(
         intersection_spherical(wgs84(10.0, 0.0), 270.0, wgs84(0.0, 10.0), 0.0).unwrap(),
-        IntersectionResult::NoForwardCrossing
+        SphericalIntersectionResult::NoForwardCrossing
     );
     let gcj = coordinate_new(30.0, 110.0, Crs::Gcj02).unwrap();
     assert!(intersection_spherical(gcj, 0.0, gcj, 90.0).is_err());

@@ -241,7 +241,7 @@ fn oblique_crossings_lie_on_both_geodesics() {
         assert!(on_path(&p, &a, ba) && on_path(&p, &b, bb), "{p:?}");
         // The ellipsoid moves the crossing off the sphere's.
         let spherical = crate::geodesy::intersection_spherical(a, ba, b, bb).unwrap();
-        let crate::geodesy::Intersection::Crossing(q) = spherical else {
+        let crate::geodesy::SphericalIntersection::Crossing(q) = spherical else {
             panic!("{spherical:?}");
         };
         assert!(geodesic_distance(p, q).unwrap().meters() > 1.0);

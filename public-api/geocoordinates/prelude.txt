@@ -80,10 +80,6 @@ pub geocoordinates::prelude::HemisphereStyle::Signed
 pub enum geocoordinates::prelude::Interpolation
 pub geocoordinates::prelude::Interpolation::Geodesic
 pub geocoordinates::prelude::Interpolation::Nearest
-pub enum geocoordinates::prelude::Intersection
-pub geocoordinates::prelude::Intersection::Crossing(geocoordinates::Coordinate)
-pub geocoordinates::prelude::Intersection::NoForwardCrossing
-pub geocoordinates::prelude::Intersection::SameGreatCircle
 pub enum geocoordinates::prelude::LengthUnit
 pub geocoordinates::prelude::LengthUnit::Foot
 pub geocoordinates::prelude::LengthUnit::Kilometer
@@ -133,6 +129,10 @@ pub enum geocoordinates::prelude::SnapGrid
 pub geocoordinates::prelude::SnapGrid::Geohash
 pub geocoordinates::prelude::SnapGrid::H3
 pub geocoordinates::prelude::SnapGrid::S2
+pub enum geocoordinates::prelude::SphericalIntersection
+pub geocoordinates::prelude::SphericalIntersection::Crossing(geocoordinates::Coordinate)
+pub geocoordinates::prelude::SphericalIntersection::NoForwardCrossing
+pub geocoordinates::prelude::SphericalIntersection::SameGreatCircle
 pub enum geocoordinates::prelude::SymbolStyle
 pub geocoordinates::prelude::SymbolStyle::Ascii
 pub geocoordinates::prelude::SymbolStyle::Letters
@@ -305,7 +305,7 @@ pub fn geocoordinates::prelude::haversine_distance(impl geocoordinates::LatLon, 
 pub fn geocoordinates::prelude::initial_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
 pub fn geocoordinates::prelude::intermediate(geocoordinates::Coordinate, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::Coordinate>
 pub fn geocoordinates::prelude::intersection(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::GeodesicIntersection>
-pub fn geocoordinates::prelude::intersection_spherical(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::Intersection>
+pub fn geocoordinates::prelude::intersection_spherical(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::SphericalIntersection>
 pub fn geocoordinates::prelude::midpoint(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
 pub fn geocoordinates::prelude::parse_coordinate(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::prelude::parse_coordinate_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
