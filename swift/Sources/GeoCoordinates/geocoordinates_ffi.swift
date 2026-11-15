@@ -707,9 +707,8 @@ public protocol ClusterIndexProtocol: AnyObject, Sendable {
      *
      * # Errors
      * `GeoError::InvalidValue` (field `zoom`) above 22, or for an invalid
-     * [`GeoBounds`] record, which is `GeoError::OutOfRange` when an edge is out of
-     * range; `GeoError::CrsMismatch` when `bounds` is on another reference system
-     * than the points.
+     * [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
+     * reference system than the points.
      */
     func clusters(bounds: GeoBounds, zoom: UInt8) throws  -> [MapCluster]
     
@@ -858,9 +857,8 @@ open func children(clusterId: UInt64)throws  -> [MapCluster]  {
      *
      * # Errors
      * `GeoError::InvalidValue` (field `zoom`) above 22, or for an invalid
-     * [`GeoBounds`] record, which is `GeoError::OutOfRange` when an edge is out of
-     * range; `GeoError::CrsMismatch` when `bounds` is on another reference system
-     * than the points.
+     * [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
+     * reference system than the points.
      */
 open func clusters(bounds: GeoBounds, zoom: UInt8)throws  -> [MapCluster]  {
     return try  FfiConverterSequenceTypeMapCluster.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -4332,10 +4330,7 @@ public func FfiConverterTypeGcj02_lower(_ value: Gcj02) -> RustBuffer {
  *
  * Decimal degrees on `crs`, every edge inclusive. A `west` greater than `east`
  * crosses the antimeridian. Plain data: every export taking one applies the core
- * crate's rules, and [`geo_bounds_validate`] checks a hand-built one. An invalid
- * record is `GeoError::OutOfRange` when `(south, west)` or `(north, east)` is not
- * a geographic position, and `GeoError::InvalidValue` (field `south_west`) when
- * south lies north of north.
+ * crate's rules, and [`geo_bounds_validate`] checks a hand-built one.
  */
 public struct GeoBounds: Equatable, Hashable {
     /**
@@ -12366,8 +12361,7 @@ public func rhumbDistanceM(a: Coordinate, b: Coordinate)throws  -> Double  {
  * a geodesic centroid.
  *
  * # Errors
- * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
- * record, as [`geo_bounds_validate`] reports it.
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
  */
 public func geoBoundsCenter(bounds: GeoBounds)throws  -> Coordinate  {
     return try  FfiConverterTypeCoordinate_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12397,8 +12391,7 @@ public func geoBoundsContains(bounds: GeoBounds, point: Coordinate)throws  -> Bo
  * edge.
  *
  * # Errors
- * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
- * record, as [`geo_bounds_validate`] reports it.
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
  */
 public func geoBoundsCrossesAntimeridian(bounds: GeoBounds)throws  -> Bool  {
     return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12413,8 +12406,7 @@ public func geoBoundsCrossesAntimeridian(bounds: GeoBounds)throws  -> Bool  {
  *
  * # Errors
  * `GeoError::InvalidValue` (field `distance`) when `distance_m` is negative or
- * non-finite; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
- * [`GeoBounds`] record, as [`geo_bounds_validate`] reports it; `GeoError::CrsMismatch` on
+ * non-finite, or for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` on
  * GCJ-02 / BD-09, which have no ellipsoid.
  */
 public func geoBoundsExpandBy(bounds: GeoBounds, distanceM: Double)throws  -> GeoBounds  {
@@ -12447,8 +12439,7 @@ public func geoBoundsFromPoints(points: [Coordinate])throws  -> GeoBounds  {
  *
  * # Errors
  * `GeoError::CrsMismatch` when the boxes are on different reference systems;
- * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
- * record, as [`geo_bounds_validate`] reports it.
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
  */
 public func geoBoundsIntersects(a: GeoBounds, b: GeoBounds)throws  -> Bool  {
     return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12464,8 +12455,7 @@ public func geoBoundsIntersects(a: GeoBounds, b: GeoBounds)throws  -> Bool  {
  *
  * # Errors
  * `GeoError::CrsMismatch` when the boxes are on different reference systems;
- * `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid [`GeoBounds`]
- * record, as [`geo_bounds_validate`] reports it.
+ * `GeoError::InvalidValue` for an invalid [`GeoBounds`] record.
  */
 public func geoBoundsUnion(a: GeoBounds, b: GeoBounds)throws  -> GeoBounds  {
     return try  FfiConverterTypeGeoBounds_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12479,9 +12469,8 @@ public func geoBoundsUnion(a: GeoBounds, b: GeoBounds)throws  -> GeoBounds  {
  * Checks a hand-built [`GeoBounds`] against the core crate's rules.
  *
  * # Errors
- * `GeoError::OutOfRange` when `(south, west)` or `(north, east)` is not a
- * geographic position (an edge non-finite or out of range), and
- * `GeoError::InvalidValue` with field `south_west` when south lies north of north.
+ * `GeoError::InvalidValue` naming the edge when it is non-finite or out of range,
+ * and field `south_west` when south lies north of north.
  */
 public func geoBoundsValidate(bounds: GeoBounds)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_geo_bounds_validate(
@@ -13088,9 +13077,8 @@ public func cameraValidate(camera: Camera)throws   {try rustCallWithError(FfiCon
  *
  * # Errors
  * `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`, or
- * for an invalid [`GeoBounds`] record, which is `GeoError::OutOfRange` when an
- * edge is out of range; `GeoError::CrsMismatch` when `bounds` is on another
- * reference system than the points.
+ * for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on
+ * another reference system than the points.
  */
 public func clustersInView(index: ClusterIndex, bounds: GeoBounds, zoom: Double)throws  -> [MapCluster]  {
     return try  FfiConverterSequenceTypeMapCluster.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -13114,9 +13102,8 @@ public func clustersInView(index: ClusterIndex, bounds: GeoBounds, zoom: Double)
  *
  * # Errors
  * `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`, or
- * for an invalid [`GeoBounds`] record, which is `GeoError::OutOfRange` when an
- * edge is out of range; `GeoError::CrsMismatch` when `bounds` is on another
- * reference system than the points, or the points are not on WGS-84.
+ * for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on
+ * another reference system than the points, or the points are not on WGS-84.
  */
 public func clustersInViewGeojson(index: ClusterIndex, bounds: GeoBounds, zoom: Double, display: DisplayDatum)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -13153,8 +13140,7 @@ public func displayCoordinate(point: Coordinate, display: DisplayDatum)throws  -
  * # Errors
  * `GeoError::InvalidValue` with field `padding_px` unless it is finite, not
  * negative and leaves part of the view, field `max_zoom` unless it is finite and in
- * `[0, 30]`, or for an invalid [`GeoBounds`] or [`Viewport`] record;
- * `GeoError::OutOfRange` for a [`GeoBounds`] edge out of range.
+ * `[0, 30]`, or for an invalid [`GeoBounds`] or [`Viewport`] record.
  */
 public func fitBounds(bounds: GeoBounds, viewport: Viewport, paddingPx: Double, maxZoom: Double)throws  -> Camera  {
     return try  FfiConverterTypeCamera_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -13295,8 +13281,7 @@ public func tileValidate(tile: Tile)throws   {try rustCallWithError(FfiConverter
  *
  * # Errors
  * `GeoError::InvalidValue` with field `z` above 30, field `max_tiles` when more
- * tiles cover the box, or for an invalid [`GeoBounds`] record, which is
- * `GeoError::OutOfRange` when an edge is out of range.
+ * tiles cover the box, or for an invalid [`GeoBounds`] record.
  */
 public func tilesCovering(bounds: GeoBounds, z: UInt8, maxTiles: UInt32)throws  -> [Tile]  {
     return try  FfiConverterSequenceTypeTile.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -14159,28 +14144,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_rhumb_distance_m() != 2474) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_center() != 45851) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_center() != 21626) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_contains() != 43682) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_crosses_antimeridian() != 19115) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_crosses_antimeridian() != 56341) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_expand_by() != 29983) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_expand_by() != 62035) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_from_points() != 4207) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_intersects() != 30006) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_intersects() != 51694) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_union() != 50637) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_union() != 8038) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_validate() != 43731) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_validate() != 39077) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_m() != 5337) {
@@ -14291,16 +14276,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_camera_validate() != 60383) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_clusters_in_view() != 28034) {
+    if (uniffi_geocoordinates_ffi_checksum_func_clusters_in_view() != 61292) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_clusters_in_view_geojson() != 14608) {
+    if (uniffi_geocoordinates_ffi_checksum_func_clusters_in_view_geojson() != 47295) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_display_coordinate() != 27306) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_fit_bounds() != 27436) {
+    if (uniffi_geocoordinates_ffi_checksum_func_fit_bounds() != 41318) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_points_to_geojson() != 63265) {
@@ -14330,7 +14315,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_tile_validate() != 60019) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_tiles_covering() != 48735) {
+    if (uniffi_geocoordinates_ffi_checksum_func_tiles_covering() != 54512) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_viewport_bounds() != 47325) {
@@ -14429,7 +14414,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_children() != 47930) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_clusters() != 52831) {
+    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_clusters() != 10435) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_coordinate() != 50825) {

@@ -26,18 +26,20 @@ fn from_lons(lons: &[f64]) -> (f64, f64) {
 }
 
 #[test]
-fn from_edges_rejects_an_edge_pair_outside_the_range() {
-    for args in [
-        (-90.5, 0.0, 0.0, 0.0),
-        (0.0, -180.5, 0.0, 0.0),
-        (0.0, 0.0, 90.5, 0.0),
-        (0.0, 0.0, 0.0, 180.5),
-        (f64::NAN, 0.0, 0.0, 0.0),
-        (0.0, f64::INFINITY, 0.0, 0.0),
+fn from_edges_names_the_edge_outside_the_range() {
+    for (args, name) in [
+        ((-90.5, 0.0, 0.0, 0.0), "south"),
+        ((0.0, -180.5, 0.0, 0.0), "west"),
+        ((0.0, 0.0, 90.5, 0.0), "north"),
+        ((0.0, 0.0, 0.0, 180.5), "east"),
+        ((f64::NAN, 0.0, 0.0, 0.0), "south"),
+        ((0.0, f64::INFINITY, 0.0, 0.0), "west"),
+        ((0.0, 0.0, f64::NEG_INFINITY, 0.0), "north"),
+        ((0.0, 0.0, 0.0, f64::NAN), "east"),
     ] {
         let found = GeoBounds::from_edges(args.0, args.1, args.2, args.3, Crs::Wgs84);
         assert!(
-            matches!(found, Err(Error::OutOfRange { .. })),
+            matches!(found, Err(Error::InvalidValue { field, .. }) if field == name),
             "{args:?}: {found:?}"
         );
     }

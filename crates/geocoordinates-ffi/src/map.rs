@@ -303,8 +303,7 @@ pub fn tile_bounds(tile: Tile, crs: Crs) -> Result<GeoBounds, GeoError> {
 ///
 /// # Errors
 /// `GeoError::InvalidValue` with field `z` above 30, field `max_tiles` when more
-/// tiles cover the box, or for an invalid [`GeoBounds`] record, which is
-/// `GeoError::OutOfRange` when an edge is out of range.
+/// tiles cover the box, or for an invalid [`GeoBounds`] record.
 #[uniffi::export]
 pub fn tiles_covering(bounds: GeoBounds, z: u8, max_tiles: u32) -> Result<Vec<Tile>, GeoError> {
     let tiles = gc::map::tiles_covering(bounds.try_into()?, z, max_tiles as usize)?;
@@ -341,8 +340,7 @@ pub fn camera_validate(camera: Camera) -> Result<(), GeoError> {
 /// # Errors
 /// `GeoError::InvalidValue` with field `padding_px` unless it is finite, not
 /// negative and leaves part of the view, field `max_zoom` unless it is finite and in
-/// `[0, 30]`, or for an invalid [`GeoBounds`] or [`Viewport`] record;
-/// `GeoError::OutOfRange` for a [`GeoBounds`] edge out of range.
+/// `[0, 30]`, or for an invalid [`GeoBounds`] or [`Viewport`] record.
 #[uniffi::export]
 pub fn fit_bounds(
     bounds: GeoBounds,
@@ -376,9 +374,8 @@ pub fn viewport_bounds(camera: Camera, viewport: Viewport) -> Result<GeoBounds, 
 ///
 /// # Errors
 /// `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`, or
-/// for an invalid [`GeoBounds`] record, which is `GeoError::OutOfRange` when an
-/// edge is out of range; `GeoError::CrsMismatch` when `bounds` is on another
-/// reference system than the points.
+/// for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on
+/// another reference system than the points.
 #[uniffi::export]
 pub fn clusters_in_view(
     index: &ClusterIndex,
@@ -445,9 +442,8 @@ pub fn points_to_geojson(
 ///
 /// # Errors
 /// `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`, or
-/// for an invalid [`GeoBounds`] record, which is `GeoError::OutOfRange` when an
-/// edge is out of range; `GeoError::CrsMismatch` when `bounds` is on another
-/// reference system than the points, or the points are not on WGS-84.
+/// for an invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on
+/// another reference system than the points, or the points are not on WGS-84.
 #[uniffi::export]
 pub fn clusters_in_view_geojson(
     index: &ClusterIndex,

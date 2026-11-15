@@ -156,8 +156,12 @@ impl GeoBounds {
         })
     }
 
-    /// A box from four edges on `crs`, through [`from_corners`](Self::from_corners):
-    /// an edge pair outside the geographic range is [`Error::OutOfRange`].
+    /// A box from four edges on `crs`, through [`from_corners`](Self::from_corners).
+    ///
+    /// Each edge is one axis, so an edge that is non-finite or out of range is
+    /// [`Error::InvalidValue`] naming it (`south`, `west`, `north` or `east`),
+    /// checked before the corners are built. South north of north is the
+    /// `field: "south_west"` error of `from_corners`.
     pub(crate) fn from_edges(
         south: f64,
         west: f64,
@@ -165,6 +169,19 @@ impl GeoBounds {
         east: f64,
         crs: Crs,
     ) -> Result<Self> {
+        for (field, value, limit) in [
+            ("south", south, 90.0),
+            ("west", west, 180.0),
+            ("north", north, 90.0),
+            ("east", east, 180.0),
+        ] {
+            if !value.is_finite() || value.abs() > limit {
+                return Err(Error::InvalidValue {
+                    field,
+                    detail: format!("{value} is not a finite value in [-{limit}, {limit}]"),
+                });
+            }
+        }
         Self::from_corners(
             Coordinate::new(south, west, crs)?,
             Coordinate::new(north, east, crs)?,

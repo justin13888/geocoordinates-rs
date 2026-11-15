@@ -35,15 +35,18 @@ fn validate_checks_a_hand_built_record() {
         geo_bounds_validate(bounds(1.0, 0.0, 0.0, 0.0)),
         Err(GeoError::InvalidValue { field, .. }) if field == "south_west"
     ));
-    // An edge out of range makes its corner no geographic position.
-    assert!(matches!(
-        geo_bounds_validate(bounds(0.0, 181.0, 1.0, 0.0)),
-        Err(GeoError::OutOfRange { lat, lon }) if lat == 0.0 && lon == 181.0
-    ));
-    assert!(matches!(
-        geo_bounds_validate(bounds(0.0, 0.0, 91.0, 0.0)),
-        Err(GeoError::OutOfRange { lat, lon }) if lat == 91.0 && lon == 0.0
-    ));
+    // An edge out of range is a single-axis error naming that edge.
+    for (record, name) in [
+        (bounds(-91.0, 0.0, 1.0, 0.0), "south"),
+        (bounds(0.0, 181.0, 1.0, 0.0), "west"),
+        (bounds(0.0, 0.0, 91.0, 0.0), "north"),
+        (bounds(0.0, 0.0, 1.0, f64::NAN), "east"),
+    ] {
+        assert!(matches!(
+            geo_bounds_validate(record),
+            Err(GeoError::InvalidValue { field, .. }) if field == name
+        ));
+    }
 }
 
 #[test]
