@@ -7,7 +7,7 @@ fn c(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
 }
 
-/// The crossing point of an [`SphericalIntersection`], if it has one.
+/// The crossing point of a [`SphericalIntersection`], if it has one.
 trait CrossingPoint {
     fn crossing(self) -> Option<Coordinate>;
 }
