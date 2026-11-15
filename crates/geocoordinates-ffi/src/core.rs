@@ -487,10 +487,10 @@ pub fn length_unit_meters_per_unit(unit: LengthUnit) -> f64 {
 }
 
 /// The height in meters, whichever surface it is measured from — mirror of
-/// [`gc::Height::meters`] (`Length` is flattened to `f64` meters).
+/// [`gc::Height::length`] (`Length` is flattened to `f64` meters).
 #[uniffi::export]
 pub fn height_meters(height: Height) -> f64 {
-    gc::Height::from(height).meters().meters()
+    gc::Height::from(height).length().meters()
 }
 
 // --- Coordinate validation ---

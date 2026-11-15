@@ -261,7 +261,7 @@ impl Coordinate {
             "Coordinate::from_valid out of range: lat={lat}, lon={lon}"
         );
         debug_assert!(
-            height.is_none_or(|h| h.meters().meters().is_finite()),
+            height.is_none_or(|h| h.length().meters().is_finite()),
             "Coordinate::from_valid non-finite height: {height:?}"
         );
         Self {
@@ -291,7 +291,7 @@ impl Coordinate {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn with_height(self, height: Height) -> Result<Self> {
-        if !height.meters().meters().is_finite() {
+        if !height.length().meters().is_finite() {
             return Err(Error::InvalidValue {
                 field: "height",
                 detail: "must be finite".to_string(),
