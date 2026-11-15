@@ -71,11 +71,15 @@ pub enum GeoError {
         /// The reference system the coordinate actually carried.
         found: Crs,
     },
-    /// A grid reference (MGRS / Plus Code / geohash / Maidenhead) was malformed
-    /// or fell outside the grid's valid domain.
-    #[error("invalid grid reference: {detail}")]
+    /// A grid reference (MGRS / Plus Code / geohash / Maidenhead / quadkey) was
+    /// malformed or fell outside the grid's valid domain.
+    #[error("invalid {grid} reference: {detail}")]
     InvalidGridRef {
-        /// The offending grid reference text.
+        /// The grid system that rejected it, one of the stable names `MGRS`,
+        /// `geohash`, `Plus Code`, `Maidenhead`, or `quadkey`.
+        grid: String,
+        /// The rejected input, quoted, followed by why it was rejected; for
+        /// people, not for matching.
         detail: String,
     },
     /// A core error variant this mirror does not yet have, with its message
@@ -164,7 +168,10 @@ impl From<gc::Error> for GeoError {
                 expected: expected.into(),
                 found: found.into(),
             },
-            gc::Error::InvalidGridRef(detail) => GeoError::InvalidGridRef { detail },
+            gc::Error::InvalidGridRef { grid, detail } => GeoError::InvalidGridRef {
+                grid: grid.to_string(),
+                detail,
+            },
             // `gc::Error` is `#[non_exhaustive]`: a variant added upstream before
             // this mirror learns it keeps its message rather than failing the build.
             other => GeoError::Other {

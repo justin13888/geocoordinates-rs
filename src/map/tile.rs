@@ -132,19 +132,28 @@ impl Tile {
     /// use geocoordinates::{Error, map::Tile};
     ///
     /// assert_eq!(Tile::from_quadkey("0313102310")?, Tile::new(10, 486, 332)?);
-    /// assert!(matches!(Tile::from_quadkey("0314"), Err(Error::InvalidGridRef(_))));
+    /// assert!(matches!(
+    ///     Tile::from_quadkey("0314"),
+    ///     Err(Error::InvalidGridRef { grid: "quadkey", .. })
+    /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn from_quadkey(quadkey: &str) -> Result<Self> {
         if quadkey.len() > usize::from(MAX_TILE_ZOOM) {
-            return Err(Error::InvalidGridRef(format!(
-                "quadkey {quadkey:?} is longer than the deepest tile zoom {MAX_TILE_ZOOM}"
-            )));
+            return Err(Error::invalid_grid_ref(
+                "quadkey",
+                quadkey,
+                format_args!("is longer than the deepest tile zoom {MAX_TILE_ZOOM}"),
+            ));
         }
         let (mut x, mut y) = (0_u32, 0_u32);
         for digit in quadkey.chars() {
             let quadrant = digit.to_digit(4).ok_or_else(|| {
-                Error::InvalidGridRef(format!("quadkey {quadkey:?} holds {digit:?}, not 0-3"))
+                Error::invalid_grid_ref(
+                    "quadkey",
+                    quadkey,
+                    format_args!("holds {digit:?}, not 0-3"),
+                )
             })?;
             x = (x << 1) | (quadrant & 1);
             y = (y << 1) | (quadrant >> 1);

@@ -77,14 +77,14 @@ fn canonicalize_returns_the_canonical_code_or_rejects() {
         mgrs_canonicalize("4q fj 1234 5678".to_string()).unwrap(),
         "04QFJ12345678"
     );
-    for rejected in [
-        plus_code_canonicalize("X2VV+2V".to_string()),
-        geohash_canonicalize("ezs42ezs42ezs".to_string()),
-        maidenhead_canonicalize("SN20".to_string()),
-        mgrs_canonicalize("4QFJ123".to_string()),
+    for (rejected, expected) in [
+        (plus_code_canonicalize("X2VV+2V".to_string()), "Plus Code"),
+        (geohash_canonicalize("ezs42ezs42ezs".to_string()), "geohash"),
+        (maidenhead_canonicalize("SN20".to_string()), "Maidenhead"),
+        (mgrs_canonicalize("4QFJ123".to_string()), "MGRS"),
     ] {
         assert!(
-            matches!(rejected, Err(GeoError::InvalidGridRef { .. })),
+            matches!(&rejected, Err(GeoError::InvalidGridRef { grid, .. }) if grid == expected),
             "{rejected:?}"
         );
     }

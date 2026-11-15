@@ -57,7 +57,7 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 ///         Error::InvalidCellId { .. } => "invalid cell id",
 ///         Error::Parse { .. } => "parse",
 ///         Error::CrsMismatch { .. } => "crs mismatch",
-///         Error::InvalidGridRef(_) => "invalid grid ref",
+///         Error::InvalidGridRef { .. } => "invalid grid ref",
 ///     }
 /// }
 /// ```
@@ -204,21 +204,59 @@ pub enum Error {
         found: Crs,
     },
 
-    /// A grid reference (MGRS / Plus Code / geohash / Maidenhead) was malformed
-    /// or fell outside the grid's valid domain (e.g. a bad grid-zone letter).
+    /// A grid reference (MGRS / Plus Code / geohash / Maidenhead / quadkey) was
+    /// malformed or fell outside the grid's valid domain (e.g. a bad grid-zone
+    /// letter).
+    ///
+    /// `grid` names the system that rejected it, so a caller handling several
+    /// can branch on it without reading `detail`. Its values are stable:
+    ///
+    /// | `grid` | Producer |
+    /// |---|---|
+    /// | `"MGRS"` | [`Mgrs`](crate::grids::Mgrs) |
+    /// | `"geohash"` | [`Geohash`](crate::grids::Geohash) |
+    /// | `"Plus Code"` | [`PlusCode`](crate::grids::PlusCode) |
+    /// | `"Maidenhead"` | [`Maidenhead`](crate::grids::Maidenhead) |
+    /// | `"quadkey"` | `map::Tile::from_quadkey` (`map` feature) |
     ///
     /// ```
     /// use geocoordinates::Error;
     /// use geocoordinates::grids::Geohash;
     ///
     /// // `a` is not in the geohash base-32 alphabet.
-    /// assert!(matches!(Geohash::try_from("u4pruyda"), Err(Error::InvalidGridRef(_))));
+    /// let err = Geohash::try_from("u4pruyda").unwrap_err();
+    /// assert!(matches!(err, Error::InvalidGridRef { grid: "geohash", .. }));
+    /// assert_eq!(
+    ///     err.to_string(),
+    ///     r#"invalid geohash reference: "u4pruyda" holds 'a', not a base-32 digit"#
+    /// );
     /// ```
-    #[error("invalid grid reference: {0}")]
-    InvalidGridRef(String),
+    #[error("invalid {grid} reference: {detail}")]
+    InvalidGridRef {
+        /// The grid system that rejected the reference: one of the stable
+        /// names in the table above.
+        grid: &'static str,
+        /// The rejected input, quoted as a Rust string literal, followed by
+        /// why it was rejected; for people, not for matching.
+        detail: String,
+    },
 }
 
 impl Error {
+    /// An [`Error::InvalidGridRef`] from `grid`, whose `detail` is the quoted
+    /// `input` followed by `reason` (a predicate such as `"is empty"`), so
+    /// every producer writes it the same way.
+    pub(crate) fn invalid_grid_ref(
+        grid: &'static str,
+        input: &str,
+        reason: impl core::fmt::Display,
+    ) -> Self {
+        Error::InvalidGridRef {
+            grid,
+            detail: format!("{input:?} {reason}"),
+        }
+    }
+
     /// An [`Error::Parse`] of the given kind.
     pub(crate) fn parse(kind: ParseErrorKind, detail: impl Into<String>) -> Self {
         Error::Parse {
@@ -321,7 +359,10 @@ mod tests {
         };
         assert_ne!(
             parse(ParseErrorKind::Syntax),
-            Error::InvalidGridRef("a".into())
+            Error::InvalidGridRef {
+                grid: "MGRS",
+                detail: "a".into(),
+            }
         );
         assert_ne!(parse(ParseErrorKind::Syntax), parse(ParseErrorKind::NoFix));
         // The kind is not in the message: `detail` alone is.

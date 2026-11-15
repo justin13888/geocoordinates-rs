@@ -170,7 +170,10 @@ impl Maidenhead {
     /// use geocoordinates::grids::Maidenhead;
     ///
     /// assert_eq!(Maidenhead::parse("jn58TD")?.as_str(), "JN58td");
-    /// assert!(matches!(Maidenhead::parse("JN5"), Err(Error::InvalidGridRef(_))));
+    /// assert!(matches!(
+    ///     Maidenhead::parse("JN5"),
+    ///     Err(Error::InvalidGridRef { grid: "Maidenhead", .. })
+    /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
@@ -200,9 +203,11 @@ impl Maidenhead {
             _ => false,
         };
         if !ok {
-            return Err(Error::InvalidGridRef(format!(
-                "invalid Maidenhead locator: {s}"
-            )));
+            return Err(Error::invalid_grid_ref(
+                "Maidenhead",
+                s,
+                "is not a 2-, 4- or 6-character Maidenhead locator",
+            ));
         }
         // Canonical form: field uppercase, square digits, subsquare lowercase.
         let mut c = t.to_ascii_uppercase();

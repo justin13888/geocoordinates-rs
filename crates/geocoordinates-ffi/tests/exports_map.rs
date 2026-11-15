@@ -128,7 +128,7 @@ fn tiles_and_quadkeys() {
     ));
     assert!(matches!(
         quadkey_canonicalize("x".into()),
-        Err(GeoError::InvalidGridRef { .. })
+        Err(GeoError::InvalidGridRef { grid, .. }) if grid == "quadkey"
     ));
 }
 

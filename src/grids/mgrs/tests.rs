@@ -287,10 +287,29 @@ fn decode_rejects_three_digit_zone() {
     assert_invalid_grid_ref(Mgrs::try_from("012TWK0000027757"));
 }
 
-/// Every malformed reference is rejected as `InvalidGridRef`.
+/// Every malformed reference is rejected as `InvalidGridRef` naming `"MGRS"`.
 #[track_caller]
 fn assert_invalid_grid_ref(r: Result<Mgrs>) {
-    assert!(matches!(r, Err(Error::InvalidGridRef(_))), "{r:?}");
+    assert!(
+        matches!(r, Err(Error::InvalidGridRef { grid: "MGRS", .. })),
+        "{r:?}"
+    );
+}
+
+#[test]
+fn invalid_grid_ref_names_mgrs_and_quotes_the_input() {
+    assert_eq!(
+        Mgrs::parse("4QFJ123").unwrap_err().to_string(),
+        "invalid MGRS reference: \"4QFJ123\" is not a well-formed reference"
+    );
+    assert_eq!(
+        Mgrs::parse("32XNJ").unwrap_err().to_string(),
+        "invalid MGRS reference: \"32XNJ\" holds no point of its zone"
+    );
+    assert_eq!(
+        Mgrs::parse("AJA").unwrap_err().to_string(),
+        "invalid MGRS reference: \"AJA\" holds no point of its zone"
+    );
 }
 
 #[test]
@@ -332,7 +351,10 @@ fn multibyte_references_are_invalid_grid_refs_not_panics() {
     // byte-index slice off a char boundary and panic instead of erroring.
     for s in ["1ÉÉ1", "1ÉÉ", "ÉÉÉ", "18TÉÉ00000", "AXÉ00"] {
         assert!(
-            matches!(Mgrs::try_from(s), Err(Error::InvalidGridRef(_))),
+            matches!(
+                Mgrs::try_from(s),
+                Err(Error::InvalidGridRef { grid: "MGRS", .. })
+            ),
             "{s:?}"
         );
     }
@@ -345,7 +367,10 @@ fn band_row_mismatch_is_invalid_grid_ref() {
     // candidate used to surface as `InvalidValue { field: "UTM" }`.
     for s in ["31PAA0000000000", "31PAA"] {
         assert!(
-            matches!(Mgrs::try_from(s), Err(Error::InvalidGridRef(_))),
+            matches!(
+                Mgrs::try_from(s),
+                Err(Error::InvalidGridRef { grid: "MGRS", .. })
+            ),
             "{s:?}: {:?}",
             Mgrs::try_from(s)
         );

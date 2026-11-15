@@ -296,9 +296,9 @@ impl Mgrs {
     /// use geocoordinates::grids::Mgrs;
     ///
     /// assert_eq!(Mgrs::parse("4q fj 1234 5678")?.as_str(), "04QFJ12345678");
-    /// assert!(matches!(Mgrs::parse("4QFJ123"), Err(Error::InvalidGridRef(_))));
+    /// assert!(matches!(Mgrs::parse("4QFJ123"), Err(Error::InvalidGridRef { grid: "MGRS", .. })));
     /// // Well-formed, but the Svalbard exception drops zone 32 from band X.
-    /// assert!(matches!(Mgrs::parse("32XNJ"), Err(Error::InvalidGridRef(_))));
+    /// assert!(matches!(Mgrs::parse("32XNJ"), Err(Error::InvalidGridRef { grid: "MGRS", .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     ///
@@ -327,7 +327,7 @@ impl Mgrs {
         }
         let side = precision.side().meters();
         let (center, max_error_m) = clip::settle(&text, precision.digits(), nominal, side, gzd)
-            .ok_or_else(|| Error::InvalidGridRef(s.to_string()))?;
+            .ok_or_else(|| Error::invalid_grid_ref("MGRS", s, "holds no point of its zone"))?;
         Ok(Mgrs {
             text,
             precision,
@@ -531,7 +531,7 @@ fn decode(input: &str) -> Result<Decoded> {
         .filter(|c| !c.is_whitespace())
         .collect::<String>()
         .to_uppercase();
-    let bad = || Error::InvalidGridRef(input.to_string());
+    let bad = || Error::invalid_grid_ref("MGRS", input, "is not a well-formed reference");
     let first = s.chars().next().ok_or_else(bad)?;
     if first.is_ascii_digit() {
         decode_utm(&s, bad)

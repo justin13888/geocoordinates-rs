@@ -221,7 +221,10 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     );
     assert!(matches!(
         PlusCode::try_from("not-a-plus-code"),
-        Err(Error::InvalidGridRef(_))
+        Err(Error::InvalidGridRef {
+            grid: "Plus Code",
+            ..
+        })
     ));
     assert!(PlusCode::encode(new_york(), 3).is_err());
     assert!(Geohash::encode(new_york(), 23).is_err());
