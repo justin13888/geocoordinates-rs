@@ -158,23 +158,29 @@ pub(crate) mod test_support;
 mod promises;
 
 // The crate root holds the core types, each re-exported from its private
-// implementation module; it is their only path. The broader common working
-// set is in [`prelude`]; every other item lives in its subsystem module.
+// implementation module; it is their only path. [`prelude`] repeats them
+// (without `ParseErrorKind` and `Result`, plus `fix::Fix`) for a glob import;
+// every other item lives in its subsystem module.
 pub use approx::Approx;
 pub use coord::{Coordinate, Crs, LatLon};
 pub use error::{Error, ParseErrorKind, Result};
 pub use units::{Height, Length, LengthUnit};
 
-/// Common imports for typical use: `use geocoordinates::prelude::*;`.
+/// The core types, for a glob import: `use geocoordinates::prelude::*;`.
 ///
-/// Brings in the core types, the China datums, the angle encodings, the
-/// `Fix` metadata, and the geodesy, grid, formatting, parsing, and conversion
-/// items. Anything outside this working set is reached by its module path.
+/// It holds the nine types that appear in almost every signature across the
+/// subsystems: [`Coordinate`], [`Crs`], [`Height`], [`LatLon`], [`Approx`],
+/// [`Length`], [`LengthUnit`], [`Error`], and [`Fix`](crate::fix::Fix).
+/// Functions, the subsystem types, and every feature-gated item are imported
+/// from their modules (`geodesy::geodesic_distance`, `china::Gcj02`, ...), so
+/// a glob import brings in no generic name such as `format` or `apply` to
+/// shadow or collide with the caller's own.
 ///
 /// The prelude deliberately leaves out the crate's [`Result`] alias, so a
 /// glob import never shadows the standard library's `Result`:
 ///
 /// ```
+/// use geocoordinates::geodesy::geodesic_distance;
 /// use geocoordinates::prelude::*;
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -182,8 +188,6 @@ pub use units::{Height, Length, LengthUnit};
 ///     let b = Coordinate::wgs84(48.8566, 2.3522)?;
 ///     let km = geodesic_distance(a, b)?.to_unit(LengthUnit::Kilometer);
 ///     assert!((km - 343.9).abs() < 1.0);
-///     let lat = Dms::from_degrees(a.lat(), Axis::Latitude)?;
-///     assert_eq!((lat.degrees(), lat.hemisphere()), (51, Hemisphere::North));
 ///     // Errors stay typed: an out-of-range longitude is `Error::OutOfRange`.
 ///     let bad: Result<Coordinate, Error> = Coordinate::wgs84(0.0, 200.0);
 ///     assert!(matches!(bad, Err(Error::OutOfRange { .. })));
@@ -191,58 +195,6 @@ pub use units::{Height, Length, LengthUnit};
 /// }
 /// ```
 pub mod prelude {
+    pub use crate::fix::Fix;
     pub use crate::{Approx, Coordinate, Crs, Error, Height, LatLon, Length, LengthUnit};
-
-    pub use crate::angle::{Axis, Ddm, Dms, Hemisphere};
-    pub use crate::china::{BaiduMercator, Bd09, Gcj02, Wgs84};
-    pub use crate::fix::{
-        Accuracy, AccuracyKind, AxisOrder, Confidence, DatumAmbiguity, Fix, RawSource,
-    };
-    pub use crate::geodesy::haversine_distance;
-
-    #[cfg(feature = "h3")]
-    #[cfg(feature = "cluster")]
-    pub use crate::cluster::bucket_by_h3;
-    #[cfg(feature = "cluster")]
-    pub use crate::cluster::{
-        Cluster, ClusterIndex, ClusterIndexOptions, Dbscan, GridBucket, MapCluster, PointLabel,
-        Trip, Visit, bucket_by_geohash, centroid, dbscan, segment_trips, segment_visits,
-    };
-    #[cfg(feature = "exif")]
-    pub use crate::exif::{
-        CaptureGeo, ExifGps, ExifOptions, ExifRational, NorthBearing, NorthReference,
-        NullIslandPolicy, XmpGps,
-    };
-    pub use crate::format::{
-        DecimalSeparator, FormatOptions, HemisphereStyle, Representation, SymbolStyle, format,
-        format_fix,
-    };
-    pub use crate::geodesy::{
-        Aer, Ecef, Ellipsoid, Enu, GeodesicIntersection, Ned, SphericalIntersection,
-        along_track_distance, along_track_distance_spherical, cross_track_distance,
-        cross_track_distance_spherical, destination, final_bearing, geodesic_distance,
-        initial_bearing, intermediate, intersection, intersection_spherical, midpoint,
-        rhumb_bearing, rhumb_destination, rhumb_distance,
-    };
-    pub use crate::geodesy::{DatumTransform, GeoBounds, Helmert};
-    #[cfg(feature = "geotag")]
-    pub use crate::geotag::{GeotagOptions, Interpolation, Track, estimate_offset};
-    pub use crate::grids::{
-        Geohash, Maidenhead, Mgrs, MgrsPrecision, PlusCode, Ups, Utm, UtmHemisphere,
-    };
-    #[cfg(feature = "index")]
-    pub use crate::index::{Neighbor, SpatialIndex};
-    #[cfg(feature = "map")]
-    pub use crate::map::{
-        Camera, DisplayDatum, Tile, Viewport, WebMercator, WorldPixel, clusters_in_view,
-        display_coordinate, fit_bounds, tap_to_wgs84, tiles_covering, viewport_bounds,
-    };
-    #[cfg(feature = "map")]
-    #[cfg(feature = "geojson")]
-    pub use crate::map::{clusters_to_geojson, points_to_geojson};
-    pub use crate::parse::{GridKind, ParseOptions, parse_coordinate, parse_coordinate_with};
-    #[cfg(feature = "privacy")]
-    pub use crate::privacy::{ExclusionZone, Precision, SnapGrid, ZoneAction, apply, coarsen};
-    #[cfg(feature = "reverse")]
-    pub use crate::reverse::{FeatureClass, Gazetteer, Place, ReverseGeocoder, ReverseOptions};
 }

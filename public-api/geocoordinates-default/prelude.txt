@@ -1,15 +1,4 @@
 pub mod geocoordinates::prelude
-pub enum geocoordinates::prelude::AccuracyKind
-pub geocoordinates::prelude::AccuracyKind::Bound
-pub geocoordinates::prelude::AccuracyKind::Cep50
-pub geocoordinates::prelude::AccuracyKind::OneSigma
-pub geocoordinates::prelude::AccuracyKind::Unspecified
-pub enum geocoordinates::prelude::Axis
-pub geocoordinates::prelude::Axis::Latitude
-pub geocoordinates::prelude::Axis::Longitude
-pub enum geocoordinates::prelude::AxisOrder
-pub geocoordinates::prelude::AxisOrder::LatLon
-pub geocoordinates::prelude::AxisOrder::LonLat
 pub enum geocoordinates::prelude::Crs
 pub geocoordinates::prelude::Crs::Bd09
 pub geocoordinates::prelude::Crs::Gcj02
@@ -17,11 +6,6 @@ pub geocoordinates::prelude::Crs::Nad27
 pub geocoordinates::prelude::Crs::Pulkovo42
 pub geocoordinates::prelude::Crs::Tokyo
 pub geocoordinates::prelude::Crs::Wgs84
-pub enum geocoordinates::prelude::DatumAmbiguity
-pub geocoordinates::prelude::DatumAmbiguity::PossiblyGcj02
-pub enum geocoordinates::prelude::DecimalSeparator
-pub geocoordinates::prelude::DecimalSeparator::Comma
-pub geocoordinates::prelude::DecimalSeparator::Point
 #[non_exhaustive] pub enum geocoordinates::prelude::Error
 pub geocoordinates::prelude::Error::CrsMismatch
 pub geocoordinates::prelude::Error::CrsMismatch::expected: geocoordinates::Crs
@@ -45,26 +29,9 @@ pub geocoordinates::prelude::Error::OutsideDomain::operation: &'static str
 pub geocoordinates::prelude::Error::Parse
 pub geocoordinates::prelude::Error::Parse::detail: alloc::string::String
 pub geocoordinates::prelude::Error::Parse::kind: geocoordinates::ParseErrorKind
-pub enum geocoordinates::prelude::GeodesicIntersection
-pub geocoordinates::prelude::GeodesicIntersection::Crossing(geocoordinates::Coordinate)
-pub geocoordinates::prelude::GeodesicIntersection::NoForwardCrossing
-pub geocoordinates::prelude::GeodesicIntersection::SameGeodesic
-pub enum geocoordinates::prelude::GridKind
-pub geocoordinates::prelude::GridKind::Geohash
-pub geocoordinates::prelude::GridKind::Maidenhead
-pub geocoordinates::prelude::GridKind::Mgrs
-pub geocoordinates::prelude::GridKind::PlusCode
 pub enum geocoordinates::prelude::Height
 pub geocoordinates::prelude::Height::Ellipsoidal(f64)
 pub geocoordinates::prelude::Height::Orthometric(f64)
-pub enum geocoordinates::prelude::Hemisphere
-pub geocoordinates::prelude::Hemisphere::East
-pub geocoordinates::prelude::Hemisphere::North
-pub geocoordinates::prelude::Hemisphere::South
-pub geocoordinates::prelude::Hemisphere::West
-pub enum geocoordinates::prelude::HemisphereStyle
-pub geocoordinates::prelude::HemisphereStyle::Cardinal
-pub geocoordinates::prelude::HemisphereStyle::Signed
 pub enum geocoordinates::prelude::LengthUnit
 pub geocoordinates::prelude::LengthUnit::Foot
 pub geocoordinates::prelude::LengthUnit::Kilometer
@@ -73,116 +40,15 @@ pub geocoordinates::prelude::LengthUnit::Mile
 pub geocoordinates::prelude::LengthUnit::NauticalMile
 pub geocoordinates::prelude::LengthUnit::UsSurveyFoot
 pub geocoordinates::prelude::LengthUnit::Yard
-pub enum geocoordinates::prelude::MgrsPrecision
-pub geocoordinates::prelude::MgrsPrecision::Km1
-pub geocoordinates::prelude::MgrsPrecision::Km10
-pub geocoordinates::prelude::MgrsPrecision::Km100
-pub geocoordinates::prelude::MgrsPrecision::M1
-pub geocoordinates::prelude::MgrsPrecision::M10
-pub geocoordinates::prelude::MgrsPrecision::M100
-pub enum geocoordinates::prelude::Representation
-pub geocoordinates::prelude::Representation::Ddm
-pub geocoordinates::prelude::Representation::Ddm::hemisphere: geocoordinates::format::HemisphereStyle
-pub geocoordinates::prelude::Representation::Ddm::minute_decimals: core::option::Option<u8>
-pub geocoordinates::prelude::Representation::Ddm::symbols: geocoordinates::format::SymbolStyle
-pub geocoordinates::prelude::Representation::DecimalDegrees
-pub geocoordinates::prelude::Representation::DecimalDegrees::decimals: core::option::Option<u8>
-pub geocoordinates::prelude::Representation::DecimalDegrees::hemisphere: geocoordinates::format::HemisphereStyle
-pub geocoordinates::prelude::Representation::Dms
-pub geocoordinates::prelude::Representation::Dms::hemisphere: geocoordinates::format::HemisphereStyle
-pub geocoordinates::prelude::Representation::Dms::second_decimals: core::option::Option<u8>
-pub geocoordinates::prelude::Representation::Dms::symbols: geocoordinates::format::SymbolStyle
-pub geocoordinates::prelude::Representation::Geohash
-pub geocoordinates::prelude::Representation::Geohash::length: u8
-pub geocoordinates::prelude::Representation::Maidenhead
-pub geocoordinates::prelude::Representation::Maidenhead::pairs: u8
-pub geocoordinates::prelude::Representation::Mgrs
-pub geocoordinates::prelude::Representation::Mgrs::precision: geocoordinates::grids::MgrsPrecision
-pub geocoordinates::prelude::Representation::PlusCode
-pub geocoordinates::prelude::Representation::PlusCode::length: u8
-pub enum geocoordinates::prelude::SphericalIntersection
-pub geocoordinates::prelude::SphericalIntersection::Crossing(geocoordinates::Coordinate)
-pub geocoordinates::prelude::SphericalIntersection::NoForwardCrossing
-pub geocoordinates::prelude::SphericalIntersection::SameGreatCircle
-pub enum geocoordinates::prelude::SymbolStyle
-pub geocoordinates::prelude::SymbolStyle::Ascii
-pub geocoordinates::prelude::SymbolStyle::Letters
-pub geocoordinates::prelude::SymbolStyle::Unicode
-pub enum geocoordinates::prelude::UtmHemisphere
-pub geocoordinates::prelude::UtmHemisphere::North
-pub geocoordinates::prelude::UtmHemisphere::South
-pub struct geocoordinates::prelude::Accuracy
-pub struct geocoordinates::prelude::Aer
 pub struct geocoordinates::prelude::Approx<T>
-pub struct geocoordinates::prelude::BaiduMercator
-pub struct geocoordinates::prelude::Bd09
-pub struct geocoordinates::prelude::Confidence(_)
 pub struct geocoordinates::prelude::Coordinate
-pub struct geocoordinates::prelude::DatumTransform
-pub struct geocoordinates::prelude::Ddm
-pub struct geocoordinates::prelude::Dms
-pub struct geocoordinates::prelude::Ecef
-pub struct geocoordinates::prelude::Ellipsoid
-pub struct geocoordinates::prelude::Enu
 #[non_exhaustive] pub struct geocoordinates::prelude::Fix
 pub geocoordinates::prelude::Fix::accuracy: core::option::Option<geocoordinates::fix::Accuracy>
 pub geocoordinates::prelude::Fix::coord: geocoordinates::Coordinate
 pub geocoordinates::prelude::Fix::source: core::option::Option<geocoordinates::fix::RawSource>
 pub geocoordinates::prelude::Fix::timestamp: core::option::Option<std::time::SystemTime>
-#[non_exhaustive] pub struct geocoordinates::prelude::FormatOptions
-pub geocoordinates::prelude::FormatOptions::decimal_separator: geocoordinates::format::DecimalSeparator
-pub geocoordinates::prelude::FormatOptions::representation: geocoordinates::format::Representation
-pub struct geocoordinates::prelude::Gcj02
-pub struct geocoordinates::prelude::GeoBounds
-pub struct geocoordinates::prelude::Geohash(_)
-pub struct geocoordinates::prelude::Helmert
-pub geocoordinates::prelude::Helmert::rx_arcsec: f64
-pub geocoordinates::prelude::Helmert::ry_arcsec: f64
-pub geocoordinates::prelude::Helmert::rz_arcsec: f64
-pub geocoordinates::prelude::Helmert::scale_ppm: f64
-pub geocoordinates::prelude::Helmert::tx_m: f64
-pub geocoordinates::prelude::Helmert::ty_m: f64
-pub geocoordinates::prelude::Helmert::tz_m: f64
 pub struct geocoordinates::prelude::Length
-pub struct geocoordinates::prelude::Maidenhead(_)
-pub struct geocoordinates::prelude::Mgrs
-pub struct geocoordinates::prelude::Ned
-#[non_exhaustive] pub struct geocoordinates::prelude::ParseOptions
-pub geocoordinates::prelude::ParseOptions::decimal_separator: geocoordinates::format::DecimalSeparator
-pub geocoordinates::prelude::ParseOptions::default_axis_order: geocoordinates::fix::AxisOrder
-pub geocoordinates::prelude::ParseOptions::expect_grid: core::option::Option<geocoordinates::parse::GridKind>
-pub struct geocoordinates::prelude::PlusCode(_)
-#[non_exhaustive] pub struct geocoordinates::prelude::RawSource
-pub geocoordinates::prelude::RawSource::axis_order: core::option::Option<geocoordinates::fix::AxisOrder>
-pub geocoordinates::prelude::RawSource::confidence: geocoordinates::fix::Confidence
-pub geocoordinates::prelude::RawSource::datum_ambiguity: core::option::Option<geocoordinates::fix::DatumAmbiguity>
-pub geocoordinates::prelude::RawSource::geoid_separation: core::option::Option<geocoordinates::Length>
-pub geocoordinates::prelude::RawSource::notes: alloc::vec::Vec<alloc::string::String>
-pub geocoordinates::prelude::RawSource::raw: alloc::string::String
-pub struct geocoordinates::prelude::Ups
-pub struct geocoordinates::prelude::Utm
-pub struct geocoordinates::prelude::Wgs84
 pub trait geocoordinates::prelude::LatLon: geocoordinates::coord::sealed::Sealed + core::marker::Copy
 pub fn geocoordinates::prelude::LatLon::crs(&self) -> geocoordinates::Crs
 pub fn geocoordinates::prelude::LatLon::lat(&self) -> f64
 pub fn geocoordinates::prelude::LatLon::lon(&self) -> f64
-pub fn geocoordinates::prelude::along_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
-pub fn geocoordinates::prelude::along_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
-pub fn geocoordinates::prelude::cross_track_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
-pub fn geocoordinates::prelude::cross_track_distance_spherical(impl geocoordinates::LatLon, impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
-pub fn geocoordinates::prelude::destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>
-pub fn geocoordinates::prelude::final_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
-pub fn geocoordinates::prelude::format(geocoordinates::Coordinate, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
-pub fn geocoordinates::prelude::format_fix(&geocoordinates::fix::Fix, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
-pub fn geocoordinates::prelude::geodesic_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
-pub fn geocoordinates::prelude::haversine_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>
-pub fn geocoordinates::prelude::initial_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
-pub fn geocoordinates::prelude::intermediate(geocoordinates::Coordinate, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::Coordinate>
-pub fn geocoordinates::prelude::intersection(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::GeodesicIntersection>
-pub fn geocoordinates::prelude::intersection_spherical(geocoordinates::Coordinate, f64, geocoordinates::Coordinate, f64) -> geocoordinates::Result<geocoordinates::geodesy::SphericalIntersection>
-pub fn geocoordinates::prelude::midpoint(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
-pub fn geocoordinates::prelude::parse_coordinate(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
-pub fn geocoordinates::prelude::parse_coordinate_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
-pub fn geocoordinates::prelude::rhumb_bearing(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<f64>
-pub fn geocoordinates::prelude::rhumb_destination(geocoordinates::Coordinate, f64, geocoordinates::Length) -> geocoordinates::Result<geocoordinates::Coordinate>
-pub fn geocoordinates::prelude::rhumb_distance(impl geocoordinates::LatLon, impl geocoordinates::LatLon) -> geocoordinates::Result<geocoordinates::Length>

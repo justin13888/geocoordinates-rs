@@ -18,7 +18,10 @@ that each subsystem meets it, are in
 Every public item has exactly one path (plus its `prelude` entry): the core
 types sit at the crate root, and every other item sits flat in the module the
 table names, e.g. `geocoordinates::china::Wgs84` or
-`geocoordinates::grids::Utm`. `mise run public-api-check` enforces it.
+`geocoordinates::grids::Utm`. `mise run public-api-check` enforces it. The
+`prelude` holds only the core types (`Coordinate`, `Crs`, `Height`, `LatLon`,
+`Approx`, `Length`, `LengthUnit`, `Error`, and `fix::Fix`); functions and
+feature-gated items are imported from their modules.
 
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
