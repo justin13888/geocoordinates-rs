@@ -254,7 +254,7 @@ fn from_degrees_rejects_values_outside_the_axis() {
         ddm_from_degrees(-180.5, Axis::Longitude).map(|_| ()),
     ] {
         assert!(
-            matches!(&result, Err(GeoError::InvalidValue { field, .. }) if field == "decimal degrees"),
+            matches!(&result, Err(GeoError::InvalidValue { field, .. }) if field == "value"),
             "{result:?}"
         );
     }

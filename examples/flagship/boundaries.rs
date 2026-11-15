@@ -86,17 +86,11 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     // deserialization rejects a component outside its range.
     assert!(matches!(
         Dms::from_degrees(f64::NAN, Axis::Latitude),
-        Err(Error::InvalidValue {
-            field: "decimal degrees",
-            ..
-        })
+        Err(Error::InvalidValue { field: "value", .. })
     ));
     assert!(matches!(
         Ddm::from_degrees(90.5, Axis::Latitude),
-        Err(Error::InvalidValue {
-            field: "decimal degrees",
-            ..
-        })
+        Err(Error::InvalidValue { field: "value", .. })
     ));
     assert!(matches!(
         Dms::new(40, 60, 0.0, AngleHemisphere::North),

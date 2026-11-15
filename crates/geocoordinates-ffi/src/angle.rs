@@ -143,7 +143,7 @@ impl TryFrom<Ddm> for gc::angle::Ddm {
 /// degrees/minutes/seconds.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+/// `GeoError::InvalidValue` (field `"value"`) for a non-finite value
 /// or one beyond ±90° (latitude) / ±180° (longitude).
 #[uniffi::export]
 pub fn dms_from_degrees(value: f64, axis: Axis) -> Result<Dms, GeoError> {
@@ -154,7 +154,7 @@ pub fn dms_from_degrees(value: f64, axis: Axis) -> Result<Dms, GeoError> {
 /// degrees/decimal-minutes.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+/// `GeoError::InvalidValue` (field `"value"`) for a non-finite value
 /// or one beyond ±90° (latitude) / ±180° (longitude).
 #[uniffi::export]
 pub fn ddm_from_degrees(value: f64, axis: Axis) -> Result<Ddm, GeoError> {

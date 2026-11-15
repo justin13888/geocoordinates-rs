@@ -227,13 +227,13 @@ fn try_from_round_trips_canonical_string() {
 #[test]
 fn invalid_encoding_configuration_is_rejected() {
     let c = wgs(0.0, 0.0);
-    assert_invalid_value(PlusCode::encode(c, 3), "Plus Code length");
-    assert_invalid_value(PlusCode::encode(c, 9), "Plus Code length");
-    assert_invalid_value(PlusCode::encode(c, 16), "Plus Code length");
-    assert_invalid_value(Geohash::encode(c, 0), "geohash length");
-    assert_invalid_value(Geohash::encode(c, 23), "geohash length");
-    assert_invalid_value(Maidenhead::encode(c, 0), "Maidenhead pairs");
-    assert_invalid_value(Maidenhead::encode(c, 4), "Maidenhead pairs");
+    assert_invalid_value(PlusCode::encode(c, 3), "length");
+    assert_invalid_value(PlusCode::encode(c, 9), "length");
+    assert_invalid_value(PlusCode::encode(c, 16), "length");
+    assert_invalid_value(Geohash::encode(c, 0), "length");
+    assert_invalid_value(Geohash::encode(c, 23), "length");
+    assert_invalid_value(Maidenhead::encode(c, 0), "pairs");
+    assert_invalid_value(Maidenhead::encode(c, 4), "pairs");
     // Every encoder demands WGS-84 and rejects an out-of-range input first.
     let gcj = Coordinate::gcj02(0.0, 0.0).unwrap();
     let mismatch = |r: Result<String>| {

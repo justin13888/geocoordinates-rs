@@ -72,8 +72,8 @@ impl TryFrom<Precision> for gc::privacy::Precision {
 /// Checks a hand-built [`Precision`] against its grid's levels.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` (field `geohash length`, `H3 resolution` or
-/// `S2 level`) when the grid does not define the level.
+/// `GeoError::InvalidValue` (field `"length"` for geohash, `"resolution"` for
+/// H3, or `"level"` for S2) when the grid does not define the level.
 #[uniffi::export]
 pub fn precision_validate(precision: Precision) -> Result<(), GeoError> {
     gc::privacy::Precision::try_from(precision)?;

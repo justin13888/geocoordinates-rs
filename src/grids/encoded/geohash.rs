@@ -110,7 +110,7 @@ impl Geohash {
         require_wgs84(&coord)?;
         if !(1..=GEOHASH_MAX_LENGTH).contains(&length) {
             return Err(Error::InvalidValue {
-                field: "geohash length",
+                field: "length",
                 detail: "must be in 1..=12".into(),
             });
         }

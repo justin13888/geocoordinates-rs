@@ -116,7 +116,7 @@ impl H3Cell {
 
         require_wgs84(&coord)?;
         let res = Resolution::try_from(resolution).map_err(|_| Error::InvalidValue {
-            field: "H3 resolution",
+            field: "resolution",
             detail: "must be in 0..=15".into(),
         })?;
         let cell = LatLng::new(coord.lat(), coord.lon())
@@ -293,7 +293,7 @@ impl S2CellId {
         require_wgs84(&coord)?;
         if level > 30 {
             return Err(Error::InvalidValue {
-                field: "S2 level",
+                field: "level",
                 detail: "must be in 0..=30".into(),
             });
         }

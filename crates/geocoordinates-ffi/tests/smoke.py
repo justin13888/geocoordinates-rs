@@ -612,7 +612,7 @@ try:
     gc.h3_encode(wgs84_coord(40.7128, -74.006), 16)
     raise AssertionError("expected InvalidValue for H3 resolution 16")
 except gc.GeoError.InvalidValue as e:
-    assert e.field == "H3 resolution" and e.detail == "must be in 0..=15", (e.field, e.detail)
+    assert e.field == "resolution" and e.detail == "must be in 0..=15", (e.field, e.detail)
 try:
     gc.h3_decode(gc.H3Cell(value=0))
     raise AssertionError("expected InvalidCellId for H3 index 0")
