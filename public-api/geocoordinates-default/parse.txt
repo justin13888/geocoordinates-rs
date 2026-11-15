@@ -1,0 +1,57 @@
+pub mod geocoordinates::parse
+pub enum geocoordinates::parse::GridKind
+pub geocoordinates::parse::GridKind::Geohash
+pub geocoordinates::parse::GridKind::Maidenhead
+pub geocoordinates::parse::GridKind::Mgrs
+pub geocoordinates::parse::GridKind::PlusCode
+impl core::clone::Clone for geocoordinates::parse::GridKind
+pub fn geocoordinates::parse::GridKind::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::parse::GridKind
+impl core::cmp::PartialEq for geocoordinates::parse::GridKind
+pub fn geocoordinates::parse::GridKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::parse::GridKind
+pub fn geocoordinates::parse::GridKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::parse::GridKind
+pub fn geocoordinates::parse::GridKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::parse::GridKind
+impl core::marker::StructuralPartialEq for geocoordinates::parse::GridKind
+impl core::marker::Freeze for geocoordinates::parse::GridKind
+impl core::marker::Send for geocoordinates::parse::GridKind
+impl core::marker::Sync for geocoordinates::parse::GridKind
+impl core::marker::Unpin for geocoordinates::parse::GridKind
+impl core::marker::UnsafeUnpin for geocoordinates::parse::GridKind
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::parse::GridKind
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::parse::GridKind
+#[non_exhaustive] pub struct geocoordinates::parse::ParseOptions
+pub geocoordinates::parse::ParseOptions::decimal_separator: geocoordinates::format::DecimalSeparator
+pub geocoordinates::parse::ParseOptions::default_axis_order: geocoordinates::fix::AxisOrder
+pub geocoordinates::parse::ParseOptions::expect_grid: core::option::Option<geocoordinates::parse::GridKind>
+impl geocoordinates::parse::ParseOptions
+pub const fn geocoordinates::parse::ParseOptions::with_decimal_separator(self, geocoordinates::format::DecimalSeparator) -> Self
+pub const fn geocoordinates::parse::ParseOptions::with_default_axis_order(self, geocoordinates::fix::AxisOrder) -> Self
+pub const fn geocoordinates::parse::ParseOptions::with_expect_grid(self, core::option::Option<geocoordinates::parse::GridKind>) -> Self
+impl core::clone::Clone for geocoordinates::parse::ParseOptions
+pub fn geocoordinates::parse::ParseOptions::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::parse::ParseOptions
+impl core::cmp::PartialEq for geocoordinates::parse::ParseOptions
+pub fn geocoordinates::parse::ParseOptions::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::parse::ParseOptions
+pub fn geocoordinates::parse::ParseOptions::default() -> Self
+impl core::fmt::Debug for geocoordinates::parse::ParseOptions
+pub fn geocoordinates::parse::ParseOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::parse::ParseOptions
+pub fn geocoordinates::parse::ParseOptions::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::parse::ParseOptions
+impl core::marker::StructuralPartialEq for geocoordinates::parse::ParseOptions
+impl core::marker::Freeze for geocoordinates::parse::ParseOptions
+impl core::marker::Send for geocoordinates::parse::ParseOptions
+impl core::marker::Sync for geocoordinates::parse::ParseOptions
+impl core::marker::Unpin for geocoordinates::parse::ParseOptions
+impl core::marker::UnsafeUnpin for geocoordinates::parse::ParseOptions
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::parse::ParseOptions
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::parse::ParseOptions
+pub fn geocoordinates::parse::from_geo_uri(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_coordinate(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_coordinate_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_text(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_text_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>

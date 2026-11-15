@@ -1,0 +1,224 @@
+pub mod geocoordinates::cluster
+pub enum geocoordinates::cluster::PointLabel
+pub geocoordinates::cluster::PointLabel::Cluster
+pub geocoordinates::cluster::PointLabel::Cluster::id: usize
+pub geocoordinates::cluster::PointLabel::Noise
+impl core::clone::Clone for geocoordinates::cluster::PointLabel
+pub fn geocoordinates::cluster::PointLabel::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::cluster::PointLabel
+impl core::cmp::PartialEq for geocoordinates::cluster::PointLabel
+pub fn geocoordinates::cluster::PointLabel::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::cluster::PointLabel
+pub fn geocoordinates::cluster::PointLabel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::cluster::PointLabel
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::PointLabel
+impl serde_core::ser::Serialize for geocoordinates::cluster::PointLabel
+pub fn geocoordinates::cluster::PointLabel::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::PointLabel
+pub fn geocoordinates::cluster::PointLabel::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::PointLabel
+impl core::marker::Send for geocoordinates::cluster::PointLabel
+impl core::marker::Sync for geocoordinates::cluster::PointLabel
+impl core::marker::Unpin for geocoordinates::cluster::PointLabel
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::PointLabel
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::PointLabel
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::PointLabel
+pub struct geocoordinates::cluster::Cluster
+impl geocoordinates::cluster::Cluster
+pub const fn geocoordinates::cluster::Cluster::bounds(&self) -> geocoordinates::index::GeoBounds
+pub const fn geocoordinates::cluster::Cluster::centroid(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub fn geocoordinates::cluster::Cluster::count(&self) -> usize
+pub const fn geocoordinates::cluster::Cluster::id(&self) -> usize
+pub fn geocoordinates::cluster::Cluster::members(&self) -> &[usize]
+pub fn geocoordinates::cluster::Cluster::new(usize, geocoordinates::Approx<geocoordinates::Coordinate>, geocoordinates::index::GeoBounds, alloc::vec::Vec<usize>) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::cluster::Cluster
+pub fn geocoordinates::cluster::Cluster::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::cluster::Cluster
+pub fn geocoordinates::cluster::Cluster::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::cluster::Cluster
+pub fn geocoordinates::cluster::Cluster::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::Cluster
+impl serde_core::ser::Serialize for geocoordinates::cluster::Cluster
+pub fn geocoordinates::cluster::Cluster::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::Cluster
+pub fn geocoordinates::cluster::Cluster::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::Cluster
+impl core::marker::Send for geocoordinates::cluster::Cluster
+impl core::marker::Sync for geocoordinates::cluster::Cluster
+impl core::marker::Unpin for geocoordinates::cluster::Cluster
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::Cluster
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::Cluster
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::Cluster
+pub struct geocoordinates::cluster::ClusterIndex
+impl geocoordinates::cluster::ClusterIndex
+pub fn geocoordinates::cluster::ClusterIndex::children(&self, u64) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
+pub fn geocoordinates::cluster::ClusterIndex::clusters(&self, geocoordinates::index::GeoBounds, u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::MapCluster>>
+pub fn geocoordinates::cluster::ClusterIndex::coordinate(&self, u64) -> core::option::Option<geocoordinates::Coordinate>
+pub const fn geocoordinates::cluster::ClusterIndex::crs(&self) -> core::option::Option<geocoordinates::Crs>
+pub fn geocoordinates::cluster::ClusterIndex::insert(&mut self, geocoordinates::Coordinate) -> geocoordinates::Result<u64>
+pub const fn geocoordinates::cluster::ClusterIndex::is_empty(&self) -> bool
+pub fn geocoordinates::cluster::ClusterIndex::leaves(&self, u64, usize, usize) -> geocoordinates::Result<alloc::vec::Vec<u64>>
+pub const fn geocoordinates::cluster::ClusterIndex::len(&self) -> usize
+pub fn geocoordinates::cluster::ClusterIndex::new(impl core::iter::traits::collect::IntoIterator<Item = geocoordinates::Coordinate>, geocoordinates::cluster::ClusterIndexOptions) -> geocoordinates::Result<Self>
+pub fn geocoordinates::cluster::ClusterIndex::remove(&mut self, u64) -> geocoordinates::Result<geocoordinates::Coordinate>
+impl core::fmt::Debug for geocoordinates::cluster::ClusterIndex
+pub fn geocoordinates::cluster::ClusterIndex::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for geocoordinates::cluster::ClusterIndex
+impl core::marker::Send for geocoordinates::cluster::ClusterIndex
+impl core::marker::Sync for geocoordinates::cluster::ClusterIndex
+impl core::marker::Unpin for geocoordinates::cluster::ClusterIndex
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::ClusterIndex
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::ClusterIndex
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::ClusterIndex
+#[non_exhaustive] pub struct geocoordinates::cluster::ClusterIndexOptions
+pub geocoordinates::cluster::ClusterIndexOptions::radius_px: f64
+pub geocoordinates::cluster::ClusterIndexOptions::tile_px: f64
+impl geocoordinates::cluster::ClusterIndexOptions
+pub const fn geocoordinates::cluster::ClusterIndexOptions::with_radius_px(self, f64) -> Self
+pub const fn geocoordinates::cluster::ClusterIndexOptions::with_tile_px(self, f64) -> Self
+impl core::clone::Clone for geocoordinates::cluster::ClusterIndexOptions
+pub fn geocoordinates::cluster::ClusterIndexOptions::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::cluster::ClusterIndexOptions
+pub fn geocoordinates::cluster::ClusterIndexOptions::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::cluster::ClusterIndexOptions
+pub fn geocoordinates::cluster::ClusterIndexOptions::default() -> Self
+impl core::fmt::Debug for geocoordinates::cluster::ClusterIndexOptions
+pub fn geocoordinates::cluster::ClusterIndexOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::cluster::ClusterIndexOptions
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::ClusterIndexOptions
+impl serde_core::ser::Serialize for geocoordinates::cluster::ClusterIndexOptions
+pub fn geocoordinates::cluster::ClusterIndexOptions::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::ClusterIndexOptions where geocoordinates::cluster::ClusterIndexOptions: core::default::Default
+pub fn geocoordinates::cluster::ClusterIndexOptions::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::ClusterIndexOptions
+impl core::marker::Send for geocoordinates::cluster::ClusterIndexOptions
+impl core::marker::Sync for geocoordinates::cluster::ClusterIndexOptions
+impl core::marker::Unpin for geocoordinates::cluster::ClusterIndexOptions
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::ClusterIndexOptions
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::ClusterIndexOptions
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::ClusterIndexOptions
+pub struct geocoordinates::cluster::Dbscan
+impl geocoordinates::cluster::Dbscan
+pub fn geocoordinates::cluster::Dbscan::clusters(&self) -> &[geocoordinates::cluster::Cluster]
+pub fn geocoordinates::cluster::Dbscan::labels(&self) -> &[geocoordinates::cluster::PointLabel]
+impl core::clone::Clone for geocoordinates::cluster::Dbscan
+pub fn geocoordinates::cluster::Dbscan::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::cluster::Dbscan
+pub fn geocoordinates::cluster::Dbscan::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::cluster::Dbscan
+pub fn geocoordinates::cluster::Dbscan::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::Dbscan
+impl serde_core::ser::Serialize for geocoordinates::cluster::Dbscan
+pub fn geocoordinates::cluster::Dbscan::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::Dbscan
+pub fn geocoordinates::cluster::Dbscan::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::Dbscan
+impl core::marker::Send for geocoordinates::cluster::Dbscan
+impl core::marker::Sync for geocoordinates::cluster::Dbscan
+impl core::marker::Unpin for geocoordinates::cluster::Dbscan
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::Dbscan
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::Dbscan
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::Dbscan
+pub struct geocoordinates::cluster::GridBucket
+impl geocoordinates::cluster::GridBucket
+pub const fn geocoordinates::cluster::GridBucket::cluster(&self) -> &geocoordinates::cluster::Cluster
+pub fn geocoordinates::cluster::GridBucket::key(&self) -> &str
+impl core::clone::Clone for geocoordinates::cluster::GridBucket
+pub fn geocoordinates::cluster::GridBucket::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::cluster::GridBucket
+pub fn geocoordinates::cluster::GridBucket::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::cluster::GridBucket
+pub fn geocoordinates::cluster::GridBucket::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::GridBucket
+impl serde_core::ser::Serialize for geocoordinates::cluster::GridBucket
+pub fn geocoordinates::cluster::GridBucket::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::GridBucket
+pub fn geocoordinates::cluster::GridBucket::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::GridBucket
+impl core::marker::Send for geocoordinates::cluster::GridBucket
+impl core::marker::Sync for geocoordinates::cluster::GridBucket
+impl core::marker::Unpin for geocoordinates::cluster::GridBucket
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::GridBucket
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::GridBucket
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::GridBucket
+pub struct geocoordinates::cluster::MapCluster
+impl geocoordinates::cluster::MapCluster
+pub const fn geocoordinates::cluster::MapCluster::bounds(&self) -> geocoordinates::index::GeoBounds
+pub const fn geocoordinates::cluster::MapCluster::centroid(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub const fn geocoordinates::cluster::MapCluster::count(&self) -> u64
+pub const fn geocoordinates::cluster::MapCluster::id(&self) -> u64
+pub const fn geocoordinates::cluster::MapCluster::zoom(&self) -> u8
+impl core::clone::Clone for geocoordinates::cluster::MapCluster
+pub fn geocoordinates::cluster::MapCluster::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::cluster::MapCluster
+pub fn geocoordinates::cluster::MapCluster::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::cluster::MapCluster
+pub fn geocoordinates::cluster::MapCluster::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::cluster::MapCluster
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::MapCluster
+impl serde_core::ser::Serialize for geocoordinates::cluster::MapCluster
+pub fn geocoordinates::cluster::MapCluster::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::MapCluster
+pub fn geocoordinates::cluster::MapCluster::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::MapCluster
+impl core::marker::Send for geocoordinates::cluster::MapCluster
+impl core::marker::Sync for geocoordinates::cluster::MapCluster
+impl core::marker::Unpin for geocoordinates::cluster::MapCluster
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::MapCluster
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::MapCluster
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::MapCluster
+pub struct geocoordinates::cluster::Trip
+impl geocoordinates::cluster::Trip
+pub const fn geocoordinates::cluster::Trip::bounds(&self) -> geocoordinates::index::GeoBounds
+pub const fn geocoordinates::cluster::Trip::end(&self) -> std::time::SystemTime
+pub const fn geocoordinates::cluster::Trip::start(&self) -> std::time::SystemTime
+pub fn geocoordinates::cluster::Trip::visits(&self) -> &[usize]
+impl core::clone::Clone for geocoordinates::cluster::Trip
+pub fn geocoordinates::cluster::Trip::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::cluster::Trip
+pub fn geocoordinates::cluster::Trip::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::cluster::Trip
+pub fn geocoordinates::cluster::Trip::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::Trip
+impl serde_core::ser::Serialize for geocoordinates::cluster::Trip
+pub fn geocoordinates::cluster::Trip::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::Trip
+pub fn geocoordinates::cluster::Trip::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::Trip
+impl core::marker::Send for geocoordinates::cluster::Trip
+impl core::marker::Sync for geocoordinates::cluster::Trip
+impl core::marker::Unpin for geocoordinates::cluster::Trip
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::Trip
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::Trip
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::Trip
+pub struct geocoordinates::cluster::Visit
+impl geocoordinates::cluster::Visit
+pub const fn geocoordinates::cluster::Visit::arrival(&self) -> std::time::SystemTime
+pub const fn geocoordinates::cluster::Visit::cluster(&self) -> &geocoordinates::cluster::Cluster
+pub const fn geocoordinates::cluster::Visit::departure(&self) -> std::time::SystemTime
+pub fn geocoordinates::cluster::Visit::new(geocoordinates::cluster::Cluster, std::time::SystemTime, std::time::SystemTime) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::cluster::Visit
+pub fn geocoordinates::cluster::Visit::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::cluster::Visit
+pub fn geocoordinates::cluster::Visit::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::cluster::Visit
+pub fn geocoordinates::cluster::Visit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::cluster::Visit
+impl serde_core::ser::Serialize for geocoordinates::cluster::Visit
+pub fn geocoordinates::cluster::Visit::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::cluster::Visit
+pub fn geocoordinates::cluster::Visit::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::cluster::Visit
+impl core::marker::Send for geocoordinates::cluster::Visit
+impl core::marker::Sync for geocoordinates::cluster::Visit
+impl core::marker::Unpin for geocoordinates::cluster::Visit
+impl core::marker::UnsafeUnpin for geocoordinates::cluster::Visit
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::Visit
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::Visit
+pub const geocoordinates::cluster::MAX_ZOOM: u8
+pub fn geocoordinates::cluster::bucket_by_geohash(&[geocoordinates::Coordinate], u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::GridBucket>>
+pub fn geocoordinates::cluster::bucket_by_h3(&[geocoordinates::Coordinate], u8) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::GridBucket>>
+pub fn geocoordinates::cluster::centroid(&[geocoordinates::Coordinate]) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>
+pub fn geocoordinates::cluster::dbscan(&[geocoordinates::Coordinate], geocoordinates::Length, usize) -> geocoordinates::Result<geocoordinates::cluster::Dbscan>
+pub fn geocoordinates::cluster::segment_trips(&[geocoordinates::cluster::Visit], core::time::Duration) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::Trip>>
+pub fn geocoordinates::cluster::segment_visits(&[geocoordinates::fix::Fix], geocoordinates::Length, core::time::Duration) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::cluster::Visit>>

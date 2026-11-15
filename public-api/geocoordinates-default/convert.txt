@@ -1,0 +1,2 @@
+pub mod geocoordinates::convert
+pub fn geocoordinates::convert::convert(geocoordinates::Coordinate, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Approx<geocoordinates::Coordinate>>

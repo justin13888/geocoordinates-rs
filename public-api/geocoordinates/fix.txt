@@ -1,0 +1,184 @@
+pub mod geocoordinates::fix
+pub enum geocoordinates::fix::AccuracyKind
+pub geocoordinates::fix::AccuracyKind::Bound
+pub geocoordinates::fix::AccuracyKind::Cep50
+pub geocoordinates::fix::AccuracyKind::OneSigma
+pub geocoordinates::fix::AccuracyKind::Unspecified
+impl core::clone::Clone for geocoordinates::fix::AccuracyKind
+pub fn geocoordinates::fix::AccuracyKind::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::fix::AccuracyKind
+impl core::cmp::PartialEq for geocoordinates::fix::AccuracyKind
+pub fn geocoordinates::fix::AccuracyKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::fix::AccuracyKind
+pub fn geocoordinates::fix::AccuracyKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::fix::AccuracyKind
+pub fn geocoordinates::fix::AccuracyKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::fix::AccuracyKind
+impl core::marker::StructuralPartialEq for geocoordinates::fix::AccuracyKind
+impl serde_core::ser::Serialize for geocoordinates::fix::AccuracyKind
+pub fn geocoordinates::fix::AccuracyKind::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::fix::AccuracyKind
+pub fn geocoordinates::fix::AccuracyKind::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::fix::AccuracyKind
+impl core::marker::Send for geocoordinates::fix::AccuracyKind
+impl core::marker::Sync for geocoordinates::fix::AccuracyKind
+impl core::marker::Unpin for geocoordinates::fix::AccuracyKind
+impl core::marker::UnsafeUnpin for geocoordinates::fix::AccuracyKind
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::AccuracyKind
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::AccuracyKind
+pub enum geocoordinates::fix::AxisOrder
+pub geocoordinates::fix::AxisOrder::LatLon
+pub geocoordinates::fix::AxisOrder::LonLat
+impl core::clone::Clone for geocoordinates::fix::AxisOrder
+pub fn geocoordinates::fix::AxisOrder::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::fix::AxisOrder
+impl core::cmp::PartialEq for geocoordinates::fix::AxisOrder
+pub fn geocoordinates::fix::AxisOrder::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::fix::AxisOrder
+pub fn geocoordinates::fix::AxisOrder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::fix::AxisOrder
+pub fn geocoordinates::fix::AxisOrder::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::fix::AxisOrder
+impl core::marker::StructuralPartialEq for geocoordinates::fix::AxisOrder
+impl serde_core::ser::Serialize for geocoordinates::fix::AxisOrder
+pub fn geocoordinates::fix::AxisOrder::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::fix::AxisOrder
+pub fn geocoordinates::fix::AxisOrder::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::fix::AxisOrder
+impl core::marker::Send for geocoordinates::fix::AxisOrder
+impl core::marker::Sync for geocoordinates::fix::AxisOrder
+impl core::marker::Unpin for geocoordinates::fix::AxisOrder
+impl core::marker::UnsafeUnpin for geocoordinates::fix::AxisOrder
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::AxisOrder
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::AxisOrder
+pub enum geocoordinates::fix::DatumAmbiguity
+pub geocoordinates::fix::DatumAmbiguity::PossiblyGcj02
+impl core::clone::Clone for geocoordinates::fix::DatumAmbiguity
+pub fn geocoordinates::fix::DatumAmbiguity::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::fix::DatumAmbiguity
+impl core::cmp::PartialEq for geocoordinates::fix::DatumAmbiguity
+pub fn geocoordinates::fix::DatumAmbiguity::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::fix::DatumAmbiguity
+pub fn geocoordinates::fix::DatumAmbiguity::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::fix::DatumAmbiguity
+pub fn geocoordinates::fix::DatumAmbiguity::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::fix::DatumAmbiguity
+impl core::marker::StructuralPartialEq for geocoordinates::fix::DatumAmbiguity
+impl serde_core::ser::Serialize for geocoordinates::fix::DatumAmbiguity
+pub fn geocoordinates::fix::DatumAmbiguity::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::fix::DatumAmbiguity
+pub fn geocoordinates::fix::DatumAmbiguity::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::fix::DatumAmbiguity
+impl core::marker::Send for geocoordinates::fix::DatumAmbiguity
+impl core::marker::Sync for geocoordinates::fix::DatumAmbiguity
+impl core::marker::Unpin for geocoordinates::fix::DatumAmbiguity
+impl core::marker::UnsafeUnpin for geocoordinates::fix::DatumAmbiguity
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::DatumAmbiguity
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::DatumAmbiguity
+pub struct geocoordinates::fix::Accuracy
+impl geocoordinates::fix::Accuracy
+pub const fn geocoordinates::fix::Accuracy::horizontal(&self) -> core::option::Option<geocoordinates::Length>
+pub const fn geocoordinates::fix::Accuracy::kind(&self) -> geocoordinates::fix::AccuracyKind
+pub fn geocoordinates::fix::Accuracy::new(geocoordinates::fix::AccuracyKind, core::option::Option<geocoordinates::Length>, core::option::Option<geocoordinates::Length>) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::fix::Accuracy::vertical(&self) -> core::option::Option<geocoordinates::Length>
+impl core::clone::Clone for geocoordinates::fix::Accuracy
+pub fn geocoordinates::fix::Accuracy::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::fix::Accuracy
+pub fn geocoordinates::fix::Accuracy::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::fix::Accuracy
+pub fn geocoordinates::fix::Accuracy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::fix::Accuracy
+impl core::marker::StructuralPartialEq for geocoordinates::fix::Accuracy
+impl serde_core::ser::Serialize for geocoordinates::fix::Accuracy
+pub fn geocoordinates::fix::Accuracy::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::fix::Accuracy
+pub fn geocoordinates::fix::Accuracy::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::fix::Accuracy
+impl core::marker::Send for geocoordinates::fix::Accuracy
+impl core::marker::Sync for geocoordinates::fix::Accuracy
+impl core::marker::Unpin for geocoordinates::fix::Accuracy
+impl core::marker::UnsafeUnpin for geocoordinates::fix::Accuracy
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::Accuracy
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::Accuracy
+pub struct geocoordinates::fix::Confidence(_)
+impl geocoordinates::fix::Confidence
+pub fn geocoordinates::fix::Confidence::new(f64) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::fix::Confidence::value(self) -> f64
+impl core::clone::Clone for geocoordinates::fix::Confidence
+pub fn geocoordinates::fix::Confidence::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::fix::Confidence
+pub fn geocoordinates::fix::Confidence::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for geocoordinates::fix::Confidence
+pub fn geocoordinates::fix::Confidence::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::From<geocoordinates::fix::Confidence> for f64
+pub fn f64::from(geocoordinates::fix::Confidence) -> Self
+impl core::convert::TryFrom<f64> for geocoordinates::fix::Confidence
+pub type geocoordinates::fix::Confidence::Error = geocoordinates::Error
+pub fn geocoordinates::fix::Confidence::try_from(f64) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::fix::Confidence
+pub fn geocoordinates::fix::Confidence::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::fix::Confidence
+impl core::marker::StructuralPartialEq for geocoordinates::fix::Confidence
+impl serde_core::ser::Serialize for geocoordinates::fix::Confidence
+pub fn geocoordinates::fix::Confidence::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::fix::Confidence
+pub fn geocoordinates::fix::Confidence::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::fix::Confidence
+impl core::marker::Send for geocoordinates::fix::Confidence
+impl core::marker::Sync for geocoordinates::fix::Confidence
+impl core::marker::Unpin for geocoordinates::fix::Confidence
+impl core::marker::UnsafeUnpin for geocoordinates::fix::Confidence
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::Confidence
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::Confidence
+#[non_exhaustive] pub struct geocoordinates::fix::Fix
+pub geocoordinates::fix::Fix::accuracy: core::option::Option<geocoordinates::fix::Accuracy>
+pub geocoordinates::fix::Fix::coord: geocoordinates::Coordinate
+pub geocoordinates::fix::Fix::source: core::option::Option<geocoordinates::fix::RawSource>
+pub geocoordinates::fix::Fix::timestamp: core::option::Option<std::time::SystemTime>
+impl geocoordinates::fix::Fix
+pub fn geocoordinates::fix::Fix::from_coord(geocoordinates::Coordinate) -> Self
+impl core::clone::Clone for geocoordinates::fix::Fix
+pub fn geocoordinates::fix::Fix::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::fix::Fix
+pub fn geocoordinates::fix::Fix::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::fix::Fix
+pub fn geocoordinates::fix::Fix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::fix::Fix
+impl serde_core::ser::Serialize for geocoordinates::fix::Fix
+pub fn geocoordinates::fix::Fix::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::fix::Fix
+pub fn geocoordinates::fix::Fix::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::fix::Fix
+impl core::marker::Send for geocoordinates::fix::Fix
+impl core::marker::Sync for geocoordinates::fix::Fix
+impl core::marker::Unpin for geocoordinates::fix::Fix
+impl core::marker::UnsafeUnpin for geocoordinates::fix::Fix
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::Fix
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::Fix
+#[non_exhaustive] pub struct geocoordinates::fix::RawSource
+pub geocoordinates::fix::RawSource::axis_order: core::option::Option<geocoordinates::fix::AxisOrder>
+pub geocoordinates::fix::RawSource::confidence: geocoordinates::fix::Confidence
+pub geocoordinates::fix::RawSource::datum_ambiguity: core::option::Option<geocoordinates::fix::DatumAmbiguity>
+pub geocoordinates::fix::RawSource::geoid_separation: core::option::Option<geocoordinates::Length>
+pub geocoordinates::fix::RawSource::notes: alloc::vec::Vec<alloc::string::String>
+pub geocoordinates::fix::RawSource::raw: alloc::string::String
+impl geocoordinates::fix::RawSource
+pub fn geocoordinates::fix::RawSource::new(impl core::convert::Into<alloc::string::String>, geocoordinates::fix::Confidence) -> Self
+impl core::clone::Clone for geocoordinates::fix::RawSource
+pub fn geocoordinates::fix::RawSource::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::fix::RawSource
+pub fn geocoordinates::fix::RawSource::eq(&self, &Self) -> bool
+impl core::fmt::Debug for geocoordinates::fix::RawSource
+pub fn geocoordinates::fix::RawSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for geocoordinates::fix::RawSource
+impl serde_core::ser::Serialize for geocoordinates::fix::RawSource
+pub fn geocoordinates::fix::RawSource::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::fix::RawSource
+pub fn geocoordinates::fix::RawSource::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::fix::RawSource
+impl core::marker::Send for geocoordinates::fix::RawSource
+impl core::marker::Sync for geocoordinates::fix::RawSource
+impl core::marker::Unpin for geocoordinates::fix::RawSource
+impl core::marker::UnsafeUnpin for geocoordinates::fix::RawSource
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::RawSource
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::RawSource

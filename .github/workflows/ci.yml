@@ -252,12 +252,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # The task installs the pinned nightly it needs for rustdoc's JSON output.
+      # The task installs the pinned nightly it needs for rustdoc's JSON output,
+      # and compiles the pinned cargo-public-api on first use.
       - uses: Swatinem/rust-cache@v2
       - uses: jdx/mise-action@v2
         with:
           version: 2026.9.13
-      - name: Check every public item has one canonical path
+      - name: Check public paths, the item floor, and the API snapshots
         run: mise run public-api-check
 
   coverage:

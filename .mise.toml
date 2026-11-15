@@ -31,6 +31,8 @@ postinstall = "hk install --mise"
 [vars]
 # Central flags shared by both mutation tasks: published crate only, all features.
 mutants_flags = "--package geocoordinates --all-features"
+# Nightly whose rustdoc JSON the public API tasks read.
+public_api_toolchain = "nightly-2026-09-25"
 # Line limit for every tracked file not listed in `.file-length-baseline`.
 max_file_lines = "654"
 # Shell function shared by the coverage tasks: reads a `.coverage-baseline`
@@ -247,20 +249,34 @@ echo "coverage-ratchet: floor $floor% is at or above $base's $base_floor%."
 
 # --- Public API shape ---
 
-# Every public item has exactly one path besides its prelude entry. The check
-# reads rustdoc's JSON output, which only a nightly toolchain emits; the nightly
-# is pinned so the JSON format the script reads cannot drift under it.
+# Both read rustdoc's JSON, which only a nightly emits; the nightly is pinned so
+# the format cannot drift, and cargo-public-api (no prebuilt asset, so pinned on
+# the tasks) to a release that reads it: bump the two together. The snapshots
+# record the whole surface; `scripts/public_api_snapshot.py` says what and how.
+[tasks.public-api-snapshot]
+description = "Regenerate the public API snapshots in public-api/"
+tools = { "cargo:cargo-public-api" = "0.52.0" }
+env = { RUSTFLAGS = "" } # nightly-only lints are not this gate's concern
+run = [
+    "rustup toolchain install {{ vars.public_api_toolchain }} --profile minimal --no-self-update",
+    "python3 -I scripts/public_api_snapshot.py {{ vars.public_api_toolchain }}",
+]
+
+# One path per item besides its prelude entry, no fewer items than the floor in
+# `scripts/check_public_paths.py`, and no drift from the snapshots.
 [tasks.public-api-check]
-description = "Fail when a public item is reachable by more than one non-prelude path"
+description = "Fail on a duplicate public path, too few items, or drift from public-api/"
+tools = { "cargo:cargo-public-api" = "0.52.0" }
 env = { RUSTFLAGS = "" } # nightly-only lints are not this gate's concern
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-toolchain="nightly-2026-09-25"
+toolchain="{{ vars.public_api_toolchain }}"
 rustup toolchain install "$toolchain" --profile minimal --no-self-update
 cargo "+$toolchain" rustdoc -q -p geocoordinates --lib --all-features -- \
     -Z unstable-options --output-format json
 python3 -I scripts/check_public_paths.py target/doc/geocoordinates.json
+python3 -I scripts/public_api_snapshot.py "$toolchain" --check
 '''
 
 # --- Release versions ---
