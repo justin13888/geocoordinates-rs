@@ -1,4 +1,4 @@
-//! A GPX track read by `from_gpx`, located against positions computed outside
+//! A GPX track read by `parse_gpx`, located against positions computed outside
 //! this crate with GeographicLib 2.0 (Python: `Geodesic.WGS84.InverseLine(a, b)
 //! .Position(f * s13)`), the reference implementation of the geodesics
 //! `geodesy::intermediate` runs.
@@ -10,7 +10,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use super::{GeotagOptions, Track};
 use crate::Height;
 use crate::fix::AccuracyKind;
-use crate::parse::interchange::from_gpx;
+use crate::parse::interchange::parse_gpx;
 
 const GOLDEN: &str = include_str!("testdata/golden.gpx");
 
@@ -23,7 +23,7 @@ const TAVEUNI_START: u64 = 1_717_286_400;
 const CAMERA_AHEAD_MS: i64 = 2 * 3_600_000;
 
 fn track() -> Track {
-    Track::new(from_gpx(GOLDEN).unwrap()).unwrap()
+    Track::new(parse_gpx(GOLDEN).unwrap()).unwrap()
 }
 
 /// The camera's reading `secs` seconds after `start` UTC.

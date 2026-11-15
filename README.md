@@ -29,8 +29,8 @@ table names, e.g. `geocoordinates::china::Wgs84` or
 | **China datums** (`china`) | `Wgs84`, `Gcj02`, `Bd09` (valid by construction; exact forward, `_fast` / `_refined` inverses with honest bounds), `BaiduMercator`, `Wgs84::is_outside_china` / `Gcj02::is_outside_china` | ✅ | ✅ |
 | **Runtime dispatch** (`convert`) | `convert` | ✅ | ✅ |
 | **Format** (`format`) | `format`, `format_fix`, `FormatOptions` (with `parse_options` for the round trip), `Representation`, `SymbolStyle`, `HemisphereStyle`, `DecimalSeparator` | ✅ | ✅ |
-| **Parse** (`parse`) | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `from_geo_uri`, `parse_text`, `parse_text_with` | ✅ | ✅ |
-| **Interchange & sensors** *(feature-gated; `parse::interchange`, `parse::sensors`)* | `from_geojson`, `from_wkt`, `from_gpx`, `from_kml`, `from_nmea_sentence` | ✅ | ✅ |
+| **Parse** (`parse`) | `parse_coordinate`, `parse_coordinate_with`, `ParseOptions`, `GridKind`, `parse_geo_uri`, `parse_text`, `parse_text_with` | ✅ | ✅ |
+| **Interchange & sensors** *(feature-gated; `parse::interchange`, `parse::sensors`)* | `parse_geojson`, `parse_wkt`, `parse_gpx`, `parse_kml`, `parse_nmea_sentence` | ✅ | ✅ |
 | **Geodesy** (`geodesy`) | `Ellipsoid`, `Ecef`, `Enu` / `Ned` / `Aer` (on any classic datum the origin and target share), `geodesic_distance`, `haversine_distance`, `initial_bearing` / `final_bearing`, `destination`, `midpoint`, `intermediate`, `intersection` / `GeodesicIntersection`, `cross_track_distance` / `along_track_distance` (on each datum's own ellipsoid), `intersection_spherical` / `Intersection`, `cross_track_distance_spherical` / `along_track_distance_spherical` (on the mean sphere), `rhumb_distance` / `rhumb_bearing` / `rhumb_destination` (on each datum's own ellipsoid), `Helmert`, `DatumTransform`, `GeoBounds` (antimeridian-aware box) | ✅ | ✅ |
 | **Projected grids** (`grids`) | `Utm`, `Ups`, `UtmHemisphere`, `Mgrs`, `MgrsPrecision`, `utm_zone_for`, `utm_central_meridian_deg` | ✅ | ✅ |
 | **Encoded grids** (`grids`) | `PlusCode`, `Geohash`, `Maidenhead` | ✅ | ✅ |
@@ -107,7 +107,7 @@ The FFI surface is deliberately flatter than the idiomatic Rust API; the
 is re-expressed, and its [naming section](https://github.com/justin13888/geocoordinates-rs/blob/master/crates/geocoordinates-ffi/README.md#naming)
 the one scheme every export follows: a unit suffix on every returned length
 and angle (`initial_bearing_deg`), with two stated exceptions; `parse_*` for
-every reader (the FFI form of `from_geojson` is `parse_geojson`); a
+every reader (Rust and FFI use the same names, such as `parse_geojson`); a
 `*_validate` for every invariant record an export takes as input (the
 output-only `ApproxCoordinate` / `ApproxWgs84` / `ApproxGcj02` have none, so
 `Approx::new` stays Rust-only); and `*_canonicalize` for every grid

@@ -1,4 +1,4 @@
-//! The markup pre-scan [`from_kml`](super::from_kml) runs before handing a
+//! The markup pre-scan [`parse_kml`](super::parse_kml) runs before handing a
 //! document to the `kml` parser, which neither bounds its recursion nor
 //! returns on every malformed document.
 

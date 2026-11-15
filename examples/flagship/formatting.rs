@@ -7,7 +7,7 @@ use geocoordinates::format::{
 };
 use geocoordinates::grids::MgrsPrecision;
 use geocoordinates::parse::{
-    GridKind, ParseOptions, from_geo_uri, parse_coordinate, parse_coordinate_with, parse_text,
+    GridKind, ParseOptions, parse_coordinate, parse_coordinate_with, parse_geo_uri, parse_text,
     parse_text_with,
 };
 use geocoordinates::{Coordinate, Crs, Error, Height, Length};
@@ -178,7 +178,7 @@ pub(crate) fn formatting_and_parsing() -> DemoResult {
     assert!(parse_text("40.5 30, 10").is_err());
     assert!(parse_text("4e1 3e1").is_err());
 
-    let uri = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
+    let uri = parse_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
     assert_eq!(uri.coord.height(), Some(Height::Ellipsoidal(183.0)));
     assert_eq!(
         uri.accuracy.and_then(|accuracy| accuracy.horizontal()),

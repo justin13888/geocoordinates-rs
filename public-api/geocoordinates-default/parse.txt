@@ -50,8 +50,8 @@ impl core::marker::Unpin for geocoordinates::parse::ParseOptions
 impl core::marker::UnsafeUnpin for geocoordinates::parse::ParseOptions
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::parse::ParseOptions
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::parse::ParseOptions
-pub fn geocoordinates::parse::from_geo_uri(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_coordinate(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_coordinate_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_geo_uri(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_text(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_text_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>

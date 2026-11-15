@@ -262,9 +262,9 @@ proptest! {
         };
         let _ = parse_coordinate_with(&input, &options);
         let _ = text::parse_free_text(&input, &options);
-        let _ = from_geo_uri(&input);
+        let _ = parse_geo_uri(&input);
         #[cfg(feature = "nmea")]
-        let _ = sensors::from_nmea_sentence(&input);
+        let _ = sensors::parse_nmea_sentence(&input);
         #[cfg(feature = "serde")]
         {
             let _ = serde_json::from_str::<ParseOptions>(&input);

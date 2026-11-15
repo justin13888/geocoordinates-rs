@@ -4,7 +4,7 @@
 //!   parsing (always available).
 //! - [`parse_coordinate`] / [`parse_coordinate_with`] — best-effort detection
 //!   across `geo:` URIs, grid references, and free text.
-//! - [`from_geo_uri`] — `geo:` URIs per RFC 5870 (always available).
+//! - [`parse_geo_uri`] — `geo:` URIs per RFC 5870 (always available).
 //! - `interchange` — GeoJSON, WKT, GPX, KML (each behind a cargo feature).
 //! - `sensors` — NMEA 0183 (feature-gated). Reading EXIF out of a file is out of
 //!   scope — a separate library handles it, consuming this crate's primitives.
@@ -103,7 +103,7 @@ pub use text::{parse_text, parse_text_with};
 /// Best-effort parse of a single coordinate from arbitrary input, with the
 /// default [`ParseOptions`] (lat-first, `.` decimals, no expected grid).
 ///
-/// Recognizes, in order: a `geo:` URI (see [`from_geo_uri`]), a Plus Code, an
+/// Recognizes, in order: a `geo:` URI (see [`parse_geo_uri`]), a Plus Code, an
 /// MGRS reference, and then free-text DD/DMS/DDM (see [`parse_text`]). A grid
 /// reference decodes to its cell's center, with the cell's error bound as the
 /// horizontal accuracy. Geohash and Maidenhead strings are **not** detected,
@@ -116,7 +116,7 @@ pub use text::{parse_text, parse_text_with};
 /// # Errors
 /// Returns [`crate::Error::Parse`] when no interpretation is found, with the
 /// [`ParseErrorKind`] of the route that rejected it:
-/// [`from_geo_uri`]'s for a `geo:` URI, otherwise [`parse_text`]'s.
+/// [`parse_geo_uri`]'s for a `geo:` URI, otherwise [`parse_text`]'s.
 ///
 /// ```
 /// use geocoordinates::{Error, ParseErrorKind};
@@ -182,7 +182,7 @@ pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix>
         .get(..4)
         .is_some_and(|scheme| scheme.eq_ignore_ascii_case("geo:"))
     {
-        return from_geo_uri(input);
+        return parse_geo_uri(input);
     }
     let expected = options
         .expect_grid
@@ -245,9 +245,9 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 /// ```
 /// use geocoordinates::fix::AccuracyKind;
 /// use geocoordinates::{Error, Height, ParseErrorKind};
-/// use geocoordinates::parse::from_geo_uri;
+/// use geocoordinates::parse::parse_geo_uri;
 ///
-/// let fix = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
+/// let fix = parse_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40")?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.2, 16.3));
 /// assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(183.0)));
 /// let accuracy = fix.accuracy.expect("u= sets the accuracy");
@@ -255,16 +255,16 @@ fn grid_fix(area: Approx<Coordinate>, raw: &str) -> Result<Fix> {
 /// assert_eq!(accuracy.kind(), AccuracyKind::Unspecified);
 ///
 /// assert!(matches!(
-///     from_geo_uri("geo:48.2"),
+///     parse_geo_uri("geo:48.2"),
 ///     Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })
 /// ));
 /// assert!(matches!(
-///     from_geo_uri("geo:48.2,16.3;crs=nad27"),
+///     parse_geo_uri("geo:48.2,16.3;crs=nad27"),
 ///     Err(Error::Parse { kind: ParseErrorKind::Unsupported, .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn from_geo_uri(input: &str) -> Result<Fix> {
+pub fn parse_geo_uri(input: &str) -> Result<Fix> {
     let trimmed = input.trim();
     let scheme = trimmed.get(..4);
     if scheme.is_none_or(|s| !s.eq_ignore_ascii_case("geo:")) {
@@ -384,7 +384,7 @@ mod tests {
 
     #[test]
     fn geo_uri_basic() {
-        let fix = from_geo_uri("geo:13.4125,103.8667").unwrap();
+        let fix = parse_geo_uri("geo:13.4125,103.8667").unwrap();
         assert_close(fix.coord.lat(), 13.4125, 1e-9);
         assert_close(fix.coord.lon(), 103.8667, 1e-9);
         let s = fix.source.as_ref().unwrap();
@@ -395,7 +395,7 @@ mod tests {
 
     #[test]
     fn geo_uri_with_altitude_crs_and_accuracy() {
-        let fix = from_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40").unwrap();
+        let fix = parse_geo_uri("geo:48.2,16.3,183;crs=wgs84;u=40").unwrap();
         assert_close(fix.coord.lat(), 48.2, 1e-9);
         assert_close(fix.coord.lon(), 16.3, 1e-9);
         assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(183.0)));
@@ -415,37 +415,37 @@ mod tests {
 
     #[test]
     fn geo_uri_scheme_is_case_insensitive() {
-        assert!(from_geo_uri("GEO:13.4125,103.8667").is_ok());
+        assert!(parse_geo_uri("GEO:13.4125,103.8667").is_ok());
     }
 
     #[test]
     fn geo_uri_crs_parameter() {
         // A recognized crs (wgs84) adds no note.
-        let known = from_geo_uri("geo:1,2;crs=wgs84").unwrap();
+        let known = parse_geo_uri("geo:1,2;crs=wgs84").unwrap();
         let notes = &known.source.unwrap().notes;
         assert!(notes.iter().all(|n| !n.contains("crs")), "{notes:?}");
-        assert!(from_geo_uri("geo:1,2;crs=epsg:7030").is_err());
+        assert!(parse_geo_uri("geo:1,2;crs=epsg:7030").is_err());
     }
 
     #[test]
     fn geo_uri_errors() {
-        assert!(from_geo_uri("geo:").is_err());
-        assert!(from_geo_uri("geo:abc").is_err());
-        assert!(from_geo_uri("geo:91,0").is_err()); // out of range
-        assert!(from_geo_uri("http:1,2").is_err()); // wrong scheme
-        assert!(from_geo_uri("geo:1,2;u=-1").is_err());
-        assert!(from_geo_uri("geo:1,2;u=NaN").is_err());
-        assert!(from_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
-        assert!(from_geo_uri("geo:1,2;u=1;u=2").is_err());
-        assert!(from_geo_uri("geo:1,2;").is_err());
-        assert!(from_geo_uri("geo:1,2,inf").is_err());
+        assert!(parse_geo_uri("geo:").is_err());
+        assert!(parse_geo_uri("geo:abc").is_err());
+        assert!(parse_geo_uri("geo:91,0").is_err()); // out of range
+        assert!(parse_geo_uri("http:1,2").is_err()); // wrong scheme
+        assert!(parse_geo_uri("geo:1,2;u=-1").is_err());
+        assert!(parse_geo_uri("geo:1,2;u=NaN").is_err());
+        assert!(parse_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
+        assert!(parse_geo_uri("geo:1,2;u=1;u=2").is_err());
+        assert!(parse_geo_uri("geo:1,2;").is_err());
+        assert!(parse_geo_uri("geo:1,2,inf").is_err());
     }
 
     /// RFC 5870 allows `u=0` (an exact position); only a negative value is
     /// rejected.
     #[test]
     fn geo_uri_accepts_zero_uncertainty() {
-        let fix = from_geo_uri("geo:1,2;u=0").unwrap();
+        let fix = parse_geo_uri("geo:1,2;u=0").unwrap();
         assert_eq!(fix.accuracy.unwrap().horizontal(), Some(Length::ZERO));
     }
 

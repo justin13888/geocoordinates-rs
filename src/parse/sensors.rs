@@ -63,10 +63,10 @@ use super::{hdop_accuracy, syntax};
 ///
 /// ```
 /// use geocoordinates::{Error, ParseErrorKind};
-/// use geocoordinates::parse::sensors::from_nmea_sentence;
+/// use geocoordinates::parse::sensors::parse_nmea_sentence;
 ///
 /// let gga = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47";
-/// let fix = from_nmea_sentence(gga)?;
+/// let fix = parse_nmea_sentence(gga)?;
 /// assert!((fix.coord.lat() - 48.1173).abs() < 1e-9);
 /// assert!((fix.coord.lon() - 11.516_666_666).abs() < 1e-9);
 /// let horizontal = fix.accuracy.and_then(|a| a.horizontal()).map(|h| h.meters());
@@ -78,20 +78,20 @@ use super::{hdop_accuracy, syntax};
 /// // Status `V`: the receiver has no fix, so there is no position.
 /// let void = "$GPRMC,123519,V,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W";
 /// assert!(matches!(
-///     from_nmea_sentence(void),
+///     parse_nmea_sentence(void),
 ///     Err(Error::Parse { kind: ParseErrorKind::NoFix, .. })
 /// ));
 /// // A corrupted byte fails the checksum instead.
 /// let corrupt = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*48";
 /// assert!(matches!(
-///     from_nmea_sentence(corrupt),
+///     parse_nmea_sentence(corrupt),
 ///     Err(Error::Parse { kind: ParseErrorKind::Checksum, .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "nmea")]
 #[cfg_attr(docsrs, doc(cfg(feature = "nmea")))]
-pub fn from_nmea_sentence(sentence: &str) -> Result<Fix> {
+pub fn parse_nmea_sentence(sentence: &str) -> Result<Fix> {
     let body = sentence.trim().strip_prefix('$').unwrap_or(sentence.trim());
     let (data, checksum) = match body.split_once('*') {
         Some((d, c)) => (d, Some(c.trim())),

@@ -1,11 +1,11 @@
 pub mod geocoordinates::parse
 pub mod geocoordinates::parse::interchange
-pub fn geocoordinates::parse::interchange::from_geojson(&str) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
-pub fn geocoordinates::parse::interchange::from_gpx(&str) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
-pub fn geocoordinates::parse::interchange::from_kml(&str) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
-pub fn geocoordinates::parse::interchange::from_wkt(&str, geocoordinates::fix::AxisOrder) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
+pub fn geocoordinates::parse::interchange::parse_geojson(&str) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
+pub fn geocoordinates::parse::interchange::parse_gpx(&str) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
+pub fn geocoordinates::parse::interchange::parse_kml(&str) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
+pub fn geocoordinates::parse::interchange::parse_wkt(&str, geocoordinates::fix::AxisOrder) -> geocoordinates::Result<alloc::vec::Vec<geocoordinates::fix::Fix>>
 pub mod geocoordinates::parse::sensors
-pub fn geocoordinates::parse::sensors::from_nmea_sentence(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::sensors::parse_nmea_sentence(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub enum geocoordinates::parse::GridKind
 pub geocoordinates::parse::GridKind::Geohash
 pub geocoordinates::parse::GridKind::Maidenhead
@@ -65,8 +65,8 @@ impl core::marker::Unpin for geocoordinates::parse::ParseOptions
 impl core::marker::UnsafeUnpin for geocoordinates::parse::ParseOptions
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::parse::ParseOptions
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::parse::ParseOptions
-pub fn geocoordinates::parse::from_geo_uri(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_coordinate(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_coordinate_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_geo_uri(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_text(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_text_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>

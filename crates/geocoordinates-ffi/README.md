@@ -63,9 +63,8 @@ Every export follows one scheme, so a name reads the same in every language
   `parse_text`, `parse_text_with`, `parse_geo_uri`, `parse_geojson`,
   `parse_wkt`, `parse_gpx`, `parse_kml` and `parse_nmea_sentence` each read
   text into a `Fix` (or a list of them), and `parse_exif`, `parse_exif_with`,
-  `parse_xmp` and `parse_xmp_with` read GPS tag values into a `CaptureGeo`. The core crate's readers are named
-  `from_geojson` and so on inside a module that says what they produce; a
-  top-level foreign function has no such module.
+  `parse_xmp` and `parse_xmp_with` read GPS tag values into a `CaptureGeo`. Rust and FFI use the same
+  names for the text readers.
 - **`<record>_validate` for every invariant record.** `Coordinate`, `Wgs84`,
   `Gcj02`, `Bd09`, `BaiduMercator`, `Dms`, `Ddm`, `Ellipsoid`, `Enu`, `Ned`,
   `Aer`, `DatumTransform`, `Utm`, `Ups`, `H3Cell` (`h3_validate`), `S2CellId`

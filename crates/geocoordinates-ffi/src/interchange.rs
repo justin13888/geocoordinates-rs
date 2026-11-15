@@ -1,10 +1,9 @@
 //! Structured interchange formats (GeoJSON / WKT / GPX / KML) and NMEA 0183
 //! sensor sentences, each parsed into [`Fix`] records.
 //!
-//! The core crate names these readers `from_geojson`, `from_wkt`, … after the
-//! format they read; across the boundary they are top-level functions with no
-//! module to say what they produce, so each is named for what it does,
-//! `parse_<format>`, beside [`parse_coordinate`](crate::parse_coordinate).
+//! Each reader is named `parse_<format>`, beside
+//! [`parse_coordinate`](crate::parse_coordinate); Rust and FFI use the same
+//! names.
 
 use geocoordinates as gc;
 
@@ -24,7 +23,7 @@ use crate::{AxisOrder, Fix, GeoError};
 /// numbers; `GeoError::OutOfRange` for the first position out of range.
 #[uniffi::export]
 pub fn parse_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
-    gc::parse::interchange::from_geojson(&input)
+    gc::parse::interchange::parse_geojson(&input)
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
 }
@@ -41,7 +40,7 @@ pub fn parse_geojson(input: String) -> Result<Vec<Fix>, GeoError> {
 /// of range.
 #[uniffi::export]
 pub fn parse_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoError> {
-    gc::parse::interchange::from_wkt(&input, axis_order.into())
+    gc::parse::interchange::parse_wkt(&input, axis_order.into())
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
 }
@@ -56,7 +55,7 @@ pub fn parse_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoEr
 /// naming the index of the first point with an invalid `<hdop>`.
 #[uniffi::export]
 pub fn parse_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
-    gc::parse::interchange::from_gpx(&input)
+    gc::parse::interchange::parse_gpx(&input)
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
 }
@@ -73,7 +72,7 @@ pub fn parse_gpx(input: String) -> Result<Vec<Fix>, GeoError> {
 /// non-finite altitude.
 #[uniffi::export]
 pub fn parse_kml(input: String) -> Result<Vec<Fix>, GeoError> {
-    gc::parse::interchange::from_kml(&input)
+    gc::parse::interchange::parse_kml(&input)
         .map(|v| v.into_iter().map(Into::into).collect())
         .map_err(GeoError::from)
 }
@@ -98,7 +97,7 @@ pub fn parse_kml(input: String) -> Result<Vec<Fix>, GeoError> {
 /// whose unit is not `M`.
 #[uniffi::export]
 pub fn parse_nmea_sentence(sentence: String) -> Result<Fix, GeoError> {
-    gc::parse::sensors::from_nmea_sentence(&sentence)
+    gc::parse::sensors::parse_nmea_sentence(&sentence)
         .map(Into::into)
         .map_err(GeoError::from)
 }

@@ -4,7 +4,7 @@
 //! watch that logged a track at the same time knows where it was at every moment,
 //! so the photo's position is the track's position at the photo's time. Build a
 //! [`Track`] from timestamped [`Fix`](crate::fix::Fix)es (GPX via
-//! `parse::interchange::from_gpx`, NMEA `RMC` sentences, or any sequence of your
+//! `parse::interchange::parse_gpx`, NMEA `RMC` sentences, or any sequence of your
 //! own), then ask it where it was with [`Track::locate`].
 //!
 //! Camera clocks drift and are often set to local time with no zone, so

@@ -2,7 +2,7 @@
 //!
 //! **Axis order:** GeoJSON positions and KML `coordinates` are lon-lat (X,Y),
 //! GPX names its axes with `lat`/`lon` attributes, and WKT defines no order at
-//! all, so [`from_wkt`] takes the caller's [`AxisOrder`]. These parsers
+//! all, so [`parse_wkt`] takes the caller's [`AxisOrder`]. These parsers
 //! normalize every position to the library's lat/lon model and record on each
 //! [`Fix`]'s [`RawSource::axis_order`] the order the source listed the axes in
 //! (`None` for GPX, whose axes are labelled) — they never silently transpose.
@@ -168,9 +168,9 @@ fn check_wkt_depth(input: &str) -> Result<()> {
 /// ```
 /// use geocoordinates::{Error, Height, ParseErrorKind};
 /// use geocoordinates::fix::AxisOrder;
-/// use geocoordinates::parse::interchange::from_geojson;
+/// use geocoordinates::parse::interchange::parse_geojson;
 ///
-/// let fixes = from_geojson(r#"{"type":"Point","coordinates":[-74.006,40.7128,10.0]}"#)?;
+/// let fixes = parse_geojson(r#"{"type":"Point","coordinates":[-74.006,40.7128,10.0]}"#)?;
 /// let fix = &fixes[0];
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
 /// assert_eq!(fix.coord.height(), Some(Height::Ellipsoidal(10.0)));
@@ -179,11 +179,11 @@ fn check_wkt_depth(input: &str) -> Result<()> {
 ///
 /// // Latitude 200 is out of range, and the error carries it.
 /// let line = r#"{"type":"LineString","coordinates":[[0,0],[0,200]]}"#;
-/// assert_eq!(from_geojson(line), Err(Error::OutOfRange { lat: 200.0, lon: 0.0 }));
+/// assert_eq!(parse_geojson(line), Err(Error::OutOfRange { lat: 200.0, lon: 0.0 }));
 ///
 /// // A position needs two numbers: the error names the position's index.
 /// let short = r#"{"type":"LineString","coordinates":[[0,0],[5]]}"#;
-/// let Err(Error::Parse { kind, detail }) = from_geojson(short) else {
+/// let Err(Error::Parse { kind, detail }) = parse_geojson(short) else {
 ///     panic!("expected a parse error");
 /// };
 /// assert_eq!(kind, ParseErrorKind::Syntax);
@@ -192,7 +192,7 @@ fn check_wkt_depth(input: &str) -> Result<()> {
 /// ```
 #[cfg(feature = "geojson")]
 #[cfg_attr(docsrs, doc(cfg(feature = "geojson")))]
-pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
+pub fn parse_geojson(input: &str) -> Result<Vec<Fix>> {
     use geojson::{GeoJson, Geometry, GeometryValue, Position as GeoJsonPosition};
 
     /// Push one position, rejecting one with fewer than two numbers (the
@@ -290,21 +290,21 @@ pub fn from_geojson(input: &str) -> Result<Vec<Fix>> {
 /// ```
 /// use geocoordinates::Error;
 /// use geocoordinates::fix::AxisOrder;
-/// use geocoordinates::parse::interchange::from_wkt;
+/// use geocoordinates::parse::interchange::parse_wkt;
 ///
 /// let line = "LINESTRING (-122.4194 37.7749, 2.3522 48.8566)";
-/// let fixes = from_wkt(line, AxisOrder::LonLat)?;
+/// let fixes = parse_wkt(line, AxisOrder::LonLat)?;
 /// assert_eq!(fixes.len(), 2);
 /// assert_eq!((fixes[1].coord.lat(), fixes[1].coord.lon()), (48.8566, 2.3522));
 ///
 /// // Read lat-first, the same text puts -122.4194 on the latitude axis.
 /// let transposed = Error::OutOfRange { lat: -122.4194, lon: 37.7749 };
-/// assert_eq!(from_wkt(line, AxisOrder::LatLon), Err(transposed));
+/// assert_eq!(parse_wkt(line, AxisOrder::LatLon), Err(transposed));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "wkt")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wkt")))]
-pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
+pub fn parse_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
     use core::str::FromStr;
 
     use wkt::Wkt;
@@ -393,25 +393,25 @@ pub fn from_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 ///
 /// ```
 /// use geocoordinates::{Error, Height, ParseErrorKind};
-/// use geocoordinates::parse::interchange::from_gpx;
+/// use geocoordinates::parse::interchange::parse_gpx;
 ///
 /// let gpx = r#"<?xml version="1.0"?>
 /// <gpx version="1.1" creator="example" xmlns="http://www.topografix.com/GPX/1/1">
 ///   <wpt lat="40.7128" lon="-74.006"><ele>10</ele><hdop>2</hdop></wpt>
 /// </gpx>"#;
-/// let fix = &from_gpx(gpx)?[0];
+/// let fix = &parse_gpx(gpx)?[0];
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
 /// assert_eq!(fix.coord.height(), Some(Height::Orthometric(10.0)));
 /// let horizontal = fix.accuracy.and_then(|a| a.horizontal()).map(|h| h.meters());
 /// assert_eq!(horizontal, Some(10.0)); // HDOP 2 × 5 m
 ///
-/// let truncated = from_gpx("<gpx>");
+/// let truncated = parse_gpx("<gpx>");
 /// assert!(matches!(truncated, Err(Error::Parse { kind: ParseErrorKind::Syntax, .. })));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[cfg(feature = "gpx")]
 #[cfg_attr(docsrs, doc(cfg(feature = "gpx")))]
-pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
+pub fn parse_gpx(input: &str) -> Result<Vec<Fix>> {
     fn push(tag: &str, wp: &gpx::Waypoint, out: &mut Vec<Position>) {
         let p = wp.point(); // geo-types Point: x = lon, y = lat
         let (lon, lat) = (p.x(), p.y());
@@ -466,27 +466,27 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 ///
 /// ```
 /// use geocoordinates::{Error, Height, ParseErrorKind};
-/// use geocoordinates::parse::interchange::from_kml;
+/// use geocoordinates::parse::interchange::parse_kml;
 ///
 /// let kml = r#"<Placemark><name>NYC</name>
 ///   <Point><coordinates>-74.006,40.7128,10</coordinates></Point>
 /// </Placemark>"#;
-/// let fix = &from_kml(kml)?[0];
+/// let fix = &parse_kml(kml)?[0];
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.7128, -74.006));
 /// assert_eq!(fix.coord.height(), Some(Height::Orthometric(10.0)));
 ///
 /// let off_the_map = "<Point><coordinates>-74.006,95</coordinates></Point>";
-/// assert_eq!(from_kml(off_the_map), Err(Error::OutOfRange { lat: 95.0, lon: -74.006 }));
+/// assert_eq!(parse_kml(off_the_map), Err(Error::OutOfRange { lat: 95.0, lon: -74.006 }));
 ///
 /// // A truncated document is rejected rather than read to its end.
-/// let Err(Error::Parse { kind, detail }) = from_kml("<kml><Point>") else {
+/// let Err(Error::Parse { kind, detail }) = parse_kml("<kml><Point>") else {
 ///     panic!("expected a parse error");
 /// };
 /// assert_eq!(kind, ParseErrorKind::Syntax);
 /// assert_eq!(detail, "kml: element <Point> is not closed");
 ///
 /// // So is a `Point` with no coordinates.
-/// let Err(Error::Parse { kind, detail }) = from_kml("<Point></Point>") else {
+/// let Err(Error::Parse { kind, detail }) = parse_kml("<Point></Point>") else {
 ///     panic!("expected a parse error");
 /// };
 /// assert_eq!(kind, ParseErrorKind::Syntax);
@@ -495,7 +495,7 @@ pub fn from_gpx(input: &str) -> Result<Vec<Fix>> {
 /// ```
 #[cfg(feature = "kml")]
 #[cfg_attr(docsrs, doc(cfg(feature = "kml")))]
-pub fn from_kml(input: &str) -> Result<Vec<Fix>> {
+pub fn parse_kml(input: &str) -> Result<Vec<Fix>> {
     use core::str::FromStr;
 
     use kml::Kml;
