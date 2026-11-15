@@ -15,10 +15,14 @@ subsystem as stabilized on that side; the stabilization bar, and the evidence
 that each subsystem meets it, are in
 [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md#what-stabilized-means).
 
-Every public item has exactly one path (plus its `prelude` entry): the core
+Every public item has exactly one path (plus a `prelude` entry for each of the nine prelude types): the core
 types sit at the crate root, and every other item sits flat in the module the
 table names, e.g. `geocoordinates::china::Wgs84` or
-`geocoordinates::grids::Utm`. `mise run public-api-check` enforces it.
+`geocoordinates::grids::Utm`. `mise run public-api-check` enforces it. The
+`prelude` holds only nine types (`Coordinate`, `Crs`, `Height`, `LatLon`,
+`Approx`, `Length`, `LengthUnit`, `Error`, and `fix::Fix`): the core types
+less `ParseErrorKind` and `Result`, plus `Fix`; functions and
+feature-gated items are imported from their modules.
 
 | Subsystem | Public surface | Rust | FFI |
 |---|---|:--:|:--:|
@@ -196,7 +200,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run version-check`    | Every crate and binding manifest ships the workspace version (`mise run version-sync` fixes npm) |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
-| `mise run public-api-check` | Every public item has one path besides its prelude entry, no fewer items than the floor in `scripts/check_public_paths.py`, and the surface matches the snapshots in `public-api/` (pinned nightly rustdoc JSON, `cargo-public-api`) |
+| `mise run public-api-check` | Every public item has one path besides any prelude entry, no fewer items than the floor in `scripts/check_public_paths.py`, and the surface matches the snapshots in `public-api/` (pinned nightly rustdoc JSON, `cargo-public-api`) |
 | `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
 | `mise run index-test`       | Tests and doctests for the `index` feature alone; compiles its benchmark |
 | `mise run reverse-test`     | Tests and doctests for `reverse` and `reverse-bundled` alone and for the gazetteer build tool; compiles the benchmark |

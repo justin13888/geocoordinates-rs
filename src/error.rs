@@ -6,7 +6,8 @@ use crate::coord::Crs;
 ///
 /// The error type defaults to [`Error`] but can be overridden, so importing
 /// this alias never breaks a signature that names its own error type. The
-/// [`prelude`](crate::prelude) does not export it.
+/// [`prelude`](crate::prelude) does not export it, so a glob import of the
+/// prelude never shadows the standard library's `Result`.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Result};

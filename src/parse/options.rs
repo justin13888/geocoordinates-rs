@@ -47,8 +47,9 @@ pub enum GridKind {
 /// grid. To read back what [`format`](crate::format::format) rendered, take
 /// these from [`ParseOptions::for_format`] rather than building them by hand. The field types live with the module
 /// that owns them: [`AxisOrder`] in [`fix`](crate::fix) and
-/// [`DecimalSeparator`] in [`format`](crate::format); the
-/// [`prelude`](crate::prelude) brings all three.
+/// [`DecimalSeparator`] in [`format`](crate::format), and each is imported
+/// from its module, since the [`prelude`](crate::prelude) holds only the core
+/// types.
 ///
 /// `#[non_exhaustive]`, so a field (such as a datum to tag parsed text with)
 /// can be added without a breaking release: outside this crate, start from
