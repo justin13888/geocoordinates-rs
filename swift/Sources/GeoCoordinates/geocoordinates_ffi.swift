@@ -10621,7 +10621,7 @@ public func clampLatitudeDeg(latDeg: Double) -> Double  {
  * degrees/decimal-minutes.
  *
  * # Errors
- * `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+ * `GeoError::InvalidValue` (field `"value"`) for a non-finite value
  * or one beyond ±90° (latitude) / ±180° (longitude).
  */
 public func ddmFromDegrees(value: Double, axis: Axis)throws  -> Ddm  {
@@ -10679,7 +10679,7 @@ public func ddmValidate(ddm: Ddm)throws   {try rustCallWithError(FfiConverterTyp
  * degrees/minutes/seconds.
  *
  * # Errors
- * `GeoError::InvalidValue` (field `"decimal degrees"`) for a non-finite value
+ * `GeoError::InvalidValue` (field `"value"`) for a non-finite value
  * or one beyond ±90° (latitude) / ±180° (longitude).
  */
 public func dmsFromDegrees(value: Double, axis: Axis)throws  -> Dms  {
@@ -13510,8 +13510,8 @@ public func precisionMinCellHeightM(precision: Precision)throws  -> Double?  {
  * Checks a hand-built [`Precision`] against its grid's levels.
  *
  * # Errors
- * `GeoError::InvalidValue` (field `geohash length`, `H3 resolution` or
- * `S2 level`) when the grid does not define the level.
+ * `GeoError::InvalidValue` (field `"length"` for geohash, `"resolution"` for
+ * H3, or `"level"` for S2) when the grid does not define the level.
  */
 public func precisionValidate(precision: Precision)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_precision_validate(
@@ -13796,7 +13796,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_clamp_latitude_deg() != 13290) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ddm_from_degrees() != 43907) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ddm_from_degrees() != 41435) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ddm_to_degrees() != 56579) {
@@ -13808,7 +13808,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ddm_validate() != 61361) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_dms_from_degrees() != 19710) {
+    if (uniffi_geocoordinates_ffi_checksum_func_dms_from_degrees() != 6566) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_dms_to_ddm() != 16255) {
@@ -14366,7 +14366,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_precision_min_cell_height_m() != 28855) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_precision_validate() != 59118) {
+    if (uniffi_geocoordinates_ffi_checksum_func_precision_validate() != 17236) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_gazetteer_as_reverse_geocoder() != 12896) {
