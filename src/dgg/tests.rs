@@ -231,6 +231,26 @@ fn s2_raw_ids_are_validated_and_round_trip() {
     ));
 }
 
+/// `1 << 63` (face 4, no level marker bit) is rejected rather than reaching
+/// `CellID::lsb`, whose `i64` negation overflows on it. Of the single-bit ids,
+/// only one whose bit is a level marker (an even position at or below 60) is
+/// valid; the rest are rejected the same way.
+#[cfg(feature = "s2")]
+#[test]
+fn s2_ids_without_a_level_marker_are_rejected_without_panicking() {
+    assert!(matches!(
+        S2CellId::new(1 << 63),
+        Err(Error::InvalidCellId {
+            grid: "S2",
+            value: 9_223_372_036_854_775_808
+        })
+    ));
+    for bit in 0..64 {
+        let valid = bit % 2 == 0 && bit <= 60;
+        assert_eq!(S2CellId::new(1 << bit).is_ok(), valid, "1 << {bit}");
+    }
+}
+
 /// Each cell reports the level it was encoded at, at every level, and hashes
 /// by its id, so cells bin in a `HashSet`.
 #[test]

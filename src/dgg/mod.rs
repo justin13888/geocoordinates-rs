@@ -226,7 +226,12 @@ impl S2CellId {
     /// cell id (for example `0`, or an id with a face above 5 or no trailing
     /// level marker bit).
     pub fn new(value: u64) -> Result<Self> {
-        if s2::cellid::CellID(value).is_valid() {
+        // The level marker is the lowest set bit, and it must sit at an even
+        // position. Compute it with a wrapping negation: `CellID::lsb` negates
+        // `value as i64`, which overflows (and panics in a debug build) for
+        // `1 << 63`, so an id without a valid marker never reaches it.
+        let lsb = value & value.wrapping_neg();
+        if lsb & 0x1555_5555_5555_5555 != 0 && s2::cellid::CellID(value).is_valid() {
             Ok(Self(value))
         } else {
             Err(Error::InvalidCellId { grid: "S2", value })
