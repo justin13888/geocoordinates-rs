@@ -1,9 +1,7 @@
 //! Classic datum transforms (Helmert) and projected grids (UTM, UPS, MGRS).
 
 use geocoordinates::geodesy::{DatumTransform, Ecef, Helmert};
-use geocoordinates::grids::{
-    Mgrs, MgrsPrecision, Ups, Utm, UtmHemisphere, utm_central_meridian_deg, utm_zone_for,
-};
+use geocoordinates::grids::{Mgrs, MgrsPrecision, Ups, Utm, UtmHemisphere};
 use geocoordinates::{Coordinate, Crs, Height, Length};
 
 use crate::support::{DemoResult, assert_close, assert_within_meters};
@@ -37,10 +35,10 @@ pub(crate) fn classic_datums_and_projected_grids() -> DemoResult {
     }
     assert!(DatumTransform::catalog_to_wgs84(Crs::Wgs84).is_none());
 
-    assert_eq!(utm_zone_for(Coordinate::wgs84(40.0, -75.0)?)?, 18);
-    assert_eq!(utm_zone_for(Coordinate::wgs84(60.0, 5.0)?)?, 32);
-    assert_eq!(utm_zone_for(Coordinate::wgs84(78.0, 20.0)?)?, 33);
-    assert_eq!(utm_central_meridian_deg(18)?, -75.0);
+    assert_eq!(Utm::zone_for(Coordinate::wgs84(40.0, -75.0)?)?, 18);
+    assert_eq!(Utm::zone_for(Coordinate::wgs84(60.0, 5.0)?)?, 32);
+    assert_eq!(Utm::zone_for(Coordinate::wgs84(78.0, 20.0)?)?, 33);
+    assert_eq!(Utm::central_meridian_deg(18)?, -75.0);
 
     let philadelphia = Coordinate::wgs84(40.0, -75.0)?;
     let utm = Utm::try_from_coordinate(philadelphia)?;

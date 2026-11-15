@@ -228,6 +228,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::Ups
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::Ups
 pub struct geocoordinates::grids::Utm
 impl geocoordinates::grids::Utm
+pub fn geocoordinates::grids::Utm::central_meridian_deg(u8) -> geocoordinates::Result<f64>
 pub fn geocoordinates::grids::Utm::easting_m(&self) -> f64
 pub fn geocoordinates::grids::Utm::hemisphere(&self) -> geocoordinates::grids::UtmHemisphere
 pub fn geocoordinates::grids::Utm::new(u8, geocoordinates::grids::UtmHemisphere, f64, f64) -> geocoordinates::Result<geocoordinates::grids::Utm>
@@ -235,6 +236,7 @@ pub fn geocoordinates::grids::Utm::northing_m(&self) -> f64
 pub fn geocoordinates::grids::Utm::to_coordinate(&self) -> geocoordinates::Coordinate
 pub fn geocoordinates::grids::Utm::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::grids::Utm>
 pub fn geocoordinates::grids::Utm::zone(&self) -> u8
+pub fn geocoordinates::grids::Utm::zone_for(geocoordinates::Coordinate) -> geocoordinates::Result<u8>
 impl core::clone::Clone for geocoordinates::grids::Utm
 pub fn geocoordinates::grids::Utm::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::grids::Utm
@@ -253,5 +255,3 @@ impl core::marker::Unpin for geocoordinates::grids::Utm
 impl core::marker::UnsafeUnpin for geocoordinates::grids::Utm
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::grids::Utm
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::grids::Utm
-pub fn geocoordinates::grids::utm_central_meridian_deg(u8) -> geocoordinates::Result<f64>
-pub fn geocoordinates::grids::utm_zone_for(geocoordinates::Coordinate) -> geocoordinates::Result<u8>

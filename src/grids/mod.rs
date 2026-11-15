@@ -20,12 +20,12 @@
 //!
 //! ```
 //! use geocoordinates::Coordinate;
-//! use geocoordinates::grids::{Geohash, utm_zone_for};
+//! use geocoordinates::grids::{Geohash, Utm};
 //!
 //! let code = Geohash::encode(Coordinate::wgs84(42.6, -5.6)?, 5)?;
 //! assert_eq!(code.to_string(), "ezs42");
 //! assert_eq!("EZS42".parse::<Geohash>()?, code);
-//! assert_eq!(utm_zone_for(Coordinate::wgs84(42.6, -5.6)?)?, 30);
+//! assert_eq!(Utm::zone_for(Coordinate::wgs84(42.6, -5.6)?)?, 30);
 //! assert!("ezs4a".parse::<Geohash>().is_err()); // `a` is not a geohash digit
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
@@ -45,7 +45,7 @@ mod utm; // transverse Mercator / polar stereographic
 pub(crate) use encoded::GEOHASH_MAX_LENGTH;
 pub use encoded::{Geohash, Maidenhead, PlusCode};
 pub use mgrs::{Mgrs, MgrsPrecision};
-pub use utm::{Ups, Utm, UtmHemisphere, utm_central_meridian_deg, utm_zone_for};
+pub use utm::{Ups, Utm, UtmHemisphere};
 
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
