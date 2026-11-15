@@ -306,6 +306,10 @@ fn invalid_grid_ref_names_mgrs_and_quotes_the_input() {
         Mgrs::parse("32XNJ").unwrap_err().to_string(),
         "invalid MGRS reference: \"32XNJ\" holds no point of its zone"
     );
+    assert_eq!(
+        Mgrs::parse("AJA").unwrap_err().to_string(),
+        "invalid MGRS reference: \"AJA\" holds no point of its zone"
+    );
 }
 
 #[test]

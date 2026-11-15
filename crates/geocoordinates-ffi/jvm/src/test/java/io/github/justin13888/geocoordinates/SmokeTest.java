@@ -136,7 +136,8 @@ class SmokeTest {
         GeoException.InvalidGridRef badGrid =
                 assertThrows(
                         GeoException.InvalidGridRef.class, () -> mgrsToCoordinate("not-an-mgrs"));
-        assertEquals("not-an-mgrs", badGrid.getDetail());
+        assertEquals("MGRS", badGrid.getGrid());
+        assertEquals("\"not-an-mgrs\" is not a well-formed reference", badGrid.getDetail());
 
         // On the grid, but its corner decodes near 64°N, outside the 84°N cap.
         GeoException.InvalidValue offCap =

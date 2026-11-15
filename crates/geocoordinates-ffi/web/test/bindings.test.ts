@@ -297,11 +297,13 @@ describe("typed GeoError variants", () => {
   it("InvalidGridRef carries the rejected reference", () => {
     const e = thrown(() => mgrsToCoordinate("not-an-mgrs"));
     assert.ok(GeoError.InvalidGridRef.instanceOf(e), String(e));
-    assert.equal(e.inner.detail, "not-an-mgrs");
+    assert.equal(e.inner.grid, "MGRS");
+    assert.equal(e.inner.detail, '"not-an-mgrs" is not a well-formed reference');
     // Well-formed, but wholly equatorward of the 80°S cap.
     const offCap = thrown(() => mgrsToCoordinate("AJA"));
     assert.ok(GeoError.InvalidGridRef.instanceOf(offCap), String(offCap));
-    assert.equal(offCap.inner.detail, "AJA");
+    assert.equal(offCap.inner.grid, "MGRS");
+    assert.equal(offCap.inner.detail, '"AJA" holds no point of its zone');
   });
 
   it("Parse rejects ambiguous text and no-fix NMEA", () => {

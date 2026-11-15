@@ -267,10 +267,12 @@ class BindingsTest {
     @Test
     fun invalidGridRefCarriesTheReference() {
         val e = throwsVariant<GeoException.InvalidGridRef> { mgrsToCoordinate("not-an-mgrs") }
-        assertEquals("not-an-mgrs", e.detail)
+        assertEquals("MGRS", e.grid)
+        assertEquals("\"not-an-mgrs\" is not a well-formed reference", e.detail)
         // Well-formed, but wholly equatorward of the 80°S cap.
         val offCap = throwsVariant<GeoException.InvalidGridRef> { mgrsToCoordinate("AJA") }
-        assertEquals("AJA", offCap.detail)
+        assertEquals("MGRS", offCap.grid)
+        assertEquals("\"AJA\" holds no point of its zone", offCap.detail)
     }
 
     @Test

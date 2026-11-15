@@ -366,7 +366,7 @@ try:
     gc.plus_code_decode("not a code")
     raise AssertionError("expected error for an invalid Plus Code")
 except gc.GeoError.InvalidGridRef as e:
-    assert e.detail == "invalid Plus Code: not a code", e.detail
+    assert (e.grid, e.detail) == ("Plus Code", '"not a code" is not a full Plus Code'), e
 # parse_coordinate detects a Plus Code; format renders one.
 pc_fix = gc.parse_coordinate("8FVC2222+22")
 assert approx(pc_fix.coord.lat, 47.0000625, 1e-6)
@@ -398,8 +398,8 @@ assert gc.maidenhead_canonicalize("jn58TD") == "JN58td"
 try:
     gc.geohash_canonicalize("ezs42ezs42ezs")
     raise AssertionError("expected error for a geohash longer than 12")
-except gc.GeoError.InvalidGridRef:
-    pass
+except gc.GeoError.InvalidGridRef as e:
+    assert (e.grid, e.detail) == ("geohash", '"ezs42ezs42ezs" is longer than 12 characters'), e
 
 # --- Geodesy: ellipsoid, ECEF, ENU/AER ---
 wgs84 = gc.ellipsoid_wgs84()
@@ -575,12 +575,14 @@ assert gc.mgrs_precision_meters(gc.MgrsPrecision.KM10) == 10_000
 dec = gc.mgrs_to_coordinate("18TWK0000027757")
 assert approx(dec.max_error_m, math.sqrt(0.5) / 0.9996, 1e-12)  # half-diagonal / UTM k0
 assert approx(dec.coord.lat, 40.0, 1e-3)
-for code in ["not-an-mgrs", "AJA"]:  # AJA is well-formed, but wholly outside the 80°S cap
+reasons = {"not-an-mgrs": "is not a well-formed reference", "AJA": "holds no point of its zone"}
+for code, reason in reasons.items():  # AJA is well-formed, but wholly outside the 80°S cap
     try:
         gc.mgrs_to_coordinate(code)
         raise AssertionError(f"expected error for the bad MGRS string {code}")
     except gc.GeoError.InvalidGridRef as e:
-        assert e.detail == code, e.detail
+        assert e.grid == "MGRS", e.grid
+        assert e.detail == f'"{code}" {reason}', e.detail
 
 # --- Interchange formats and NMEA 0183, kept in their own file for length ---
 runpy.run_path(str(pathlib.Path(__file__).with_name("smoke_ingest.py")), init_globals=globals())

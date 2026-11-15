@@ -197,10 +197,11 @@ final class TypedErrorTests: XCTestCase {
     }
 
     func testInvalidGridRefCarriesTheReference() {
-        guard case let .InvalidGridRef(detail)? = geoError({
+        guard case let .InvalidGridRef(grid, detail)? = geoError({
             try mgrsToCoordinate(mgrs: "not-an-mgrs")
         }) else { return XCTFail("expected InvalidGridRef") }
-        XCTAssertEqual(detail, "not-an-mgrs")
+        XCTAssertEqual(grid, "MGRS")
+        XCTAssertEqual(detail, "\"not-an-mgrs\" is not a well-formed reference")
     }
 
     func testParseRejectsAmbiguousTextAndNoFixNmea() {

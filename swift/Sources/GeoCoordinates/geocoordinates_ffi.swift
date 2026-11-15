@@ -7753,12 +7753,17 @@ public enum GeoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
          */found: Crs
     )
     /**
-     * A grid reference (MGRS / Plus Code / geohash / Maidenhead) was malformed
-     * or fell outside the grid's valid domain.
+     * A grid reference (MGRS / Plus Code / geohash / Maidenhead / quadkey) was
+     * malformed or fell outside the grid's valid domain.
      */
     case InvalidGridRef(
         /**
-         * The offending grid reference text.
+         * The grid system that rejected it, one of the stable names `MGRS`,
+         * `geohash`, `Plus Code`, `Maidenhead`, or `quadkey`.
+         */grid: String, 
+        /**
+         * The rejected input, quoted, followed by why it was rejected; for
+         * people, not for matching.
          */detail: String
     )
     /**
@@ -7825,6 +7830,7 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
             found: try FfiConverterTypeCrs.read(from: &buf)
             )
         case 7: return .InvalidGridRef(
+            grid: try FfiConverterString.read(from: &buf), 
             detail: try FfiConverterString.read(from: &buf)
             )
         case 8: return .Other(
@@ -7879,8 +7885,9 @@ public struct FfiConverterTypeGeoError: FfiConverterRustBuffer {
             FfiConverterTypeCrs.write(found, into: &buf)
             
         
-        case let .InvalidGridRef(detail):
+        case let .InvalidGridRef(grid,detail):
             writeInt(&buf, Int32(7))
+            FfiConverterString.write(grid, into: &buf)
             FfiConverterString.write(detail, into: &buf)
             
         
