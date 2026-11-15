@@ -186,7 +186,7 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     ));
     // No public constructor builds an ellipsoid; a hand-built record is
     // validated when it deserializes.
-    let bad_ellipsoid_json = r#"{"semi_major":{"meters":-1.0},"inverse_flattening":298.257223563}"#;
+    let bad_ellipsoid_json = r#"{"semi_major_m":-1.0,"inverse_flattening":298.257223563}"#;
     assert!(serde_json::from_str::<Ellipsoid>(bad_ellipsoid_json).is_err());
     assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, Helmert::IDENTITY, None).is_err());
     assert!(

@@ -136,7 +136,7 @@ pub enum AccuracyKind {
 /// Valid by construction: [`new`](Self::new) (and, under the `serde` feature,
 /// deserialization) rejects a negative, NaN or infinite magnitude, and an
 /// estimate with neither magnitude — "no accuracy" is `Fix::accuracy = None`.
-/// The JSON shape is `{"kind":"OneSigma","horizontal":{"meters":4.5},"vertical":null}`.
+/// The JSON shape is `{"kind":"OneSigma","horizontal_m":4.5,"vertical_m":null}`.
 ///
 /// ```
 /// use geocoordinates::fix::{Accuracy, AccuracyKind};
@@ -157,7 +157,9 @@ pub enum AccuracyKind {
 #[cfg_attr(feature = "serde", serde(try_from = "AccuracyRepr"))]
 pub struct Accuracy {
     kind: AccuracyKind,
+    #[cfg_attr(feature = "serde", serde(rename = "horizontal_m"))]
     horizontal: Option<Length>,
+    #[cfg_attr(feature = "serde", serde(rename = "vertical_m"))]
     vertical: Option<Length>,
 }
 
@@ -166,7 +168,9 @@ pub struct Accuracy {
 #[derive(serde::Deserialize)]
 struct AccuracyRepr {
     kind: AccuracyKind,
+    #[serde(rename = "horizontal_m")]
     horizontal: Option<Length>,
+    #[serde(rename = "vertical_m")]
     vertical: Option<Length>,
 }
 
@@ -328,7 +332,8 @@ pub struct RawSource {
     /// above the WGS-84 ellipsoid at this position (negative where the geoid
     /// lies below it), filled from an NMEA `GGA` sentence. With the
     /// orthometric height H the source also reported, the ellipsoidal height
-    /// is `h = H + N`.
+    /// is `h = H + N`. Serialized as `geoid_separation_m`.
+    #[cfg_attr(feature = "serde", serde(rename = "geoid_separation_m"))]
     pub geoid_separation: Option<Length>,
     /// Free-text notes about anything else resolved during parsing.
     pub notes: Vec<String>,
@@ -595,14 +600,16 @@ mod tests {
         let json = serde_json::to_string(&a).unwrap();
         assert_eq!(
             json,
-            r#"{"kind":"OneSigma","horizontal":{"meters":4.5},"vertical":null}"#
+            r#"{"kind":"OneSigma","horizontal_m":4.5,"vertical_m":null}"#
         );
         assert_eq!(serde_json::from_str::<Accuracy>(&json).unwrap(), a);
         for bad in [
-            r#"{"kind":"Bound","horizontal":{"meters":-1.0},"vertical":null}"#,
-            r#"{"kind":"Bound","horizontal":null,"vertical":{"meters":-0.5}}"#,
-            r#"{"kind":"Bound","horizontal":null,"vertical":null}"#,
-            r#"{"kind":"Sometimes","horizontal":{"meters":1.0},"vertical":null}"#,
+            r#"{"kind":"Bound","horizontal_m":-1.0,"vertical_m":null}"#,
+            r#"{"kind":"Bound","horizontal_m":null,"vertical_m":-0.5}"#,
+            r#"{"kind":"Bound","horizontal_m":null,"vertical_m":null}"#,
+            r#"{"kind":"Sometimes","horizontal_m":1.0,"vertical_m":null}"#,
+            // The pre-0.15 wrapped shape no longer reads.
+            r#"{"kind":"Bound","horizontal":{"meters":1.0},"vertical":null}"#,
         ] {
             assert!(serde_json::from_str::<Accuracy>(bad).is_err(), "{bad}");
         }
@@ -623,6 +630,14 @@ mod tests {
         source.datum_ambiguity = Some(DatumAmbiguity::PossiblyGcj02);
         source.geoid_separation = Some(Length::from_meters(-28.5));
         source.notes = vec!["first".into(), "second".into()];
+        assert_eq!(
+            serde_json::to_value(&source).unwrap(),
+            serde_json::json!({
+                "raw": "39.9, 116.4", "confidence": 0.8, "axis_order": "LonLat",
+                "datum_ambiguity": "PossiblyGcj02", "geoid_separation_m": -28.5,
+                "notes": ["first", "second"],
+            })
+        );
         let json = serde_json::to_string(&source).unwrap();
         assert_eq!(serde_json::from_str::<RawSource>(&json).unwrap(), source);
 

@@ -338,8 +338,22 @@ fn serde_round_trips_and_validates() {
     let json = serde_json::to_string(&t).unwrap();
     assert_eq!(serde_json::from_str::<DatumTransform>(&json).unwrap(), t);
     let pulkovo = DatumTransform::catalog_to_wgs84(Crs::Pulkovo42).unwrap();
+    let nad27 = DatumTransform::catalog_to_wgs84(Crs::Nad27).unwrap();
+    let helmert = serde_json::json!({
+        "tx_m": -8.0, "ty_m": 160.0, "tz_m": 176.0,
+        "rx_arcsec": 0.0, "ry_arcsec": 0.0, "rz_arcsec": 0.0, "scale_ppm": 0.0,
+    });
+    assert_eq!(
+        serde_json::to_value(nad27).unwrap(),
+        serde_json::json!({
+            "from_crs": "Nad27",
+            "to_crs": "Wgs84",
+            "helmert": helmert,
+            "accuracy_m": 86f64.sqrt(),
+        })
+    );
     let json = serde_json::to_string(&pulkovo).unwrap();
-    assert!(json.contains(r#""accuracy":null"#), "{json}");
+    assert!(json.contains(r#""accuracy_m":null"#), "{json}");
     assert_eq!(
         serde_json::from_str::<DatumTransform>(&json).unwrap(),
         pulkovo
@@ -347,7 +361,7 @@ fn serde_round_trips_and_validates() {
     let gcj = json.replace(r#""from_crs":"Pulkovo42""#, r#""from_crs":"Gcj02""#);
     assert_ne!(gcj, json);
     assert!(serde_json::from_str::<DatumTransform>(&gcj).is_err());
-    let negative = json.replace(r#""accuracy":null"#, r#""accuracy":{"meters":-1.0}"#);
+    let negative = json.replace(r#""accuracy_m":null"#, r#""accuracy_m":-1.0"#);
     assert_ne!(negative, json);
     assert!(serde_json::from_str::<DatumTransform>(&negative).is_err());
 }

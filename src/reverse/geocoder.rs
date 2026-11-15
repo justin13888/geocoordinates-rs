@@ -92,6 +92,8 @@ pub struct ReverseOptions {
     pub languages: Vec<String>,
     /// The farthest a place may be from the query, inclusive. Beyond it the
     /// result is `None`. Default 50 km; must be finite and nonnegative.
+    /// Serialized as `max_distance_m`.
+    #[cfg_attr(feature = "serde", serde(rename = "max_distance_m"))]
     pub max_distance: Length,
     /// The smallest population a place may have. Default `0`; a place with no
     /// population figure passes only `0`.
