@@ -249,11 +249,11 @@ fn columns_of(bounds: &GeoBounds) -> (f64, f64) {
 /// unless it is finite and in `[0, MAX_TILE_ZOOM]`.
 ///
 /// ```
-/// use geocoordinates::{Crs, Error, geodesy::GeoBounds, map::{Viewport, fit_bounds}};
+/// use geocoordinates::{Coordinate, Error, geodesy::GeoBounds, map::{Viewport, fit_bounds}};
 ///
 /// let view = Viewport::new(512.0, 512.0, 512.0)?;
 /// // Fiji, across the antimeridian: centred on it, 16 times narrower than the world.
-/// let fiji = GeoBounds::new(-21.0, 176.0, -12.0, -161.5, Crs::Wgs84)?;
+/// let fiji = GeoBounds::from_corners(Coordinate::wgs84(-21.0, 176.0)?, Coordinate::wgs84(-12.0, -161.5)?)?;
 /// let camera = fit_bounds(fiji, view, 0.0, 18.0)?;
 /// assert!((camera.center().lon() - -172.75).abs() < 1e-9);
 /// assert!((camera.zoom() - 4.0).abs() < 1e-9);
@@ -310,8 +310,8 @@ pub fn fit_bounds(
 ///
 /// # Errors
 ///
-/// None in practice: the result is built through [`GeoBounds::new`], whose checks
-/// every edge computed here passes.
+/// None in practice: the result is built through [`GeoBounds::from_corners`],
+/// whose checks every edge computed here passes.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, map::{Camera, Viewport, viewport_bounds}};
@@ -345,7 +345,7 @@ pub fn viewport_bounds(camera: Camera, viewport: Viewport) -> Result<GeoBounds> 
     } else {
         lat_at(y + half_h)
     };
-    GeoBounds::new(south, west, north, east, camera.center.crs())
+    GeoBounds::from_edges(south, west, north, east, camera.center.crs())
 }
 
 /// The clusters of `index` a map at the fractional `zoom` draws in `bounds`: the

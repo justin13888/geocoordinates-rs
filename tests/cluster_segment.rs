@@ -387,11 +387,12 @@ fn golden_multi_city_photo_set() {
     );
 
     // Map pins: one pin per city from far out, one per photo up close.
-    let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+    let wgs = |lat, lon| Coordinate::wgs84(lat, lon).unwrap();
+    let world = GeoBounds::from_corners(wgs(-90.0, -180.0), wgs(90.0, 180.0)).unwrap();
     let index = ClusterIndex::new(points.iter().copied(), Default::default()).unwrap();
     assert_eq!(index.clusters(world, 5).unwrap().len(), 5);
     assert_eq!(index.clusters(world, 22).unwrap().len(), 101);
-    let pacific = GeoBounds::new(-20.0, 170.0, -10.0, -170.0, Crs::Wgs84).unwrap();
+    let pacific = GeoBounds::from_corners(wgs(-20.0, 170.0), wgs(-10.0, -170.0)).unwrap();
     let pins = index.clusters(pacific, 5).unwrap();
     assert_eq!(pins.len(), 1);
     assert_eq!(pins[0].count(), 25);

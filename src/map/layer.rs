@@ -119,7 +119,7 @@ fn collection(features: Vec<Feature>) -> String {
 /// [`Error::CrsMismatch`](crate::Error::CrsMismatch) unless the index is on WGS-84.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, Error};
+/// use geocoordinates::{Coordinate, Error};
 /// use geocoordinates::cluster::ClusterIndex;
 /// use geocoordinates::geodesy::GeoBounds;
 /// use geocoordinates::map::{DisplayDatum, clusters_to_geojson};
@@ -128,7 +128,7 @@ fn collection(features: Vec<Feature>) -> String {
 ///     [Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(0.0, 0.0)?, Coordinate::wgs84(45.0, 90.0)?],
 ///     Default::default(),
 /// )?;
-/// let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
+/// let world = GeoBounds::from_corners(Coordinate::wgs84(-90.0, -180.0)?, Coordinate::wgs84(90.0, 180.0)?)?;
 /// let pins = index.clusters(world, 3)?;
 /// let layer = clusters_to_geojson(&index, &pins, DisplayDatum::Wgs84)?;
 /// assert!(layer.contains(r#""cluster":true"#) && layer.contains(r#""point_count":2"#));
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn golden_cluster_layers() {
         let index = ClusterIndex::new(china(), Default::default()).unwrap();
-        let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+        let world = GeoBounds::from_edges(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
         let pins = index.clusters(world, 4).unwrap();
         assert_eq!(
             clusters_to_geojson(&index, &pins, DisplayDatum::Wgs84).unwrap(),
@@ -214,7 +214,7 @@ mod tests {
             .map(|(lat, lon)| Coordinate::wgs84(lat, lon).unwrap())
             .collect();
         let other = ClusterIndex::new(elsewhere, Default::default()).unwrap();
-        let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+        let world = GeoBounds::from_edges(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
         let (ours, theirs) = (
             index.clusters(world, 4).unwrap(),
             other.clusters(world, 4).unwrap(),

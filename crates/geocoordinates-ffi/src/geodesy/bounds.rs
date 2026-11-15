@@ -40,12 +40,25 @@ impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds {
     type Error = gc::Error;
 
     fn try_from(bounds: GeoBounds) -> Result<Self, gc::Error> {
-        Self::new(
-            bounds.south,
-            bounds.west,
-            bounds.north,
-            bounds.east,
-            bounds.crs.into(),
+        // Each edge is one axis, so a bad edge is named before the corners are
+        // built, as the core crate's serde path names it.
+        for (field, value, limit) in [
+            ("south", bounds.south, 90.0),
+            ("west", bounds.west, 180.0),
+            ("north", bounds.north, 90.0),
+            ("east", bounds.east, 180.0),
+        ] {
+            if !value.is_finite() || value.abs() > limit {
+                return Err(gc::Error::InvalidValue {
+                    field,
+                    detail: format!("{value} is not a finite value in [-{limit}, {limit}]"),
+                });
+            }
+        }
+        let crs = bounds.crs.into();
+        Self::from_corners(
+            gc::Coordinate::new(bounds.south, bounds.west, crs)?,
+            gc::Coordinate::new(bounds.north, bounds.east, crs)?,
         )
     }
 }
@@ -54,7 +67,7 @@ impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds {
 ///
 /// # Errors
 /// `GeoError::InvalidValue` naming the edge when it is non-finite or out of range,
-/// and field `south` when south lies north of north.
+/// and field `south_west` when south lies north of north.
 #[uniffi::export]
 pub fn geo_bounds_validate(bounds: GeoBounds) -> Result<(), GeoError> {
     gc::geodesy::GeoBounds::try_from(bounds)?;

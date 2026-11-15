@@ -33,8 +33,20 @@ fn validate_checks_a_hand_built_record() {
     assert!(geo_bounds_validate(bounds(0.0, 170.0, 1.0, -170.0)).is_ok());
     assert!(matches!(
         geo_bounds_validate(bounds(1.0, 0.0, 0.0, 0.0)),
-        Err(GeoError::InvalidValue { field, .. }) if field == "south"
+        Err(GeoError::InvalidValue { field, .. }) if field == "south_west"
     ));
+    // An edge out of range is a single-axis error naming that edge.
+    for (record, name) in [
+        (bounds(-91.0, 0.0, 1.0, 0.0), "south"),
+        (bounds(0.0, 181.0, 1.0, 0.0), "west"),
+        (bounds(0.0, 0.0, 91.0, 0.0), "north"),
+        (bounds(0.0, 0.0, 1.0, f64::NAN), "east"),
+    ] {
+        assert!(matches!(
+            geo_bounds_validate(record),
+            Err(GeoError::InvalidValue { field, .. }) if field == name
+        ));
+    }
 }
 
 #[test]

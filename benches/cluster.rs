@@ -10,7 +10,7 @@ use geocoordinates::cluster::{
 };
 use geocoordinates::fix::Fix;
 use geocoordinates::geodesy::GeoBounds;
-use geocoordinates::{Coordinate, Crs, Length};
+use geocoordinates::{Coordinate, Length};
 
 const SIZES: [usize; 3] = [10_000, 100_000, 1_000_000];
 const CITIES: usize = 200;
@@ -47,8 +47,14 @@ fn timed<T>(label: &str, size: usize, run: impl FnOnce() -> T) -> T {
 }
 
 fn main() -> geocoordinates::Result<()> {
-    let world = GeoBounds::new(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84)?;
-    let city_box = GeoBounds::new(40.0, -5.0, 50.0, 10.0, Crs::Wgs84)?;
+    let world = GeoBounds::from_corners(
+        Coordinate::wgs84(-90.0, -180.0)?,
+        Coordinate::wgs84(90.0, 180.0)?,
+    )?;
+    let city_box = GeoBounds::from_corners(
+        Coordinate::wgs84(40.0, -5.0)?,
+        Coordinate::wgs84(50.0, 10.0)?,
+    )?;
     for size in SIZES {
         let mut rng = Rng(42);
         let cities: Vec<(f64, f64)> = (0..CITIES)

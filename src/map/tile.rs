@@ -190,7 +190,7 @@ impl Tile {
     pub fn bounds(&self, crs: Crs) -> GeoBounds {
         let n = tiles_across(self.z) as f64;
         let (x, y) = (f64::from(self.x), f64::from(self.y));
-        GeoBounds::new(
+        GeoBounds::from_edges(
             lat_at((y + 1.0) / n),
             x / n * 360.0 - 180.0,
             lat_at(y / n),
@@ -256,10 +256,10 @@ impl Tile {
 /// is built, so a large box at a deep zoom cannot ask for unbounded output.
 ///
 /// ```
-/// use geocoordinates::{Crs, Error, geodesy::GeoBounds, map::{Tile, tiles_covering}};
+/// use geocoordinates::{Coordinate, Error, geodesy::GeoBounds, map::{Tile, tiles_covering}};
 ///
 /// // Across the antimeridian: the last column, then the first.
-/// let fiji = GeoBounds::new(-20.0, 170.0, -10.0, -170.0, Crs::Wgs84)?;
+/// let fiji = GeoBounds::from_corners(Coordinate::wgs84(-20.0, 170.0)?, Coordinate::wgs84(-10.0, -170.0)?)?;
 /// assert_eq!(
 ///     tiles_covering(fiji, 2, 16)?,
 ///     [Tile::new(2, 3, 2)?, Tile::new(2, 0, 2)?],

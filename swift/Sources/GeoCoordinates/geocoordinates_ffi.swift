@@ -12470,7 +12470,7 @@ public func geoBoundsUnion(a: GeoBounds, b: GeoBounds)throws  -> GeoBounds  {
  *
  * # Errors
  * `GeoError::InvalidValue` naming the edge when it is non-finite or out of range,
- * and field `south` when south lies north of north.
+ * and field `south_west` when south lies north of north.
  */
 public func geoBoundsValidate(bounds: GeoBounds)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_geo_bounds_validate(
@@ -14165,7 +14165,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_union() != 8038) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_validate() != 44290) {
+    if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_validate() != 39077) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_along_track_distance_m() != 5337) {
