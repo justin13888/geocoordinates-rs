@@ -3,7 +3,7 @@
 use crate::Approx;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 
 /// A group of input points with its summary: id, centroid, bounds and members.
 ///
@@ -58,7 +58,7 @@ impl Cluster {
     ///
     /// ```
     /// use geocoordinates::{Approx, Coordinate, Crs, Error, Length};
-    /// use geocoordinates::{cluster::Cluster, index::GeoBounds};
+    /// use geocoordinates::{cluster::Cluster, geodesy::GeoBounds};
     ///
     /// let point = Coordinate::wgs84(1.0, 2.0)?;
     /// let centroid = Approx::new(point, Length::from_meters(0.0))?;

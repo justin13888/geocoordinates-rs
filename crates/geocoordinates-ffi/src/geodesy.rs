@@ -1,11 +1,14 @@
 //! Geodesy: ellipsoids, ECEF and local tangent frames, distances and bearings,
-//! with the cross/along-track and intersection routines in `track` and the
+//! with the `GeoBounds` record and its `geo_bounds_*` functions in `bounds`,
+//! the cross/along-track and intersection routines in `track`, and the
 //! classic-datum Helmert transforms in `datum`.
 
 use geocoordinates as gc;
 
 use crate::{Coordinate, Crs, GeoError};
 
+mod bounds; // the antimeridian-aware GeoBounds record and its free functions
+pub use bounds::*;
 mod track; // cross/along-track and intersection, spherical and ellipsoidal
 pub use track::*;
 

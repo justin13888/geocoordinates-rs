@@ -9,7 +9,7 @@ use geocoordinates::cluster::{
     segment_visits,
 };
 use geocoordinates::fix::Fix;
-use geocoordinates::index::GeoBounds;
+use geocoordinates::geodesy::GeoBounds;
 use geocoordinates::{Coordinate, Crs, Error, Length};
 use proptest::prelude::*;
 

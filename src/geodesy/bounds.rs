@@ -1,14 +1,14 @@
-//! [`GeoBounds`], re-exported flat from [`index`](super).
+//! [`GeoBounds`], re-exported flat from [`geodesy`](super).
 
 use geographiclib_rs::{DirectGeodesic, Geodesic, InverseGeodesic};
 
 mod arc;
 
 use self::arc::{LonArc, canonical_edges, same_meridian, smallest_arc};
+use super::Ellipsoid;
 use crate::angle::wrap_longitude;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::geodesy::Ellipsoid;
 use crate::units::Length;
 
 /// Outward margin, in degrees (about 0.1 mm), that [`GeoBounds::expand_by`]
@@ -35,7 +35,7 @@ const REACH_SEARCH_STEPS: usize = 60;
 /// `west, south, east, north`.
 ///
 /// ```
-/// use geocoordinates::{Coordinate, Crs, Error, index::GeoBounds};
+/// use geocoordinates::{Coordinate, Crs, Error, geodesy::GeoBounds};
 ///
 /// let fiji = GeoBounds::new(-21.0, 176.0, -12.0, -178.0, Crs::Wgs84)?;
 /// assert!(fiji.crosses_antimeridian());
@@ -90,7 +90,7 @@ impl GeoBounds {
     /// `field: "south"` when south lies north of north.
     ///
     /// ```
-    /// use geocoordinates::{Crs, Error, index::GeoBounds};
+    /// use geocoordinates::{Crs, Error, geodesy::GeoBounds};
     ///
     /// let alps = GeoBounds::new(44.0, 5.0, 48.0, 16.0, Crs::Wgs84)?;
     /// assert_eq!(alps.north(), 48.0);
@@ -146,7 +146,7 @@ impl GeoBounds {
     /// [`Error::CrsMismatch`] when the points' CRSs differ.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Error, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Error, geodesy::GeoBounds};
     ///
     /// let bounds = GeoBounds::from_points([
     ///     Coordinate::wgs84(10.0, 179.0)?,
@@ -194,7 +194,7 @@ impl GeoBounds {
     /// The south edge, in decimal degrees.
     ///
     /// ```
-    /// use geocoordinates::{Crs, index::GeoBounds};
+    /// use geocoordinates::{Crs, geodesy::GeoBounds};
     ///
     /// assert_eq!(GeoBounds::new(1.0, 2.0, 3.0, 4.0, Crs::Wgs84)?.south(), 1.0);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -207,7 +207,7 @@ impl GeoBounds {
     /// The west edge, in decimal degrees.
     ///
     /// ```
-    /// use geocoordinates::{Crs, index::GeoBounds};
+    /// use geocoordinates::{Crs, geodesy::GeoBounds};
     ///
     /// assert_eq!(GeoBounds::new(1.0, 2.0, 3.0, 4.0, Crs::Wgs84)?.west(), 2.0);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -220,7 +220,7 @@ impl GeoBounds {
     /// The north edge, in decimal degrees.
     ///
     /// ```
-    /// use geocoordinates::{Crs, index::GeoBounds};
+    /// use geocoordinates::{Crs, geodesy::GeoBounds};
     ///
     /// assert_eq!(GeoBounds::new(1.0, 2.0, 3.0, 4.0, Crs::Wgs84)?.north(), 3.0);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -233,7 +233,7 @@ impl GeoBounds {
     /// The east edge, in decimal degrees.
     ///
     /// ```
-    /// use geocoordinates::{Crs, index::GeoBounds};
+    /// use geocoordinates::{Crs, geodesy::GeoBounds};
     ///
     /// assert_eq!(GeoBounds::new(1.0, 2.0, 3.0, 4.0, Crs::Wgs84)?.east(), 4.0);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -246,7 +246,7 @@ impl GeoBounds {
     /// The reference system the edges are expressed in.
     ///
     /// ```
-    /// use geocoordinates::{Crs, index::GeoBounds};
+    /// use geocoordinates::{Crs, geodesy::GeoBounds};
     ///
     /// assert_eq!(GeoBounds::new(1.0, 2.0, 3.0, 4.0, Crs::Gcj02)?.crs(), Crs::Gcj02);
     /// # Ok::<(), geocoordinates::Error>(())
@@ -260,7 +260,7 @@ impl GeoBounds {
     /// east edge.
     ///
     /// ```
-    /// use geocoordinates::{Crs, index::GeoBounds};
+    /// use geocoordinates::{Crs, geodesy::GeoBounds};
     ///
     /// assert!(GeoBounds::new(0.0, 170.0, 1.0, -170.0, Crs::Wgs84)?.crosses_antimeridian());
     /// assert!(!GeoBounds::new(0.0, -170.0, 1.0, 170.0, Crs::Wgs84)?.crosses_antimeridian());
@@ -280,7 +280,7 @@ impl GeoBounds {
     /// [`Error::CrsMismatch`] when `point` is not on the box's CRS.
     ///
     /// ```
-    /// use geocoordinates::{Coordinate, Crs, Error, index::GeoBounds};
+    /// use geocoordinates::{Coordinate, Crs, Error, geodesy::GeoBounds};
     ///
     /// let cap = GeoBounds::new(80.0, 10.0, 90.0, 20.0, Crs::Wgs84)?;
     /// assert!(cap.contains(Coordinate::wgs84(85.0, 15.0)?)?);
@@ -308,7 +308,7 @@ impl GeoBounds {
     /// [`Error::CrsMismatch`] when the boxes are on different CRSs.
     ///
     /// ```
-    /// use geocoordinates::{Crs, Error, index::GeoBounds};
+    /// use geocoordinates::{Crs, Error, geodesy::GeoBounds};
     ///
     /// let crossing = GeoBounds::new(-10.0, 170.0, 10.0, -170.0, Crs::Wgs84)?;
     /// let east_side = GeoBounds::new(0.0, -175.0, 5.0, -160.0, Crs::Wgs84)?;
@@ -341,7 +341,7 @@ impl GeoBounds {
     /// [`Error::CrsMismatch`] when the boxes are on different CRSs.
     ///
     /// ```
-    /// use geocoordinates::{Crs, Error, index::GeoBounds};
+    /// use geocoordinates::{Crs, Error, geodesy::GeoBounds};
     ///
     /// let west = GeoBounds::new(0.0, 170.0, 1.0, 175.0, Crs::Wgs84)?;
     /// let east = GeoBounds::new(2.0, -175.0, 3.0, -170.0, Crs::Wgs84)?;
@@ -377,7 +377,7 @@ impl GeoBounds {
     /// midpoint of the edges, not a geodesic centroid.
     ///
     /// ```
-    /// use geocoordinates::{Crs, index::GeoBounds};
+    /// use geocoordinates::{Crs, geodesy::GeoBounds};
     ///
     /// let crossing = GeoBounds::new(-10.0, 170.0, 20.0, -160.0, Crs::Wgs84)?;
     /// let center = crossing.center();
@@ -410,7 +410,7 @@ impl GeoBounds {
     /// ellipsoid.
     ///
     /// ```
-    /// use geocoordinates::{Crs, Error, Length, LengthUnit, index::GeoBounds};
+    /// use geocoordinates::{Crs, Error, Length, LengthUnit, geodesy::GeoBounds};
     ///
     /// let edge = GeoBounds::new(0.0, 179.5, 1.0, 180.0, Crs::Wgs84)?;
     /// let grown = edge.expand_by(Length::from_unit(100.0, LengthUnit::Kilometer))?;

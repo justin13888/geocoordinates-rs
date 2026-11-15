@@ -3,8 +3,8 @@
 #![cfg(feature = "cluster")]
 
 use geocoordinates::cluster::{ClusterIndex, ClusterIndexOptions, MAX_ZOOM, MapCluster};
+use geocoordinates::geodesy::GeoBounds;
 use geocoordinates::geodesy::geodesic_distance;
-use geocoordinates::index::GeoBounds;
 use geocoordinates::{Coordinate, Crs, Error};
 use proptest::prelude::*;
 

@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use super::super::centroid::{ROUND_OFF_M, angle_between, from_sum, normal};
 use crate::coord::{Coordinate, Crs};
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 
 /// The deepest cluster level.
 pub(super) const DEEPEST: usize = 22;

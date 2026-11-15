@@ -457,7 +457,7 @@ fn naming_scheme_records_are_read() {
             impl TryFrom<$t> for gc::china::$t { }
         )*}; }
         mirror!(Wgs84, Gcj02);
-        impl TryFrom<GeoBounds> for gc::index::GeoBounds { }
+        impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds { }
         impl TryFrom<u8> for Local { }
     ";
     let records = validated_records(&[fixture.to_string()]);

@@ -2,7 +2,7 @@
 //! display helpers.
 
 use crate::cluster::{ClusterIndex, ClusterIndexOptions, MAX_ZOOM};
-use crate::index::GeoBounds;
+use crate::geodesy::GeoBounds;
 use crate::map::{
     Camera, DisplayDatum, MAX_LATITUDE, Viewport, clusters_in_view, display_coordinate, fit_bounds,
     tap_to_wgs84, viewport_bounds,

@@ -41,17 +41,17 @@ exclude_re = [
     # Every candidate has a distinct insertion index, so `candidate < worst` and
     # `candidate <= worst` cannot differ: the two are never equal.
     'src/index/spatial\.rs:.*: replace < with <= in SpatialIndex<T>::nearest',
-    # index::bounds::longitude_reach: where the two probes reach equally far, the
+    # geodesy::bounds::longitude_reach: where the two probes reach equally far, the
     # single peak lies between them, so discarding either outer third keeps it.
-    'src/index/bounds\.rs:.*: replace < with <= in longitude_reach',
-    # index::bounds::arc::LonArc::union, when each arc holds the other: at equal
+    'src/geodesy/bounds\.rs:.*: replace < with <= in longitude_reach',
+    # geodesy::bounds::arc::LonArc::union, when each arc holds the other: at equal
     # spellings `self` and `other` are the same value, so `<` and `<=` agree.
-    'src/index/bounds/arc\.rs:.*: replace < with <= in LonArc::union',
+    'src/geodesy/bounds/arc\.rs:.*: replace < with <= in LonArc::union',
     # LonArc::union past its nesting check: a candidate running from one arc's
     # west edge to the other's east edge that holds one arc but not the other
     # would need that other arc to start before the first and end after it, which
     # is the nesting already returned above. So `&&` and `||` agree there.
-    'src/index/bounds/arc\.rs:.*: replace && with \|\| in LonArc::union',
+    'src/geodesy/bounds/arc\.rs:.*: replace && with \|\| in LonArc::union',
     # cluster: a grid key packs a column above the 32nd bit and a row below it, and
     # a cluster id packs a level above a 32-bit point id. Columns and rows stay under
     # 2^31, so the two sides share no bit, and `|` and `^` agree on them.

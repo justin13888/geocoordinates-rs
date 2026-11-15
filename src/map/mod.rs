@@ -26,7 +26,7 @@
 //! Every item is reached flat at `map::NAME`.
 //!
 //! ```
-//! use geocoordinates::{Coordinate, index::GeoBounds};
+//! use geocoordinates::{Coordinate, geodesy::GeoBounds};
 //! use geocoordinates::map::{Tile, Viewport, fit_bounds, viewport_bounds};
 //!
 //! let photos = [Coordinate::wgs84(-17.7, 178.0)?, Coordinate::wgs84(-16.8, -179.9)?];

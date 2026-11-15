@@ -34,6 +34,14 @@
 //! ([`rhumb_distance`] / [`rhumb_bearing`] / [`rhumb_destination`]). Every
 //! multi-point operation rejects mixed CRS values.
 //!
+//! ## Bounds
+//!
+//! [`GeoBounds`] is a latitude / longitude box whose west edge may lie east of
+//! its east edge, which is how it crosses the antimeridian, and treats a pole as
+//! one point whatever its longitude. It tests containment and overlap, takes
+//! unions, and grows by a geodesic distance ([`GeoBounds::expand_by`]) on the ellipsoid of its
+//! own [`Crs`](crate::Crs). It needs no cargo feature.
+//!
 //! Every position is passed by value (each is `Copy`). Measurement functions
 //! take any [`LatLon`](crate::LatLon), so they work on `Coordinate` and the
 //! per-datum newtypes alike. The producers take a `Coordinate` and return a
@@ -66,6 +74,7 @@
 
 // Every submodule is private: each public item is re-exported flat below, so
 // `geodesy::NAME` is its one path.
+mod bounds; // the antimeridian- and pole-aware latitude / longitude box
 mod datum; // Helmert / classic-datum transforms
 mod ecef; // ECEF geocentric coordinates
 mod ellipsoid; // reference ellipsoid parameters
@@ -76,6 +85,7 @@ pub(crate) mod series; // Krüger n-series shared by rhumb lines and UTM
 mod spherical; // haversine, cross/along-track, intersection on the mean sphere
 mod track; // cross/along-track and intersection on the datum ellipsoid
 
+pub use bounds::GeoBounds;
 pub(crate) use datum::HubRoute;
 pub use datum::{DatumTransform, Helmert};
 pub use ecef::Ecef;

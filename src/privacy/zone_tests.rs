@@ -5,8 +5,8 @@ use proptest::prelude::*;
 
 use super::{ExclusionZone, Precision, ZoneAction, apply, coarsen};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, Fix, RawSource};
+use crate::geodesy::GeoBounds;
 use crate::geodesy::{destination, geodesic_distance};
-use crate::index::GeoBounds;
 use crate::{Coordinate, Crs, Error, Height, Length};
 
 fn wgs84(lat: f64, lon: f64) -> Coordinate {

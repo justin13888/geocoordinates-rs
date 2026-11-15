@@ -9,7 +9,7 @@ use geocoordinates::cluster::{
     ClusterIndex, bucket_by_geohash, centroid, dbscan, segment_trips, segment_visits,
 };
 use geocoordinates::fix::Fix;
-use geocoordinates::index::GeoBounds;
+use geocoordinates::geodesy::GeoBounds;
 use geocoordinates::{Coordinate, Crs, Length};
 
 const SIZES: [usize; 3] = [10_000, 100_000, 1_000_000];

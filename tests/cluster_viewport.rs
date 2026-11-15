@@ -3,7 +3,7 @@
 #![cfg(feature = "cluster")]
 
 use geocoordinates::cluster::{ClusterIndex, ClusterIndexOptions, MapCluster};
-use geocoordinates::index::GeoBounds;
+use geocoordinates::geodesy::GeoBounds;
 use geocoordinates::{Coordinate, Crs};
 
 fn wgs(lat: f64, lon: f64) -> Coordinate {
