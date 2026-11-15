@@ -17,7 +17,9 @@ use crate::units::Length;
 /// constant ([`Ellipsoid::WGS84`], …), or look up the ellipsoid of a reference
 /// system with [`Ellipsoid::for_crs`]. The semi-major axis is finite and
 /// positive, and the inverse flattening is greater than one, or positive
-/// infinity for a sphere. Deserialization goes through [`Ellipsoid::new`].
+/// infinity for a sphere. Deserialization goes through [`Ellipsoid::new`];
+/// a sphere's infinite inverse flattening is written as `null` (JSON has no
+/// infinity) and `null` reads back as infinity.
 ///
 /// ```
 /// use geocoordinates::{Crs, Length, geodesy::Ellipsoid};
@@ -31,6 +33,10 @@ use crate::units::Length;
 #[cfg_attr(feature = "serde", serde(try_from = "EllipsoidRecord"))]
 pub struct Ellipsoid {
     semi_major: Length,
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "crate::approx::infinity_as_none::serialize")
+    )]
     inverse_flattening: f64,
 }
 
@@ -40,6 +46,7 @@ pub struct Ellipsoid {
 #[derive(serde::Deserialize)]
 struct EllipsoidRecord {
     semi_major: Length,
+    #[serde(with = "crate::approx::infinity_as_none")]
     inverse_flattening: f64,
 }
 
@@ -363,5 +370,24 @@ mod tests {
         assert!(serde_json::from_str::<Ellipsoid>(bad).is_err());
         let bad = r#"{"semi_major":{"meters":6378137.0},"inverse_flattening":0.5}"#;
         assert!(serde_json::from_str::<Ellipsoid>(bad).is_err());
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_round_trips_a_sphere() {
+        let sphere = Ellipsoid::new(Length::from_meters(6_371_000.0), f64::INFINITY).unwrap();
+        let json = serde_json::to_string(&sphere).unwrap();
+        // JSON has no infinity: the sphere's inverse flattening is `null`.
+        assert_eq!(
+            json,
+            r#"{"semi_major":{"meters":6371000.0},"inverse_flattening":null}"#
+        );
+        let back: Ellipsoid = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, sphere);
+        assert_eq!(back.inverse_flattening(), f64::INFINITY);
+        assert_eq!(back.flattening(), 0.0);
+        // The field stays required; only an explicit `null` means a sphere.
+        let missing = r#"{"semi_major":{"meters":6371000.0}}"#;
+        assert!(serde_json::from_str::<Ellipsoid>(missing).is_err());
     }
 }
