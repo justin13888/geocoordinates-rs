@@ -636,4 +636,5 @@ proptest::proptest! {
     }
 }
 
+mod strings;
 mod truncated;
