@@ -4,7 +4,11 @@ use crate::test_support::assert_close;
 use crate::units::Length;
 
 fn ecef(x: f64, y: f64, z: f64) -> Ecef {
-    Ecef::new(x, y, z)
+    Ecef::new(x, y, z).unwrap()
+}
+
+fn apply(h: Helmert, e: Ecef) -> Ecef {
+    h.apply_ecef(e).unwrap()
 }
 
 /// A synthetic Helmert with every parameter non-zero, for exercising all
@@ -22,10 +26,66 @@ const FULL: Helmert = Helmert {
 #[test]
 fn identity_is_a_no_op() {
     let e = ecef(4_000_000.0, -2_000_000.0, 4_500_000.0);
-    let r = Helmert::IDENTITY.apply_ecef(e);
-    assert_close(r.x_m, e.x_m, 1e-9);
-    assert_close(r.y_m, e.y_m, 1e-9);
-    assert_close(r.z_m, e.z_m, 1e-9);
+    let r = apply(Helmert::IDENTITY, e);
+    assert_close(r.x_m(), e.x_m(), 1e-9);
+    assert_close(r.y_m(), e.y_m(), 1e-9);
+    assert_close(r.z_m(), e.z_m(), 1e-9);
+}
+
+#[test]
+fn apply_ecef_rejects_non_finite_parameters_and_overflow() {
+    for broken in [
+        Helmert {
+            rx_arcsec: f64::NAN,
+            ..Helmert::IDENTITY
+        },
+        Helmert {
+            scale_ppm: f64::INFINITY,
+            ..Helmert::IDENTITY
+        },
+    ] {
+        assert_eq!(
+            broken.apply_ecef(ecef(1.0, 2.0, 3.0)),
+            Err(Error::InvalidValue {
+                field: "helmert",
+                detail: "all seven parameters must be finite".into(),
+            })
+        );
+    }
+    // A finite shift of a finite position near f64::MAX overflows.
+    let grow = Helmert {
+        scale_ppm: 1.0,
+        ..Helmert::IDENTITY
+    };
+    assert_eq!(
+        grow.apply_ecef(ecef(f64::MAX, 0.0, 0.0)),
+        Err(Error::InvalidValue {
+            field: "ecef",
+            detail: "the transformed position overflows f64".into(),
+        })
+    );
+}
+
+/// A datum shift of a position so high that it overflows is an error in the
+/// coordinate's height.
+#[test]
+fn apply_reports_an_overflowing_shift_against_the_height() {
+    let grow = Helmert {
+        scale_ppm: 1.0,
+        ..Helmert::IDENTITY
+    };
+    let t = DatumTransform::new(Crs::Nad27, Crs::Wgs84, grow, None).unwrap();
+    let high = Coordinate::new(0.0, 0.0, Crs::Nad27)
+        .unwrap()
+        .with_height(Height::Ellipsoidal(f64::MAX))
+        .unwrap();
+    assert_eq!(
+        t.apply(high),
+        Err(Error::InvalidValue {
+            field: "height",
+            detail: "the shifted position overflows f64".into(),
+        })
+    );
 }
 
 #[test]
@@ -36,19 +96,19 @@ fn apply_ecef_translation_only() {
         tz_m: 30.0,
         ..Helmert::IDENTITY
     };
-    let r = h.apply_ecef(ecef(1_000.0, 2_000.0, 3_000.0));
-    assert_close(r.x_m, 1_010.0, 1e-9);
-    assert_close(r.y_m, 1_980.0, 1e-9);
-    assert_close(r.z_m, 3_030.0, 1e-9);
+    let r = apply(h, ecef(1_000.0, 2_000.0, 3_000.0));
+    assert_close(r.x_m(), 1_010.0, 1e-9);
+    assert_close(r.y_m(), 1_980.0, 1e-9);
+    assert_close(r.z_m(), 3_030.0, 1e-9);
 }
 
 #[test]
 fn apply_ecef_full_seven_parameter() {
     // Independent reference (geodetic/ECEF Python): every term contributes.
-    let r = FULL.apply_ecef(ecef(4_000_000.0, -2_000_000.0, 4_500_000.0));
-    assert_close(r.x_m, 4_000_003.335_114_215_5, 1e-4);
-    assert_close(r.y_m, -1_999_996.062_872_637_8, 1e-4);
-    assert_close(r.z_m, 4_500_091.285_288_414, 1e-4);
+    let r = apply(FULL, ecef(4_000_000.0, -2_000_000.0, 4_500_000.0));
+    assert_close(r.x_m(), 4_000_003.335_114_215_5, 1e-4);
+    assert_close(r.y_m(), -1_999_996.062_872_637_8, 1e-4);
+    assert_close(r.z_m(), 4_500_091.285_288_414, 1e-4);
 }
 
 #[test]
@@ -66,11 +126,11 @@ fn inverse_negates_every_parameter() {
 #[test]
 fn helmert_inverse_round_trips() {
     let e = ecef(4_000_000.0, -2_000_000.0, 4_500_000.0);
-    let back = FULL.inverse_first_order().apply_ecef(FULL.apply_ecef(e));
+    let back = apply(FULL.inverse_first_order(), apply(FULL, e));
     // First-order inverse: sub-cm residual from the dropped second-order term.
-    assert_close(back.x_m, e.x_m, 1e-2);
-    assert_close(back.y_m, e.y_m, 1e-2);
-    assert_close(back.z_m, e.z_m, 1e-2);
+    assert_close(back.x_m(), e.x_m(), 1e-2);
+    assert_close(back.y_m(), e.y_m(), 1e-2);
+    assert_close(back.z_m(), e.z_m(), 1e-2);
 }
 
 #[test]
@@ -89,10 +149,11 @@ fn first_order_inverse_is_approximate_for_a_real_seven_parameter_set() {
         scale_ppm: 20.4894,
     };
     let e = ecef(3_980_000.0, -10_000.0, 4_970_000.0); // near 51.5°N, 0°
-    let back = osgb.inverse_first_order().apply_ecef(osgb.apply_ecef(e));
-    let residual =
-        ((back.x_m - e.x_m).powi(2) + (back.y_m - e.y_m).powi(2) + (back.z_m - e.z_m).powi(2))
-            .sqrt();
+    let back = apply(osgb.inverse_first_order(), apply(osgb, e));
+    let residual = ((back.x_m() - e.x_m()).powi(2)
+        + (back.y_m() - e.y_m()).powi(2)
+        + (back.z_m() - e.z_m()).powi(2))
+    .sqrt();
     assert!(residual > 5e-3, "residual {residual} m should be visible");
     assert!(residual < 0.02, "residual {residual} m is over 2 cm");
 }
@@ -245,9 +306,9 @@ fn apply_uses_the_ellipsoid_of_each_system() {
     assert!(h.abs() > 1.0, "{h}");
     let back = Ecef::try_from_coordinate(w).unwrap();
     let start = Ecef::try_from_coordinate(nad27).unwrap();
-    assert_close(back.x_m, start.x_m, 1e-7);
-    assert_close(back.y_m, start.y_m, 1e-7);
-    assert_close(back.z_m, start.z_m, 1e-7);
+    assert_close(back.x_m(), start.x_m(), 1e-7);
+    assert_close(back.y_m(), start.y_m(), 1e-7);
+    assert_close(back.z_m(), start.z_m(), 1e-7);
 }
 
 #[cfg(feature = "serde")]

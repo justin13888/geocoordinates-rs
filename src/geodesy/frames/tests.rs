@@ -238,6 +238,23 @@ fn an_overflowing_offset_is_a_height_error() {
     ));
 }
 
+/// An offset that carries the position past `f64` is reported against the
+/// height, as the forward direction does, since no ECEF position exists.
+#[test]
+fn an_offset_overflowing_the_position_is_a_height_error() {
+    let high = Coordinate::wgs84(0.0, 0.0)
+        .unwrap()
+        .with_height(Height::Ellipsoidal(1e308))
+        .unwrap();
+    assert_eq!(
+        enu(0.0, 0.0, f64::MAX).try_to_coordinate(high),
+        Err(Error::InvalidValue {
+            field: "height",
+            detail: "the position of the offset about the origin overflows".into(),
+        })
+    );
+}
+
 #[cfg(feature = "serde")]
 #[test]
 fn serde_round_trips_and_rejects_invalid_values() {

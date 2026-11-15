@@ -112,13 +112,13 @@ impl core::marker::UnsafeUnpin for geocoordinates::geodesy::DatumTransform
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::DatumTransform
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::DatumTransform
 pub struct geocoordinates::geodesy::Ecef
-pub geocoordinates::geodesy::Ecef::x_m: f64
-pub geocoordinates::geodesy::Ecef::y_m: f64
-pub geocoordinates::geodesy::Ecef::z_m: f64
 impl geocoordinates::geodesy::Ecef
-pub fn geocoordinates::geodesy::Ecef::new(f64, f64, f64) -> Self
+pub fn geocoordinates::geodesy::Ecef::new(f64, f64, f64) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::Ecef::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::Ecef::try_to_coordinate(self, geocoordinates::Crs) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub const fn geocoordinates::geodesy::Ecef::x_m(self) -> f64
+pub const fn geocoordinates::geodesy::Ecef::y_m(self) -> f64
+pub const fn geocoordinates::geodesy::Ecef::z_m(self) -> f64
 impl core::clone::Clone for geocoordinates::geodesy::Ecef
 pub fn geocoordinates::geodesy::Ecef::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::geodesy::Ecef
@@ -253,7 +253,7 @@ pub geocoordinates::geodesy::Helmert::ty_m: f64
 pub geocoordinates::geodesy::Helmert::tz_m: f64
 impl geocoordinates::geodesy::Helmert
 pub const geocoordinates::geodesy::Helmert::IDENTITY: geocoordinates::geodesy::Helmert
-pub fn geocoordinates::geodesy::Helmert::apply_ecef(&self, geocoordinates::geodesy::Ecef) -> geocoordinates::geodesy::Ecef
+pub fn geocoordinates::geodesy::Helmert::apply_ecef(&self, geocoordinates::geodesy::Ecef) -> geocoordinates::Result<geocoordinates::geodesy::Ecef>
 pub fn geocoordinates::geodesy::Helmert::inverse_first_order(&self) -> geocoordinates::geodesy::Helmert
 impl core::clone::Clone for geocoordinates::geodesy::Helmert
 pub fn geocoordinates::geodesy::Helmert::clone(&self) -> Self

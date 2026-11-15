@@ -68,8 +68,9 @@ const ARCSEC_TO_RAD: f64 = PI / (180.0 * 3600.0);
 ///
 /// // A 1 ppm scale change moves a point at one Earth radius by about 6.4 m.
 /// let scale = Helmert { scale_ppm: 1.0, ..Helmert::IDENTITY };
-/// let moved = scale.apply_ecef(Ecef::new(6_378_137.0, 0.0, 0.0));
-/// assert!((moved.x_m - 6_378_137.0 - 6.378_137).abs() < 1e-6);
+/// let moved = scale.apply_ecef(Ecef::new(6_378_137.0, 0.0, 0.0)?)?;
+/// assert!((moved.x_m() - 6_378_137.0 - 6.378_137).abs() < 1e-6);
+/// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -96,8 +97,9 @@ impl Helmert {
     /// ```
     /// use geocoordinates::geodesy::{Ecef, Helmert};
     ///
-    /// let p = Ecef::new(1.0, 2.0, 3.0);
-    /// assert_eq!(Helmert::IDENTITY.apply_ecef(p), p);
+    /// let p = Ecef::new(1.0, 2.0, 3.0)?;
+    /// assert_eq!(Helmert::IDENTITY.apply_ecef(p)?, p);
+    /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub const IDENTITY: Helmert = Helmert {
         tx_m: 0.0,
@@ -115,24 +117,45 @@ impl Helmert {
     /// angles: `x' = T + (1 + s)·R·x`, where `R = I + Ω` and `Ω` is the
     /// skew-symmetric matrix of the rotation vector (so `R·x ≈ x + ω × x`).
     ///
+    /// # Errors
+    /// - [`Error::InvalidValue`] (field `"helmert"`) when a parameter is not
+    ///   finite;
+    /// - [`Error::InvalidValue`] (field `"ecef"`) when the transformed
+    ///   position overflows `f64`, which takes a position near 1.8e308 m.
+    ///
     /// ```
-    /// use geocoordinates::geodesy::{Ecef, Helmert};
+    /// use geocoordinates::{Error, geodesy::{Ecef, Helmert}};
     ///
     /// let shift = Helmert { tx_m: -8.0, ty_m: 160.0, tz_m: 176.0, ..Helmert::IDENTITY };
-    /// assert_eq!(shift.apply_ecef(Ecef::new(0.0, 0.0, 0.0)), Ecef::new(-8.0, 160.0, 176.0));
+    /// assert_eq!(shift.apply_ecef(Ecef::new(0.0, 0.0, 0.0)?)?, Ecef::new(-8.0, 160.0, 176.0)?);
+    /// let broken = Helmert { tx_m: f64::NAN, ..Helmert::IDENTITY };
+    /// assert!(matches!(
+    ///     broken.apply_ecef(Ecef::new(0.0, 0.0, 0.0)?),
+    ///     Err(Error::InvalidValue { field: "helmert", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
     /// ```
-    #[must_use]
-    pub fn apply_ecef(&self, ecef: Ecef) -> Ecef {
+    pub fn apply_ecef(&self, ecef: Ecef) -> Result<Ecef> {
+        if !self.is_finite() {
+            return Err(Error::InvalidValue {
+                field: "helmert",
+                detail: "all seven parameters must be finite".into(),
+            });
+        }
         let rx = self.rx_arcsec * ARCSEC_TO_RAD;
         let ry = self.ry_arcsec * ARCSEC_TO_RAD;
         let rz = self.rz_arcsec * ARCSEC_TO_RAD;
         let s = 1.0 + self.scale_ppm * 1e-6;
-        let (x, y, z) = (ecef.x_m, ecef.y_m, ecef.z_m);
-        Ecef {
-            x_m: self.tx_m + s * (x - rz * y + ry * z),
-            y_m: self.ty_m + s * (rz * x + y - rx * z),
-            z_m: self.tz_m + s * (-ry * x + rx * y + z),
-        }
+        let (x, y, z) = (ecef.x_m(), ecef.y_m(), ecef.z_m());
+        Ecef::new(
+            self.tx_m + s * (x - rz * y + ry * z),
+            self.ty_m + s * (rz * x + y - rx * z),
+            self.tz_m + s * (-ry * x + rx * y + z),
+        )
+        .map_err(|_| Error::InvalidValue {
+            field: "ecef",
+            detail: "the transformed position overflows f64".into(),
+        })
     }
 
     /// The first-order inverse transform, by negating every parameter.
@@ -150,8 +173,9 @@ impl Helmert {
     /// use geocoordinates::geodesy::{Ecef, Helmert};
     ///
     /// let shift = Helmert { tx_m: 10.0, ..Helmert::IDENTITY };
-    /// let p = Ecef::new(1.0, 2.0, 3.0);
-    /// assert_eq!(shift.inverse_first_order().apply_ecef(shift.apply_ecef(p)), p);
+    /// let p = Ecef::new(1.0, 2.0, 3.0)?;
+    /// assert_eq!(shift.inverse_first_order().apply_ecef(shift.apply_ecef(p)?)?, p);
+    /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
     pub fn inverse_first_order(&self) -> Helmert {
@@ -401,7 +425,8 @@ impl DatumTransform {
     /// - [`Error::CrsMismatch`] when `coord` is not in
     ///   [`from_crs`](Self::from_crs);
     /// - [`Error::InvalidValue`] (field `"height"`) when `coord` carries an
-    ///   orthometric height, which needs a geoid model to become ellipsoidal.
+    ///   orthometric height, which needs a geoid model to become ellipsoidal,
+    ///   or a height so large that the shifted position overflows.
     ///
     /// ```
     /// use geocoordinates::{Coordinate, Crs, Error, geodesy::DatumTransform};
@@ -425,7 +450,15 @@ impl DatumTransform {
             });
         }
         let had_height = coord.height().is_some();
-        let shifted = self.helmert.apply_ecef(Ecef::try_from_coordinate(coord)?);
+        // The parameters are finite by construction, so the only failure is a
+        // position so high that the shift overflows: an error in its height.
+        let shifted = self
+            .helmert
+            .apply_ecef(Ecef::try_from_coordinate(coord)?)
+            .map_err(|_| Error::InvalidValue {
+                field: "height",
+                detail: "the shifted position overflows f64".into(),
+            })?;
         let result = shifted.try_to_coordinate(self.to_crs)?;
         if had_height {
             Ok(result)

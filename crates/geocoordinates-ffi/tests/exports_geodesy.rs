@@ -174,6 +174,26 @@ fn ecef_from_coordinate_uses_the_ellipsoid_of_the_crs() {
     }
 }
 
+/// G32: a hand-built ECEF record with a non-finite component is rejected by
+/// `ecef_validate` and by every export that takes one, naming the component.
+#[test]
+fn ecef_validate_rejects_each_non_finite_component() {
+    let at = |x, y, z| Ecef { x, y, z };
+    assert_eq!(ecef_validate(at(6_378_137.0, 0.0, 0.0)), Ok(()));
+    for (bad, field) in [
+        (at(f64::NAN, 0.0, 0.0), "x_m"),
+        (at(0.0, f64::INFINITY, 0.0), "y_m"),
+        (at(0.0, 0.0, f64::NEG_INFINITY), "z_m"),
+    ] {
+        let expected = GeoError::InvalidValue {
+            field: field.to_string(),
+            detail: "must be finite".to_string(),
+        };
+        assert_eq!(ecef_validate(bad).unwrap_err(), expected);
+        assert_eq!(ecef_to_coordinate(bad, Crs::Wgs84).unwrap_err(), expected);
+    }
+}
+
 // --- Geodesics ---
 
 #[test]
@@ -433,7 +453,8 @@ fn helmert_identity_inverse_and_apply() {
             y: 20.0,
             z: 30.0,
         },
-    );
+    )
+    .unwrap();
     assert_eq!(
         moved,
         Ecef {
@@ -449,12 +470,25 @@ fn helmert_identity_inverse_and_apply() {
     );
     assert_eq!(
         helmert_apply_ecef(inverse, moved),
-        Ecef {
+        Ok(Ecef {
             x: 10.0,
             y: 20.0,
             z: 30.0,
-        }
+        })
     );
+    // A non-finite record, a non-finite parameter, and an overflowing result
+    // are each an error naming what failed.
+    let field_of = |h: Helmert, x: f64, y: f64| match helmert_apply_ecef(h, Ecef { x, y, z: 0.0 }) {
+        Err(GeoError::InvalidValue { field, .. }) => field,
+        other => panic!("expected InvalidValue, got {other:?}"),
+    };
+    let scaled = |scale_ppm| Helmert {
+        scale_ppm,
+        ..identity
+    };
+    assert_eq!(field_of(shift, 0.0, f64::NAN), "y_m");
+    assert_eq!(field_of(scaled(f64::NAN), 0.0, 0.0), "helmert");
+    assert_eq!(field_of(scaled(1.0), f64::MAX, 0.0), "ecef");
 }
 
 #[test]

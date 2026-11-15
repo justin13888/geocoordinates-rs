@@ -50,6 +50,10 @@ pub struct Ellipsoid {
 }
 
 /// A geocentric ECEF position in meters — mirror of [`gc::Ecef`](gc::geodesy::Ecef).
+///
+/// Unvalidated until used: every export that takes one validates it as the
+/// core `Ecef::new` does (each component finite). Call [`ecef_validate`] to
+/// check a hand-built record up front.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ecef {
     /// X axis (meters), through the prime meridian at the equator.
@@ -128,15 +132,17 @@ impl TryFrom<Ellipsoid> for gc::geodesy::Ellipsoid {
 impl From<gc::geodesy::Ecef> for Ecef {
     fn from(c: gc::geodesy::Ecef) -> Self {
         Ecef {
-            x: c.x_m,
-            y: c.y_m,
-            z: c.z_m,
+            x: c.x_m(),
+            y: c.y_m(),
+            z: c.z_m(),
         }
     }
 }
-impl From<Ecef> for gc::geodesy::Ecef {
-    fn from(c: Ecef) -> Self {
-        gc::geodesy::Ecef::new(c.x, c.y, c.z)
+impl TryFrom<Ecef> for gc::geodesy::Ecef {
+    type Error = GeoError;
+
+    fn try_from(c: Ecef) -> Result<Self, GeoError> {
+        gc::geodesy::Ecef::new(c.x, c.y, c.z).map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Enu> for Enu {
@@ -300,15 +306,25 @@ pub fn ecef_from_coordinate(coord: Coordinate) -> Result<Ecef, GeoError> {
 /// form, as refined in GeographicLib).
 ///
 /// # Errors
-/// `GeoError::InvalidValue` (field `crs`) when `crs` is GCJ-02 or BD-09;
-/// `GeoError::InvalidValue` (field `ECEF`) for a non-finite component, and
-/// (field `height`) when the height overflows.
+/// `GeoError::InvalidValue` naming `x_m`, `y_m`, or `z_m` for a non-finite
+/// component of the record, as [`ecef_validate`]; (field `crs`) when `crs` is
+/// GCJ-02 or BD-09; and (field `height`) when the height overflows.
 #[uniffi::export]
 pub fn ecef_to_coordinate(ecef: Ecef, crs: Crs) -> Result<Coordinate, GeoError> {
-    gc::geodesy::Ecef::from(ecef)
+    gc::geodesy::Ecef::try_from(ecef)?
         .try_to_coordinate(crs.into())
         .map(Into::into)
         .map_err(Into::into)
+}
+
+/// Validate a (possibly hand-built) ECEF record — the FFI form of `Ecef::new`.
+///
+/// # Errors
+/// `GeoError::InvalidValue` naming `x_m`, `y_m`, or `z_m` when that component
+/// (the record's `x`, `y`, or `z`) is not finite.
+#[uniffi::export]
+pub fn ecef_validate(ecef: Ecef) -> Result<(), GeoError> {
+    gc::geodesy::Ecef::try_from(ecef).map(drop)
 }
 
 /// Validate a (possibly hand-built) ENU record — the FFI form of `Enu::new`.

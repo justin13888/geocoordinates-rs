@@ -238,7 +238,7 @@ impl Enu {
         let (sin_lon, cos_lon) = origin.lon().to_radians().sin_cos();
         let t = Ecef::try_from_coordinate(target)?;
         let o = Ecef::try_from_coordinate(origin)?;
-        let (dx, dy, dz) = (t.x_m - o.x_m, t.y_m - o.y_m, t.z_m - o.z_m);
+        let (dx, dy, dz) = (t.x_m() - o.x_m(), t.y_m() - o.y_m(), t.z_m() - o.z_m());
         Enu::new(
             -sin_lon * dx + cos_lon * dy,
             -sin_lat * cos_lon * dx - sin_lat * sin_lon * dy + cos_lat * dz,
@@ -258,8 +258,8 @@ impl Enu {
     /// - [`Error::CrsMismatch`] and [`Error::InvalidValue`] (field `"height"`)
     ///   for an `origin` [`try_from_coordinate`](Self::try_from_coordinate)
     ///   would reject;
-    /// - as for [`Ecef::try_to_coordinate`] when the offset is so large that
-    ///   the position overflows.
+    /// - [`Error::InvalidValue`] (field `"height"`) when the offset is so
+    ///   large that the position, or its height, overflows.
     ///
     /// ```
     /// use geocoordinates::{Coordinate, Crs, Error, geodesy::Enu};
@@ -287,7 +287,12 @@ impl Enu {
             + cos_lat * sin_lon * self.up_m;
         let dz = cos_lat * self.north_m + sin_lat * self.up_m;
         let o = Ecef::try_from_coordinate(origin)?;
-        Ecef::new(o.x_m + dx, o.y_m + dy, o.z_m + dz).try_to_coordinate(origin.crs())
+        Ecef::new(o.x_m() + dx, o.y_m() + dy, o.z_m() + dz)
+            .map_err(|_| Error::InvalidValue {
+                field: "height",
+                detail: "the position of the offset about the origin overflows".into(),
+            })?
+            .try_to_coordinate(origin.crs())
     }
 
     /// Convert to the NED convention (exact).

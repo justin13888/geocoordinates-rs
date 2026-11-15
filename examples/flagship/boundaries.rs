@@ -180,8 +180,12 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
         Err(Error::CrsMismatch { .. })
     ));
     assert!(matches!(
-        Ecef::new(6_378_137.0, 0.0, 0.0).try_to_coordinate(Crs::Bd09),
+        Ecef::new(6_378_137.0, 0.0, 0.0)?.try_to_coordinate(Crs::Bd09),
         Err(Error::InvalidValue { field: "crs", .. })
+    ));
+    assert!(matches!(
+        Ecef::new(f64::NAN, 0.0, 0.0),
+        Err(Error::InvalidValue { field: "x_m", .. })
     ));
     assert!(Ellipsoid::new(Length::from_meters(-1.0), 298.257_223_563).is_err());
     assert!(DatumTransform::new(Crs::Gcj02, Crs::Wgs84, Helmert::IDENTITY, None).is_err());

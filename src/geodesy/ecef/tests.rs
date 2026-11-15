@@ -18,15 +18,26 @@ fn ellipsoidal_height(c: Coordinate) -> f64 {
     }
 }
 
+fn ecef(x_m: f64, y_m: f64, z_m: f64) -> Ecef {
+    Ecef::new(x_m, y_m, z_m).unwrap()
+}
+
 fn distance_m(a: Ecef, b: Ecef) -> f64 {
-    (a.x_m - b.x_m).hypot(a.y_m - b.y_m).hypot(a.z_m - b.z_m)
+    (a.x_m() - b.x_m())
+        .hypot(a.y_m() - b.y_m())
+        .hypot(a.z_m() - b.z_m())
 }
 
 /// ECEF → geodetic → ECEF must return to `p` to round-off: a few ulps of the
 /// largest magnitude involved, which near the center is the semi-major axis.
 fn assert_ecef_round_trip(p: Ecef, crs: Crs) {
     let back = Ecef::try_from_coordinate(p.try_to_coordinate(crs).unwrap()).unwrap();
-    let scale = p.x_m.abs().max(p.y_m.abs()).max(p.z_m.abs()).max(WGS84_A);
+    let scale = p
+        .x_m()
+        .abs()
+        .max(p.y_m().abs())
+        .max(p.z_m().abs())
+        .max(WGS84_A);
     let err = distance_m(back, p);
     assert!(err <= 8.0 * f64::EPSILON * scale, "{p:?}: {err} m");
 }
@@ -35,15 +46,15 @@ fn assert_ecef_round_trip(p: Ecef, crs: Crs) {
 fn forward_reference_points() {
     let at = |lat, lon| Ecef::try_from_coordinate(Coordinate::wgs84(lat, lon).unwrap()).unwrap();
     let p = at(0.0, 0.0);
-    assert_close(p.x_m, WGS84_A, 1e-3);
-    assert_close(p.y_m, 0.0, 1e-3);
-    assert_close(p.z_m, 0.0, 1e-3);
+    assert_close(p.x_m(), WGS84_A, 1e-3);
+    assert_close(p.y_m(), 0.0, 1e-3);
+    assert_close(p.z_m(), 0.0, 1e-3);
     let p = at(0.0, 90.0);
-    assert_close(p.x_m, 0.0, 1e-3);
-    assert_close(p.y_m, WGS84_A, 1e-3);
+    assert_close(p.x_m(), 0.0, 1e-3);
+    assert_close(p.y_m(), WGS84_A, 1e-3);
     let p = at(90.0, 0.0);
-    assert_close(p.x_m, 0.0, 1e-3);
-    assert_close(p.z_m, WGS84_B, 1e-3);
+    assert_close(p.x_m(), 0.0, 1e-3);
+    assert_close(p.z_m(), WGS84_B, 1e-3);
 }
 
 /// C15: each datum is placed on its own ellipsoid, so a NAD27 position is on
@@ -58,13 +69,9 @@ fn each_datum_is_placed_on_its_own_ellipsoid() {
         (Crs::Pulkovo42, Ellipsoid::KRASOVSKY_1940),
     ] {
         let equator = Ecef::try_from_coordinate(Coordinate::new(0.0, 0.0, crs).unwrap()).unwrap();
-        assert_eq!(
-            equator,
-            Ecef::new(e.semi_major().meters(), 0.0, 0.0),
-            "{crs:?}"
-        );
+        assert_eq!(equator, ecef(e.semi_major().meters(), 0.0, 0.0), "{crs:?}");
         let pole = Ecef::try_from_coordinate(Coordinate::new(90.0, 0.0, crs).unwrap()).unwrap();
-        assert_close(pole.z_m, e.semi_minor().meters(), 1e-6);
+        assert_close(pole.z_m(), e.semi_minor().meters(), 1e-6);
         let p = Ecef::try_from_coordinate(at(40.0, -100.0, 250.0, crs)).unwrap();
         let back = p.try_to_coordinate(crs).unwrap();
         assert_eq!(back.crs(), crs);
@@ -141,11 +148,11 @@ fn the_inverse_is_exact_at_every_altitude() {
 fn the_inverse_round_trips_near_the_center() {
     for x in [0.0, 1.0, 1_000.0, 10_000.0, 30_000.0, 42_000.0, 60_000.0] {
         for z in [-30_000.0, -10_000.0, -1.0, 1.0, 1_000.0, 20_000.0, 30_000.0] {
-            assert_ecef_round_trip(Ecef::new(x, 0.7 * x, z), Crs::Wgs84);
+            assert_ecef_round_trip(ecef(x, 0.7 * x, z), Crs::Wgs84);
         }
     }
     for x in [1_000.0, 20_000.0, 1_000_000.0] {
-        assert_ecef_round_trip(Ecef::new(x, 0.0, 0.0), Crs::Nad27);
+        assert_ecef_round_trip(ecef(x, 0.0, 0.0), Crs::Nad27);
     }
 }
 
@@ -155,7 +162,7 @@ fn the_inverse_round_trips_near_the_center() {
 #[test]
 fn the_equatorial_interior_takes_the_side_of_z() {
     let lat_of = |z| {
-        Ecef::new(10_000.0, 0.0, z)
+        ecef(10_000.0, 0.0, z)
             .try_to_coordinate(Crs::Wgs84)
             .unwrap()
             .lat()
@@ -167,9 +174,7 @@ fn the_equatorial_interior_takes_the_side_of_z() {
     assert_close(lat_of(0.0), north, 0.0);
     // The center itself maps to a pole, at a height of minus the semi-minor
     // axis.
-    let center = Ecef::new(0.0, 0.0, 0.0)
-        .try_to_coordinate(Crs::Wgs84)
-        .unwrap();
+    let center = ecef(0.0, 0.0, 0.0).try_to_coordinate(Crs::Wgs84).unwrap();
     assert_close(center.lat(), 90.0, 0.0);
     assert_close(ellipsoidal_height(center), -WGS84_B, 1e-6);
 }
@@ -180,10 +185,10 @@ fn the_equatorial_interior_takes_the_side_of_z() {
 fn distant_positions_keep_their_direction() {
     // Below the overflow the closed form answers; above it, the far-field
     // fallback does. Either way the direction and distance hold.
-    assert_ecef_round_trip(Ecef::new(1e10, 0.0, 1e10), Crs::Wgs84);
+    assert_ecef_round_trip(ecef(1e10, 0.0, 1e10), Crs::Wgs84);
     // From 1e20 m on, geodetic and geocentric latitude agree to 1e-9°.
     for d in [1e20, 1e30, 1e40, 1e45, 1e50, 1e100, 1e200, 1e300] {
-        let far = Ecef::new(d, 0.0, d).try_to_coordinate(Crs::Wgs84).unwrap();
+        let far = ecef(d, 0.0, d).try_to_coordinate(Crs::Wgs84).unwrap();
         assert_close(far.lat(), 45.0, 1e-9);
         assert_close(far.lon(), 0.0, 0.0);
         // The height is the distance less about the Earth's radius at 45°.
@@ -191,7 +196,7 @@ fn distant_positions_keep_their_direction() {
         assert_close(ellipsoidal_height(far), expected, 1e-12 * d + 10.0);
     }
     assert!(matches!(
-        Ecef::new(f64::MAX, f64::MAX, 0.0).try_to_coordinate(Crs::Wgs84),
+        ecef(f64::MAX, f64::MAX, 0.0).try_to_coordinate(Crs::Wgs84),
         Err(Error::InvalidValue {
             field: "height",
             ..
@@ -213,7 +218,7 @@ fn china_systems_have_no_ecef_position() {
         );
         // Asked for as the target system, it is a bad argument instead.
         assert_eq!(
-            Ecef::new(WGS84_A, 0.0, 0.0).try_to_coordinate(crs),
+            ecef(WGS84_A, 0.0, 0.0).try_to_coordinate(crs),
             Err(Error::InvalidValue {
                 field: "crs",
                 detail: format!("{crs} is not a geodetic datum and has no ellipsoid"),
@@ -235,14 +240,56 @@ fn invalid_inputs_and_orthometric_heights_are_rejected() {
             ..
         })
     ));
-    for p in [
-        Ecef::new(f64::NAN, 0.0, 0.0),
-        Ecef::new(0.0, f64::INFINITY, 0.0),
-        Ecef::new(0.0, 0.0, f64::NEG_INFINITY),
+}
+
+/// G32: a non-finite component never becomes an `Ecef`; the error names the
+/// first offending component.
+#[test]
+fn new_rejects_each_non_finite_component() {
+    let finite = |field| Error::InvalidValue {
+        field,
+        detail: "must be finite".into(),
+    };
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(Ecef::new(bad, 0.0, 0.0), Err(finite("x_m")));
+        assert_eq!(Ecef::new(0.0, bad, 0.0), Err(finite("y_m")));
+        assert_eq!(Ecef::new(0.0, 0.0, bad), Err(finite("z_m")));
+        assert_eq!(Ecef::new(0.0, bad, bad), Err(finite("y_m")));
+    }
+    let extreme = Ecef::new(f64::MAX, f64::MIN, -0.0).unwrap();
+    assert_eq!(
+        (extreme.x_m(), extreme.y_m(), extreme.z_m()),
+        (f64::MAX, f64::MIN, -0.0)
+    );
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_round_trips_and_rejects_non_finite_components() {
+    let p = ecef(1.0, -2.0, 3.5);
+    let json = serde_json::to_string(&p).unwrap();
+    // The keys 0.14 wrote, so its JSON still reads.
+    assert_eq!(json, r#"{"x_m":1.0,"y_m":-2.0,"z_m":3.5}"#);
+    assert_eq!(serde_json::from_str::<Ecef>(&json).unwrap(), p);
+    // JSON has no literal for a non-finite number, so feed the record through
+    // a deserializer that does, and check each reaches `Ecef::new`.
+    use serde::Deserialize;
+    use serde::de::value::{Error as DeError, MapDeserializer};
+    let from = |x_m: f64, y_m: f64, z_m: f64| {
+        Ecef::deserialize(MapDeserializer::<_, DeError>::new(
+            [("x_m", x_m), ("y_m", y_m), ("z_m", z_m)].into_iter(),
+        ))
+        .map_err(|e| e.to_string())
+    };
+    assert_eq!(from(1.0, -2.0, 3.5), Ok(p));
+    for (bad, field) in [
+        (from(f64::NAN, 0.0, 0.0), "x_m"),
+        (from(0.0, f64::NEG_INFINITY, 0.0), "y_m"),
+        (from(0.0, 0.0, f64::INFINITY), "z_m"),
     ] {
-        assert!(matches!(
-            p.try_to_coordinate(Crs::Wgs84),
-            Err(Error::InvalidValue { field: "ECEF", .. })
-        ));
+        assert_eq!(
+            bad,
+            Err(format!("invalid value for `{field}`: must be finite"))
+        );
     }
 }

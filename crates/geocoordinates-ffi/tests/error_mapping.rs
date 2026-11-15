@@ -70,7 +70,7 @@ fn a_crs_argument_with_no_ellipsoid_maps_to_invalid_value_naming_the_argument() 
     // The core rejects GCJ-02 / BD-09 passed as a `Crs` argument with
     // `InvalidValue` naming that argument, not with an invented `CrsMismatch`.
     let identity = gc::geodesy::Helmert::IDENTITY;
-    let ecef = gc::geodesy::Ecef::new(6_378_137.0, 0.0, 0.0);
+    let ecef = gc::geodesy::Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     for (core, field) in [
         (ecef.try_to_coordinate(gc::Crs::Gcj02).unwrap_err(), "crs"),
         (
