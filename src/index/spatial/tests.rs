@@ -148,12 +148,19 @@ fn ties_break_on_insertion_order() {
     let index = build(&points);
     let near = index.nearest(same, 5).unwrap();
     assert_eq!(
-        near.iter().map(Neighbor::index).collect::<Vec<_>>(),
+        near.iter()
+            .copied()
+            .map(Neighbor::index)
+            .collect::<Vec<_>>(),
         vec![0, 1, 2, 3, 4]
     );
     let within = index.within(same, Length::from_meters(1.0)).unwrap();
     assert_eq!(
-        within.iter().map(Neighbor::index).collect::<Vec<_>>(),
+        within
+            .iter()
+            .copied()
+            .map(Neighbor::index)
+            .collect::<Vec<_>>(),
         (0..40).collect::<Vec<_>>()
     );
     // Mirror images are at the same distance from a point on the equator.
@@ -181,6 +188,7 @@ fn queries_see_across_the_antimeridian_and_the_poles() {
         .within(wgs84(0.0, 180.0), km)
         .unwrap()
         .iter()
+        .copied()
         .map(Neighbor::index)
         .collect();
     assert_eq!(at_seam, vec![2, 3, 0, 1]);

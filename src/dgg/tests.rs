@@ -52,13 +52,13 @@ fn h3_round_trips_within_its_bound() {
 /// Asserts `bound` covers the ellipsoidal distance from `center` to every
 /// vertex, and that a spherical measure would have fallen short of it.
 #[cfg(any(feature = "h3", feature = "s2"))]
-fn assert_bound_is_ellipsoidal(center: &Coordinate, vertices: &[Coordinate], bound: f64) {
+fn assert_bound_is_ellipsoidal(center: Coordinate, vertices: &[Coordinate], bound: f64) {
     use crate::geodesy::{geodesic_distance, haversine_distance};
 
     let farthest = |distance: fn(Coordinate, Coordinate) -> Result<crate::Length>| {
         vertices
             .iter()
-            .map(|vertex| distance(*center, *vertex).unwrap().meters())
+            .map(|vertex| distance(center, *vertex).unwrap().meters())
             .fold(0.0, f64::max)
     };
     let ellipsoidal = farthest(geodesic_distance);
@@ -86,7 +86,7 @@ fn h3_bound_covers_the_ellipsoidal_vertex_distance() {
         .iter()
         .map(|vertex| c(vertex.lat(), vertex.lng()))
         .collect();
-    assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error().meters());
+    assert_bound_is_ellipsoidal(*approx.value(), &vertices, approx.max_error().meters());
 }
 
 #[cfg(feature = "s2")]
@@ -152,7 +152,7 @@ fn s2_bound_covers_the_ellipsoidal_vertex_distance() {
             c(vertex.lat.deg(), vertex.lng.deg())
         })
         .collect();
-    assert_bound_is_ellipsoidal(approx.value(), &vertices, approx.max_error().meters());
+    assert_bound_is_ellipsoidal(*approx.value(), &vertices, approx.max_error().meters());
 }
 
 #[test]
@@ -322,11 +322,11 @@ const BOUNDARY_POINTS: [(f64, f64); 5] = [
 /// Asserts a decoded cell holds `point` within its bound, and that the
 /// bound is a real (positive, finite) distance.
 #[cfg(any(feature = "h3", feature = "s2"))]
-fn assert_decodes_around(approx: &Approx<Coordinate>, point: &Coordinate) {
+fn assert_decodes_around(approx: Approx<Coordinate>, point: Coordinate) {
     let bound = approx.max_error().meters();
     assert!(bound > 0.0 && bound.is_finite(), "bound {bound}");
     assert_eq!(approx.value().crs(), Crs::Wgs84);
-    assert_within_geodesic_meters(*approx.value(), *point, bound);
+    assert_within_geodesic_meters(*approx.value(), point, bound);
 }
 
 #[cfg(feature = "h3")]
@@ -336,7 +336,7 @@ fn h3_decodes_at_the_poles_and_antimeridian() {
         for res in [0u8, 7, 15] {
             let point = c(lat, lon);
             let approx = H3Cell::encode(point, res).unwrap().decode();
-            assert_decodes_around(&approx, &point);
+            assert_decodes_around(approx, point);
         }
     }
 }
@@ -348,7 +348,7 @@ fn s2_decodes_at_the_poles_and_antimeridian() {
         for level in [0u8, 15, 30] {
             let point = c(lat, lon);
             let approx = S2CellId::encode(point, level).unwrap().decode();
-            assert_decodes_around(&approx, &point);
+            assert_decodes_around(approx, point);
         }
     }
 }

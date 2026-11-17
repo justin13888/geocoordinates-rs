@@ -127,11 +127,11 @@ fn decode_recovers_each_reference() {
 
 /// The largest geodesic (ground) distance from the decoded center to any
 /// corner of the cell, given the cell's grid corners.
-fn worst_corner_distance(center: &Coordinate, corners: [Coordinate; 4]) -> f64 {
+fn worst_corner_distance(center: Coordinate, corners: [Coordinate; 4]) -> f64 {
     corners
         .iter()
         .map(|corner| {
-            crate::geodesy::geodesic_distance(*center, *corner)
+            crate::geodesy::geodesic_distance(center, *corner)
                 .unwrap()
                 .meters()
         })
@@ -155,7 +155,7 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
             .to_coordinate()
     };
     let worst = worst_corner_distance(
-        approx.value(),
+        *approx.value(),
         [
             corner(500_000.0, 0.0),
             corner(501_000.0, 0.0),
@@ -176,7 +176,7 @@ fn bound_covers_ground_distance_where_scale_is_minimal() {
             .to_coordinate()
     };
     let worst = worst_corner_distance(
-        approx.value(),
+        *approx.value(),
         [
             corner(2_000_000.0, 2_000_000.0),
             corner(2_001_000.0, 2_000_000.0),

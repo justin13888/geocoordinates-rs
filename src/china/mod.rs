@@ -230,7 +230,7 @@ macro_rules! impl_latlon {
             /// # Ok::<(), geocoordinates::Error>(())
             /// ```
             #[must_use]
-            pub fn lat(&self) -> f64 {
+            pub fn lat(self) -> f64 {
                 self.lat
             }
 
@@ -241,7 +241,7 @@ macro_rules! impl_latlon {
             /// # Ok::<(), geocoordinates::Error>(())
             /// ```
             #[must_use]
-            pub fn lon(&self) -> f64 {
+            pub fn lon(self) -> f64 {
                 self.lon
             }
 
@@ -299,9 +299,9 @@ macro_rules! impl_latlon {
         impl crate::coord::sealed::Sealed for $t {}
 
         impl crate::coord::LatLon for $t {
-            fn lat(&self) -> f64 { self.lat }
-            fn lon(&self) -> f64 { self.lon }
-            fn crs(&self) -> Crs { $crs }
+            fn lat(self) -> f64 { self.lat }
+            fn lon(self) -> f64 { self.lon }
+            fn crs(self) -> Crs { $crs }
         }
 
         /// Thin sugar over the named `to_coordinate` method.

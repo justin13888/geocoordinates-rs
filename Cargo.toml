@@ -73,6 +73,13 @@ version = "0.14.2"
 [lints.rust]
 missing_docs = "warn"
 
+# A `Copy` type is passed by value: every method takes `self`, and a same-type
+# argument is `Self`, not `&Self` (see AGENTS.md). `clippy.toml` turns off
+# `avoid-breaking-exported-api`, so this fires on public items too, and raises
+# `trivial-copy-size-limit` to cover the crate's largest public `Copy` type.
+[lints.clippy]
+trivially_copy_pass_by_ref = "deny"
+
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 thiserror = "2.0.18"

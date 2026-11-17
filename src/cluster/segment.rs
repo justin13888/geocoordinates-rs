@@ -419,10 +419,10 @@ pub fn segment_trips(visits: &[Visit], gap: Duration) -> Result<Vec<Trip>> {
             if waited <= gap {
                 trip.visits.push(position);
                 trip.end = trip.end.max(visit.departure);
-                trip.bounds = trip.bounds.union(&bounds)?;
+                trip.bounds = trip.bounds.union(bounds)?;
                 continue;
             }
-            trip.bounds.union(&bounds)?;
+            trip.bounds.union(bounds)?;
         }
         trips.push(Trip {
             visits: vec![position],

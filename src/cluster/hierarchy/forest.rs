@@ -74,7 +74,7 @@ impl Aggregate {
                 sum[2] + child.sum[2],
             ];
             count += child.count;
-            bounds = bounds.union(&child.bounds).expect("one CRS per index");
+            bounds = bounds.union(child.bounds).expect("one CRS per index");
         }
         // Children that cancel have no mean direction. The bound below stays true
         // for any point, so the seed's own centroid stands in.
@@ -151,7 +151,7 @@ struct Key {
 }
 
 impl Key {
-    fn order(&self, other: &Self) -> Ordering {
+    fn order(self, other: Self) -> Ordering {
         self.lat
             .total_cmp(&other.lat)
             .then(self.lon.total_cmp(&other.lon))
@@ -161,7 +161,7 @@ impl Key {
 
 impl PartialEq for Key {
     fn eq(&self, other: &Self) -> bool {
-        self.order(other) == Ordering::Equal
+        self.order(*other) == Ordering::Equal
     }
 }
 
@@ -175,7 +175,7 @@ impl PartialOrd for Key {
 
 impl Ord for Key {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.order(other)
+        self.order(*other)
     }
 }
 

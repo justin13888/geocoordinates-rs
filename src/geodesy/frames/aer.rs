@@ -60,7 +60,7 @@ impl Aer {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn azimuth_deg(&self) -> f64 {
+    pub fn azimuth_deg(self) -> f64 {
         self.azimuth_deg
     }
 
@@ -73,7 +73,7 @@ impl Aer {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn elevation_deg(&self) -> f64 {
+    pub fn elevation_deg(self) -> f64 {
         self.elevation_deg
     }
 
@@ -86,7 +86,7 @@ impl Aer {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn range(&self) -> Length {
+    pub fn range(self) -> Length {
         self.range
     }
 

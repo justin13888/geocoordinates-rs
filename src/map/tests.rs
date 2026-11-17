@@ -329,6 +329,7 @@ fn covering_handles_edges_poles_and_its_bound() {
     let order: Vec<u32> = tiles_covering(bounds, 3, 4)
         .unwrap()
         .iter()
+        .copied()
         .map(Tile::x)
         .collect();
     assert_eq!(order, [7, 7, 0, 0]);

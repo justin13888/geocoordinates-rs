@@ -185,7 +185,7 @@ fn truncated_squares_decode_inside_their_designator() {
                 .coordinate()
         };
         let worst = worst_corner_distance(
-            decoded.value(),
+            *decoded.value(),
             [
                 corner(-half, -half),
                 corner(half, -half),

@@ -171,7 +171,7 @@ impl Tile {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn quadkey(&self) -> String {
+    pub fn quadkey(self) -> String {
         (1..=self.z)
             .rev()
             .map(|level| {
@@ -196,7 +196,7 @@ impl Tile {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn bounds(&self, crs: Crs) -> GeoBounds {
+    pub fn bounds(self, crs: Crs) -> GeoBounds {
         let n = tiles_across(self.z) as f64;
         let (x, y) = (f64::from(self.x), f64::from(self.y));
         GeoBounds::from_edges(
@@ -218,7 +218,7 @@ impl Tile {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn z(&self) -> u8 {
+    pub const fn z(self) -> u8 {
         self.z
     }
 
@@ -231,7 +231,7 @@ impl Tile {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn x(&self) -> u32 {
+    pub const fn x(self) -> u32 {
         self.x
     }
 
@@ -244,7 +244,7 @@ impl Tile {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn y(&self) -> u32 {
+    pub const fn y(self) -> u32 {
         self.y
     }
 }

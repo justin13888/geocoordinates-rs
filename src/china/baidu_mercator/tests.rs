@@ -132,15 +132,15 @@ fn construction_rejects_non_finite_components() {
 /// edge the last row.
 #[test]
 fn lookup_selects_the_band_by_its_lower_edge() {
-    assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, 60.0), &LL2MC[0]));
-    assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, 59.999), &LL2MC[1]));
-    assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, -15.0), &LL2MC[3]));
-    assert!(std::ptr::eq(lookup(&LLBAND, &LL2MC, 14.999), &LL2MC[4]));
+    assert!(std::ptr::eq(lookup(LLBAND, &LL2MC, 60.0), &LL2MC[0]));
+    assert!(std::ptr::eq(lookup(LLBAND, &LL2MC, 59.999), &LL2MC[1]));
+    assert!(std::ptr::eq(lookup(LLBAND, &LL2MC, -15.0), &LL2MC[3]));
+    assert!(std::ptr::eq(lookup(LLBAND, &LL2MC, 14.999), &LL2MC[4]));
     assert!(std::ptr::eq(
-        lookup(&MCBAND, &MC2LL, 8_362_377.87),
+        lookup(MCBAND, &MC2LL, 8_362_377.87),
         &MC2LL[0]
     ));
-    assert!(std::ptr::eq(lookup(&MCBAND, &MC2LL, 0.0), &MC2LL[4]));
+    assert!(std::ptr::eq(lookup(MCBAND, &MC2LL, 0.0), &MC2LL[4]));
 }
 
 /// The forward fit reproduces Baidu's value to the millimeter, including

@@ -95,7 +95,7 @@ impl Viewport {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn width_px(&self) -> f64 {
+    pub const fn width_px(self) -> f64 {
         self.width_px
     }
 
@@ -108,7 +108,7 @@ impl Viewport {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn height_px(&self) -> f64 {
+    pub const fn height_px(self) -> f64 {
         self.height_px
     }
 
@@ -121,12 +121,12 @@ impl Viewport {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn tile_px(&self) -> f64 {
+    pub const fn tile_px(self) -> f64 {
         self.tile_px
     }
 
     /// The size of the world, in pixels, at `zoom`.
-    fn world_px(&self, zoom: f64) -> f64 {
+    fn world_px(self, zoom: f64) -> f64 {
         self.tile_px * zoom.exp2()
     }
 }
@@ -203,7 +203,7 @@ impl Camera {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn center(&self) -> Coordinate {
+    pub const fn center(self) -> Coordinate {
         self.center
     }
 
@@ -216,14 +216,14 @@ impl Camera {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn zoom(&self) -> f64 {
+    pub const fn zoom(self) -> f64 {
         self.zoom
     }
 }
 
 /// The span of `bounds` as a fraction of the world's width, and its west edge on
 /// the unit square.
-fn columns_of(bounds: &GeoBounds) -> (f64, f64) {
+fn columns_of(bounds: GeoBounds) -> (f64, f64) {
     let span = if bounds.crosses_antimeridian() {
         bounds.east() - bounds.west() + 360.0
     } else {
@@ -283,7 +283,7 @@ pub fn fit_bounds(
             ),
         });
     }
-    let (west, span) = columns_of(&bounds);
+    let (west, span) = columns_of(bounds);
     let (top, bottom) = (unit_y(bounds.north()), unit_y(bounds.south()));
     // A zero extent leaves its axis unlimited, so the other axis or `max_zoom` decides.
     let zoom_for = |free: f64, extent: f64| (free / (extent * viewport.tile_px)).log2();

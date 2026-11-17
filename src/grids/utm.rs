@@ -298,7 +298,7 @@ impl Utm {
     /// [`Error::OutsideDomain`] (operation `"UTM"`) for a latitude outside the
     /// UTM band `[-80, 84)` — 84°N itself is UPS territory.
     pub fn zone_for(coord: Coordinate) -> Result<u8> {
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         let (lat, lon) = (coord.lat(), coord.lon());
         if !(-80.0..84.0).contains(&lat) {
             return Err(Error::OutsideDomain {
@@ -411,7 +411,7 @@ impl Utm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn zone(&self) -> u8 {
+    pub fn zone(self) -> u8 {
         self.zone
     }
 
@@ -425,7 +425,7 @@ impl Utm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn hemisphere(&self) -> UtmHemisphere {
+    pub fn hemisphere(self) -> UtmHemisphere {
         self.hemisphere
     }
 
@@ -441,7 +441,7 @@ impl Utm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn easting_m(&self) -> f64 {
+    pub fn easting_m(self) -> f64 {
         self.easting
     }
 
@@ -457,7 +457,7 @@ impl Utm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn northing_m(&self) -> f64 {
+    pub fn northing_m(self) -> f64 {
         self.northing
     }
 
@@ -534,7 +534,7 @@ impl Utm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn to_coordinate(&self) -> Coordinate {
+    pub fn to_coordinate(self) -> Coordinate {
         let (lat, lon) = self.inverse();
         // An image point is already inside `[-180, 180)`, and is not wrapped:
         // `wrap_longitude` rounds, and could move a longitude an ulp west of
@@ -548,7 +548,7 @@ impl Utm {
     /// The inverse projection, unsnapped: the latitude clamped into
     /// `[-90, 90]`, the longitude unwrapped (the central meridian plus the
     /// series' offset, so a zone 1 point west of 180° comes out below −180).
-    fn inverse(&self) -> (f64, f64) {
+    fn inverse(self) -> (f64, f64) {
         let lon0 = central_meridian(self.zone);
         let n0 = match self.hemisphere {
             UtmHemisphere::North => 0.0,

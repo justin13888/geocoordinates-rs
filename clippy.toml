@@ -1,0 +1,12 @@
+# Clippy configuration for the workspace.
+
+# Let lints that would change a public signature fire on exported items too:
+# 0.15.0 is the declared breaking release, and `trivially_copy_pass_by_ref`
+# (denied in Cargo.toml) is meant to hold the public `Copy` types to `self`.
+avoid-breaking-exported-api = false
+
+# Bytes up to which `trivially_copy_pass_by_ref` treats a `Copy` type as trivial,
+# so a `&self` receiver or `&T` argument on it is rejected. Clippy's default is a
+# pointer's width; this covers the crate's largest public `Copy` type
+# (`cluster::MapCluster`, 112 bytes on a 64-bit target) with room to grow.
+trivial-copy-size-limit = 256

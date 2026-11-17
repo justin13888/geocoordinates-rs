@@ -89,14 +89,14 @@ pub fn rhumb_distance(a: impl LatLon, b: impl LatLon) -> Result<Length> {
     let series = series_for_pair(a, b)?;
     let (phi1, phi2) = (a.lat().to_radians(), b.lat().to_radians());
     if touches_a_pole(a, b) {
-        let d_mu = rectifying_latitude(&series, phi2) - rectifying_latitude(&series, phi1);
+        let d_mu = rectifying_latitude(series, phi2) - rectifying_latitude(series, phi1);
         return Ok(Length::from_meters(series.rect_a * d_mu.abs()));
     }
     let (psi1, psi2) = (
         series.isometric_latitude(phi1),
         series.isometric_latitude(phi2),
     );
-    let q = meridian_scale(&series, psi1, psi2);
+    let q = meridian_scale(series, psi1, psi2);
     Ok(Length::from_meters(
         q * (psi2 - psi1).hypot(shortest_d_lon(a, b)),
     ))
@@ -234,7 +234,7 @@ pub fn rhumb_destination(
         (start.lon(), bearing)
     };
     let phi1 = start.lat().to_radians();
-    let mu1 = rectifying_latitude(&series, phi1);
+    let mu1 = rectifying_latitude(series, phi1);
 
     if bearing == 0.0 || bearing == 180.0 {
         // Travel northward, in a frame mirrored for a southward line.
@@ -243,7 +243,7 @@ pub fn rhumb_destination(
         let (mu2, over_a_pole) = travel_north(from + meters / series.rect_a);
         let mu2 = if north { mu2 } else { -mu2 };
         let half_turn = if over_a_pole { 180.0 } else { 0.0 };
-        return finish(latitude_deg_of(&series, mu2), lon1 + half_turn, start.crs());
+        return finish(latitude_deg_of(series, mu2), lon1 + half_turn, start.crs());
     }
     let (sin_a, cos_a) = bearing.to_radians().sin_cos();
     let mu2 = mu1 + meters * cos_a / series.rect_a;
@@ -257,9 +257,9 @@ pub fn rhumb_destination(
                 .into(),
         });
     }
-    let lat2 = latitude_deg_of(&series, mu2);
+    let lat2 = latitude_deg_of(series, mu2);
     let q = meridian_scale(
-        &series,
+        series,
         series.isometric_latitude(phi1),
         series.isometric_latitude(lat2.to_radians()),
     );
@@ -286,13 +286,13 @@ fn touches_a_pole(a: impl LatLon, b: impl LatLon) -> bool {
 }
 
 /// Rectifying latitude `μ` of geodetic latitude `phi` (radians).
-fn rectifying_latitude(series: &KrugerSeries, phi: f64) -> f64 {
+fn rectifying_latitude(series: KrugerSeries, phi: f64) -> f64 {
     series.rectifying_from_conformal(series.isometric_latitude(phi).sinh().atan())
 }
 
 /// Geodetic latitude, in degrees, of rectifying latitude `mu` (radians), with
 /// the series' round-off at a pole clamped back into `[-90, 90]`.
-fn latitude_deg_of(series: &KrugerSeries, mu: f64) -> f64 {
+fn latitude_deg_of(series: KrugerSeries, mu: f64) -> f64 {
     let chi = series.conformal_from_rectifying(mu);
     clamp_latitude(series.geodetic_from_conformal(chi).to_degrees())
 }
@@ -322,7 +322,7 @@ fn travel_north(mu: f64) -> (f64, bool) {
 /// differences are taken in closed form (no subtraction of nearly equal
 /// arcs), so `q` stays accurate on an almost east-west line; on an exactly
 /// east-west one it is its limit, the radius of the parallel `ν·cos φ`.
-fn meridian_scale(series: &KrugerSeries, psi1: f64, psi2: f64) -> f64 {
+fn meridian_scale(series: KrugerSeries, psi1: f64, psi2: f64) -> f64 {
     let (t1, t2) = (psi1.sinh(), psi2.sinh());
     let d_psi = psi2 - psi1;
     if d_psi == 0.0 {

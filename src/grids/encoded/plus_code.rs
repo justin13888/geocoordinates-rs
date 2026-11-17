@@ -88,7 +88,7 @@ impl PlusCode {
     /// Returns [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
     /// [`Error::InvalidValue`] for any other `length`.
     pub fn encode(coord: Coordinate, length: u8) -> Result<Self> {
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         if !matches!(length, 2 | 4 | 6 | 8 | 10..=15) {
             return Err(Error::InvalidValue {
                 field: "length",
@@ -123,7 +123,7 @@ impl PlusCode {
             lon_val /= ENCODING_BASE;
         }
 
-        Ok(PlusCode(assemble(&digits, usize::from(length))))
+        Ok(PlusCode(assemble(digits, usize::from(length))))
     }
 
     /// The canonical (uppercase) Plus Code string.
@@ -258,7 +258,7 @@ impl PlusCode {
 }
 
 /// Insert the separator after position 8 and trim/pad the 15 digits to `length`.
-fn assemble(digits: &[u8; MAX_DIGIT_COUNT], length: usize) -> String {
+fn assemble(digits: [u8; MAX_DIGIT_COUNT], length: usize) -> String {
     let mut full = String::with_capacity(MAX_DIGIT_COUNT + 1);
     for (i, &d) in digits.iter().enumerate() {
         if i == SEPARATOR_POSITION {

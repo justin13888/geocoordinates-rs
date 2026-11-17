@@ -70,7 +70,7 @@ impl Length {
     /// assert_eq!(Length::from_unit(1.0, LengthUnit::NauticalMile).meters(), 1852.0);
     /// ```
     #[must_use]
-    pub const fn meters(&self) -> f64 {
+    pub const fn meters(self) -> f64 {
         self.meters
     }
 
@@ -96,7 +96,7 @@ impl Length {
     /// assert!((marathon.to_unit(LengthUnit::Foot) - 138_435.039).abs() < 1e-3);
     /// ```
     #[must_use]
-    pub fn to_unit(&self, unit: LengthUnit) -> f64 {
+    pub fn to_unit(self, unit: LengthUnit) -> f64 {
         self.meters / unit.meters_per_unit()
     }
 }

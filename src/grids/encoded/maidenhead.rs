@@ -54,7 +54,7 @@ impl Maidenhead {
     /// Returns [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
     /// [`Error::InvalidValue`] for `pairs` outside `1..=3`.
     pub fn encode(coord: Coordinate, pairs: u8) -> Result<Self> {
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         if !(1..=3).contains(&pairs) {
             return Err(Error::InvalidValue {
                 field: "pairs",

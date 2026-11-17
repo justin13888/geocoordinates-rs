@@ -156,7 +156,7 @@ impl Wgs84 {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn is_outside_china(&self) -> bool {
+    pub fn is_outside_china(self) -> bool {
         outside_china_box(self.lat(), self.lon())
     }
 
@@ -200,7 +200,7 @@ impl Gcj02 {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn is_outside_china(&self) -> bool {
+    pub fn is_outside_china(self) -> bool {
         outside_china_box(self.lat(), self.lon())
     }
 

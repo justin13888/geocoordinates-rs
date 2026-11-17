@@ -149,7 +149,7 @@ pub fn clusters_to_geojson(
     let features = clusters
         .iter()
         .map(|pin| {
-            index.check_pin(pin)?;
+            index.check_pin(*pin)?;
             let mut properties = JsonObject::new();
             let id = if pin.count() > 1 {
                 properties.insert("cluster".into(), JsonValue::Bool(true));

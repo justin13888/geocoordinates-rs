@@ -30,7 +30,7 @@ fn parse_text_with_rejects_every_expected_grid_instead_of_ignoring_it() {
         };
         // Valid free text is still refused: the option cannot be honoured.
         assert!(matches!(
-            parse_text_with("40.7128, -74.006", &options),
+            parse_text_with("40.7128, -74.006", options),
             Err(Error::InvalidValue {
                 field: "expect_grid",
                 ..
@@ -38,7 +38,7 @@ fn parse_text_with_rejects_every_expected_grid_instead_of_ignoring_it() {
         ));
         // The internal free-text reader used by `parse_coordinate_with` leaves
         // the option to its caller.
-        assert!(parse_free_text("40.7128, -74.006", &options).is_ok());
+        assert!(parse_free_text("40.7128, -74.006", options).is_ok());
     }
 }
 
@@ -108,7 +108,7 @@ fn space_separated_ddm_with_suffix_hemispheres() {
 #[test]
 fn decimal_comma_option() {
     let opts = comma_options();
-    let fix = parse_text_with("40,7128 -74,006", &opts).unwrap();
+    let fix = parse_text_with("40,7128 -74,006", opts).unwrap();
     assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_close(fix.coord.lon(), -74.006, 1e-9);
     // The same string without the option is a different (failing) parse.
@@ -121,7 +121,7 @@ fn default_lonlat_swaps_assignment() {
         default_axis_order: AxisOrder::LonLat,
         ..ParseOptions::default()
     };
-    let fix = parse_text_with("-74.006, 40.7128", &opts).unwrap();
+    let fix = parse_text_with("-74.006, 40.7128", opts).unwrap();
     assert_close(fix.coord.lon(), -74.006, 1e-9);
     assert_close(fix.coord.lat(), 40.7128, 1e-9);
     assert_eq!(source(&fix).axis_order, Some(AxisOrder::LonLat));
@@ -155,9 +155,9 @@ fn out_of_range_readings_are_the_pair_error() {
     // Both beyond ±90: labelled in the default axis order.
     assert_eq!(parse_text("100, 150"), out(100.0, 150.0));
     let lon_first = ParseOptions::default().with_default_axis_order(AxisOrder::LonLat);
-    assert_eq!(parse_text_with("100, 150", &lon_first), out(150.0, 100.0));
+    assert_eq!(parse_text_with("100, 150", lon_first), out(150.0, 100.0));
     assert_eq!(
-        parse_text_with("100,5; -150", &comma_options()),
+        parse_text_with("100,5; -150", comma_options()),
         out(100.5, -150.0)
     );
     // Same-axis letters and malformed fields have no reading at all.
@@ -304,7 +304,7 @@ fn letter_markers_parse_like_symbols() {
     }
     // Letter markers combine with the decimal-comma option.
     let opts = comma_options();
-    let fix = parse_text_with("10d30m00,00sS 20d15,000mW", &opts).unwrap();
+    let fix = parse_text_with("10d30m00,00sS 20d15,000mW", opts).unwrap();
     assert_close(fix.coord.lat(), -lat, 1e-9);
     assert_close(fix.coord.lon(), lon, 1e-9);
 }
@@ -440,7 +440,7 @@ fn decimal_comma_text_splits_on_the_remaining_list_separators() {
     // (and `;`) separate the two components.
     let opts = comma_options();
     for input in ["48,8566, 2,3522", "48,8566 , 2,3522", "48,8566; 2,3522"] {
-        let fix = parse_text_with(input, &opts).unwrap_or_else(|e| panic!("{input:?}: {e}"));
+        let fix = parse_text_with(input, opts).unwrap_or_else(|e| panic!("{input:?}: {e}"));
         assert_close(fix.coord.lat(), 48.8566, 1e-9);
         assert_close(fix.coord.lon(), 2.3522, 1e-9);
     }

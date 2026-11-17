@@ -117,14 +117,14 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
             decimals: Some(Representation::MAX_DD_DECIMALS + 1),
             hemisphere: HemisphereStyle::Signed,
         });
-    assert!(format(new_york(), &too_fine_dd).is_err());
+    assert!(format(new_york(), too_fine_dd).is_err());
     let too_fine_dms = FormatOptions::default().with_representation(Representation::Dms {
         second_decimals: Some(Representation::MAX_DMS_SECOND_DECIMALS + 1),
         symbols: SymbolStyle::Unicode,
         hemisphere: HemisphereStyle::Cardinal,
     });
     assert!(matches!(
-        format(new_york(), &too_fine_dms),
+        format(new_york(), too_fine_dms),
         Err(Error::InvalidValue {
             field: "second_decimals",
             ..

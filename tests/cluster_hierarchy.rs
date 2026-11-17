@@ -55,7 +55,7 @@ fn points() -> impl Strategy<Value = Vec<Coordinate>> {
 /// One cluster reduced to what must match bit for bit, members as positions.
 type Summary = (u64, [u64; 3], [u64; 4], Vec<(u64, u64)>);
 
-fn summary(index: &ClusterIndex, pin: &MapCluster) -> Summary {
+fn summary(index: &ClusterIndex, pin: MapCluster) -> Summary {
     let bounds = pin.bounds();
     let mut members: Vec<(u64, u64)> = index
         .leaves(pin.id(), usize::MAX, 0)
@@ -92,7 +92,7 @@ fn snapshot(index: &ClusterIndex) -> Vec<Vec<Summary>> {
                 .clusters(world(), zoom)
                 .unwrap()
                 .iter()
-                .map(|pin| summary(index, pin))
+                .map(|pin| summary(index, *pin))
                 .collect();
             level.sort();
             level
@@ -289,7 +289,7 @@ proptest! {
         let index = ClusterIndex::new(points.iter().copied(), tight()).unwrap();
         for zoom in [0, 4, 9, 15, MAX_ZOOM] {
             let pins = index.clusters(world(), zoom).unwrap();
-            let total: u64 = pins.iter().map(MapCluster::count).sum();
+            let total: u64 = pins.iter().copied().map(MapCluster::count).sum();
             prop_assert_eq!(total as usize, points.len());
             for pin in pins {
                 prop_assert_eq!(pin.zoom(), zoom);
@@ -306,7 +306,7 @@ proptest! {
                     );
                 }
                 let children = index.children(pin.id()).unwrap();
-                let held: u64 = children.iter().map(MapCluster::count).sum();
+                let held: u64 = children.iter().copied().map(MapCluster::count).sum();
                 prop_assert_eq!(held, pin.count());
                 prop_assert!(children.iter().all(|child| child.zoom() == zoom + 1));
             }

@@ -14,7 +14,7 @@ const LON_JUST_WEST_OF_180: f64 = 179.999_999_999_999_97;
 /// within the decoded bound of its center.
 #[track_caller]
 fn assert_corners_within_bound(
-    area: &Approx<Coordinate>,
+    area: Approx<Coordinate>,
     (lat_lo, lat_hi): (f64, f64),
     (lon_lo, lon_hi): (f64, f64),
 ) {
@@ -88,23 +88,23 @@ fn tall_polar_cells_bound_every_corner() {
     // C13: scaling by cos(center latitude) understates cells that reach the
     // pole, and 111,320 m/deg understates meridian arcs near the poles.
     assert_corners_within_bound(
-        &Geohash::try_from("b").unwrap().decode(),
+        Geohash::try_from("b").unwrap().decode(),
         (45.0, 90.0),
         (-180.0, -135.0),
     );
     assert_corners_within_bound(
-        &Maidenhead::try_from("AR").unwrap().decode(),
+        Maidenhead::try_from("AR").unwrap().decode(),
         (80.0, 90.0),
         (-180.0, -160.0),
     );
     assert_corners_within_bound(
-        &PlusCode::try_from("C2000000+").unwrap().decode(),
+        PlusCode::try_from("C2000000+").unwrap().decode(),
         (70.0, 90.0),
         (-180.0, -160.0),
     );
     // A small cell near the pole, where a meridian degree is ~111.69 km.
     assert_corners_within_bound(
-        &Maidenhead::try_from("AR09ax").unwrap().decode(),
+        Maidenhead::try_from("AR09ax").unwrap().decode(),
         (89.0 + 23.0 / 24.0, 90.0),
         (-180.0, -180.0 + 2.0 / 24.0),
     );
@@ -127,7 +127,7 @@ fn position() -> impl Strategy<Value = Coordinate> {
 /// `Display` + `FromStr`, and `String`; the encoded point and every corner of
 /// its `lat_size` × `lon_size` (degrees) cell lie within the decoded bound.
 #[track_caller]
-fn check_code<T>(code: &T, c: &Coordinate, (lat_size, lon_size): (f64, f64))
+fn check_code<T>(code: &T, c: Coordinate, (lat_size, lon_size): (f64, f64))
 where
     T: core::fmt::Debug
         + core::fmt::Display
@@ -144,7 +144,7 @@ where
     assert_eq!(code.to_string().parse::<T>().as_ref(), Ok(code));
     assert_eq!(T::try_from(code.clone().into()).as_ref(), Ok(code));
     let area = Approx::from(Decoded(code.clone()));
-    assert_within_geodesic_meters(*c, *area.value(), area.max_error().meters());
+    assert_within_geodesic_meters(c, *area.value(), area.max_error().meters());
     let (lat, lon) = (area.value().lat(), area.value().lon());
     for (dlat, dlon) in [(-0.5, -0.5), (-0.5, 0.5), (0.5, -0.5), (0.5, 0.5)] {
         let corner = wgs(
@@ -220,18 +220,18 @@ proptest! {
         length in prop::sample::select(vec![2, 4, 6, 8, 10, 11, 12, 13, 14, 15]),
     ) {
         let code = PlusCode::encode(c, length).unwrap();
-        check_code(&code, &c, plus_code_cell(length));
+        check_code(&code, c, plus_code_cell(length));
     }
 
     #[test]
     fn geohash_round_trips_through_its_validator(c in position(), length in 1..=12_u8) {
         let code = Geohash::encode(c, length).unwrap();
-        check_code(&code, &c, geohash_cell(length));
+        check_code(&code, c, geohash_cell(length));
     }
 
     #[test]
     fn maidenhead_round_trips_through_its_validator(c in position(), pairs in 1..=3_u8) {
         let code = Maidenhead::encode(c, pairs).unwrap();
-        check_code(&code, &c, maidenhead_cell(pairs));
+        check_code(&code, c, maidenhead_cell(pairs));
     }
 }

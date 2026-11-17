@@ -114,7 +114,7 @@ impl H3Cell {
     pub fn encode(coord: Coordinate, resolution: u8) -> Result<Self> {
         use h3o::{LatLng, Resolution};
 
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         let res = Resolution::try_from(resolution).map_err(|_| Error::InvalidValue {
             field: "resolution",
             detail: "must be in 0..=15".into(),
@@ -153,7 +153,7 @@ impl H3Cell {
         // h3o yields latitude in [-90, 90] and longitude in [-180, 180].
         let center = Coordinate::from_valid(center.lat(), center.lng(), None, Crs::Wgs84);
         let radius = farthest_geodesic_m(
-            &center,
+            center,
             cell.boundary()
                 .iter()
                 .map(|vertex| (vertex.lat(), vertex.lng())),
@@ -290,7 +290,7 @@ impl S2CellId {
         use s2::cellid::CellID;
         use s2::latlng::LatLng;
 
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         if level > 30 {
             return Err(Error::InvalidValue {
                 field: "level",
@@ -328,7 +328,7 @@ impl S2CellId {
         // longitude in [-180, 180].
         let center = Coordinate::from_valid(center.lat.deg(), center.lng.deg(), None, Crs::Wgs84);
         let radius = farthest_geodesic_m(
-            &center,
+            center,
             Cell::from(cell).vertices().iter().map(|vertex| {
                 let vertex = LatLng::from(*vertex);
                 (vertex.lat.deg(), vertex.lng.deg())

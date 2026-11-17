@@ -125,7 +125,7 @@ impl Center {
 /// which does hold points of the designator. Elsewhere this moves a point
 /// that close to a central meridian into the square west of it, where it
 /// lies.
-pub(super) fn encoder_easting(coord: Coordinate, utm: &Utm) -> f64 {
+pub(super) fn encoder_easting(coord: Coordinate, utm: Utm) -> f64 {
     if coord.lon() < central_meridian(utm.zone()) {
         utm.easting_m()
             .min(f64::from_bits(500_000f64.to_bits() - 1))

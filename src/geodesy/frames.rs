@@ -172,7 +172,7 @@ impl Enu {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn east_m(&self) -> f64 {
+    pub fn east_m(self) -> f64 {
         self.east_m
     }
 
@@ -183,7 +183,7 @@ impl Enu {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn north_m(&self) -> f64 {
+    pub fn north_m(self) -> f64 {
         self.north_m
     }
 
@@ -194,7 +194,7 @@ impl Enu {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn up_m(&self) -> f64 {
+    pub fn up_m(self) -> f64 {
         self.up_m
     }
 
@@ -391,7 +391,7 @@ impl Ned {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn north_m(&self) -> f64 {
+    pub fn north_m(self) -> f64 {
         self.north_m
     }
 
@@ -402,7 +402,7 @@ impl Ned {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn east_m(&self) -> f64 {
+    pub fn east_m(self) -> f64 {
         self.east_m
     }
 
@@ -413,7 +413,7 @@ impl Ned {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn down_m(&self) -> f64 {
+    pub fn down_m(self) -> f64 {
         self.down_m
     }
 

@@ -50,7 +50,7 @@ use crate::{Coordinate, Error, Result};
 /// let offset_ms = estimate_offset(&track, &[reference])?;
 /// assert_eq!(offset_ms, -2_630_000);
 /// let options = GeotagOptions::default().with_clock_offset_ms(offset_ms);
-/// let located = track.locate(at(3_650), &options)?.expect("on the track");
+/// let located = track.locate(at(3_650), options)?.expect("on the track");
 /// assert!((located.coord.lon() - 0.002).abs() < 1e-9);
 ///
 /// assert!(matches!(

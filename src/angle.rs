@@ -247,7 +247,7 @@ impl Dms {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn degrees(&self) -> u16 {
+    pub fn degrees(self) -> u16 {
         self.degrees
     }
 
@@ -260,7 +260,7 @@ impl Dms {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn minutes(&self) -> u8 {
+    pub fn minutes(self) -> u8 {
         self.minutes
     }
 
@@ -273,7 +273,7 @@ impl Dms {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn seconds(&self) -> f64 {
+    pub fn seconds(self) -> f64 {
         self.seconds
     }
 
@@ -287,7 +287,7 @@ impl Dms {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn hemisphere(&self) -> Hemisphere {
+    pub fn hemisphere(self) -> Hemisphere {
         self.hemisphere
     }
 
@@ -410,7 +410,7 @@ impl Ddm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn degrees(&self) -> u16 {
+    pub fn degrees(self) -> u16 {
         self.degrees
     }
 
@@ -423,7 +423,7 @@ impl Ddm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn minutes(&self) -> f64 {
+    pub fn minutes(self) -> f64 {
         self.minutes
     }
 
@@ -436,7 +436,7 @@ impl Ddm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn hemisphere(&self) -> Hemisphere {
+    pub fn hemisphere(self) -> Hemisphere {
         self.hemisphere
     }
 

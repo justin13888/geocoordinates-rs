@@ -310,12 +310,12 @@ pub fn parse_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
     use wkt::Wkt;
     use wkt::types::{Coord, Point};
 
-    fn coord(c: &Coord<f64>, axis_order: AxisOrder, out: &mut Vec<Position>) {
+    fn coord(c: Coord<f64>, axis_order: AxisOrder, out: &mut Vec<Position>) {
         let (lon, lat) = match axis_order {
             AxisOrder::LonLat => (c.x, c.y),
             AxisOrder::LatLon => (c.y, c.x),
         };
-        let raw = Point::from_coord(*c).to_string();
+        let raw = Point::from_coord(c).to_string();
         let mut position = Position::new(
             lon,
             lat,
@@ -332,7 +332,7 @@ pub fn parse_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
         out.push(position);
     }
     fn coords(cs: &[Coord<f64>], axis_order: AxisOrder, out: &mut Vec<Position>) {
-        cs.iter().for_each(|c| coord(c, axis_order, out));
+        cs.iter().for_each(|c| coord(*c, axis_order, out));
     }
     /// Walk `root` in document order with an explicit stack, not recursion.
     fn geometry(root: &Wkt<f64>, axis_order: AxisOrder, out: &mut Vec<Position>) {
@@ -341,7 +341,7 @@ pub fn parse_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
             match g {
                 Wkt::Point(p) => {
                     if let Some(c) = p.coord() {
-                        coord(c, axis_order, out);
+                        coord(*c, axis_order, out);
                     }
                 }
                 Wkt::LineString(ls) => coords(ls.coords(), axis_order, out),
@@ -351,7 +351,7 @@ pub fn parse_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
                     .for_each(|ls| coords(ls.coords(), axis_order, out)),
                 Wkt::MultiPoint(mp) => mp.points().iter().for_each(|p| {
                     if let Some(c) = p.coord() {
-                        coord(c, axis_order, out);
+                        coord(*c, axis_order, out);
                     }
                 }),
                 Wkt::MultiLineString(mls) => mls
@@ -501,7 +501,7 @@ pub fn parse_kml(input: &str) -> Result<Vec<Fix>> {
     use kml::Kml;
     use kml::types::{Coord, Geometry};
 
-    fn coord(c: &Coord<f64>, out: &mut Vec<Position>) {
+    fn coord(c: Coord<f64>, out: &mut Vec<Position>) {
         let raw = match c.z {
             Some(z) => format!(
                 "<Point><coordinates>{},{},{z}</coordinates></Point>",
@@ -523,10 +523,10 @@ pub fn parse_kml(input: &str) -> Result<Vec<Fix>> {
         Geometry(&'a Geometry<f64>),
     }
     fn polygon(poly: &kml::types::Polygon<f64>, out: &mut Vec<Position>) {
-        poly.outer.coords.iter().for_each(|c| coord(c, out));
+        poly.outer.coords.iter().for_each(|c| coord(*c, out));
         poly.inner
             .iter()
-            .for_each(|r| r.coords.iter().for_each(|c| coord(c, out)));
+            .for_each(|r| r.coords.iter().for_each(|c| coord(*c, out)));
     }
     /// Walk `root` in document order with an explicit stack, not recursion.
     fn walk(root: &Kml<f64>, out: &mut Vec<Position>) {
@@ -540,17 +540,17 @@ pub fn parse_kml(input: &str) -> Result<Vec<Fix>> {
         while let Some(node) = stack.pop() {
             match node {
                 Node::Geometry(g) => match g {
-                    Geometry::Point(p) => coord(&p.coord, out),
-                    Geometry::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
-                    Geometry::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(c, out)),
+                    Geometry::Point(p) => coord(p.coord, out),
+                    Geometry::LineString(ls) => ls.coords.iter().for_each(|c| coord(*c, out)),
+                    Geometry::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(*c, out)),
                     Geometry::Polygon(poly) => polygon(poly, out),
                     Geometry::MultiGeometry(mg) => stack.extend(geometries(&mg.geometries).rev()),
                     _ => {} // Element / future variants carry no coordinates
                 },
                 Node::Kml(k) => match k {
-                    Kml::Point(p) => coord(&p.coord, out),
-                    Kml::LineString(ls) => ls.coords.iter().for_each(|c| coord(c, out)),
-                    Kml::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(c, out)),
+                    Kml::Point(p) => coord(p.coord, out),
+                    Kml::LineString(ls) => ls.coords.iter().for_each(|c| coord(*c, out)),
+                    Kml::LinearRing(lr) => lr.coords.iter().for_each(|c| coord(*c, out)),
                     Kml::Polygon(poly) => polygon(poly, out),
                     Kml::MultiGeometry(mg) => stack.extend(geometries(&mg.geometries).rev()),
                     Kml::Placemark(pm) => stack.extend(pm.geometry.as_ref().map(Node::Geometry)),

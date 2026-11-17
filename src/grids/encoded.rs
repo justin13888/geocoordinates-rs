@@ -124,7 +124,7 @@ fn cell_center(lat_lo: f64, lat_hi: f64, lon_lo: f64, lon_hi: f64) -> Approx<Coo
         (lat_hi, lon_lo),
         (lat_hi, lon_hi),
     ];
-    let max_error_m = farthest_geodesic_m(&center, corners) + ROUNDING_MARGIN_M;
+    let max_error_m = farthest_geodesic_m(center, corners) + ROUNDING_MARGIN_M;
     Approx::from_valid(center, max_error_m)
 }
 

@@ -311,7 +311,7 @@ impl Coordinate {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn lat(&self) -> f64 {
+    pub fn lat(self) -> f64 {
         self.lat
     }
 
@@ -323,7 +323,7 @@ impl Coordinate {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn lon(&self) -> f64 {
+    pub fn lon(self) -> f64 {
         self.lon
     }
 
@@ -337,7 +337,7 @@ impl Coordinate {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn crs(&self) -> Crs {
+    pub fn crs(self) -> Crs {
         self.crs
     }
 
@@ -353,7 +353,7 @@ impl Coordinate {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn height(&self) -> Option<Height> {
+    pub fn height(self) -> Option<Height> {
         self.height
     }
 
@@ -372,7 +372,7 @@ impl Coordinate {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn is_null_island(&self) -> bool {
+    pub fn is_null_island(self) -> bool {
         self.lat.abs() <= NULL_ISLAND_EPS_DEG && self.lon.abs() <= NULL_ISLAND_EPS_DEG
     }
 }
@@ -418,9 +418,9 @@ pub(crate) mod sealed {
 /// #[derive(Clone, Copy)]
 /// struct Mine;
 /// impl geocoordinates::LatLon for Mine {
-///     fn lat(&self) -> f64 { 0.0 }
-///     fn lon(&self) -> f64 { 0.0 }
-///     fn crs(&self) -> geocoordinates::Crs { geocoordinates::Crs::Wgs84 }
+///     fn lat(self) ->f64 { 0.0 }
+///     fn lon(self) ->f64 { 0.0 }
+///     fn crs(self) ->geocoordinates::Crs { geocoordinates::Crs::Wgs84 }
 /// }
 /// ```
 pub trait LatLon: sealed::Sealed + Copy {
@@ -430,46 +430,46 @@ pub trait LatLon: sealed::Sealed + Copy {
     /// use geocoordinates::LatLon;
     /// use geocoordinates::china::Wgs84;
     ///
-    /// assert_eq!(LatLon::lat(&Wgs84::new(10.0, 20.0)?), 10.0);
+    /// assert_eq!(LatLon::lat(Wgs84::new(10.0, 20.0)?), 10.0);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    fn lat(&self) -> f64;
+    fn lat(self) -> f64;
     /// Longitude in decimal degrees.
     ///
     /// ```
     /// use geocoordinates::LatLon;
     /// use geocoordinates::china::Wgs84;
     ///
-    /// assert_eq!(LatLon::lon(&Wgs84::new(10.0, 20.0)?), 20.0);
+    /// assert_eq!(LatLon::lon(Wgs84::new(10.0, 20.0)?), 20.0);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    fn lon(&self) -> f64;
+    fn lon(self) -> f64;
     /// Reference system of the position.
     ///
     /// ```
     /// use geocoordinates::china::Wgs84;
     /// use geocoordinates::{Crs, LatLon};
     ///
-    /// assert_eq!(LatLon::crs(&Wgs84::new(10.0, 20.0)?), Crs::Wgs84);
+    /// assert_eq!(LatLon::crs(Wgs84::new(10.0, 20.0)?), Crs::Wgs84);
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    fn crs(&self) -> Crs;
+    fn crs(self) -> Crs;
 }
 
 impl sealed::Sealed for Coordinate {}
 
 /// Sugar over the inherent getters of the same name.
 impl LatLon for Coordinate {
-    fn lat(&self) -> f64 {
+    fn lat(self) -> f64 {
         self.lat
     }
-    fn lon(&self) -> f64 {
+    fn lon(self) -> f64 {
         self.lon
     }
-    fn crs(&self) -> Crs {
+    fn crs(self) -> Crs {
         self.crs
     }
 }
@@ -561,7 +561,7 @@ mod tests {
     #[test]
     fn text_round_trip_goes_through_explicit_routes() {
         let c = wgs(40.7128, -74.006);
-        let rendered = crate::format::format(c, &crate::format::FormatOptions::default());
+        let rendered = crate::format::format(c, crate::format::FormatOptions::default());
         assert_eq!(rendered.as_deref(), Ok("40.712800, -74.006000"));
         let back = crate::parse::parse_coordinate(&rendered.unwrap()).unwrap();
         assert_eq!(back.coord, c);

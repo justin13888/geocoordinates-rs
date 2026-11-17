@@ -44,7 +44,7 @@ fn viewports_over_many_pins_lose_nothing() {
     for zoom in [3, 5, 8, 12] {
         let pins = index.clusters(world(), zoom).unwrap();
         assert_eq!(
-            pins.iter().map(MapCluster::count).sum::<u64>(),
+            pins.iter().copied().map(MapCluster::count).sum::<u64>(),
             count,
             "zoom {zoom}"
         );

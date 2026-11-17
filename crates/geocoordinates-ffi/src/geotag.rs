@@ -130,7 +130,7 @@ impl Track {
     /// `GeoError::InvalidValue` (field `max_speed_mps`) when the speed is negative
     /// or not finite.
     pub fn locate(&self, at: SystemTime, options: GeotagOptions) -> Result<Option<Fix>, GeoError> {
-        Ok(self.inner.locate(at, &options.into())?.map(Into::into))
+        Ok(self.inner.locate(at, options.into())?.map(Into::into))
     }
 
     /// The kept fixes, in time order.

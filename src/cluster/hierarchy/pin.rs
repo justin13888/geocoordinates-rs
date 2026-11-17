@@ -111,7 +111,7 @@ impl MapCluster {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn id(&self) -> u64 {
+    pub const fn id(self) -> u64 {
         self.id
     }
 
@@ -127,7 +127,7 @@ impl MapCluster {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn zoom(&self) -> u8 {
+    pub const fn zoom(self) -> u8 {
         self.zoom
     }
 
@@ -150,7 +150,7 @@ impl MapCluster {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn centroid(&self) -> Approx<Coordinate> {
+    pub const fn centroid(self) -> Approx<Coordinate> {
         self.centroid
     }
 
@@ -166,7 +166,7 @@ impl MapCluster {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn bounds(&self) -> GeoBounds {
+    pub const fn bounds(self) -> GeoBounds {
         self.bounds
     }
 
@@ -181,7 +181,7 @@ impl MapCluster {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn count(&self) -> u64 {
+    pub const fn count(self) -> u64 {
         self.count
     }
 }

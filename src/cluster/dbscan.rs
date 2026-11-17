@@ -153,7 +153,7 @@ fn find(parents: &mut [usize], mut node: usize) -> usize {
 
 /// The order that picks a border point's cluster: nearest core point first, then
 /// the lower latitude and longitude, neither of which depends on the input order.
-fn nearer_core(a: &Neighbor<'_, ()>, b: &Neighbor<'_, ()>) -> Ordering {
+fn nearer_core(a: Neighbor<'_, ()>, b: Neighbor<'_, ()>) -> Ordering {
     let (a_at, b_at) = (a.coordinate(), b.coordinate());
     a.distance()
         .meters()
@@ -244,7 +244,8 @@ pub fn dbscan(points: &[Coordinate], eps: Length, min_points: usize) -> Result<D
             }
         } else {
             joins[position] = core_hits
-                .min_by(|a, b| nearer_core(a, b))
+                .copied()
+                .min_by(|a, b| nearer_core(*a, *b))
                 .map(Neighbor::index);
         }
     }

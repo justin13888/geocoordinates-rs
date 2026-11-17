@@ -53,7 +53,7 @@ use crate::error::{Error, Result};
 /// `Ok` for a WGS-84 coordinate, else [`Error::CrsMismatch`] expecting
 /// WGS-84: the gate of every grid defined only on WGS-84 latitude / longitude
 /// (the encoded locators, UTM / UPS, MGRS, and the H3 / S2 cells).
-pub(crate) fn require_wgs84(coord: &Coordinate) -> Result<()> {
+pub(crate) fn require_wgs84(coord: Coordinate) -> Result<()> {
     if coord.crs() != Crs::Wgs84 {
         return Err(Error::CrsMismatch {
             expected: Crs::Wgs84,
