@@ -115,6 +115,8 @@ impl<T: serde::Serialize> serde::Serialize for Approx<T> {
 pub(crate) mod infinity_as_none {
     use serde::{Deserialize, Deserializer, Serializer};
 
+    // serde's `serialize_with` contract passes the field by reference.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub(crate) fn serialize<S: Serializer>(value: &f64, s: S) -> Result<S::Ok, S::Error> {
         if *value == f64::INFINITY {
             s.serialize_none()

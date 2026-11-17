@@ -525,7 +525,7 @@ fn travel_north_counts_the_poles_it_passes() {
 fn meridian_scale_is_continuous_at_the_east_west_limit() {
     let s = KrugerSeries::WGS84;
     let psi = s.isometric_latitude(f64::to_radians(40.0));
-    let limit = meridian_scale(&s, psi, psi);
+    let limit = meridian_scale(s, psi, psi);
     // The radius of the 40° parallel, ν·cos φ = a·cos φ / √(1 − e² sin² φ).
     let phi = f64::to_radians(40.0);
     let e2 = Ellipsoid::WGS84.eccentricity_sq();
@@ -536,15 +536,15 @@ fn meridian_scale_is_continuous_at_the_east_west_limit() {
     // about q′/q · Δψ / 2 (≈ 0.32 Δψ here) — never by more than Δψ, however
     // small Δψ gets (a ratio of subtracted arcs would be noise below ~1e-8).
     for d_psi in [1e-15, -1e-12, 1e-10, 1e-8] {
-        let relative = meridian_scale(&s, psi, psi + d_psi) / limit - 1.0;
+        let relative = meridian_scale(s, psi, psi + d_psi) / limit - 1.0;
         assert!(relative.abs() <= d_psi.abs(), "{d_psi:e}: {relative:e}");
         assert!(relative * d_psi <= 0.0, "{d_psi:e}: {relative:e}");
     }
     // Symmetric in its endpoints.
     let psi2 = s.isometric_latitude(f64::to_radians(60.0));
     assert_eq!(
-        meridian_scale(&s, psi, psi2).to_bits(),
-        meridian_scale(&s, psi2, psi).to_bits()
+        meridian_scale(s, psi, psi2).to_bits(),
+        meridian_scale(s, psi2, psi).to_bits()
     );
 }
 

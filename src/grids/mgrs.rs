@@ -270,7 +270,7 @@ impl Mgrs {
     /// # Errors
     /// Returns [`crate::Error::CrsMismatch`] for a non-WGS-84 coordinate.
     pub fn try_from_coordinate(coord: Coordinate, precision: MgrsPrecision) -> Result<Self> {
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         let text = encode_text(coord, precision.digits())?;
         // The value is built by parsing the emitted string, so the encoder can
         // never hand out a reference the parser would reject: the parser is
@@ -414,7 +414,7 @@ fn encode_utm(coord: Coordinate, digits: u32) -> Result<String> {
         UtmHemisphere::South => (false, utm.northing_m()),
     };
     // On the central meridian's side the point lies on (#198).
-    let easting = clip::encoder_easting(coord, &utm);
+    let easting = clip::encoder_easting(coord, utm);
     let set = ((utm.zone() - 1) % 3) as usize;
     let col = UTM_COLS[set].as_bytes()[(easting / 100_000.0) as usize - 1] as char;
     let row_off = if utm.zone() % 2 == 0 { 5 } else { 0 };

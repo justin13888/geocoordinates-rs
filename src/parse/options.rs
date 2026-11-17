@@ -21,7 +21,7 @@ use crate::format::{DecimalSeparator, FormatOptions, Representation};
 /// // A bare geohash is not detected: it is not valid coordinate text either.
 /// assert!(parse_coordinate("ezs42").is_err());
 /// let options = ParseOptions::default().with_expect_grid(Some(GridKind::Geohash));
-/// let fix = parse_coordinate_with("ezs42", &options)?;
+/// let fix = parse_coordinate_with("ezs42", options)?;
 /// assert!((fix.coord.lat() - 42.6).abs() < 0.03 && (fix.coord.lon() + 5.6).abs() < 0.03);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
@@ -67,7 +67,7 @@ pub enum GridKind {
 /// let options = ParseOptions::default()
 ///     .with_default_axis_order(AxisOrder::LonLat)
 ///     .with_decimal_separator(DecimalSeparator::Comma);
-/// let fix = parse_coordinate_with("2,3522 48,8566", &options)?;
+/// let fix = parse_coordinate_with("2,3522 48,8566", options)?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
@@ -109,18 +109,18 @@ impl ParseOptions {
     ///
     /// let options =
     ///     FormatOptions::default().with_representation(Representation::Geohash { length: 5 });
-    /// let parse = ParseOptions::for_format(&options);
+    /// let parse = ParseOptions::for_format(options);
     /// assert_eq!(parse.expect_grid, Some(GridKind::Geohash));
     /// let c = Coordinate::wgs84(42.6, -5.6)?;
-    /// let text = format(c, &options)?; // "ezs42"
-    /// let fix = parse_coordinate_with(&text, &parse)?;
+    /// let text = format(c, options)?; // "ezs42"
+    /// let fix = parse_coordinate_with(&text, parse)?;
     /// assert!((fix.coord.lat() - 42.6).abs() < 0.03);
     /// // Without the expected grid, the bare geohash does not read.
-    /// assert!(parse_coordinate_with(&text, &ParseOptions::default()).is_err());
+    /// assert!(parse_coordinate_with(&text, ParseOptions::default()).is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn for_format(options: &FormatOptions) -> Self {
+    pub const fn for_format(options: FormatOptions) -> Self {
         let expect_grid = match options.representation {
             Representation::DecimalDegrees { .. }
             | Representation::Dms { .. }
@@ -146,7 +146,7 @@ impl ParseOptions {
     ///
     /// let options = ParseOptions::default().with_default_axis_order(AxisOrder::LonLat);
     /// assert_eq!(options.default_axis_order, AxisOrder::LonLat);
-    /// let fix = parse_coordinate_with("2.3522, 48.8566", &options)?;
+    /// let fix = parse_coordinate_with("2.3522, 48.8566", options)?;
     /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -165,7 +165,7 @@ impl ParseOptions {
     ///
     /// let options = ParseOptions::default().with_decimal_separator(DecimalSeparator::Comma);
     /// assert_eq!(options.decimal_separator, DecimalSeparator::Comma);
-    /// let fix = parse_coordinate_with("48,8566 2,3522", &options)?;
+    /// let fix = parse_coordinate_with("48,8566 2,3522", options)?;
     /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
@@ -184,10 +184,10 @@ impl ParseOptions {
     ///
     /// let options = ParseOptions::default().with_expect_grid(Some(GridKind::Maidenhead));
     /// assert_eq!(options.expect_grid, Some(GridKind::Maidenhead));
-    /// let fix = parse_coordinate_with("FN20", &options)?;
+    /// let fix = parse_coordinate_with("FN20", options)?;
     /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.5, -75.0));
     /// // Without it, a bare locator is not detected.
-    /// assert!(parse_coordinate_with("FN20", &options.with_expect_grid(None)).is_err());
+    /// assert!(parse_coordinate_with("FN20", options.with_expect_grid(None)).is_err());
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]

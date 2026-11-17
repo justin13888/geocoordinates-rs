@@ -159,7 +159,7 @@ impl ExclusionZone {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn circle(&self) -> Option<(Coordinate, Length)> {
+    pub const fn circle(self) -> Option<(Coordinate, Length)> {
         match self.shape {
             Shape::Circle { center, radius } => Some((center, radius)),
             Shape::Bounds(_) => None,
@@ -177,7 +177,7 @@ impl ExclusionZone {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn bounds(&self) -> Option<GeoBounds> {
+    pub const fn bounds(self) -> Option<GeoBounds> {
         match self.shape {
             Shape::Bounds(bounds) => Some(bounds),
             Shape::Circle { .. } => None,
@@ -195,7 +195,7 @@ impl ExclusionZone {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn crs(&self) -> Crs {
+    pub fn crs(self) -> Crs {
         match self.shape {
             Shape::Circle { center, .. } => center.crs(),
             Shape::Bounds(bounds) => bounds.crs(),
@@ -223,7 +223,7 @@ impl ExclusionZone {
     /// ));
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn contains(&self, point: Coordinate) -> Result<bool> {
+    pub fn contains(self, point: Coordinate) -> Result<bool> {
         match self.shape {
             Shape::Circle { center, radius } => Ok(geodesic_distance(center, point)? <= radius),
             Shape::Bounds(bounds) => bounds.contains(point),

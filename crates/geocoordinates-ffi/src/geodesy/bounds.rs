@@ -124,7 +124,7 @@ pub fn geo_bounds_intersects(a: GeoBounds, b: GeoBounds) -> Result<bool, GeoErro
         gc::geodesy::GeoBounds::try_from(a)?,
         gc::geodesy::GeoBounds::try_from(b)?,
     );
-    Ok(a.intersects(&b)?)
+    Ok(a.intersects(b)?)
 }
 
 /// The smallest box holding both boxes, taking the shorter way around the globe
@@ -139,7 +139,7 @@ pub fn geo_bounds_union(a: GeoBounds, b: GeoBounds) -> Result<GeoBounds, GeoErro
         gc::geodesy::GeoBounds::try_from(a)?,
         gc::geodesy::GeoBounds::try_from(b)?,
     );
-    Ok(a.union(&b)?.into())
+    Ok(a.union(b)?.into())
 }
 
 /// The middle of the box in latitude and longitude: the midpoint of the edges, not

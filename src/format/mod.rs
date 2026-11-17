@@ -63,10 +63,10 @@ use render::AngleKind;
 ///     symbols: SymbolStyle::Unicode,
 ///     hemisphere: HemisphereStyle::Cardinal,
 /// });
-/// assert_eq!(format(c, &ddm)?, "40°42.768′N 74°00.360′W");
+/// assert_eq!(format(c,ddm)?, "40°42.768′N 74°00.360′W");
 /// let maidenhead =
 ///     FormatOptions::default().with_representation(Representation::Maidenhead { pairs: 2 });
-/// assert_eq!(format(c, &maidenhead)?, "FN20");
+/// assert_eq!(format(c,maidenhead)?, "FN20");
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -143,9 +143,9 @@ impl Representation {
     ///     })
     /// };
     /// let c = Coordinate::wgs84(40.7128, -74.006)?;
-    /// assert!(format(c, &dd(Representation::MAX_DD_DECIMALS)).is_ok());
+    /// assert!(format(c,dd(Representation::MAX_DD_DECIMALS)).is_ok());
     /// let too_fine = dd(Representation::MAX_DD_DECIMALS + 1);
-    /// assert!(matches!(format(c, &too_fine), Err(Error::InvalidValue { .. })));
+    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub const MAX_DD_DECIMALS: u8 = 15;
@@ -169,9 +169,9 @@ impl Representation {
     ///     })
     /// };
     /// let c = Coordinate::wgs84(40.7128, -74.006)?;
-    /// assert!(format(c, &dms(Representation::MAX_DMS_SECOND_DECIMALS)).is_ok());
+    /// assert!(format(c,dms(Representation::MAX_DMS_SECOND_DECIMALS)).is_ok());
     /// let too_fine = dms(Representation::MAX_DMS_SECOND_DECIMALS + 1);
-    /// assert!(matches!(format(c, &too_fine), Err(Error::InvalidValue { .. })));
+    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub const MAX_DMS_SECOND_DECIMALS: u8 = 9;
@@ -195,9 +195,9 @@ impl Representation {
     ///     })
     /// };
     /// let c = Coordinate::wgs84(40.7128, -74.006)?;
-    /// assert!(format(c, &ddm(Representation::MAX_DDM_MINUTE_DECIMALS)).is_ok());
+    /// assert!(format(c,ddm(Representation::MAX_DDM_MINUTE_DECIMALS)).is_ok());
     /// let too_fine = ddm(Representation::MAX_DDM_MINUTE_DECIMALS + 1);
-    /// assert!(matches!(format(c, &too_fine), Err(Error::InvalidValue { .. })));
+    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub const MAX_DDM_MINUTE_DECIMALS: u8 = 12;
@@ -219,9 +219,9 @@ impl Representation {
 ///         hemisphere: HemisphereStyle::Cardinal,
 ///     })
 /// };
-/// assert_eq!(format(c, &dms(SymbolStyle::Unicode))?, "40°42′46″N 74°00′22″W");
-/// assert_eq!(format(c, &dms(SymbolStyle::Ascii))?, "40°42'46\"N 74°00'22\"W");
-/// assert_eq!(format(c, &dms(SymbolStyle::Letters))?, "40d42m46sN 74d00m22sW");
+/// assert_eq!(format(c,dms(SymbolStyle::Unicode))?, "40°42′46″N 74°00′22″W");
+/// assert_eq!(format(c,dms(SymbolStyle::Ascii))?, "40°42'46\"N 74°00'22\"W");
+/// assert_eq!(format(c,dms(SymbolStyle::Letters))?, "40d42m46sN 74d00m22sW");
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -248,8 +248,8 @@ pub enum SymbolStyle {
 ///         hemisphere,
 ///     })
 /// };
-/// assert_eq!(format(c, &dd(HemisphereStyle::Signed))?, "40.713, -74.006");
-/// assert_eq!(format(c, &dd(HemisphereStyle::Cardinal))?, "40.713 N, 74.006 W");
+/// assert_eq!(format(c,dd(HemisphereStyle::Signed))?, "40.713, -74.006");
+/// assert_eq!(format(c,dd(HemisphereStyle::Cardinal))?, "40.713 N, 74.006 W");
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -278,10 +278,10 @@ pub enum HemisphereStyle {
 /// use geocoordinates::format::{DecimalSeparator, FormatOptions, format};
 ///
 /// let c = Coordinate::wgs84(40.7128, -74.006)?;
-/// assert_eq!(format(c, &FormatOptions::default())?, "40.712800, -74.006000");
+/// assert_eq!(format(c,FormatOptions::default())?, "40.712800, -74.006000");
 /// let german =
 ///     FormatOptions::default().with_decimal_separator(DecimalSeparator::for_locale("de-DE"));
-/// assert_eq!(format(c, &german)?, "40,712800 -74,006000");
+/// assert_eq!(format(c,german)?, "40,712800 -74,006000");
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 ///
@@ -319,7 +319,7 @@ impl FormatOptions {
     /// let options =
     ///     FormatOptions::default().with_representation(Representation::Geohash { length: 5 });
     /// assert_eq!(options.representation, Representation::Geohash { length: 5 });
-    /// assert_eq!(format(Coordinate::wgs84(42.6, -5.6)?, &options)?, "ezs42");
+    /// assert_eq!(format(Coordinate::wgs84(42.6, -5.6)?, options)?, "ezs42");
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
@@ -337,7 +337,7 @@ impl FormatOptions {
     ///
     /// let options = FormatOptions::default().with_decimal_separator(DecimalSeparator::Comma);
     /// assert_eq!(options.decimal_separator, DecimalSeparator::Comma);
-    /// assert_eq!(format(Coordinate::wgs84(48.8566, 2.3522)?, &options)?, "48,856600 2,352200");
+    /// assert_eq!(format(Coordinate::wgs84(48.8566, 2.3522)?, options)?, "48,856600 2,352200");
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
@@ -388,14 +388,14 @@ impl Default for FormatOptions {
 /// let options =
 ///     FormatOptions::default().with_representation(Representation::PlusCode { length: 10 });
 /// let c = Coordinate::wgs84(40.7128, -74.006)?;
-/// assert_eq!(format(c, &options)?, "87G7PX7V+4J");
+/// assert_eq!(format(c,options)?, "87G7PX7V+4J");
 ///
 /// // A grid is defined on WGS-84 only.
 /// let mars = Coordinate::gcj02(40.7128, -74.006)?;
-/// assert!(matches!(format(mars, &options), Err(Error::CrsMismatch { .. })));
+/// assert!(matches!(format(mars, options), Err(Error::CrsMismatch { .. })));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn format(coord: Coordinate, options: &FormatOptions) -> Result<String> {
+pub fn format(coord: Coordinate, options: FormatOptions) -> Result<String> {
     let separator = options.decimal_separator;
     match options.representation {
         Representation::DecimalDegrees {
@@ -464,16 +464,16 @@ pub fn format(coord: Coordinate, options: &FormatOptions) -> Result<String> {
 /// let km = Some(Length::from_meters(1000.0));
 /// fix.accuracy = Some(Accuracy::new(AccuracyKind::OneSigma, km, None)?);
 /// // A 1 km fix earns 2 decimals of degrees, not the default 6.
-/// assert_eq!(format_fix(&fix, &FormatOptions::default())?, "40.71, -74.01");
+/// assert_eq!(format_fix(&fix,FormatOptions::default())?, "40.71, -74.01");
 ///
 /// let too_fine = FormatOptions::default().with_representation(Representation::DecimalDegrees {
 ///     decimals: Some(16),
 ///     hemisphere: HemisphereStyle::Signed,
 /// });
-/// assert!(matches!(format_fix(&fix, &too_fine), Err(Error::InvalidValue { .. })));
+/// assert!(matches!(format_fix(&fix,too_fine), Err(Error::InvalidValue { .. })));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
+pub fn format_fix(fix: &Fix, options: FormatOptions) -> Result<String> {
     let horizontal_m = fix
         .accuracy
         .and_then(|a| a.horizontal())
@@ -482,7 +482,7 @@ pub fn format_fix(fix: &Fix, options: &FormatOptions) -> Result<String> {
         Some(m) => with_derived_decimals(options.representation, m),
         None => options.representation,
     };
-    format(fix.coord, &options.with_representation(representation))
+    format(fix.coord, options.with_representation(representation))
 }
 
 /// A decimal count, or `default` when unset; one above `max` is an error

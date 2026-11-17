@@ -47,10 +47,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Spheri
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::SphericalIntersection
 pub struct geocoordinates::geodesy::Aer
 impl geocoordinates::geodesy::Aer
-pub fn geocoordinates::geodesy::Aer::azimuth_deg(&self) -> f64
-pub fn geocoordinates::geodesy::Aer::elevation_deg(&self) -> f64
+pub fn geocoordinates::geodesy::Aer::azimuth_deg(self) -> f64
+pub fn geocoordinates::geodesy::Aer::elevation_deg(self) -> f64
 pub fn geocoordinates::geodesy::Aer::new(f64, f64, geocoordinates::Length) -> geocoordinates::Result<Self>
-pub fn geocoordinates::geodesy::Aer::range(&self) -> geocoordinates::Length
+pub fn geocoordinates::geodesy::Aer::range(self) -> geocoordinates::Length
 pub fn geocoordinates::geodesy::Aer::to_enu(self) -> geocoordinates::geodesy::Enu
 pub fn geocoordinates::geodesy::Aer::to_ned(self) -> geocoordinates::geodesy::Ned
 pub fn geocoordinates::geodesy::Aer::try_from_coordinate(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
@@ -84,14 +84,14 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Aer
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Aer
 pub struct geocoordinates::geodesy::DatumTransform
 impl geocoordinates::geodesy::DatumTransform
-pub fn geocoordinates::geodesy::DatumTransform::accuracy(&self) -> core::option::Option<geocoordinates::Length>
-pub fn geocoordinates::geodesy::DatumTransform::apply(&self, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
+pub fn geocoordinates::geodesy::DatumTransform::accuracy(self) -> core::option::Option<geocoordinates::Length>
+pub fn geocoordinates::geodesy::DatumTransform::apply(self, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
 pub fn geocoordinates::geodesy::DatumTransform::catalog_to_wgs84(geocoordinates::Crs) -> core::option::Option<geocoordinates::geodesy::DatumTransform>
-pub fn geocoordinates::geodesy::DatumTransform::from_crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::geodesy::DatumTransform::helmert(&self) -> geocoordinates::geodesy::Helmert
-pub fn geocoordinates::geodesy::DatumTransform::inverse_first_order(&self) -> geocoordinates::geodesy::DatumTransform
+pub fn geocoordinates::geodesy::DatumTransform::from_crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::geodesy::DatumTransform::helmert(self) -> geocoordinates::geodesy::Helmert
+pub fn geocoordinates::geodesy::DatumTransform::inverse_first_order(self) -> geocoordinates::geodesy::DatumTransform
 pub fn geocoordinates::geodesy::DatumTransform::new(geocoordinates::Crs, geocoordinates::Crs, geocoordinates::geodesy::Helmert, core::option::Option<geocoordinates::Length>) -> geocoordinates::Result<Self>
-pub fn geocoordinates::geodesy::DatumTransform::to_crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::geodesy::DatumTransform::to_crs(self) -> geocoordinates::Crs
 impl core::clone::Clone for geocoordinates::geodesy::DatumTransform
 pub fn geocoordinates::geodesy::DatumTransform::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::geodesy::DatumTransform
@@ -144,12 +144,12 @@ pub const geocoordinates::geodesy::Ellipsoid::BESSEL_1841: geocoordinates::geode
 pub const geocoordinates::geodesy::Ellipsoid::CLARKE_1866: geocoordinates::geodesy::Ellipsoid
 pub const geocoordinates::geodesy::Ellipsoid::KRASOVSKY_1940: geocoordinates::geodesy::Ellipsoid
 pub const geocoordinates::geodesy::Ellipsoid::WGS84: geocoordinates::geodesy::Ellipsoid
-pub const fn geocoordinates::geodesy::Ellipsoid::eccentricity_sq(&self) -> f64
-pub const fn geocoordinates::geodesy::Ellipsoid::flattening(&self) -> f64
+pub const fn geocoordinates::geodesy::Ellipsoid::eccentricity_sq(self) -> f64
+pub const fn geocoordinates::geodesy::Ellipsoid::flattening(self) -> f64
 pub const fn geocoordinates::geodesy::Ellipsoid::for_crs(geocoordinates::Crs) -> core::option::Option<geocoordinates::geodesy::Ellipsoid>
-pub const fn geocoordinates::geodesy::Ellipsoid::inverse_flattening(&self) -> f64
-pub const fn geocoordinates::geodesy::Ellipsoid::semi_major(&self) -> geocoordinates::Length
-pub const fn geocoordinates::geodesy::Ellipsoid::semi_minor(&self) -> geocoordinates::Length
+pub const fn geocoordinates::geodesy::Ellipsoid::inverse_flattening(self) -> f64
+pub const fn geocoordinates::geodesy::Ellipsoid::semi_major(self) -> geocoordinates::Length
+pub const fn geocoordinates::geodesy::Ellipsoid::semi_minor(self) -> geocoordinates::Length
 impl core::clone::Clone for geocoordinates::geodesy::Ellipsoid
 pub fn geocoordinates::geodesy::Ellipsoid::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::geodesy::Ellipsoid
@@ -171,14 +171,14 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Ellips
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Ellipsoid
 pub struct geocoordinates::geodesy::Enu
 impl geocoordinates::geodesy::Enu
-pub fn geocoordinates::geodesy::Enu::east_m(&self) -> f64
+pub fn geocoordinates::geodesy::Enu::east_m(self) -> f64
 pub fn geocoordinates::geodesy::Enu::new(f64, f64, f64) -> geocoordinates::Result<Self>
-pub fn geocoordinates::geodesy::Enu::north_m(&self) -> f64
+pub fn geocoordinates::geodesy::Enu::north_m(self) -> f64
 pub fn geocoordinates::geodesy::Enu::to_aer(self) -> geocoordinates::geodesy::Aer
 pub fn geocoordinates::geodesy::Enu::to_ned(self) -> geocoordinates::geodesy::Ned
 pub fn geocoordinates::geodesy::Enu::try_from_coordinate(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::Enu::try_to_coordinate(self, geocoordinates::Coordinate) -> geocoordinates::Result<geocoordinates::Coordinate>
-pub fn geocoordinates::geodesy::Enu::up_m(&self) -> f64
+pub fn geocoordinates::geodesy::Enu::up_m(self) -> f64
 impl core::clone::Clone for geocoordinates::geodesy::Enu
 pub fn geocoordinates::geodesy::Enu::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::geodesy::Enu
@@ -208,19 +208,19 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Enu
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Enu
 pub struct geocoordinates::geodesy::GeoBounds
 impl geocoordinates::geodesy::GeoBounds
-pub fn geocoordinates::geodesy::GeoBounds::center(&self) -> geocoordinates::Coordinate
-pub fn geocoordinates::geodesy::GeoBounds::contains(&self, geocoordinates::Coordinate) -> geocoordinates::Result<bool>
-pub const fn geocoordinates::geodesy::GeoBounds::crosses_antimeridian(&self) -> bool
-pub const fn geocoordinates::geodesy::GeoBounds::crs(&self) -> geocoordinates::Crs
-pub const fn geocoordinates::geodesy::GeoBounds::east(&self) -> f64
-pub fn geocoordinates::geodesy::GeoBounds::expand_by(&self, geocoordinates::Length) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::GeoBounds::center(self) -> geocoordinates::Coordinate
+pub fn geocoordinates::geodesy::GeoBounds::contains(self, geocoordinates::Coordinate) -> geocoordinates::Result<bool>
+pub const fn geocoordinates::geodesy::GeoBounds::crosses_antimeridian(self) -> bool
+pub const fn geocoordinates::geodesy::GeoBounds::crs(self) -> geocoordinates::Crs
+pub const fn geocoordinates::geodesy::GeoBounds::east(self) -> f64
+pub fn geocoordinates::geodesy::GeoBounds::expand_by(self, geocoordinates::Length) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::from_corners(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::from_points(impl core::iter::traits::collect::IntoIterator<Item = geocoordinates::Coordinate>) -> geocoordinates::Result<Self>
-pub fn geocoordinates::geodesy::GeoBounds::intersects(&self, &Self) -> geocoordinates::Result<bool>
-pub const fn geocoordinates::geodesy::GeoBounds::north(&self) -> f64
-pub const fn geocoordinates::geodesy::GeoBounds::south(&self) -> f64
-pub fn geocoordinates::geodesy::GeoBounds::union(&self, &Self) -> geocoordinates::Result<Self>
-pub const fn geocoordinates::geodesy::GeoBounds::west(&self) -> f64
+pub fn geocoordinates::geodesy::GeoBounds::intersects(self, Self) -> geocoordinates::Result<bool>
+pub const fn geocoordinates::geodesy::GeoBounds::north(self) -> f64
+pub const fn geocoordinates::geodesy::GeoBounds::south(self) -> f64
+pub fn geocoordinates::geodesy::GeoBounds::union(self, Self) -> geocoordinates::Result<Self>
+pub const fn geocoordinates::geodesy::GeoBounds::west(self) -> f64
 impl core::clone::Clone for geocoordinates::geodesy::GeoBounds
 pub fn geocoordinates::geodesy::GeoBounds::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::geodesy::GeoBounds
@@ -250,8 +250,8 @@ pub geocoordinates::geodesy::Helmert::ty_m: f64
 pub geocoordinates::geodesy::Helmert::tz_m: f64
 impl geocoordinates::geodesy::Helmert
 pub const geocoordinates::geodesy::Helmert::IDENTITY: geocoordinates::geodesy::Helmert
-pub fn geocoordinates::geodesy::Helmert::apply_ecef(&self, geocoordinates::geodesy::Ecef) -> geocoordinates::Result<geocoordinates::geodesy::Ecef>
-pub fn geocoordinates::geodesy::Helmert::inverse_first_order(&self) -> geocoordinates::geodesy::Helmert
+pub fn geocoordinates::geodesy::Helmert::apply_ecef(self, geocoordinates::geodesy::Ecef) -> geocoordinates::Result<geocoordinates::geodesy::Ecef>
+pub fn geocoordinates::geodesy::Helmert::inverse_first_order(self) -> geocoordinates::geodesy::Helmert
 impl core::clone::Clone for geocoordinates::geodesy::Helmert
 pub fn geocoordinates::geodesy::Helmert::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::geodesy::Helmert
@@ -273,10 +273,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::Helmer
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::Helmert
 pub struct geocoordinates::geodesy::Ned
 impl geocoordinates::geodesy::Ned
-pub fn geocoordinates::geodesy::Ned::down_m(&self) -> f64
-pub fn geocoordinates::geodesy::Ned::east_m(&self) -> f64
+pub fn geocoordinates::geodesy::Ned::down_m(self) -> f64
+pub fn geocoordinates::geodesy::Ned::east_m(self) -> f64
 pub fn geocoordinates::geodesy::Ned::new(f64, f64, f64) -> geocoordinates::Result<Self>
-pub fn geocoordinates::geodesy::Ned::north_m(&self) -> f64
+pub fn geocoordinates::geodesy::Ned::north_m(self) -> f64
 pub fn geocoordinates::geodesy::Ned::to_aer(self) -> geocoordinates::geodesy::Aer
 pub fn geocoordinates::geodesy::Ned::to_enu(self) -> geocoordinates::geodesy::Enu
 pub fn geocoordinates::geodesy::Ned::try_from_coordinate(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>

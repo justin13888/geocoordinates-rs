@@ -185,7 +185,7 @@ impl Ellipsoid {
     /// assert_eq!(Ellipsoid::WGS84.semi_major(), Length::from_meters(6_378_137.0));
     /// ```
     #[must_use]
-    pub const fn semi_major(&self) -> Length {
+    pub const fn semi_major(self) -> Length {
         self.semi_major
     }
 
@@ -198,7 +198,7 @@ impl Ellipsoid {
     /// assert_eq!(Ellipsoid::KRASOVSKY_1940.inverse_flattening(), 298.3);
     /// ```
     #[must_use]
-    pub const fn inverse_flattening(&self) -> f64 {
+    pub const fn inverse_flattening(self) -> f64 {
         self.inverse_flattening
     }
 
@@ -211,7 +211,7 @@ impl Ellipsoid {
     /// assert!((f - 1.0 / 298.3).abs() < 1e-18);
     /// ```
     #[must_use]
-    pub const fn flattening(&self) -> f64 {
+    pub const fn flattening(self) -> f64 {
         1.0 / self.inverse_flattening
     }
 
@@ -224,7 +224,7 @@ impl Ellipsoid {
     /// assert!((Ellipsoid::WGS84.semi_minor().meters() - 6_356_752.314_245).abs() < 1e-3);
     /// ```
     #[must_use]
-    pub const fn semi_minor(&self) -> Length {
+    pub const fn semi_minor(self) -> Length {
         Length::from_meters(self.semi_major.meters() * (1.0 - self.flattening()))
     }
 
@@ -236,7 +236,7 @@ impl Ellipsoid {
     /// assert!((Ellipsoid::WGS84.eccentricity_sq() - 0.006_694_379_990_141).abs() < 1e-15);
     /// ```
     #[must_use]
-    pub const fn eccentricity_sq(&self) -> f64 {
+    pub const fn eccentricity_sq(self) -> f64 {
         let f = self.flattening();
         f * (2.0 - f)
     }

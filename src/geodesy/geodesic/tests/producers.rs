@@ -23,7 +23,7 @@ fn position(crs: Crs) -> impl Strategy<Value = Coordinate> {
 
 /// A producer's output: in range, longitude in `[-180, 180)`, the input's CRS,
 /// and no height.
-fn assert_valid(p: &Coordinate, crs: Crs) -> core::result::Result<(), TestCaseError> {
+fn assert_valid(p: Coordinate, crs: Crs) -> core::result::Result<(), TestCaseError> {
     prop_assert!((-90.0..=90.0).contains(&p.lat()), "{p:?}");
     prop_assert!((-180.0..180.0).contains(&p.lon()), "{p:?}");
     prop_assert_eq!(p.crs(), crs);
@@ -42,14 +42,14 @@ proptest! {
         distance in prop_oneof![0.0..=40_000_000.0_f64, Just(0.0)],
         fraction in 0.0..=1.0_f64,
     ) {
-        assert_valid(&destination(a, bearing, Length::from_meters(distance)).unwrap(), crs)?;
-        assert_valid(&midpoint(a, b).unwrap(), crs)?;
-        assert_valid(&intermediate(a, b, fraction).unwrap(), crs)?;
+        assert_valid(destination(a, bearing, Length::from_meters(distance)).unwrap(), crs)?;
+        assert_valid(midpoint(a, b).unwrap(), crs)?;
+        assert_valid(intermediate(a, b, fraction).unwrap(), crs)?;
         if let SphericalIntersection::Crossing(p) = intersection_spherical(a, bearing, b, bearing_b).unwrap() {
-            assert_valid(&p, crs)?;
+            assert_valid(p, crs)?;
         }
         if let Ok(GeodesicIntersection::Crossing(p)) = intersection(a, bearing, b, bearing_b) {
-            assert_valid(&p, crs)?;
+            assert_valid(p, crs)?;
         }
     }
 }

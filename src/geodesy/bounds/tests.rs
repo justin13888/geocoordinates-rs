@@ -197,58 +197,54 @@ fn contains_reads_the_antimeridian_and_the_poles_as_one_place() {
 #[test]
 fn intersects_handles_latitude_antimeridian_and_poles() {
     let a = bounds(0.0, 10.0, 10.0, 20.0);
-    assert!(a.intersects(&a).unwrap());
-    assert!(a.intersects(&bounds(10.0, 20.0, 15.0, 30.0)).unwrap()); // a shared corner
-    assert!(!a.intersects(&bounds(11.0, 10.0, 15.0, 20.0)).unwrap());
-    assert!(!a.intersects(&bounds(-5.0, 10.0, -1.0, 20.0)).unwrap());
-    assert!(!a.intersects(&bounds(0.0, 21.0, 10.0, 30.0)).unwrap());
-    assert!(a.intersects(&bounds(0.0, 12.0, 10.0, 15.0)).unwrap()); // inside
-    assert!(bounds(0.0, 12.0, 10.0, 15.0).intersects(&a).unwrap());
+    assert!(a.intersects(a).unwrap());
+    assert!(a.intersects(bounds(10.0, 20.0, 15.0, 30.0)).unwrap()); // a shared corner
+    assert!(!a.intersects(bounds(11.0, 10.0, 15.0, 20.0)).unwrap());
+    assert!(!a.intersects(bounds(-5.0, 10.0, -1.0, 20.0)).unwrap());
+    assert!(!a.intersects(bounds(0.0, 21.0, 10.0, 30.0)).unwrap());
+    assert!(a.intersects(bounds(0.0, 12.0, 10.0, 15.0)).unwrap()); // inside
+    assert!(bounds(0.0, 12.0, 10.0, 15.0).intersects(a).unwrap());
 
     let crossing = bounds(-1.0, 170.0, 1.0, -170.0);
+    assert!(crossing.intersects(bounds(0.0, 175.0, 1.0, 180.0)).unwrap());
     assert!(
         crossing
-            .intersects(&bounds(0.0, 175.0, 1.0, 180.0))
-            .unwrap()
-    );
-    assert!(
-        crossing
-            .intersects(&bounds(0.0, -180.0, 1.0, -175.0))
+            .intersects(bounds(0.0, -180.0, 1.0, -175.0))
             .unwrap()
     );
     assert!(
         !crossing
-            .intersects(&bounds(0.0, -160.0, 1.0, 160.0))
+            .intersects(bounds(0.0, -160.0, 1.0, 160.0))
             .unwrap()
     );
 
     // Two caps on one pole share it whatever their longitudes; on different
     // longitudes away from a pole they share nothing.
     let cap = bounds(80.0, 0.0, 90.0, 10.0);
-    assert!(cap.intersects(&bounds(85.0, 100.0, 90.0, 110.0)).unwrap());
-    assert!(!cap.intersects(&bounds(85.0, 100.0, 89.0, 110.0)).unwrap());
+    assert!(cap.intersects(bounds(85.0, 100.0, 90.0, 110.0)).unwrap());
+    assert!(!cap.intersects(bounds(85.0, 100.0, 89.0, 110.0)).unwrap());
     let south = bounds(-90.0, 0.0, -80.0, 10.0);
     assert!(
         south
-            .intersects(&bounds(-90.0, 100.0, -85.0, 110.0))
+            .intersects(bounds(-90.0, 100.0, -85.0, 110.0))
             .unwrap()
     );
     assert!(
         !south
-            .intersects(&bounds(-89.0, 100.0, -85.0, 110.0))
+            .intersects(bounds(-89.0, 100.0, -85.0, 110.0))
             .unwrap()
     );
-    assert!(!cap.intersects(&south).unwrap());
+    assert!(!cap.intersects(south).unwrap());
     let other = GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Gcj02).unwrap();
     assert!(matches!(
-        a.intersects(&other),
+        a.intersects(other),
         Err(Error::CrsMismatch { .. })
     ));
 }
 
 #[test]
 fn union_takes_the_short_way_around() {
-    let union = |a: GeoBounds, b: GeoBounds| edges(a.union(&b).unwrap());
+    let union = |a: GeoBounds, b: GeoBounds| edges(a.union(b).unwrap());
     let a = bounds(0.0, 10.0, 1.0, 20.0);
     // Contained, overlapping, and disjoint.
     assert_eq!(
@@ -300,10 +296,10 @@ fn union_takes_the_short_way_around() {
 fn union_circles_the_globe_when_nothing_less_holds_both() {
     let a = bounds(0.0, -170.0, 1.0, 100.0);
     let b = bounds(0.0, 90.0, 1.0, -160.0);
-    assert_eq!(edges(a.union(&b).unwrap()), (0.0, -180.0, 1.0, 180.0));
+    assert_eq!(edges(a.union(b).unwrap()), (0.0, -180.0, 1.0, 180.0));
     let full = bounds(0.0, -180.0, 1.0, 180.0);
-    assert_eq!(edges(full.union(&a).unwrap()), (0.0, -180.0, 1.0, 180.0));
-    assert_eq!(edges(a.union(&full).unwrap()), (0.0, -180.0, 1.0, 180.0));
+    assert_eq!(edges(full.union(a).unwrap()), (0.0, -180.0, 1.0, 180.0));
+    assert_eq!(edges(a.union(full).unwrap()), (0.0, -180.0, 1.0, 180.0));
 }
 
 #[test]
@@ -312,16 +308,16 @@ fn union_of_one_arc_spelled_two_ways_is_commutative() {
         bounds(0.0, -180.0, 0.0, -180.0),
         bounds(0.0, 180.0, 0.0, 180.0),
     );
-    assert_eq!(a.union(&b).unwrap(), a);
-    assert_eq!(b.union(&a).unwrap(), a);
+    assert_eq!(a.union(b).unwrap(), a);
+    assert_eq!(b.union(a).unwrap(), a);
 }
 
 #[test]
 fn union_is_commutative_when_both_ways_tie() {
     let a = bounds(0.0, 0.0, 1.0, 10.0);
     let b = bounds(0.0, 180.0, 1.0, -170.0);
-    let one = a.union(&b).unwrap();
-    assert_eq!(one, b.union(&a).unwrap());
+    let one = a.union(b).unwrap();
+    assert_eq!(one, b.union(a).unwrap());
     assert_eq!(edges(one), (0.0, 0.0, 1.0, -170.0));
 }
 
@@ -330,14 +326,14 @@ fn union_of_a_pole_box_keeps_only_real_longitudes() {
     let pole = bounds(90.0, 123.0, 90.0, 123.0);
     let south_pole = bounds(-90.0, 45.0, -90.0, 45.0);
     let a = bounds(80.0, 10.0, 85.0, 20.0);
-    assert_eq!(edges(pole.union(&a).unwrap()), (80.0, 10.0, 90.0, 20.0));
-    assert_eq!(edges(a.union(&pole).unwrap()), (80.0, 10.0, 90.0, 20.0));
+    assert_eq!(edges(pole.union(a).unwrap()), (80.0, 10.0, 90.0, 20.0));
+    assert_eq!(edges(a.union(pole).unwrap()), (80.0, 10.0, 90.0, 20.0));
     assert_eq!(
-        edges(pole.union(&south_pole).unwrap()),
+        edges(pole.union(south_pole).unwrap()),
         (-90.0, 0.0, 90.0, 0.0)
     );
     let other = GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Gcj02).unwrap();
-    assert!(matches!(a.union(&other), Err(Error::CrsMismatch { .. })));
+    assert!(matches!(a.union(other), Err(Error::CrsMismatch { .. })));
 }
 
 #[test]
@@ -557,12 +553,12 @@ proptest! {
 
     #[test]
     fn union_holds_both_boxes_and_commutes(a in any_bounds(), b in any_bounds(), p in point()) {
-        let union = a.union(&b).unwrap();
-        prop_assert_eq!(union, b.union(&a).unwrap());
+        let union = a.union(b).unwrap();
+        prop_assert_eq!(union, b.union(a).unwrap());
         if a.contains(p).unwrap() || b.contains(p).unwrap() {
             prop_assert!(union.contains(p).unwrap(), "{union:?} misses {p:?}");
         }
-        prop_assert!(union.intersects(&a).unwrap() && union.intersects(&b).unwrap());
+        prop_assert!(union.intersects(a).unwrap() && union.intersects(b).unwrap());
     }
 
     /// Whole-degree edges make the half-degree grid an exact model of the circle:
@@ -601,9 +597,9 @@ proptest! {
         b in any_bounds(),
         p in point(),
     ) {
-        prop_assert_eq!(a.intersects(&b).unwrap(), b.intersects(&a).unwrap());
+        prop_assert_eq!(a.intersects(b).unwrap(), b.intersects(a).unwrap());
         if a.contains(p).unwrap() && b.contains(p).unwrap() {
-            prop_assert!(a.intersects(&b).unwrap());
+            prop_assert!(a.intersects(b).unwrap());
         }
     }
 

@@ -288,7 +288,7 @@ impl Track {
     ///     .with_clock_offset_ms(-30_000)
     ///     .with_max_extrapolation(Duration::from_secs(60))
     ///     .with_max_speed_mps(1.5);
-    /// let located = track.locate(at(1_040), &options)?.expect("within a minute of the fix");
+    /// let located = track.locate(at(1_040), options)?.expect("within a minute of the fix");
     /// assert_eq!(located.timestamp, Some(at(1_010)));
     /// let accuracy = located.accuracy.expect("always estimated");
     /// assert_eq!(accuracy.kind(), AccuracyKind::Bound);
@@ -297,12 +297,12 @@ impl Track {
     ///
     /// let reckless = options.with_max_speed_mps(-1.0);
     /// assert!(matches!(
-    ///     track.locate(at(1_040), &reckless),
+    ///     track.locate(at(1_040), reckless),
     ///     Err(Error::InvalidValue { field: "max_speed_mps", .. })
     /// ));
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn locate(&self, at: SystemTime, options: &GeotagOptions) -> Result<Option<Fix>> {
+    pub fn locate(&self, at: SystemTime, options: GeotagOptions) -> Result<Option<Fix>> {
         let speed = options.max_speed_mps;
         if !(speed.is_finite() && speed >= 0.0) {
             return Err(Error::InvalidValue {
@@ -320,7 +320,7 @@ impl Track {
     }
 
     /// Which fixes the time `time` (already in track time) is derived from.
-    fn derivation(&self, time: SystemTime, options: &GeotagOptions) -> Option<Derivation> {
+    fn derivation(&self, time: SystemTime, options: GeotagOptions) -> Option<Derivation> {
         // The first fix at or after `time`.
         let next = self.times.partition_point(|t| *t < time);
         if self.times.get(next) == Some(&time) {
@@ -365,7 +365,7 @@ impl Track {
         &self,
         time: SystemTime,
         derivation: Derivation,
-        options: &GeotagOptions,
+        options: GeotagOptions,
     ) -> Result<Fix> {
         let t = |i: usize| unix_secs(self.times[i]);
         let (coord, from, raw): (Coordinate, Vec<usize>, String) = match derivation {

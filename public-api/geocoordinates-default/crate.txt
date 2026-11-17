@@ -164,13 +164,13 @@ impl<T> core::panic::unwind_safe::UnwindSafe for geocoordinates::Approx<T> where
 pub struct geocoordinates::Coordinate
 impl geocoordinates::Coordinate
 pub fn geocoordinates::Coordinate::bd09(f64, f64) -> geocoordinates::Result<Self>
-pub fn geocoordinates::Coordinate::crs(&self) -> geocoordinates::Crs
+pub fn geocoordinates::Coordinate::crs(self) -> geocoordinates::Crs
 pub fn geocoordinates::Coordinate::from_lon_lat(f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
 pub fn geocoordinates::Coordinate::gcj02(f64, f64) -> geocoordinates::Result<Self>
-pub fn geocoordinates::Coordinate::height(&self) -> core::option::Option<geocoordinates::Height>
-pub fn geocoordinates::Coordinate::is_null_island(&self) -> bool
-pub fn geocoordinates::Coordinate::lat(&self) -> f64
-pub fn geocoordinates::Coordinate::lon(&self) -> f64
+pub fn geocoordinates::Coordinate::height(self) -> core::option::Option<geocoordinates::Height>
+pub fn geocoordinates::Coordinate::is_null_island(self) -> bool
+pub fn geocoordinates::Coordinate::lat(self) -> f64
+pub fn geocoordinates::Coordinate::lon(self) -> f64
 pub fn geocoordinates::Coordinate::new(f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
 pub fn geocoordinates::Coordinate::wgs84(f64, f64) -> geocoordinates::Result<Self>
 pub fn geocoordinates::Coordinate::with_height(self, geocoordinates::Height) -> geocoordinates::Result<Self>
@@ -209,9 +209,9 @@ pub fn geocoordinates::Coordinate::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::marker::Copy for geocoordinates::Coordinate
 impl core::marker::StructuralPartialEq for geocoordinates::Coordinate
 impl geocoordinates::LatLon for geocoordinates::Coordinate
-pub fn geocoordinates::Coordinate::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::Coordinate::lat(&self) -> f64
-pub fn geocoordinates::Coordinate::lon(&self) -> f64
+pub fn geocoordinates::Coordinate::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::Coordinate::lat(self) -> f64
+pub fn geocoordinates::Coordinate::lon(self) -> f64
 impl core::marker::Freeze for geocoordinates::Coordinate
 impl core::marker::Send for geocoordinates::Coordinate
 impl core::marker::Sync for geocoordinates::Coordinate
@@ -224,8 +224,8 @@ impl geocoordinates::Length
 pub const geocoordinates::Length::ZERO: geocoordinates::Length
 pub const fn geocoordinates::Length::from_meters(f64) -> Self
 pub fn geocoordinates::Length::from_unit(f64, geocoordinates::LengthUnit) -> Self
-pub const fn geocoordinates::Length::meters(&self) -> f64
-pub fn geocoordinates::Length::to_unit(&self, geocoordinates::LengthUnit) -> f64
+pub const fn geocoordinates::Length::meters(self) -> f64
+pub fn geocoordinates::Length::to_unit(self, geocoordinates::LengthUnit) -> f64
 impl core::clone::Clone for geocoordinates::Length
 pub fn geocoordinates::Length::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::Length
@@ -253,23 +253,23 @@ impl core::marker::UnsafeUnpin for geocoordinates::Length
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::Length
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::Length
 pub trait geocoordinates::LatLon: geocoordinates::coord::sealed::Sealed + core::marker::Copy
-pub fn geocoordinates::LatLon::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::LatLon::lat(&self) -> f64
-pub fn geocoordinates::LatLon::lon(&self) -> f64
+pub fn geocoordinates::LatLon::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::LatLon::lat(self) -> f64
+pub fn geocoordinates::LatLon::lon(self) -> f64
 impl geocoordinates::LatLon for geocoordinates::Coordinate
-pub fn geocoordinates::Coordinate::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::Coordinate::lat(&self) -> f64
-pub fn geocoordinates::Coordinate::lon(&self) -> f64
+pub fn geocoordinates::Coordinate::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::Coordinate::lat(self) -> f64
+pub fn geocoordinates::Coordinate::lon(self) -> f64
 impl geocoordinates::LatLon for geocoordinates::china::Bd09
-pub fn geocoordinates::china::Bd09::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::china::Bd09::lat(&self) -> f64
-pub fn geocoordinates::china::Bd09::lon(&self) -> f64
+pub fn geocoordinates::china::Bd09::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Bd09::lat(self) -> f64
+pub fn geocoordinates::china::Bd09::lon(self) -> f64
 impl geocoordinates::LatLon for geocoordinates::china::Gcj02
-pub fn geocoordinates::china::Gcj02::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::china::Gcj02::lat(&self) -> f64
-pub fn geocoordinates::china::Gcj02::lon(&self) -> f64
+pub fn geocoordinates::china::Gcj02::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Gcj02::lat(self) -> f64
+pub fn geocoordinates::china::Gcj02::lon(self) -> f64
 impl geocoordinates::LatLon for geocoordinates::china::Wgs84
-pub fn geocoordinates::china::Wgs84::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::china::Wgs84::lat(&self) -> f64
-pub fn geocoordinates::china::Wgs84::lon(&self) -> f64
+pub fn geocoordinates::china::Wgs84::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Wgs84::lat(self) -> f64
+pub fn geocoordinates::china::Wgs84::lon(self) -> f64
 pub type geocoordinates::Result<T, E> = core::result::Result<T, E>

@@ -130,7 +130,7 @@ impl Ups {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn hemisphere(&self) -> UtmHemisphere {
+    pub fn hemisphere(self) -> UtmHemisphere {
         self.hemisphere
     }
 
@@ -146,7 +146,7 @@ impl Ups {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn easting_m(&self) -> f64 {
+    pub fn easting_m(self) -> f64 {
         self.easting
     }
 
@@ -162,7 +162,7 @@ impl Ups {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn northing_m(&self) -> f64 {
+    pub fn northing_m(self) -> f64 {
         self.northing
     }
 
@@ -186,7 +186,7 @@ impl Ups {
     /// [`Error::OutsideDomain`] (operation `"UPS"`) for latitudes outside the
     /// polar zones (strictly between 80°S and 84°N, which is UTM territory).
     pub fn try_from_coordinate(coord: Coordinate) -> Result<Ups> {
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         let (lat, lon) = (coord.lat(), coord.lon());
         let north = lat >= 0.0;
         if (north && lat < 84.0) || (!north && lat > -80.0) {
@@ -231,7 +231,7 @@ impl Ups {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn to_coordinate(&self) -> Coordinate {
+    pub fn to_coordinate(self) -> Coordinate {
         let (lat, lon) = self.inverse();
         let lat = ups_image(self.hemisphere, lat).unwrap_or(lat);
         Coordinate::from_valid(lat, wrap_longitude(lon), None, Crs::Wgs84)
@@ -239,7 +239,7 @@ impl Ups {
 
     /// The inverse projection, unsnapped, with the latitude clamped into
     /// `[-90, 90]`.
-    fn inverse(&self) -> (f64, f64) {
+    fn inverse(self) -> (f64, f64) {
         let north = self.hemisphere == UtmHemisphere::North;
         let (lat, lon) = ups_inverse(self.easting, self.northing, north);
         (clamp_latitude(lat), lon)

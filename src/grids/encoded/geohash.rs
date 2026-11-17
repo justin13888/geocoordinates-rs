@@ -107,7 +107,7 @@ impl Geohash {
     /// Returns [`Error::CrsMismatch`] for a non-WGS-84 coordinate, and
     /// [`Error::InvalidValue`] for a `length` outside `1..=12`.
     pub fn encode(coord: Coordinate, length: u8) -> Result<Self> {
-        require_wgs84(&coord)?;
+        require_wgs84(coord)?;
         if !(1..=GEOHASH_MAX_LENGTH).contains(&length) {
             return Err(Error::InvalidValue {
                 field: "length",

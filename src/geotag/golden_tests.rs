@@ -74,7 +74,7 @@ fn interpolated_positions_match_geographiclib() {
     ];
     for (start, secs, lat, lon, height) in cases {
         let fix = track
-            .locate(camera(start, secs), &options())
+            .locate(camera(start, secs), options())
             .unwrap()
             .unwrap_or_else(|| panic!("{start} + {secs} s is inside the track"));
         assert!(
@@ -111,7 +111,7 @@ fn interpolated_positions_match_geographiclib() {
 #[test]
 fn a_gpx_hdop_is_not_a_bound_so_neither_is_the_result() {
     let fix = track()
-        .locate(camera(ZURICH_START, 5), &options())
+        .locate(camera(ZURICH_START, 5), options())
         .unwrap()
         .unwrap();
     let accuracy = fix.accuracy.unwrap();
@@ -126,7 +126,7 @@ fn a_gpx_hdop_is_not_a_bound_so_neither_is_the_result() {
 #[test]
 fn a_photo_at_a_track_point_takes_it_exactly() {
     let fix = track()
-        .locate(camera(ZURICH_START, 25), &options())
+        .locate(camera(ZURICH_START, 25), options())
         .unwrap()
         .unwrap();
     assert_eq!((fix.coord.lat(), fix.coord.lon()), (47.3782, 8.5441));
@@ -142,18 +142,18 @@ fn photos_outside_the_coverage_have_no_position() {
         camera(ZURICH_START, 0) - Duration::from_secs(60),
         camera(ZURICH_START, 20 * 60),
     ] {
-        assert_eq!(track.locate(at, &options()).unwrap(), None);
+        assert_eq!(track.locate(at, options()).unwrap(), None);
     }
     assert_eq!(
         track
-            .locate(camera(ZURICH_START, 5), &GeotagOptions::default())
+            .locate(camera(ZURICH_START, 5), GeotagOptions::default())
             .unwrap(),
         None
     );
     // Two minutes of extrapolation reaches 45 s past the walk's fourth point.
     let reach = options().with_max_extrapolation(Duration::from_secs(120));
     let held = track
-        .locate(camera(ZURICH_START, 90), &reach)
+        .locate(camera(ZURICH_START, 90), reach)
         .unwrap()
         .unwrap();
     assert_eq!((held.coord.lat(), held.coord.lon()), (47.379, 8.5449));

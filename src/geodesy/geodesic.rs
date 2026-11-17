@@ -231,7 +231,7 @@ pub(super) fn geodesic_for_pair(a: impl LatLon, b: impl LatLon) -> Result<Geodes
 /// points: the cell-extent bound behind every grid and DGG `decode`. `center`
 /// is read as WGS-84 whatever its tag; every caller builds it on WGS-84.
 pub(crate) fn farthest_geodesic_m(
-    center: &Coordinate,
+    center: Coordinate,
     points: impl IntoIterator<Item = (f64, f64)>,
 ) -> f64 {
     let geodesic = Geodesic::wgs84();

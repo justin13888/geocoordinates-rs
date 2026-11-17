@@ -122,14 +122,14 @@ fn an_empty_track_locates_nothing() {
     ] {
         assert!(track.is_empty() && track.crs().is_none());
         let reach = options().with_max_extrapolation(Duration::MAX);
-        assert_eq!(track.locate(at(0), &reach).unwrap(), None);
+        assert_eq!(track.locate(at(0), reach).unwrap(), None);
     }
 }
 
 #[test]
 fn interpolates_along_the_geodesic_in_time() {
     let track = equator();
-    let fix = track.locate(at(125), &options()).unwrap().unwrap();
+    let fix = track.locate(at(125), options()).unwrap().unwrap();
     let expected = intermediate(
         Coordinate::wgs84(0.0, 0.01).unwrap(),
         Coordinate::wgs84(0.0, 0.02).unwrap(),
@@ -152,7 +152,7 @@ fn interpolates_along_the_geodesic_in_time() {
 fn a_fix_time_is_matched_exactly() {
     let track = equator();
     for (secs, lon) in [(0, 0.0), (100, 0.01), (200, 0.02)] {
-        let fix = track.locate(at(secs), &options()).unwrap().unwrap();
+        let fix = track.locate(at(secs), options()).unwrap().unwrap();
         assert_eq!(fix.coord.lon(), lon);
         assert_eq!(raw(&fix), format!("geotag:matched t={secs}.000"));
         // No time has passed, so the only uncertainty is the fix's own: none.
@@ -165,11 +165,11 @@ fn nearest_takes_the_nearer_fix_in_time_and_the_earlier_on_a_tie() {
     let track = equator();
     let nearest = options().with_interpolation(Interpolation::Nearest);
     for (secs, lon) in [(149, 0.01), (150, 0.01), (151, 0.02), (10, 0.0)] {
-        let fix = track.locate(at(secs), &nearest).unwrap().unwrap();
+        let fix = track.locate(at(secs), nearest).unwrap().unwrap();
         assert_eq!(fix.coord.lon(), lon, "{secs}");
         assert!(raw(&fix).starts_with("geotag:nearest"), "{}", raw(&fix));
     }
-    let fix = track.locate(at(151), &nearest).unwrap().unwrap();
+    let fix = track.locate(at(151), nearest).unwrap().unwrap();
     assert_eq!(raw(&fix), "geotag:nearest t=200.000 t0=100.000 t1=200.000");
     // 49 s from the fix it took, at 50 m/s.
     assert!((horizontal(&fix) - 49.0 * 50.0).abs() < 1e-9);
@@ -178,50 +178,47 @@ fn nearest_takes_the_nearer_fix_in_time_and_the_earlier_on_a_tie() {
 #[test]
 fn track_ends_extrapolate_only_as_far_as_allowed() {
     let track = equator();
-    assert_eq!(track.locate(at(-1), &options()).unwrap(), None);
-    assert_eq!(track.locate(at(201), &options()).unwrap(), None);
+    assert_eq!(track.locate(at(-1), options()).unwrap(), None);
+    assert_eq!(track.locate(at(201), options()).unwrap(), None);
     let reach = options().with_max_extrapolation(Duration::from_secs(30));
     // The reach is inclusive.
-    let before = track.locate(at(-30), &reach).unwrap().unwrap();
+    let before = track.locate(at(-30), reach).unwrap().unwrap();
     assert_eq!(before.coord.lon(), 0.0);
     assert_eq!(raw(&before), "geotag:extrapolated t=0.000 dt=-30.000");
-    let after = track.locate(at(230), &reach).unwrap().unwrap();
+    let after = track.locate(at(230), reach).unwrap().unwrap();
     assert_eq!(after.coord.lon(), 0.02);
     assert_eq!(raw(&after), "geotag:extrapolated t=200.000 dt=30.000");
     assert!((horizontal(&after) - 30.0 * 50.0).abs() < 1e-9);
-    assert_eq!(track.locate(at(231), &reach).unwrap(), None);
+    assert_eq!(track.locate(at(231), reach).unwrap(), None);
 }
 
 #[test]
 fn a_gap_longer_than_max_gap_is_outside_the_track() {
     let track = Track::new(vec![fix(0, 0.0, 0.0), fix(1_000, 0.0, 0.01)]).unwrap();
     let short = options().with_max_gap(Duration::from_secs(999));
-    assert_eq!(track.locate(at(500), &short).unwrap(), None);
+    assert_eq!(track.locate(at(500), short).unwrap(), None);
     // A gap exactly max_gap long is still interpolated.
     let exact = options().with_max_gap(Duration::from_secs(1_000));
-    assert!(raw(&track.locate(at(500), &exact).unwrap().unwrap()).starts_with("geotag:interp"));
+    assert!(raw(&track.locate(at(500), exact).unwrap().unwrap()).starts_with("geotag:interp"));
     // Inside the long gap, extrapolation holds whichever end is nearer.
     let reach = short.with_max_extrapolation(Duration::from_secs(100));
-    let early = track.locate(at(100), &reach).unwrap().unwrap();
+    let early = track.locate(at(100), reach).unwrap().unwrap();
     assert_eq!(early.coord.lon(), 0.0);
-    let late = track.locate(at(950), &reach).unwrap().unwrap();
+    let late = track.locate(at(950), reach).unwrap().unwrap();
     assert_eq!(late.coord.lon(), 0.01);
     assert_eq!(raw(&late), "geotag:extrapolated t=1000.000 dt=-50.000");
-    assert_eq!(track.locate(at(500), &reach).unwrap(), None);
+    assert_eq!(track.locate(at(500), reach).unwrap(), None);
     // Equidistant from both ends: the earlier one.
     let tie = Track::new(vec![fix(0, 0.0, 0.0), fix(200, 0.0, 0.01)]).unwrap();
     let both = options()
         .with_max_gap(Duration::from_secs(10))
         .with_max_extrapolation(Duration::from_secs(100));
-    assert_eq!(
-        tie.locate(at(100), &both).unwrap().unwrap().coord.lon(),
-        0.0
-    );
+    assert_eq!(tie.locate(at(100), both).unwrap().unwrap().coord.lon(), 0.0);
     // Both ends in reach: the nearer one, from either side.
     let wide = both.with_max_extrapolation(Duration::from_secs(190));
-    assert_eq!(tie.locate(at(20), &wide).unwrap().unwrap().coord.lon(), 0.0);
+    assert_eq!(tie.locate(at(20), wide).unwrap().unwrap().coord.lon(), 0.0);
     assert_eq!(
-        tie.locate(at(180), &wide).unwrap().unwrap().coord.lon(),
+        tie.locate(at(180), wide).unwrap().unwrap().coord.lon(),
         0.01
     );
 }
@@ -229,11 +226,11 @@ fn a_gap_longer_than_max_gap_is_outside_the_track() {
 #[test]
 fn interpolation_crosses_the_antimeridian_the_short_way() {
     let track = Track::new(vec![fix(0, -16.8, 179.99), fix(60, -16.8, -179.99)]).unwrap();
-    let fix = track.locate(at(30), &options()).unwrap().unwrap();
+    let fix = track.locate(at(30), options()).unwrap().unwrap();
     assert!(fix.coord.lon().abs() > 179.999, "{}", fix.coord.lon());
     assert!((fix.coord.lat() + 16.8).abs() < 1e-6);
     // A quarter of the way along is still east of the line.
-    let quarter = track.locate(at(15), &options()).unwrap().unwrap();
+    let quarter = track.locate(at(15), options()).unwrap().unwrap();
     assert!(
         (quarter.coord.lon() - 179.995).abs() < 1e-6,
         "{}",
@@ -244,7 +241,7 @@ fn interpolation_crosses_the_antimeridian_the_short_way() {
 #[test]
 fn interpolation_reaches_over_a_pole() {
     let track = Track::new(vec![fix(0, 89.9, 0.0), fix(100, 89.9, 180.0)]).unwrap();
-    let fix = track.locate(at(50), &options()).unwrap().unwrap();
+    let fix = track.locate(at(50), options()).unwrap().unwrap();
     assert!((fix.coord.lat() - 90.0).abs() < 1e-9, "{}", fix.coord.lat());
 }
 
@@ -263,7 +260,7 @@ fn heights_interpolate_only_on_one_surface() {
     .unwrap();
     let height = |secs| {
         track
-            .locate(at(secs), &options())
+            .locate(at(secs), options())
             .unwrap()
             .unwrap()
             .coord
@@ -275,7 +272,7 @@ fn heights_interpolate_only_on_one_surface() {
     // A matched or held fix keeps its own height.
     assert_eq!(height(200), Some(Height::Orthometric(30.0)));
     let nearest = options().with_interpolation(Interpolation::Nearest);
-    let held = track.locate(at(190), &nearest).unwrap().unwrap();
+    let held = track.locate(at(190), nearest).unwrap().unwrap();
     assert_eq!(held.coord.height(), Some(Height::Orthometric(30.0)));
 }
 
@@ -289,7 +286,7 @@ fn accuracy_grows_with_time_and_stays_bound_only_between_bounds() {
         .unwrap()
         .meters();
 
-    let near_a = track.locate(at(20), &slow).unwrap().unwrap();
+    let near_a = track.locate(at(20), slow).unwrap().unwrap();
     let accuracy = near_a.accuracy.unwrap();
     assert_eq!(accuracy.kind(), AccuracyKind::Bound);
     assert_eq!(accuracy.vertical(), None);
@@ -301,9 +298,9 @@ fn accuracy_grows_with_time_and_stays_bound_only_between_bounds() {
         horizontal(&near_a)
     );
     // Further from both fixes, the bound is wider.
-    let middle = track.locate(at(50), &slow).unwrap().unwrap();
+    let middle = track.locate(at(50), slow).unwrap().unwrap();
     assert!(horizontal(&middle) > horizontal(&near_a));
-    let near_b = track.locate(at(95), &slow).unwrap().unwrap();
+    let near_b = track.locate(at(95), slow).unwrap().unwrap();
     let expected = 10.0 + 5.0 + 0.05 * segment;
     assert!(
         (horizontal(&near_b) - expected).abs() < 1e-6,
@@ -317,14 +314,14 @@ fn accuracy_grows_with_time_and_stays_bound_only_between_bounds() {
         fix(100, 0.0, 0.01),
     ] {
         let track = Track::new(vec![a.clone(), other]).unwrap();
-        let fix = track.locate(at(20), &slow).unwrap().unwrap();
+        let fix = track.locate(at(20), slow).unwrap().unwrap();
         assert_eq!(fix.accuracy.unwrap().kind(), AccuracyKind::Unspecified);
     }
     // A held end alone decides.
     let reach = slow.with_max_extrapolation(Duration::from_secs(10));
     let held = Track::new(vec![a])
         .unwrap()
-        .locate(at(-10), &reach)
+        .locate(at(-10), reach)
         .unwrap()
         .unwrap();
     assert_eq!(held.accuracy.unwrap().kind(), AccuracyKind::Bound);
@@ -337,7 +334,7 @@ fn a_vertical_only_accuracy_counts_as_no_horizontal_magnitude() {
     a.accuracy =
         Some(Accuracy::new(AccuracyKind::Bound, None, Some(Length::from_meters(3.0))).unwrap());
     let track = Track::new(vec![a]).unwrap();
-    let fix = track.locate(at(0), &options()).unwrap().unwrap();
+    let fix = track.locate(at(0), options()).unwrap().unwrap();
     assert_eq!(fix.accuracy.unwrap().kind(), AccuracyKind::Unspecified);
     assert_eq!(horizontal(&fix), 0.0);
 }
@@ -348,7 +345,7 @@ fn an_absurd_speed_leaves_no_magnitude() {
     let options = options()
         .with_max_speed_mps(f64::MAX)
         .with_max_extrapolation(Duration::from_secs(100));
-    let fix = track.locate(at(50), &options).unwrap().unwrap();
+    let fix = track.locate(at(50), options).unwrap().unwrap();
     assert_eq!(fix.accuracy, None);
 }
 
@@ -357,7 +354,7 @@ fn an_invalid_speed_is_refused() {
     let track = equator();
     for bad in [-1.0, f64::NAN, f64::INFINITY] {
         assert!(matches!(
-            track.locate(at(50), &options().with_max_speed_mps(bad)),
+            track.locate(at(50), options().with_max_speed_mps(bad)),
             Err(Error::InvalidValue {
                 field: "max_speed_mps",
                 ..
@@ -366,7 +363,7 @@ fn an_invalid_speed_is_refused() {
     }
     assert!(
         track
-            .locate(at(50), &options().with_max_speed_mps(0.0))
+            .locate(at(50), options().with_max_speed_mps(0.0))
             .is_ok()
     );
 }
@@ -376,7 +373,7 @@ fn the_clock_offset_moves_the_photo_time() {
     let track = equator();
     // A camera 25 s slow: its 100 s is 125 s on the track.
     let slow = options().with_clock_offset_ms(25_000);
-    let fix = track.locate(at(100), &slow).unwrap().unwrap();
+    let fix = track.locate(at(100), slow).unwrap().unwrap();
     assert_eq!(fix.timestamp, Some(at(125)));
     assert!((fix.coord.lon() - 0.0125).abs() < 1e-12);
     assert_eq!(
@@ -385,11 +382,11 @@ fn the_clock_offset_moves_the_photo_time() {
     );
     // A camera an hour fast.
     let fast = options().with_clock_offset_ms(-3_600_000);
-    let fix = track.locate(at(3_650), &fast).unwrap().unwrap();
+    let fix = track.locate(at(3_650), fast).unwrap().unwrap();
     assert_eq!(fix.timestamp, Some(at(50)));
     // Sub-second offsets are kept.
     let fix = track
-        .locate(at(50), &options().with_clock_offset_ms(500))
+        .locate(at(50), options().with_clock_offset_ms(500))
         .unwrap()
         .unwrap();
     assert_eq!(fix.timestamp, Some(at(50) + Duration::from_millis(500)));
@@ -398,13 +395,13 @@ fn the_clock_offset_moves_the_photo_time() {
     let latest = (0..64).rev().fold(UNIX_EPOCH, |t, bit| {
         t.checked_add(Duration::from_secs(1 << bit)).unwrap_or(t)
     });
-    assert_eq!(track.locate(latest, &far).unwrap(), None);
+    assert_eq!(track.locate(latest, far).unwrap(), None);
 }
 
 #[test]
 fn times_before_the_unix_epoch_work() {
     let track = Track::new(vec![fix(-200, 0.0, 0.0), fix(-100, 0.0, 0.01)]).unwrap();
-    let fix = track.locate(at(-150), &options()).unwrap().unwrap();
+    let fix = track.locate(at(-150), options()).unwrap().unwrap();
     assert!((fix.coord.lon() - 0.005).abs() < 1e-12);
     assert_eq!(
         raw(&fix),
@@ -419,12 +416,12 @@ fn a_datum_ambiguity_is_carried_over() {
     source.datum_ambiguity = Some(DatumAmbiguity::PossiblyGcj02);
     flagged.source = Some(source);
     let track = Track::new(vec![fix(0, 39.9, 116.39), flagged]).unwrap();
-    let fix = track.locate(at(50), &options()).unwrap().unwrap();
+    let fix = track.locate(at(50), options()).unwrap().unwrap();
     assert_eq!(
         fix.source.unwrap().datum_ambiguity,
         Some(DatumAmbiguity::PossiblyGcj02)
     );
-    let clean = track.locate(at(0), &options()).unwrap().unwrap();
+    let clean = track.locate(at(0), options()).unwrap().unwrap();
     assert_eq!(clean.source.unwrap().datum_ambiguity, None);
 }
 
@@ -436,7 +433,7 @@ fn a_classic_datum_track_interpolates_on_its_own_ellipsoid() {
         f
     };
     let track = Track::new(vec![tokyo(0, 139.0), tokyo(100, 139.01)]).unwrap();
-    let fix = track.locate(at(50), &options()).unwrap().unwrap();
+    let fix = track.locate(at(50), options()).unwrap().unwrap();
     assert_eq!(fix.coord.crs(), Crs::Tokyo);
     let expected = intermediate(track.fixes()[0].coord, track.fixes()[1].coord, 0.5).unwrap();
     assert_eq!(fix.coord, expected);

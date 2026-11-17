@@ -26,9 +26,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::DisplayDat
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::DisplayDatum
 pub struct geocoordinates::map::Camera
 impl geocoordinates::map::Camera
-pub const fn geocoordinates::map::Camera::center(&self) -> geocoordinates::Coordinate
+pub const fn geocoordinates::map::Camera::center(self) -> geocoordinates::Coordinate
 pub fn geocoordinates::map::Camera::new(geocoordinates::Coordinate, f64) -> geocoordinates::Result<Self>
-pub const fn geocoordinates::map::Camera::zoom(&self) -> f64
+pub const fn geocoordinates::map::Camera::zoom(self) -> f64
 impl core::clone::Clone for geocoordinates::map::Camera
 pub fn geocoordinates::map::Camera::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::map::Camera
@@ -50,14 +50,14 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::Camera
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::Camera
 pub struct geocoordinates::map::Tile
 impl geocoordinates::map::Tile
-pub fn geocoordinates::map::Tile::bounds(&self, geocoordinates::Crs) -> geocoordinates::geodesy::GeoBounds
+pub fn geocoordinates::map::Tile::bounds(self, geocoordinates::Crs) -> geocoordinates::geodesy::GeoBounds
 pub fn geocoordinates::map::Tile::from_coordinate(geocoordinates::Coordinate, u8) -> geocoordinates::Result<Self>
 pub fn geocoordinates::map::Tile::from_quadkey(&str) -> geocoordinates::Result<Self>
 pub fn geocoordinates::map::Tile::new(u8, u32, u32) -> geocoordinates::Result<Self>
-pub fn geocoordinates::map::Tile::quadkey(&self) -> alloc::string::String
-pub const fn geocoordinates::map::Tile::x(&self) -> u32
-pub const fn geocoordinates::map::Tile::y(&self) -> u32
-pub const fn geocoordinates::map::Tile::z(&self) -> u8
+pub fn geocoordinates::map::Tile::quadkey(self) -> alloc::string::String
+pub const fn geocoordinates::map::Tile::x(self) -> u32
+pub const fn geocoordinates::map::Tile::y(self) -> u32
+pub const fn geocoordinates::map::Tile::z(self) -> u8
 impl core::clone::Clone for geocoordinates::map::Tile
 pub fn geocoordinates::map::Tile::clone(&self) -> Self
 impl core::cmp::Eq for geocoordinates::map::Tile
@@ -86,10 +86,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::Tile
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::Tile
 pub struct geocoordinates::map::Viewport
 impl geocoordinates::map::Viewport
-pub const fn geocoordinates::map::Viewport::height_px(&self) -> f64
+pub const fn geocoordinates::map::Viewport::height_px(self) -> f64
 pub fn geocoordinates::map::Viewport::new(f64, f64, f64) -> geocoordinates::Result<Self>
-pub const fn geocoordinates::map::Viewport::tile_px(&self) -> f64
-pub const fn geocoordinates::map::Viewport::width_px(&self) -> f64
+pub const fn geocoordinates::map::Viewport::tile_px(self) -> f64
+pub const fn geocoordinates::map::Viewport::width_px(self) -> f64
 impl core::clone::Clone for geocoordinates::map::Viewport
 pub fn geocoordinates::map::Viewport::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::map::Viewport
@@ -111,12 +111,12 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::map::Viewport
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::map::Viewport
 pub struct geocoordinates::map::WebMercator
 impl geocoordinates::map::WebMercator
-pub const fn geocoordinates::map::WebMercator::crs(&self) -> geocoordinates::Crs
+pub const fn geocoordinates::map::WebMercator::crs(self) -> geocoordinates::Crs
 pub fn geocoordinates::map::WebMercator::from_coordinate(geocoordinates::Coordinate) -> Self
 pub fn geocoordinates::map::WebMercator::new(f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
 pub fn geocoordinates::map::WebMercator::to_coordinate(self) -> geocoordinates::Coordinate
-pub const fn geocoordinates::map::WebMercator::x_m(&self) -> f64
-pub const fn geocoordinates::map::WebMercator::y_m(&self) -> f64
+pub const fn geocoordinates::map::WebMercator::x_m(self) -> f64
+pub const fn geocoordinates::map::WebMercator::y_m(self) -> f64
 impl core::clone::Clone for geocoordinates::map::WebMercator
 pub fn geocoordinates::map::WebMercator::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::map::WebMercator

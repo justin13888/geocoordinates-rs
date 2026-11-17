@@ -1,10 +1,10 @@
 pub mod geocoordinates::index
 pub struct geocoordinates::index::Neighbor<'a, T>
 impl<'a, T> geocoordinates::index::Neighbor<'a, T>
-pub const fn geocoordinates::index::Neighbor<'a, T>::coordinate(&self) -> geocoordinates::Coordinate
-pub const fn geocoordinates::index::Neighbor<'a, T>::distance(&self) -> geocoordinates::Length
-pub const fn geocoordinates::index::Neighbor<'a, T>::index(&self) -> usize
-pub const fn geocoordinates::index::Neighbor<'a, T>::value(&self) -> &'a T
+pub const fn geocoordinates::index::Neighbor<'a, T>::coordinate(self) -> geocoordinates::Coordinate
+pub const fn geocoordinates::index::Neighbor<'a, T>::distance(self) -> geocoordinates::Length
+pub const fn geocoordinates::index::Neighbor<'a, T>::index(self) -> usize
+pub const fn geocoordinates::index::Neighbor<'a, T>::value(self) -> &'a T
 impl<'a, T: core::cmp::PartialEq> core::cmp::PartialEq for geocoordinates::index::Neighbor<'a, T>
 pub fn geocoordinates::index::Neighbor<'a, T>::eq(&self, &Self) -> bool
 impl<'a, T: core::cmp::PartialEq> core::marker::StructuralPartialEq for geocoordinates::index::Neighbor<'a, T>

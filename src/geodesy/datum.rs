@@ -135,7 +135,7 @@ impl Helmert {
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
-    pub fn apply_ecef(&self, ecef: Ecef) -> Result<Ecef> {
+    pub fn apply_ecef(self, ecef: Ecef) -> Result<Ecef> {
         if !self.is_finite() {
             return Err(Error::InvalidValue {
                 field: "helmert",
@@ -178,7 +178,7 @@ impl Helmert {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn inverse_first_order(&self) -> Helmert {
+    pub fn inverse_first_order(self) -> Helmert {
         Helmert {
             tx_m: -self.tx_m,
             ty_m: -self.ty_m,
@@ -191,7 +191,7 @@ impl Helmert {
     }
 
     /// Whether all seven parameters are finite.
-    fn is_finite(&self) -> bool {
+    fn is_finite(self) -> bool {
         [
             self.tx_m,
             self.ty_m,
@@ -362,7 +362,10 @@ impl DatumTransform {
     /// assert_eq!(t.from_crs(), Crs::Pulkovo42);
     /// ```
     #[must_use]
-    pub fn from_crs(&self) -> Crs {
+    // A getter for the source CRS, paired with `to_crs`, not a `from_*`
+    // constructor; renaming it is outside the receiver sweep (G47).
+    #[allow(clippy::wrong_self_convention)]
+    pub fn from_crs(self) -> Crs {
         self.from_crs
     }
 
@@ -375,7 +378,7 @@ impl DatumTransform {
     /// assert_eq!(t.to_crs(), Crs::Wgs84);
     /// ```
     #[must_use]
-    pub fn to_crs(&self) -> Crs {
+    pub fn to_crs(self) -> Crs {
         self.to_crs
     }
 
@@ -390,7 +393,7 @@ impl DatumTransform {
     /// assert_eq!((h.rx_arcsec, h.ry_arcsec, h.rz_arcsec, h.scale_ppm), (0.0, 0.0, 0.0, 0.0));
     /// ```
     #[must_use]
-    pub fn helmert(&self) -> Helmert {
+    pub fn helmert(self) -> Helmert {
         self.helmert
     }
 
@@ -413,7 +416,7 @@ impl DatumTransform {
     /// assert_eq!(DatumTransform::catalog_to_wgs84(Crs::Pulkovo42).unwrap().accuracy(), None);
     /// ```
     #[must_use]
-    pub fn accuracy(&self) -> Option<Length> {
+    pub fn accuracy(self) -> Option<Length> {
         self.accuracy
     }
 
@@ -448,7 +451,7 @@ impl DatumTransform {
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
-    pub fn apply(&self, coord: Coordinate) -> Result<Coordinate> {
+    pub fn apply(self, coord: Coordinate) -> Result<Coordinate> {
         if coord.crs() != self.from_crs {
             return Err(Error::CrsMismatch {
                 expected: self.from_crs,
@@ -510,7 +513,7 @@ impl DatumTransform {
     /// assert_eq!((back.from_crs(), back.to_crs()), (Crs::Wgs84, Crs::Nad27));
     /// ```
     #[must_use]
-    pub fn inverse_first_order(&self) -> DatumTransform {
+    pub fn inverse_first_order(self) -> DatumTransform {
         DatumTransform {
             from_crs: self.to_crs,
             to_crs: self.from_crs,

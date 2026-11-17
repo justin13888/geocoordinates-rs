@@ -7,7 +7,7 @@ fn wgs(lat: f64, lon: f64) -> Coordinate {
 }
 
 /// The WGS-84 geodesic distance (meters) from a decoded center to a corner.
-fn corner_distance_m(area: &Approx<Coordinate>, lat: f64, lon: f64) -> f64 {
+fn corner_distance_m(area: Approx<Coordinate>, lat: f64, lon: f64) -> f64 {
     crate::geodesy::geodesic_distance(*area.value(), wgs(lat, lon))
         .unwrap()
         .meters()
@@ -287,7 +287,7 @@ fn decode_center_and_bound_precise() {
     // center to a southern corner (the wider edge, north of the equator).
     assert_close(
         area.max_error().meters(),
-        corner_distance_m(&area, 47.0, 8.0) + ROUNDING_MARGIN_M,
+        corner_distance_m(area, 47.0, 8.0) + ROUNDING_MARGIN_M,
         1e-9,
     );
     assert_close(area.max_error().meters(), 8.418_605_830_499_43, 1e-9);
@@ -412,7 +412,7 @@ fn maidenhead_reference_and_decode() {
     // southern corner, pinned exactly.
     assert_close(
         area.max_error().meters(),
-        corner_distance_m(&area, 40.0, -76.0) + ROUNDING_MARGIN_M,
+        corner_distance_m(area, 40.0, -76.0) + ROUNDING_MARGIN_M,
         1e-9,
     );
     assert_close(area.max_error().meters(), 101_592.817_120_622_36, 1e-9);

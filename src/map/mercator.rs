@@ -226,7 +226,7 @@ impl WebMercator {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn x_m(&self) -> f64 {
+    pub const fn x_m(self) -> f64 {
         self.x_m
     }
 
@@ -239,7 +239,7 @@ impl WebMercator {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn y_m(&self) -> f64 {
+    pub const fn y_m(self) -> f64 {
         self.y_m
     }
 
@@ -252,7 +252,7 @@ impl WebMercator {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn crs(&self) -> Crs {
+    pub const fn crs(self) -> Crs {
         self.crs
     }
 }

@@ -479,9 +479,9 @@ impl CaptureGeo {
         let tags = build::Tags {
             raw: format!(
                 "GPSLatitude={} {}; GPSLongitude={} {}",
-                render(&latitude),
+                render(latitude),
                 gps.latitude_ref.as_deref().map_or("", build::clean),
-                render(&longitude),
+                render(longitude),
                 gps.longitude_ref.as_deref().map_or("", build::clean),
             ),
             latitude: triple(latitude, "latitude")?,
@@ -532,7 +532,7 @@ fn single(value: Option<ExifRational>, field: &'static str) -> Result<Option<f64
 }
 
 /// Render three rationals as stored, for [`RawSource::raw`](crate::fix::RawSource::raw).
-fn render(values: &[ExifRational; 3]) -> String {
+fn render(values: [ExifRational; 3]) -> String {
     let one = |r: &ExifRational| match *r {
         ExifRational::Unsigned(n, d) => format!("{n}/{d}"),
         ExifRational::Signed(n, d) => format!("{n}/{d}"),

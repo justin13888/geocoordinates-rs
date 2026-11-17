@@ -73,7 +73,7 @@ pub(super) struct PlaceEntry {
 
 impl PlaceEntry {
     /// The place's population, or `None` where the file stores `0` (unknown).
-    pub(super) fn population(&self) -> Option<u64> {
+    pub(super) fn population(self) -> Option<u64> {
         (self.population > 0).then_some(self.population)
     }
 }

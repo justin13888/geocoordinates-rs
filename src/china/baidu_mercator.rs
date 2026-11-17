@@ -179,7 +179,7 @@ const LL2MC: [[f64; 10]; 5] = [
 /// Select the coefficient row whose band `value` (compared by magnitude, so the
 /// tables work in both hemispheres) falls into: the first row whose lower edge
 /// it reaches, or the last row below every edge. Total, so it never fails.
-fn lookup(bands: &[f64; 4], table: &'static [[f64; 10]; 5], value: f64) -> &'static [f64; 10] {
+fn lookup(bands: [f64; 4], table: &'static [[f64; 10]; 5], value: f64) -> &'static [f64; 10] {
     let v = value.abs();
     &table[bands.iter().take_while(|&&edge| v < edge).count()]
 }
@@ -277,7 +277,7 @@ impl BaiduMercator {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn x_m(&self) -> f64 {
+    pub fn x_m(self) -> f64 {
         self.x
     }
 
@@ -288,7 +288,7 @@ impl BaiduMercator {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub fn y_m(&self) -> f64 {
+    pub fn y_m(self) -> f64 {
         self.y
     }
 
@@ -319,7 +319,7 @@ impl BaiduMercator {
                 detail: format!("northing must be within ±{MAX_NORTHING_M} m (latitude ±74°)"),
             });
         }
-        let row = lookup(&MCBAND, &MC2LL, self.y);
+        let row = lookup(MCBAND, &MC2LL, self.y);
         let lon = row[0] + row[1] * self.x.abs();
         if lon > 180.0 {
             return Err(Error::InvalidValue {
@@ -360,7 +360,7 @@ impl BaiduMercator {
                 lon: p.lon(),
             });
         }
-        let row = lookup(&LLBAND, &LL2MC, p.lat());
+        let row = lookup(LLBAND, &LL2MC, p.lat());
         let x = row[0] + row[1] * p.lon().abs();
         let y = poly(&row[2..9], p.lat().abs() / row[9]);
         Ok(Self {

@@ -153,5 +153,5 @@ impl core::marker::Unpin for geocoordinates::format::FormatOptions
 impl core::marker::UnsafeUnpin for geocoordinates::format::FormatOptions
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::format::FormatOptions
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::format::FormatOptions
-pub fn geocoordinates::format::format(geocoordinates::Coordinate, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
-pub fn geocoordinates::format::format_fix(&geocoordinates::fix::Fix, &geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::format::format(geocoordinates::Coordinate, geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>
+pub fn geocoordinates::format::format_fix(&geocoordinates::fix::Fix, geocoordinates::format::FormatOptions) -> geocoordinates::Result<alloc::string::String>

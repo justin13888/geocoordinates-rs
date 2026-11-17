@@ -37,12 +37,12 @@
 //! let track = Track::new(vec![a, b])?;
 //!
 //! // A quarter of the way through the gap, a quarter of the way along.
-//! let fix = track.locate(at(1_025), &GeotagOptions::default())?.expect("inside the track");
+//! let fix = track.locate(at(1_025), GeotagOptions::default())?.expect("inside the track");
 //! assert!((fix.coord.lon() - 0.0025).abs() < 1e-9);
 //! assert!(fix.source.expect("derived").raw.starts_with("geotag:interpolated"));
 //!
 //! // Outside the track there is no position: extrapolation is off by default.
-//! assert_eq!(track.locate(at(2_000), &GeotagOptions::default())?, None);
+//! assert_eq!(track.locate(at(2_000), GeotagOptions::default())?, None);
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 

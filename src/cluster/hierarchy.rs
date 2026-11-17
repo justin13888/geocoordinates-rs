@@ -433,7 +433,7 @@ impl ClusterIndex {
                 found.push(MapCluster::from_node(level, id, aggregate)?);
             }
         }
-        found.sort_unstable_by_key(MapCluster::id);
+        found.sort_unstable_by_key(|pin| pin.id());
         Ok(found)
     }
 
@@ -516,10 +516,10 @@ impl ClusterIndex {
     /// a pin from another index, or from before an update, is refused even when its
     /// id happens to name a cluster here.
     #[cfg(all(feature = "map", feature = "geojson"))]
-    pub(crate) fn check_pin(&self, pin: &MapCluster) -> Result<()> {
+    pub(crate) fn check_pin(&self, pin: MapCluster) -> Result<()> {
         let (level, id) = self.resolve(pin.id())?;
         let forest = self.forest.as_ref().ok_or_else(|| unknown(pin.id()))?;
-        if MapCluster::from_node(level, id, &forest.node(level, id).aggregate)? == *pin {
+        if MapCluster::from_node(level, id, &forest.node(level, id).aggregate)? == pin {
             Ok(())
         } else {
             Err(Error::InvalidValue {

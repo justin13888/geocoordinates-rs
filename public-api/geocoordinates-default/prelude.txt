@@ -49,6 +49,6 @@ pub geocoordinates::prelude::Fix::source: core::option::Option<geocoordinates::f
 pub geocoordinates::prelude::Fix::timestamp: core::option::Option<std::time::SystemTime>
 pub struct geocoordinates::prelude::Length
 pub trait geocoordinates::prelude::LatLon: geocoordinates::coord::sealed::Sealed + core::marker::Copy
-pub fn geocoordinates::prelude::LatLon::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::prelude::LatLon::lat(&self) -> f64
-pub fn geocoordinates::prelude::LatLon::lon(&self) -> f64
+pub fn geocoordinates::prelude::LatLon::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::prelude::LatLon::lat(self) -> f64
+pub fn geocoordinates::prelude::LatLon::lon(self) -> f64

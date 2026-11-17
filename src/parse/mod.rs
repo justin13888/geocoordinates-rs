@@ -150,7 +150,7 @@ pub use text::{parse_text, parse_text_with};
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn parse_coordinate(input: &str) -> Result<Fix> {
-    parse_coordinate_with(input, &ParseOptions::default())
+    parse_coordinate_with(input, ParseOptions::default())
 }
 
 /// [`parse_coordinate`] with explicit options.
@@ -175,11 +175,11 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// use geocoordinates::parse::{GridKind, ParseOptions, parse_coordinate_with};
 ///
 /// let options = ParseOptions::default().with_expect_grid(Some(GridKind::Maidenhead));
-/// let fix = parse_coordinate_with("FN20", &options)?;
+/// let fix = parse_coordinate_with("FN20", options)?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (40.5, -75.0));
 ///
 /// // Neither a locator nor coordinate text: the error gives both reasons.
-/// let Err(Error::Parse { detail, .. }) = parse_coordinate_with("FN2", &options) else {
+/// let Err(Error::Parse { detail, .. }) = parse_coordinate_with("FN2", options) else {
 ///     panic!("expected a parse error");
 /// };
 /// assert!(detail.starts_with("not a Maidenhead reference"));
@@ -188,12 +188,12 @@ pub fn parse_coordinate(input: &str) -> Result<Fix> {
 /// // the default axis order.
 /// let lon_first = ParseOptions::default().with_default_axis_order(AxisOrder::LonLat);
 /// assert_eq!(
-///     parse_coordinate_with("100, 200", &lon_first),
+///     parse_coordinate_with("100, 200", lon_first),
 ///     Err(Error::OutOfRange { lat: 200.0, lon: 100.0 })
 /// );
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn parse_coordinate_with(input: &str, options: &ParseOptions) -> Result<Fix> {
+pub fn parse_coordinate_with(input: &str, options: ParseOptions) -> Result<Fix> {
     // Dispatch on the trimmed input, but hand every builder the verbatim
     // `input` so `RawSource::raw` never depends on which path matched. Each
     // builder trims for itself.
@@ -522,7 +522,7 @@ mod tests {
             wgs(51.5074, -0.1278),
         ];
         for c in coords {
-            let text = format(c, &FormatOptions::default()).unwrap();
+            let text = format(c, FormatOptions::default()).unwrap();
             let parsed = parse_coordinate(&text).unwrap();
             assert_within_meters(parsed.coord, c, 0.2);
         }
@@ -577,8 +577,8 @@ mod tests {
                         representation,
                         decimal_separator,
                     };
-                    let text = format(c, &options).unwrap();
-                    let parsed = parse_coordinate_with(&text, &ParseOptions::for_format(&options))
+                    let text = format(c, options).unwrap();
+                    let parsed = parse_coordinate_with(&text, ParseOptions::for_format(options))
                         .unwrap_or_else(|e| panic!("{text:?} ({options:?}): {e}"));
                     // Default precisions: DD 6 dp (0.11 m), DMS 0.01″
                     // (0.3 m), DDM 0.001′ (1.9 m) — each rounds to half.
@@ -598,14 +598,14 @@ mod tests {
             decimal_separator: crate::format::DecimalSeparator::Comma,
             ..ParseOptions::default()
         };
-        let fix = parse_coordinate_with("40,7128 -74,006", &comma).unwrap();
+        let fix = parse_coordinate_with("40,7128 -74,006", comma).unwrap();
         assert_close(fix.coord.lat(), 40.7128, 1e-9);
         assert_close(fix.coord.lon(), -74.006, 1e-9);
         assert!(parse_coordinate("40,7128 -74,006").is_err());
         // geo: URIs and Plus Codes ignore the text options.
-        let geo = parse_coordinate_with("geo:13.4125,103.8667", &comma).unwrap();
+        let geo = parse_coordinate_with("geo:13.4125,103.8667", comma).unwrap();
         assert_close(geo.coord.lon(), 103.8667, 1e-9);
-        let plus = parse_coordinate_with("8FVC2222+22", &comma).unwrap();
+        let plus = parse_coordinate_with("8FVC2222+22", comma).unwrap();
         assert_close(plus.coord.lat(), 47.0000625, 1e-6);
     }
 
@@ -633,7 +633,7 @@ mod tests {
             representation: Representation::PlusCode { length: 10 },
             ..FormatOptions::default()
         };
-        let code = format(c, &options).unwrap();
+        let code = format(c, options).unwrap();
         let fix = parse_coordinate(&code).unwrap();
         // The original lies within the decoded cell's reported bound.
         let bound = fix.accuracy.unwrap().horizontal().unwrap().meters();

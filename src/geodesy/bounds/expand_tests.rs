@@ -172,6 +172,6 @@ fn a_wide_box_stays_open_while_its_edges_have_not_met() {
 #[test]
 fn boxes_touching_along_one_parallel_intersect_either_way_round() {
     let (low, high) = (bounds(0.0, 0.0, 10.0, 5.0), bounds(10.0, 0.0, 20.0, 5.0));
-    assert!(low.intersects(&high).unwrap());
-    assert!(high.intersects(&low).unwrap());
+    assert!(low.intersects(high).unwrap());
+    assert!(high.intersects(low).unwrap());
 }

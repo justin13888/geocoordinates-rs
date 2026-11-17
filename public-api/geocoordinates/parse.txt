@@ -38,7 +38,7 @@ pub geocoordinates::parse::ParseOptions::decimal_separator: geocoordinates::form
 pub geocoordinates::parse::ParseOptions::default_axis_order: geocoordinates::fix::AxisOrder
 pub geocoordinates::parse::ParseOptions::expect_grid: core::option::Option<geocoordinates::parse::GridKind>
 impl geocoordinates::parse::ParseOptions
-pub const fn geocoordinates::parse::ParseOptions::for_format(&geocoordinates::format::FormatOptions) -> Self
+pub const fn geocoordinates::parse::ParseOptions::for_format(geocoordinates::format::FormatOptions) -> Self
 pub const fn geocoordinates::parse::ParseOptions::with_decimal_separator(self, geocoordinates::format::DecimalSeparator) -> Self
 pub const fn geocoordinates::parse::ParseOptions::with_default_axis_order(self, geocoordinates::fix::AxisOrder) -> Self
 pub const fn geocoordinates::parse::ParseOptions::with_expect_grid(self, core::option::Option<geocoordinates::parse::GridKind>) -> Self
@@ -67,7 +67,7 @@ impl core::marker::UnsafeUnpin for geocoordinates::parse::ParseOptions
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::parse::ParseOptions
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::parse::ParseOptions
 pub fn geocoordinates::parse::parse_coordinate(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
-pub fn geocoordinates::parse::parse_coordinate_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_coordinate_with(&str, geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_geo_uri(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
 pub fn geocoordinates::parse::parse_text(&str) -> geocoordinates::Result<geocoordinates::fix::Fix>
-pub fn geocoordinates::parse::parse_text_with(&str, &geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>
+pub fn geocoordinates::parse::parse_text_with(&str, geocoordinates::parse::ParseOptions) -> geocoordinates::Result<geocoordinates::fix::Fix>

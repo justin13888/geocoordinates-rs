@@ -238,7 +238,7 @@ impl Accuracy {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn kind(&self) -> AccuracyKind {
+    pub const fn kind(self) -> AccuracyKind {
         self.kind
     }
 
@@ -254,7 +254,7 @@ impl Accuracy {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn horizontal(&self) -> Option<Length> {
+    pub const fn horizontal(self) -> Option<Length> {
         self.horizontal
     }
 
@@ -270,7 +270,7 @@ impl Accuracy {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     #[must_use]
-    pub const fn vertical(&self) -> Option<Length> {
+    pub const fn vertical(self) -> Option<Length> {
         self.vertical
     }
 }

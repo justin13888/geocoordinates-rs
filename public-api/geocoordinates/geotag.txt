@@ -66,7 +66,7 @@ pub fn geocoordinates::geotag::Track::dropped_untimed(&self) -> usize
 pub fn geocoordinates::geotag::Track::fixes(&self) -> &[geocoordinates::fix::Fix]
 pub fn geocoordinates::geotag::Track::is_empty(&self) -> bool
 pub fn geocoordinates::geotag::Track::len(&self) -> usize
-pub fn geocoordinates::geotag::Track::locate(&self, std::time::SystemTime, &geocoordinates::geotag::GeotagOptions) -> geocoordinates::Result<core::option::Option<geocoordinates::fix::Fix>>
+pub fn geocoordinates::geotag::Track::locate(&self, std::time::SystemTime, geocoordinates::geotag::GeotagOptions) -> geocoordinates::Result<core::option::Option<geocoordinates::fix::Fix>>
 pub fn geocoordinates::geotag::Track::new(alloc::vec::Vec<geocoordinates::fix::Fix>) -> geocoordinates::Result<Self>
 impl core::clone::Clone for geocoordinates::geotag::Track
 pub fn geocoordinates::geotag::Track::clone(&self) -> Self

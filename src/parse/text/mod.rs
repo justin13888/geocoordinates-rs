@@ -84,7 +84,7 @@ use resolve::resolve;
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn parse_text(input: &str) -> Result<Fix> {
-    parse_free_text(input, &ParseOptions::default())
+    parse_free_text(input, ParseOptions::default())
 }
 
 /// [`parse_text`] with explicit options.
@@ -108,26 +108,26 @@ pub fn parse_text(input: &str) -> Result<Fix> {
 /// use geocoordinates::parse::{GridKind, ParseOptions, parse_text_with};
 ///
 /// let comma = ParseOptions::default().with_decimal_separator(DecimalSeparator::Comma);
-/// let fix = parse_text_with("48,8566; 2,3522", &comma)?;
+/// let fix = parse_text_with("48,8566; 2,3522", comma)?;
 /// assert_eq!((fix.coord.lat(), fix.coord.lon()), (48.8566, 2.3522));
 ///
 /// // Neither reading of 100, 200 is on the globe; the pair comes back lat-first.
 /// assert_eq!(
-///     parse_text_with("100; 200", &comma),
+///     parse_text_with("100; 200", comma),
 ///     Err(Error::OutOfRange { lat: 100.0, lon: 200.0 })
 /// );
 /// // Malformed text is still a parse error.
-/// assert!(matches!(parse_text_with("48,8566", &comma), Err(Error::Parse { .. })));
+/// assert!(matches!(parse_text_with("48,8566", comma), Err(Error::Parse { .. })));
 ///
 /// // Expecting a grid reference is a request free text cannot honour.
 /// let grid = ParseOptions::default().with_expect_grid(Some(GridKind::Geohash));
 /// assert!(matches!(
-///     parse_text_with("48.8566, 2.3522", &grid),
+///     parse_text_with("48.8566, 2.3522", grid),
 ///     Err(Error::InvalidValue { field: "expect_grid", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
-pub fn parse_text_with(input: &str, options: &ParseOptions) -> Result<Fix> {
+pub fn parse_text_with(input: &str, options: ParseOptions) -> Result<Fix> {
     if let Some(kind) = options.expect_grid {
         return Err(Error::InvalidValue {
             field: "expect_grid",
@@ -144,7 +144,7 @@ pub fn parse_text_with(input: &str, options: &ParseOptions) -> Result<Fix> {
 /// [`parse_coordinate_with`](super::parse_coordinate_with): reads
 /// `default_axis_order` and `decimal_separator`, and leaves `expect_grid` to
 /// the caller.
-pub(super) fn parse_free_text(input: &str, options: &ParseOptions) -> Result<Fix> {
+pub(super) fn parse_free_text(input: &str, options: ParseOptions) -> Result<Fix> {
     let decimal_comma = options.decimal_separator == DecimalSeparator::Comma;
     let normalized = normalize(input, decimal_comma);
     let (first, second) = split_two(&normalized, decimal_comma)

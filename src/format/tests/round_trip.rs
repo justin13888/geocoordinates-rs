@@ -103,17 +103,17 @@ fn capped_options() -> impl Strategy<Value = FormatOptions> {
 
 /// Parse a rendering back to a coordinate through `parse_coordinate_with`
 /// given `ParseOptions::for_format` of the options, for every representation.
-fn reparse(text: &str, options: &FormatOptions) -> Coordinate {
-    parse_coordinate_with(text, &ParseOptions::for_format(options))
+fn reparse(text: &str, options: FormatOptions) -> Coordinate {
+    parse_coordinate_with(text, ParseOptions::for_format(options))
         .unwrap_or_else(|e| panic!("{text:?} did not re-parse: {e}"))
         .coord
 }
 
 /// One trip: render, parse back, render again. Returns both renderings.
-fn trip(lat: f64, lon: f64, options: &FormatOptions) -> (String, String) {
-    let first = fmt(&wgs(lat, lon), options);
+fn trip(lat: f64, lon: f64, options: FormatOptions) -> (String, String) {
+    let first = fmt(wgs(lat, lon), options);
     let parsed = reparse(&first, options);
-    (first, fmt(&parsed, options))
+    (first, fmt(parsed, options))
 }
 
 proptest! {
@@ -129,7 +129,7 @@ proptest! {
         lon in longitude(),
         options in options(),
     ) {
-        let (first, second) = trip(lat, lon, &options);
+        let (first, second) = trip(lat, lon, options);
         prop_assert_eq!(first, second, "options {:?}", options);
     }
 
@@ -141,7 +141,7 @@ proptest! {
         lon in longitude(),
         options in capped_options(),
     ) {
-        let (first, second) = trip(lat, lon, &options);
+        let (first, second) = trip(lat, lon, options);
         prop_assert_eq!(first, second, "options {:?}", options);
     }
 }
@@ -173,7 +173,7 @@ fn mgrs_truncated_square_decodes_inside_its_zone() {
         (83.99, 1.0, "31XDP"),
         (-80.001, 5.0, "BAZ"),
     ] {
-        let (first, second) = trip(lat, lon, &km100);
+        let (first, second) = trip(lat, lon, km100);
         assert_eq!(first, rendering, "({lat}, {lon})");
         assert_eq!(second, rendering, "({lat}, {lon})");
     }
@@ -185,21 +185,21 @@ fn mgrs_truncated_square_decodes_inside_its_zone() {
 fn rounding_to_zero_renders_unsigned() {
     // DD drops the sign of a value that rounds to zero.
     let dd_signed = opts(dd(Some(2), HemisphereStyle::Signed));
-    let (first, second) = trip(-1e-9, 10.0, &dd_signed);
+    let (first, second) = trip(-1e-9, 10.0, dd_signed);
     assert_eq!(first, "0.00, 10.00");
     assert_eq!(second, "0.00, 10.00");
     // So does DMS, so the re-parsed 0.0 renders identically.
     let dms_signed = opts(dms(Some(2), SymbolStyle::Unicode, HemisphereStyle::Signed));
-    let (first, second) = trip(-1e-9, 10.0, &dms_signed);
+    let (first, second) = trip(-1e-9, 10.0, dms_signed);
     assert_eq!(first, "0°00′00.00″ 10°00′00.00″");
     assert_eq!(second, "0°00′00.00″ 10°00′00.00″");
     // The cardinal style picks the hemisphere after rounding.
     let dd_cardinal = opts(dd(Some(2), HemisphereStyle::Cardinal));
-    let (first, second) = trip(-1e-9, 10.0, &dd_cardinal);
+    let (first, second) = trip(-1e-9, 10.0, dd_cardinal);
     assert_eq!(first, "0.00 N, 10.00 E");
     assert_eq!(second, "0.00 N, 10.00 E");
     // A negative zero is unsigned too.
-    let (first, _) = trip(-0.0, -0.0, &dd_signed);
+    let (first, _) = trip(-0.0, -0.0, dd_signed);
     assert_eq!(first, "0.00, 0.00");
 }
 
@@ -219,7 +219,7 @@ fn angle_decimal_caps_are_the_last_counts_that_round_trip() {
             render::angle_pair(c, kind, p, symbols, hemisphere, point).expect("renders")
         };
         let first = raw(wgs(lat, lon));
-        let parsed = reparse(&first, &FormatOptions::default());
+        let parsed = reparse(&first, FormatOptions::default());
         (first, raw(parsed))
     };
     let (dms_lat, dms_lon) = (-29.716_708_966_973_357, -160.137_993_148_233_65);
@@ -238,7 +238,7 @@ fn angle_decimal_caps_are_the_last_counts_that_round_trip() {
     let dms_at = |p| opts(dms(Some(p), symbols, hemisphere));
     let ddm_at = |p| opts(ddm(Some(p), symbols, hemisphere));
     for options in [dms_at(DMS_MAX + 1), ddm_at(DDM_MAX + 1)] {
-        let refused = format(wgs(dms_lat, dms_lon), &options);
+        let refused = format(wgs(dms_lat, dms_lon), options);
         assert!(
             matches!(refused, Err(Error::InvalidValue { .. })),
             "{options:?}: {refused:?}"
@@ -246,9 +246,9 @@ fn angle_decimal_caps_are_the_last_counts_that_round_trip() {
     }
 
     // The same points are stable at the caps.
-    let (first, second) = trip(dms_lat, dms_lon, &dms_at(DMS_MAX));
+    let (first, second) = trip(dms_lat, dms_lon, dms_at(DMS_MAX));
     assert_eq!(first, second);
-    let (first, second) = trip(ddm_lat, ddm_lon, &ddm_at(DDM_MAX));
+    let (first, second) = trip(ddm_lat, ddm_lon, ddm_at(DDM_MAX));
     assert_eq!(first, second);
 }
 
@@ -264,7 +264,7 @@ proptest! {
         lon in prop_oneof![1.0..=180.0_f64, -180.0..=-1.0_f64, Just(180.0), Just(-180.0)],
         options in options(),
     ) {
-        let (first, second) = trip(lat, lon, &options);
+        let (first, second) = trip(lat, lon, options);
         prop_assert_eq!(first, second, "options {:?}", options);
     }
 }

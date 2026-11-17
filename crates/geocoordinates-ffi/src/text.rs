@@ -367,7 +367,7 @@ pub fn decimal_separator_for_locale(tag: String) -> DecimalSeparator {
 pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<String, GeoError> {
     let coord: gc::Coordinate = coord.try_into()?;
     let options: gc::format::FormatOptions = options.into();
-    gc::format::format(coord, &options).map_err(GeoError::from)
+    gc::format::format(coord, options).map_err(GeoError::from)
 }
 
 /// Render a [`Fix`] to a string, deriving the decimal count from its accuracy
@@ -383,7 +383,7 @@ pub fn format_coordinate(coord: Coordinate, options: FormatOptions) -> Result<St
 pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> {
     let fix: gc::fix::Fix = fix.try_into()?;
     let options: gc::format::FormatOptions = options.into();
-    gc::format::format_fix(&fix, &options).map_err(GeoError::from)
+    gc::format::format_fix(&fix, options).map_err(GeoError::from)
 }
 
 /// The [`ParseOptions`] that read back every string `options` renders through
@@ -392,7 +392,7 @@ pub fn format_fix(fix: Fix, options: FormatOptions) -> Result<String, GeoError> 
 #[uniffi::export]
 pub fn format_options_parse_options(options: FormatOptions) -> ParseOptions {
     let options: gc::format::FormatOptions = options.into();
-    gc::parse::ParseOptions::for_format(&options).into()
+    gc::parse::ParseOptions::for_format(options).into()
 }
 
 // --- Coordinate parsing ---
@@ -430,7 +430,7 @@ pub fn parse_coordinate(input: String) -> Result<Fix, GeoError> {
 #[uniffi::export]
 pub fn parse_coordinate_with(input: String, options: ParseOptions) -> Result<Fix, GeoError> {
     let options: gc::parse::ParseOptions = options.into();
-    gc::parse::parse_coordinate_with(&input, &options)
+    gc::parse::parse_coordinate_with(&input, options)
         .map(Into::into)
         .map_err(GeoError::from)
 }
@@ -482,7 +482,7 @@ pub fn parse_text(input: String) -> Result<Fix, GeoError> {
 #[uniffi::export]
 pub fn parse_text_with(input: String, options: ParseOptions) -> Result<Fix, GeoError> {
     let options: gc::parse::ParseOptions = options.into();
-    gc::parse::parse_text_with(&input, &options)
+    gc::parse::parse_text_with(&input, options)
         .map(Into::into)
         .map_err(GeoError::from)
 }
