@@ -6,8 +6,8 @@ pub fn geocoordinates::china::BaiduMercator::try_from_bd09(geocoordinates::china
 pub fn geocoordinates::china::BaiduMercator::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
 pub fn geocoordinates::china::BaiduMercator::try_to_bd09(self) -> geocoordinates::Result<geocoordinates::china::Bd09>
 pub fn geocoordinates::china::BaiduMercator::try_to_coordinate(self) -> geocoordinates::Result<geocoordinates::Coordinate>
-pub fn geocoordinates::china::BaiduMercator::x_m(&self) -> f64
-pub fn geocoordinates::china::BaiduMercator::y_m(&self) -> f64
+pub fn geocoordinates::china::BaiduMercator::x_m(self) -> f64
+pub fn geocoordinates::china::BaiduMercator::y_m(self) -> f64
 impl core::clone::Clone for geocoordinates::china::BaiduMercator
 pub fn geocoordinates::china::BaiduMercator::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::china::BaiduMercator
@@ -38,8 +38,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::china::BaiduMer
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::china::BaiduMercator
 pub struct geocoordinates::china::Bd09
 impl geocoordinates::china::Bd09
-pub fn geocoordinates::china::Bd09::lat(&self) -> f64
-pub fn geocoordinates::china::Bd09::lon(&self) -> f64
+pub fn geocoordinates::china::Bd09::lat(self) -> f64
+pub fn geocoordinates::china::Bd09::lon(self) -> f64
 pub fn geocoordinates::china::Bd09::new(f64, f64) -> geocoordinates::Result<Self>
 pub fn geocoordinates::china::Bd09::to_coordinate(self) -> geocoordinates::Coordinate
 pub fn geocoordinates::china::Bd09::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
@@ -75,9 +75,9 @@ pub fn geocoordinates::china::Bd09::fmt(&self, &mut core::fmt::Formatter<'_>) ->
 impl core::marker::Copy for geocoordinates::china::Bd09
 impl core::marker::StructuralPartialEq for geocoordinates::china::Bd09
 impl geocoordinates::LatLon for geocoordinates::china::Bd09
-pub fn geocoordinates::china::Bd09::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::china::Bd09::lat(&self) -> f64
-pub fn geocoordinates::china::Bd09::lon(&self) -> f64
+pub fn geocoordinates::china::Bd09::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Bd09::lat(self) -> f64
+pub fn geocoordinates::china::Bd09::lon(self) -> f64
 impl serde_core::ser::Serialize for geocoordinates::china::Bd09
 pub fn geocoordinates::china::Bd09::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
 impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::china::Bd09
@@ -91,12 +91,12 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::china::Bd09
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::china::Bd09
 pub struct geocoordinates::china::Gcj02
 impl geocoordinates::china::Gcj02
-pub fn geocoordinates::china::Gcj02::is_outside_china(&self) -> bool
+pub fn geocoordinates::china::Gcj02::is_outside_china(self) -> bool
 pub fn geocoordinates::china::Gcj02::to_wgs84_fast(self) -> geocoordinates::Approx<geocoordinates::china::Wgs84>
 pub fn geocoordinates::china::Gcj02::to_wgs84_refined(self) -> geocoordinates::Approx<geocoordinates::china::Wgs84>
 impl geocoordinates::china::Gcj02
-pub fn geocoordinates::china::Gcj02::lat(&self) -> f64
-pub fn geocoordinates::china::Gcj02::lon(&self) -> f64
+pub fn geocoordinates::china::Gcj02::lat(self) -> f64
+pub fn geocoordinates::china::Gcj02::lon(self) -> f64
 pub fn geocoordinates::china::Gcj02::new(f64, f64) -> geocoordinates::Result<Self>
 pub fn geocoordinates::china::Gcj02::to_coordinate(self) -> geocoordinates::Coordinate
 pub fn geocoordinates::china::Gcj02::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
@@ -121,9 +121,9 @@ pub fn geocoordinates::china::Gcj02::fmt(&self, &mut core::fmt::Formatter<'_>) -
 impl core::marker::Copy for geocoordinates::china::Gcj02
 impl core::marker::StructuralPartialEq for geocoordinates::china::Gcj02
 impl geocoordinates::LatLon for geocoordinates::china::Gcj02
-pub fn geocoordinates::china::Gcj02::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::china::Gcj02::lat(&self) -> f64
-pub fn geocoordinates::china::Gcj02::lon(&self) -> f64
+pub fn geocoordinates::china::Gcj02::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Gcj02::lat(self) -> f64
+pub fn geocoordinates::china::Gcj02::lon(self) -> f64
 impl serde_core::ser::Serialize for geocoordinates::china::Gcj02
 pub fn geocoordinates::china::Gcj02::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
 impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::china::Gcj02
@@ -137,11 +137,11 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::china::Gcj02
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::china::Gcj02
 pub struct geocoordinates::china::Wgs84
 impl geocoordinates::china::Wgs84
-pub fn geocoordinates::china::Wgs84::is_outside_china(&self) -> bool
+pub fn geocoordinates::china::Wgs84::is_outside_china(self) -> bool
 pub fn geocoordinates::china::Wgs84::to_gcj02(self) -> geocoordinates::china::Gcj02
 impl geocoordinates::china::Wgs84
-pub fn geocoordinates::china::Wgs84::lat(&self) -> f64
-pub fn geocoordinates::china::Wgs84::lon(&self) -> f64
+pub fn geocoordinates::china::Wgs84::lat(self) -> f64
+pub fn geocoordinates::china::Wgs84::lon(self) -> f64
 pub fn geocoordinates::china::Wgs84::new(f64, f64) -> geocoordinates::Result<Self>
 pub fn geocoordinates::china::Wgs84::to_coordinate(self) -> geocoordinates::Coordinate
 pub fn geocoordinates::china::Wgs84::try_from_coordinate(geocoordinates::Coordinate) -> geocoordinates::Result<Self>
@@ -166,9 +166,9 @@ pub fn geocoordinates::china::Wgs84::fmt(&self, &mut core::fmt::Formatter<'_>) -
 impl core::marker::Copy for geocoordinates::china::Wgs84
 impl core::marker::StructuralPartialEq for geocoordinates::china::Wgs84
 impl geocoordinates::LatLon for geocoordinates::china::Wgs84
-pub fn geocoordinates::china::Wgs84::crs(&self) -> geocoordinates::Crs
-pub fn geocoordinates::china::Wgs84::lat(&self) -> f64
-pub fn geocoordinates::china::Wgs84::lon(&self) -> f64
+pub fn geocoordinates::china::Wgs84::crs(self) -> geocoordinates::Crs
+pub fn geocoordinates::china::Wgs84::lat(self) -> f64
+pub fn geocoordinates::china::Wgs84::lon(self) -> f64
 impl serde_core::ser::Serialize for geocoordinates::china::Wgs84
 pub fn geocoordinates::china::Wgs84::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
 impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::china::Wgs84

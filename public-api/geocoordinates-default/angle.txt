@@ -47,10 +47,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::angle::Hemisphe
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::angle::Hemisphere
 pub struct geocoordinates::angle::Ddm
 impl geocoordinates::angle::Ddm
-pub fn geocoordinates::angle::Ddm::degrees(&self) -> u16
+pub fn geocoordinates::angle::Ddm::degrees(self) -> u16
 pub fn geocoordinates::angle::Ddm::from_degrees(f64, geocoordinates::angle::Axis) -> geocoordinates::Result<Self>
-pub fn geocoordinates::angle::Ddm::hemisphere(&self) -> geocoordinates::angle::Hemisphere
-pub fn geocoordinates::angle::Ddm::minutes(&self) -> f64
+pub fn geocoordinates::angle::Ddm::hemisphere(self) -> geocoordinates::angle::Hemisphere
+pub fn geocoordinates::angle::Ddm::minutes(self) -> f64
 pub fn geocoordinates::angle::Ddm::new(u16, f64, geocoordinates::angle::Hemisphere) -> geocoordinates::Result<Self>
 pub fn geocoordinates::angle::Ddm::to_degrees(self) -> f64
 pub fn geocoordinates::angle::Ddm::to_dms(self) -> geocoordinates::angle::Dms
@@ -71,12 +71,12 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::angle::Ddm
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::angle::Ddm
 pub struct geocoordinates::angle::Dms
 impl geocoordinates::angle::Dms
-pub fn geocoordinates::angle::Dms::degrees(&self) -> u16
+pub fn geocoordinates::angle::Dms::degrees(self) -> u16
 pub fn geocoordinates::angle::Dms::from_degrees(f64, geocoordinates::angle::Axis) -> geocoordinates::Result<Self>
-pub fn geocoordinates::angle::Dms::hemisphere(&self) -> geocoordinates::angle::Hemisphere
-pub fn geocoordinates::angle::Dms::minutes(&self) -> u8
+pub fn geocoordinates::angle::Dms::hemisphere(self) -> geocoordinates::angle::Hemisphere
+pub fn geocoordinates::angle::Dms::minutes(self) -> u8
 pub fn geocoordinates::angle::Dms::new(u16, u8, f64, geocoordinates::angle::Hemisphere) -> geocoordinates::Result<Self>
-pub fn geocoordinates::angle::Dms::seconds(&self) -> f64
+pub fn geocoordinates::angle::Dms::seconds(self) -> f64
 pub fn geocoordinates::angle::Dms::to_ddm(self) -> geocoordinates::angle::Ddm
 pub fn geocoordinates::angle::Dms::to_degrees(self) -> f64
 impl core::clone::Clone for geocoordinates::angle::Dms

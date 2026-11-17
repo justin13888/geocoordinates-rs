@@ -65,10 +65,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::fix::DatumAmbig
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::fix::DatumAmbiguity
 pub struct geocoordinates::fix::Accuracy
 impl geocoordinates::fix::Accuracy
-pub const fn geocoordinates::fix::Accuracy::horizontal(&self) -> core::option::Option<geocoordinates::Length>
-pub const fn geocoordinates::fix::Accuracy::kind(&self) -> geocoordinates::fix::AccuracyKind
+pub const fn geocoordinates::fix::Accuracy::horizontal(self) -> core::option::Option<geocoordinates::Length>
+pub const fn geocoordinates::fix::Accuracy::kind(self) -> geocoordinates::fix::AccuracyKind
 pub fn geocoordinates::fix::Accuracy::new(geocoordinates::fix::AccuracyKind, core::option::Option<geocoordinates::Length>, core::option::Option<geocoordinates::Length>) -> geocoordinates::Result<Self>
-pub const fn geocoordinates::fix::Accuracy::vertical(&self) -> core::option::Option<geocoordinates::Length>
+pub const fn geocoordinates::fix::Accuracy::vertical(self) -> core::option::Option<geocoordinates::Length>
 impl core::clone::Clone for geocoordinates::fix::Accuracy
 pub fn geocoordinates::fix::Accuracy::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::fix::Accuracy

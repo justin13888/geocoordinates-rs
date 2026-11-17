@@ -143,11 +143,11 @@ impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::cluster::GridBu
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::cluster::GridBucket
 pub struct geocoordinates::cluster::MapCluster
 impl geocoordinates::cluster::MapCluster
-pub const fn geocoordinates::cluster::MapCluster::bounds(&self) -> geocoordinates::geodesy::GeoBounds
-pub const fn geocoordinates::cluster::MapCluster::centroid(&self) -> geocoordinates::Approx<geocoordinates::Coordinate>
-pub const fn geocoordinates::cluster::MapCluster::count(&self) -> u64
-pub const fn geocoordinates::cluster::MapCluster::id(&self) -> u64
-pub const fn geocoordinates::cluster::MapCluster::zoom(&self) -> u8
+pub const fn geocoordinates::cluster::MapCluster::bounds(self) -> geocoordinates::geodesy::GeoBounds
+pub const fn geocoordinates::cluster::MapCluster::centroid(self) -> geocoordinates::Approx<geocoordinates::Coordinate>
+pub const fn geocoordinates::cluster::MapCluster::count(self) -> u64
+pub const fn geocoordinates::cluster::MapCluster::id(self) -> u64
+pub const fn geocoordinates::cluster::MapCluster::zoom(self) -> u8
 impl core::clone::Clone for geocoordinates::cluster::MapCluster
 pub fn geocoordinates::cluster::MapCluster::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::cluster::MapCluster
