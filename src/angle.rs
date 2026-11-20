@@ -479,6 +479,44 @@ impl Ddm {
     }
 }
 
+/// Sugar for [`Dms::to_ddm`], which it calls.
+///
+/// ```
+/// use geocoordinates::angle::{Ddm, Dms, Hemisphere};
+///
+/// let dms = Dms::new(40, 42, 45.96, Hemisphere::North)?;
+/// assert_eq!(Ddm::from(dms), dms.to_ddm());
+/// let ddm: Ddm = dms.into();
+/// assert_eq!(ddm.degrees(), 40);
+/// // The source is valid by construction, so the error is at `Dms::new`.
+/// assert!(Dms::new(40, 60, 0.0, Hemisphere::North).is_err());
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+impl From<Dms> for Ddm {
+    fn from(dms: Dms) -> Ddm {
+        dms.to_ddm()
+    }
+}
+
+/// Sugar for [`Ddm::to_dms`], which it calls.
+///
+/// ```
+/// use geocoordinates::angle::{Ddm, Dms, Hemisphere};
+///
+/// let ddm = Ddm::new(122, 25.5, Hemisphere::West)?;
+/// assert_eq!(Dms::from(ddm), ddm.to_dms());
+/// let dms: Dms = ddm.into();
+/// assert_eq!((dms.minutes(), dms.seconds()), (25, 30.0));
+/// // The source is valid by construction, so the error is at `Ddm::new`.
+/// assert!(Ddm::new(122, 60.0, Hemisphere::West).is_err());
+/// # Ok::<(), geocoordinates::Error>(())
+/// ```
+impl From<Ddm> for Dms {
+    fn from(ddm: Ddm) -> Dms {
+        ddm.to_dms()
+    }
+}
+
 fn axis_for_hemisphere(hemisphere: Hemisphere) -> Axis {
     match hemisphere {
         Hemisphere::North | Hemisphere::South => Axis::Latitude,
