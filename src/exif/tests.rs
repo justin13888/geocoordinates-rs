@@ -38,7 +38,7 @@ pub(super) fn xmp_base() -> XmpGps {
     }
 }
 
-fn field_of(gps: &ExifGps) -> &'static str {
+pub(super) fn field_of(gps: &ExifGps) -> &'static str {
     match CaptureGeo::from_exif(gps) {
         Err(Error::InvalidValue { field, .. }) => field,
         other => panic!("expected InvalidValue, got {other:?}"),
@@ -92,11 +92,12 @@ fn every_invalid_or_absent_position_ref_is_an_error() {
     }
 }
 
-#[test]
-fn rejects_each_invalid_value_naming_its_tag() {
+/// One invalid value per row, with the field its error names; `policy_tests.rs`
+/// runs it under each [`AuxiliaryTagPolicy`](super::AuxiliaryTagPolicy).
+pub(super) fn rejections() -> Vec<(&'static str, ExifGps)> {
     let zero_denominator = U(1, 0);
     let negative = ExifRational::Signed(-1, 1);
-    let cases: Vec<(&str, ExifGps)> = vec![
+    vec![
         (
             "latitude",
             ExifGps {
@@ -276,10 +277,7 @@ fn rejects_each_invalid_value_naming_its_tag() {
                 ..base()
             },
         ),
-    ];
-    for (field, gps) in &cases {
-        assert_eq!(field_of(gps), *field, "{gps:?}");
-    }
+    ]
 }
 
 #[test]

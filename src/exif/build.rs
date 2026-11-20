@@ -3,7 +3,10 @@
 
 use std::time::{Duration, SystemTime};
 
-use super::{CaptureGeo, ExifOptions, NorthBearing, NorthReference, NullIslandPolicy, no_fix};
+use super::{
+    AuxiliaryTagPolicy, CaptureGeo, ExifOptions, NorthBearing, NorthReference, NullIslandPolicy,
+    no_fix,
+};
 use crate::china::outside_china_box;
 use crate::coord::{Coordinate, Crs};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, DatumAmbiguity, Fix, RawSource};
@@ -17,24 +20,26 @@ const KMH_TO_MPS: f64 = 1000.0 / 3600.0;
 const MPH_TO_MPS: f64 = 1609.344 / 3600.0;
 const KNOT_TO_MPS: f64 = 1852.0 / 3600.0;
 
-/// Tag values with their numbers already read, from either path.
+/// Tag values with their numbers already read, from either path. An auxiliary tag
+/// that failed to read keeps its error, for [`Tags::build`] to apply the
+/// [`AuxiliaryTagPolicy`] to.
 pub(super) struct Tags<'a> {
     pub raw: String,
     pub latitude: [f64; 3],
     pub latitude_ref: Option<&'a str>,
     pub longitude: [f64; 3],
     pub longitude_ref: Option<&'a str>,
-    pub altitude: Option<f64>,
-    pub altitude_ref: Option<u8>,
+    pub altitude: Result<Option<f64>>,
+    pub altitude_ref: Result<Option<u8>>,
     pub map_datum: Option<&'a str>,
-    pub h_positioning_error: Option<f64>,
-    pub dop: Option<f64>,
-    pub stamp: Stamp,
-    pub img_direction: Option<f64>,
+    pub h_positioning_error: Result<Option<f64>>,
+    pub dop: Result<Option<f64>>,
+    pub stamp: Result<Stamp>,
+    pub img_direction: Result<Option<f64>>,
     pub img_direction_ref: Option<&'a str>,
-    pub speed: Option<f64>,
+    pub speed: Result<Option<f64>>,
     pub speed_ref: Option<&'a str>,
-    pub track: Option<f64>,
+    pub track: Result<Option<f64>>,
     pub track_ref: Option<&'a str>,
 }
 
@@ -59,9 +64,6 @@ impl Tags<'_> {
         if options.null_island == NullIslandPolicy::Reject && lat == 0.0 && lon == 0.0 {
             return Err(no_fix("position is exactly 0, 0"));
         }
-        if let Some(height) = height(self.altitude, self.altitude_ref)? {
-            coord = coord.with_height(height)?;
-        }
 
         let confidence = if crs.is_some() {
             Confidence::CERTAIN
@@ -78,40 +80,100 @@ impl Tags<'_> {
                 source.datum_ambiguity = Some(DatumAmbiguity::PossiblyGcj02);
             }
         }
-        source.notes.extend(self.stamp.note);
 
-        let speed_unit = present(self.speed_ref).map(speed_factor).transpose()?;
-        let speed_mps = match (self.speed, speed_unit) {
-            (Some(speed), Some(factor)) => Some(speed * factor),
-            (Some(_), None) => {
+        // Each value / Ref pair is read as one result, so either half failing drops
+        // both under `AuxiliaryTagPolicy::Drop`.
+        let mut auxiliary = Auxiliary {
+            policy: options.invalid_auxiliary,
+            notes: Vec::new(),
+        };
+        let altitude_ref = self.altitude_ref;
+        let with_height = self.altitude.and_then(|meters| {
+            height(meters, altitude_ref?)?
+                .map(|height| coord.with_height(height))
+                .transpose()
+        });
+        if let Some(with_height) = auxiliary.keep("GPSAltitude/GPSAltitudeRef", with_height)? {
+            coord = with_height;
+        }
+        let accuracy = self.h_positioning_error.and_then(|error| {
+            error
+                .map(|e| Accuracy::new(AccuracyKind::Bound, Some(Length::from_meters(e)), None))
+                .transpose()
+        });
+        let accuracy = auxiliary.keep("GPSHPositioningError", accuracy)?;
+        let dop = auxiliary.keep("GPSDOP", self.dop)?;
+        let stamp = auxiliary.keep("GPSTimeStamp", self.stamp.map(Some))?;
+        let speed_ref = self.speed_ref;
+        let speed = self.speed.and_then(|speed| {
+            let factor = present(speed_ref).map(speed_factor).transpose()?;
+            Ok(Some((speed, factor)))
+        });
+        let speed = auxiliary.keep("GPSSpeed/GPSSpeedRef", speed)?;
+        let img_direction_ref = self.img_direction_ref;
+        let direction = self.img_direction.and_then(|degrees| {
+            bearing(
+                degrees,
+                img_direction_ref,
+                "img_direction",
+                "img_direction_ref",
+            )
+        });
+        let direction = auxiliary.keep("GPSImgDirection/GPSImgDirectionRef", direction)?;
+        let track_ref = self.track_ref;
+        let track = self
+            .track
+            .and_then(|degrees| bearing(degrees, track_ref, "track", "track_ref"));
+        let track = auxiliary.keep("GPSTrack/GPSTrackRef", track)?;
+
+        let (time, stamp_note) = stamp.map_or((None, None), |stamp| (stamp.time, stamp.note));
+        source.notes.extend(stamp_note);
+        let speed_mps = match speed {
+            Some((Some(speed), Some(factor))) => Some(speed * factor),
+            Some((Some(_), None)) => {
                 source
                     .notes
                     .push("GPSSpeed has no GPSSpeedRef, so its unit is unknown; dropped".into());
                 None
             }
-            (None, _) => None,
+            Some((None, _)) | None => None,
         };
+        source.notes.extend(auxiliary.notes);
 
         let mut fix = Fix::from_coord(coord);
-        fix.accuracy = self
-            .h_positioning_error
-            .map(|e| Accuracy::new(AccuracyKind::Bound, Some(Length::from_meters(e)), None))
-            .transpose()?;
-        fix.timestamp = self.stamp.time;
+        fix.accuracy = accuracy;
+        fix.timestamp = time;
         fix.source = Some(source);
 
         Ok(CaptureGeo {
             fix,
-            direction: bearing(
-                self.img_direction,
-                self.img_direction_ref,
-                "img_direction",
-                "img_direction_ref",
-            )?,
+            direction,
             speed_mps,
-            track: bearing(self.track, self.track_ref, "track", "track_ref")?,
-            dop: self.dop,
+            track,
+            dop,
         })
+    }
+}
+
+/// The [`AuxiliaryTagPolicy`] in force, and a note for each tag it dropped.
+struct Auxiliary {
+    policy: AuxiliaryTagPolicy,
+    notes: Vec<String>,
+}
+
+impl Auxiliary {
+    /// An auxiliary tag's value. An invalid one is its error under
+    /// [`AuxiliaryTagPolicy::Reject`], and `None` with a note naming `tags` under
+    /// [`AuxiliaryTagPolicy::Drop`].
+    fn keep<T>(&mut self, tags: &str, value: Result<Option<T>>) -> Result<Option<T>> {
+        match (value, self.policy) {
+            (Ok(value), _) => Ok(value),
+            (Err(error), AuxiliaryTagPolicy::Reject) => Err(error),
+            (Err(error), AuxiliaryTagPolicy::Drop) => {
+                self.notes.push(format!("{tags} invalid, dropped: {error}"));
+                Ok(None)
+            }
+        }
     }
 }
 

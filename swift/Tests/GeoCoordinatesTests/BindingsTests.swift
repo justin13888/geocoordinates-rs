@@ -257,8 +257,20 @@ final class TypedErrorTests: XCTestCase {
         guard case let .Parse(kind, _)? = geoError({
             try parseXmpWith(
                 gps: XmpGps(latitude: "0,0.0N", longitude: "0,0.0E"),
-                options: ExifOptions(nullIsland: .reject))
+                options: ExifOptions(nullIsland: .reject, invalidAuxiliary: .reject))
         }) else { return XCTFail("expected Parse for null island") }
         XCTAssertEqual(kind, .noFix)
+        gps.latitudeRef = "N"
+        gps.altitude = .unsigned(numerator: 0, denominator: 0)
+        let reject = ExifOptions(nullIsland: .accept, invalidAuxiliary: .reject)
+        guard case let .InvalidValue(altitude, _)? = geoError({
+            try parseExifWith(gps: gps, options: reject)
+        }) else { return XCTFail("expected InvalidValue for a 0/0 altitude") }
+        XCTAssertEqual(altitude, "altitude")
+        let kept = try parseExifWith(
+            gps: gps, options: ExifOptions(nullIsland: .accept, invalidAuxiliary: .drop))
+        XCTAssertEqual(kept.fix.coord.lat, 39.9)
+        XCTAssertNil(kept.fix.coord.height)
+        XCTAssertTrue(kept.fix.source?.notes.contains { $0.hasPrefix("GPSAltitude") } ?? false)
     }
 }

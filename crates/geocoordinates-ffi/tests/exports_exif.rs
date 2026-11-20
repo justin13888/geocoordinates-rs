@@ -24,9 +24,15 @@ fn text(value: &str) -> Option<String> {
 
 const STRICT: ExifOptions = ExifOptions {
     null_island: NullIslandPolicy::Reject,
+    invalid_auxiliary: AuxiliaryTagPolicy::Reject,
 };
 const LENIENT: ExifOptions = ExifOptions {
     null_island: NullIslandPolicy::Accept,
+    invalid_auxiliary: AuxiliaryTagPolicy::Reject,
+};
+const DROP: ExifOptions = ExifOptions {
+    null_island: NullIslandPolicy::Accept,
+    invalid_auxiliary: AuxiliaryTagPolicy::Drop,
 };
 
 fn full_ifd() -> ExifGps {
@@ -148,6 +154,48 @@ fn parse_xmp_with_applies_the_null_island_policy() {
             kind: ParseErrorKind::NoFix,
             ..
         })
+    ));
+}
+
+#[test]
+fn drop_keeps_the_position_past_an_invalid_auxiliary_tag() {
+    let unset = Some(ExifRational::Unsigned {
+        numerator: 0,
+        denominator: 0,
+    });
+    let gps = ExifGps {
+        altitude: unset,
+        ..full_ifd()
+    };
+    assert!(matches!(
+        parse_exif_with(gps.clone(), LENIENT),
+        Err(GeoError::InvalidValue { field, .. }) if field == "altitude"
+    ));
+    let capture = parse_exif_with(gps, DROP).unwrap();
+    assert!((capture.fix.coord.lat + 35.5).abs() < 1e-9);
+    assert_eq!(capture.fix.coord.height, None);
+    let notes = capture.fix.source.unwrap().notes;
+    assert!(
+        notes.iter().any(|n| n.starts_with("GPSAltitude")),
+        "{notes:?}"
+    );
+
+    let xmp = XmpGps {
+        dop: text("0/0"),
+        ..full_xmp()
+    };
+    assert!(parse_xmp_with(xmp.clone(), LENIENT).is_err());
+    let capture = parse_xmp_with(xmp, DROP).unwrap();
+    assert_eq!(capture.dop, None);
+    assert!(capture.fix.coord.height.is_some(), "a valid tag is kept");
+
+    let bad_position = ExifGps {
+        latitude_ref: text("X"),
+        ..full_ifd()
+    };
+    assert!(matches!(
+        parse_exif_with(bad_position, DROP),
+        Err(GeoError::InvalidValue { field, .. }) if field == "latitude_ref"
     ));
 }
 

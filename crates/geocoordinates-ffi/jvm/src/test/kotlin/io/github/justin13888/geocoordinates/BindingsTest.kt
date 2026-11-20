@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import uniffi.geocoordinates_ffi.Accuracy
 import uniffi.geocoordinates_ffi.AccuracyKind
+import uniffi.geocoordinates_ffi.AuxiliaryTagPolicy
 import uniffi.geocoordinates_ffi.Bd09
 import uniffi.geocoordinates_ffi.Crs
 import uniffi.geocoordinates_ffi.DatumAmbiguity
@@ -26,6 +27,7 @@ import uniffi.geocoordinates_ffi.NullIslandPolicy
 import uniffi.geocoordinates_ffi.ParseErrorKind
 import uniffi.geocoordinates_ffi.XmpGps
 import uniffi.geocoordinates_ffi.parseExif
+import uniffi.geocoordinates_ffi.parseExifWith
 import uniffi.geocoordinates_ffi.parseXmp
 import uniffi.geocoordinates_ffi.parseXmpWith
 import uniffi.geocoordinates_ffi.S2CellId
@@ -323,9 +325,17 @@ class BindingsTest {
             throwsVariant<GeoException.Parse> {
                 parseXmpWith(
                     XmpGps(latitude = "0,0.0N", longitude = "0,0.0E"),
-                    ExifOptions(NullIslandPolicy.REJECT),
+                    ExifOptions(NullIslandPolicy.REJECT, AuxiliaryTagPolicy.REJECT),
                 )
             }
         assertEquals(ParseErrorKind.NO_FIX, island.kind)
+        val unset = gps.copy(altitude = ExifRational.Unsigned(0u, 0u))
+        val reject = ExifOptions(NullIslandPolicy.ACCEPT, AuxiliaryTagPolicy.REJECT)
+        val altitude = throwsVariant<GeoException.InvalidValue> { parseExifWith(unset, reject) }
+        assertEquals("altitude", altitude.field)
+        val kept = parseExifWith(unset, reject.copy(invalidAuxiliary = AuxiliaryTagPolicy.DROP))
+        assertEquals(39.9, kept.fix.coord.lat)
+        assertNull(kept.fix.coord.height)
+        assertTrue(kept.fix.source!!.notes.any { it.startsWith("GPSAltitude") })
     }
 }

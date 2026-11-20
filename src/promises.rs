@@ -226,7 +226,9 @@ fn feature_gated_types_hash_consistently() {
     }
     #[cfg(feature = "exif")]
     {
-        use crate::exif::{ExifOptions, ExifRational, NorthReference, NullIslandPolicy};
+        use crate::exif::{
+            AuxiliaryTagPolicy, ExifOptions, ExifRational, NorthReference, NullIslandPolicy,
+        };
         assert_hash_consistent(&[
             ExifRational::Unsigned(1, 2),
             ExifRational::Signed(-1, 2),
@@ -242,6 +244,14 @@ fn feature_gated_types_hash_consistently() {
             options(NullIslandPolicy::Accept),
             options(NullIslandPolicy::Reject),
             options(NullIslandPolicy::Accept),
+        ]);
+        let auxiliary = [AuxiliaryTagPolicy::Reject, AuxiliaryTagPolicy::Drop];
+        assert_hash_consistent(&[auxiliary, auxiliary].concat());
+        let options = |p| ExifOptions::default().with_invalid_auxiliary(p);
+        assert_hash_consistent(&[
+            options(AuxiliaryTagPolicy::Reject),
+            options(AuxiliaryTagPolicy::Drop),
+            options(AuxiliaryTagPolicy::Reject),
         ]);
     }
     #[cfg(feature = "geotag")]
