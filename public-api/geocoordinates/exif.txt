@@ -1,4 +1,31 @@
 pub mod geocoordinates::exif
+pub enum geocoordinates::exif::AuxiliaryTagPolicy
+pub geocoordinates::exif::AuxiliaryTagPolicy::Drop
+pub geocoordinates::exif::AuxiliaryTagPolicy::Reject
+impl core::clone::Clone for geocoordinates::exif::AuxiliaryTagPolicy
+pub fn geocoordinates::exif::AuxiliaryTagPolicy::clone(&self) -> Self
+impl core::cmp::Eq for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::cmp::PartialEq for geocoordinates::exif::AuxiliaryTagPolicy
+pub fn geocoordinates::exif::AuxiliaryTagPolicy::eq(&self, &Self) -> bool
+impl core::default::Default for geocoordinates::exif::AuxiliaryTagPolicy
+pub fn geocoordinates::exif::AuxiliaryTagPolicy::default() -> Self
+impl core::fmt::Debug for geocoordinates::exif::AuxiliaryTagPolicy
+pub fn geocoordinates::exif::AuxiliaryTagPolicy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for geocoordinates::exif::AuxiliaryTagPolicy
+pub fn geocoordinates::exif::AuxiliaryTagPolicy::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::marker::StructuralPartialEq for geocoordinates::exif::AuxiliaryTagPolicy
+impl serde_core::ser::Serialize for geocoordinates::exif::AuxiliaryTagPolicy
+pub fn geocoordinates::exif::AuxiliaryTagPolicy::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::exif::AuxiliaryTagPolicy
+pub fn geocoordinates::exif::AuxiliaryTagPolicy::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::marker::Send for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::marker::Sync for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::marker::Unpin for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::marker::UnsafeUnpin for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::AuxiliaryTagPolicy
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::AuxiliaryTagPolicy
 pub enum geocoordinates::exif::ExifRational
 pub geocoordinates::exif::ExifRational::Signed(i32, i32)
 pub geocoordinates::exif::ExifRational::Unsigned(u32, u32)
@@ -150,9 +177,11 @@ impl core::marker::UnsafeUnpin for geocoordinates::exif::ExifGps
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::exif::ExifGps
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::exif::ExifGps
 #[non_exhaustive] pub struct geocoordinates::exif::ExifOptions
+pub geocoordinates::exif::ExifOptions::invalid_auxiliary: geocoordinates::exif::AuxiliaryTagPolicy
 pub geocoordinates::exif::ExifOptions::null_island: geocoordinates::exif::NullIslandPolicy
 impl geocoordinates::exif::ExifOptions
 pub const fn geocoordinates::exif::ExifOptions::new() -> Self
+pub const fn geocoordinates::exif::ExifOptions::with_invalid_auxiliary(self, geocoordinates::exif::AuxiliaryTagPolicy) -> Self
 pub const fn geocoordinates::exif::ExifOptions::with_null_island(self, geocoordinates::exif::NullIslandPolicy) -> Self
 impl core::clone::Clone for geocoordinates::exif::ExifOptions
 pub fn geocoordinates::exif::ExifOptions::clone(&self) -> Self
