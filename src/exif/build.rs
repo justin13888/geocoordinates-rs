@@ -88,11 +88,13 @@ impl Tags<'_> {
             notes: Vec::new(),
         };
         let altitude_ref = self.altitude_ref;
-        let altitude = self
-            .altitude
-            .and_then(|meters| height(meters, altitude_ref?));
-        if let Some(height) = auxiliary.keep("GPSAltitude/GPSAltitudeRef", altitude)? {
-            coord = coord.with_height(height)?;
+        let with_height = self.altitude.and_then(|meters| {
+            height(meters, altitude_ref?)?
+                .map(|height| coord.with_height(height))
+                .transpose()
+        });
+        if let Some(with_height) = auxiliary.keep("GPSAltitude/GPSAltitudeRef", with_height)? {
+            coord = with_height;
         }
         let accuracy = self.h_positioning_error.and_then(|error| {
             error
