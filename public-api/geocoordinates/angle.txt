@@ -66,6 +66,10 @@ impl core::clone::Clone for geocoordinates::angle::Ddm
 pub fn geocoordinates::angle::Ddm::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::angle::Ddm
 pub fn geocoordinates::angle::Ddm::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::angle::Ddm> for geocoordinates::angle::Dms
+pub fn geocoordinates::angle::Dms::from(geocoordinates::angle::Ddm) -> geocoordinates::angle::Dms
+impl core::convert::From<geocoordinates::angle::Dms> for geocoordinates::angle::Ddm
+pub fn geocoordinates::angle::Ddm::from(geocoordinates::angle::Dms) -> geocoordinates::angle::Ddm
 impl core::fmt::Debug for geocoordinates::angle::Ddm
 pub fn geocoordinates::angle::Ddm::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for geocoordinates::angle::Ddm
@@ -95,6 +99,10 @@ impl core::clone::Clone for geocoordinates::angle::Dms
 pub fn geocoordinates::angle::Dms::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::angle::Dms
 pub fn geocoordinates::angle::Dms::eq(&self, &Self) -> bool
+impl core::convert::From<geocoordinates::angle::Ddm> for geocoordinates::angle::Dms
+pub fn geocoordinates::angle::Dms::from(geocoordinates::angle::Ddm) -> geocoordinates::angle::Dms
+impl core::convert::From<geocoordinates::angle::Dms> for geocoordinates::angle::Ddm
+pub fn geocoordinates::angle::Ddm::from(geocoordinates::angle::Dms) -> geocoordinates::angle::Ddm
 impl core::fmt::Debug for geocoordinates::angle::Dms
 pub fn geocoordinates::angle::Dms::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for geocoordinates::angle::Dms

@@ -67,6 +67,18 @@ fn dms_ddm_round_trips_agree_with_degrees() {
 }
 
 #[test]
+fn from_impls_equal_the_named_conversions() {
+    for axis in AXES {
+        for v in samples(axis) {
+            let dms = Dms::from_degrees(v, axis).unwrap();
+            let ddm = Ddm::from_degrees(v, axis).unwrap();
+            assert_eq!(Ddm::from(dms), dms.to_ddm());
+            assert_eq!(Dms::from(ddm), ddm.to_dms());
+        }
+    }
+}
+
+#[test]
 fn from_degrees_decomposes_components() {
     let dms = Dms::from_degrees(40.712_775_3, Axis::Latitude).unwrap();
     assert_eq!(dms.degrees(), 40);
