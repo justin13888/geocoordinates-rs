@@ -15,6 +15,7 @@ import { before, describe, it } from "node:test";
 import initAsync from "../src/generated/web/wasm-bindgen/index.js";
 import geocoordinatesFfi, {
   AccuracyKind,
+  AuxiliaryTagPolicy,
   Crs,
   DatumAmbiguity,
   ExifDms,
@@ -51,6 +52,7 @@ import geocoordinatesFfi, {
   mgrsToCoordinate,
   parseCoordinate,
   parseExif,
+  parseExifWith,
   parseNmeaSentence,
   parseText,
   parseXmp,
@@ -361,9 +363,32 @@ describe("EXIF and XMP GPS tags", () => {
     const island = thrown(() =>
       parseXmpWith(XmpGps.create({ latitude: "0,0.0N", longitude: "0,0.0E" }), {
         nullIsland: NullIslandPolicy.Reject,
+        invalidAuxiliary: AuxiliaryTagPolicy.Reject,
       }),
     );
     assert.ok(GeoError.Parse.instanceOf(island), String(island));
     assert.equal(island.inner.kind, ParseErrorKind.NoFix);
+  });
+
+  it("drops an invalid auxiliary tag by option, keeping the position", () => {
+    const unset = {
+      ...gps(),
+      altitude: new ExifRational.Unsigned({ numerator: 0, denominator: 0 }),
+    };
+    const altitude = thrown(() =>
+      parseExifWith(unset, {
+        nullIsland: NullIslandPolicy.Accept,
+        invalidAuxiliary: AuxiliaryTagPolicy.Reject,
+      }),
+    );
+    assert.ok(GeoError.InvalidValue.instanceOf(altitude), String(altitude));
+    assert.equal(altitude.inner.field, "altitude");
+    const kept = parseExifWith(unset, {
+      nullIsland: NullIslandPolicy.Accept,
+      invalidAuxiliary: AuxiliaryTagPolicy.Drop,
+    });
+    assert.equal(kept.fix.coord.lat, 39.9);
+    assert.equal(kept.fix.coord.height, undefined);
+    assert.ok(kept.fix.source?.notes.some((note) => note.startsWith("GPSAltitude")));
   });
 });

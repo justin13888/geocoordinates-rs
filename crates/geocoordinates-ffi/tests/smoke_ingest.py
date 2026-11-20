@@ -107,8 +107,28 @@ except gc.GeoError.InvalidValue as e:
 try:
     gc.parse_xmp_with(
         gc.XmpGps(latitude="0,0.0N", longitude="0,0.0E"),
-        gc.ExifOptions(null_island=gc.NullIslandPolicy.REJECT),
+        gc.ExifOptions(
+            null_island=gc.NullIslandPolicy.REJECT,
+            invalid_auxiliary=gc.AuxiliaryTagPolicy.REJECT,
+        ),
     )
     raise AssertionError("expected Parse for null island")
 except gc.GeoError.Parse as e:
     assert e.kind == gc.ParseErrorKind.NO_FIX, e.kind
+ifd.latitude_ref = "N"
+ifd.altitude = gc.ExifRational.UNSIGNED(numerator=0, denominator=0)
+try:
+    gc.parse_exif(ifd)
+    raise AssertionError("expected InvalidValue for a 0/0 altitude")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "altitude", e.field
+kept = gc.parse_exif_with(
+    ifd,
+    gc.ExifOptions(
+        null_island=gc.NullIslandPolicy.ACCEPT,
+        invalid_auxiliary=gc.AuxiliaryTagPolicy.DROP,
+    ),
+)
+assert kept.fix.coord.lat == 39.9, kept.fix.coord
+assert kept.fix.coord.height is None, kept.fix.coord
+assert any(n.startswith("GPSAltitude") for n in kept.fix.source.notes), kept.fix.source

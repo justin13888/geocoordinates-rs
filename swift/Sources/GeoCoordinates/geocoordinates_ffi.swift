@@ -3968,14 +3968,22 @@ public struct ExifOptions: Equatable, Hashable {
      * What to do with a position of exactly 0°, 0°.
      */
     public var nullIsland: NullIslandPolicy
+    /**
+     * What to do with an invalid auxiliary tag.
+     */
+    public var invalidAuxiliary: AuxiliaryTagPolicy
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
          * What to do with a position of exactly 0°, 0°.
-         */nullIsland: NullIslandPolicy) {
+         */nullIsland: NullIslandPolicy, 
+        /**
+         * What to do with an invalid auxiliary tag.
+         */invalidAuxiliary: AuxiliaryTagPolicy) {
         self.nullIsland = nullIsland
+        self.invalidAuxiliary = invalidAuxiliary
     }
 
     
@@ -3994,12 +4002,14 @@ public struct FfiConverterTypeExifOptions: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExifOptions {
         return
             try ExifOptions(
-                nullIsland: FfiConverterTypeNullIslandPolicy.read(from: &buf)
+                nullIsland: FfiConverterTypeNullIslandPolicy.read(from: &buf), 
+                invalidAuxiliary: FfiConverterTypeAuxiliaryTagPolicy.read(from: &buf)
         )
     }
 
     public static func write(_ value: ExifOptions, into buf: inout [UInt8]) {
         FfiConverterTypeNullIslandPolicy.write(value.nullIsland, into: &buf)
+        FfiConverterTypeAuxiliaryTagPolicy.write(value.invalidAuxiliary, into: &buf)
     }
 }
 
@@ -6852,6 +6862,84 @@ public func FfiConverterTypeAccuracyKind_lift(_ buf: RustBuffer) throws -> Accur
 #endif
 public func FfiConverterTypeAccuracyKind_lower(_ value: AccuracyKind) -> RustBuffer {
     return FfiConverterTypeAccuracyKind.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What to do with an invalid auxiliary tag (anything but the position) — mirror of
+ * [`gc::exif::AuxiliaryTagPolicy`].
+ */
+
+public enum AuxiliaryTagPolicy: Equatable, Hashable {
+    
+    /**
+     * Fail the whole conversion with the tag's error.
+     */
+    case reject
+    /**
+     * Omit the tag and the other half of its value / Ref pair, keep the position,
+     * and record why in one `fix.source.notes` entry.
+     */
+    case drop
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AuxiliaryTagPolicy: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAuxiliaryTagPolicy: FfiConverterRustBuffer {
+    typealias SwiftType = AuxiliaryTagPolicy
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AuxiliaryTagPolicy {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .reject
+        
+        case 2: return .drop
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AuxiliaryTagPolicy, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .reject:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .drop:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAuxiliaryTagPolicy_lift(_ buf: RustBuffer) throws -> AuxiliaryTagPolicy {
+    return try FfiConverterTypeAuxiliaryTagPolicy.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAuxiliaryTagPolicy_lower(_ value: AuxiliaryTagPolicy) -> RustBuffer {
+    return FfiConverterTypeAuxiliaryTagPolicy.lower(value)
 }
 
 
@@ -11750,7 +11838,8 @@ public func parseExif(gps: ExifGps)throws  -> CaptureGeo  {
  * is all `0/0`, or the position is 0°, 0° under `NullIslandPolicy::Reject`;
  * `GeoError::InvalidValue` naming the tag for a zero denominator, a negative value,
  * minutes or seconds of 60 or more, an hour of 24 or more, a bearing outside
- * `[0, 360)`, or a bad Ref; `GeoError::OutOfRange` beyond ±90° / ±180°.
+ * `[0, 360)`, or a bad Ref (under `AuxiliaryTagPolicy::Drop`, only a latitude or
+ * longitude tag); `GeoError::OutOfRange` beyond ±90° / ±180°.
  */
 public func parseExifWith(gps: ExifGps, options: ExifOptions)throws  -> CaptureGeo  {
     return try  FfiConverterTypeCaptureGeo_lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -14027,7 +14116,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_parse_exif() != 64414) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif_with() != 32993) {
+    if (uniffi_geocoordinates_ffi_checksum_func_parse_exif_with() != 18781) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_xmp() != 59850) {
