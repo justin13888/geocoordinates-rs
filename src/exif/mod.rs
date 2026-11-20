@@ -308,15 +308,42 @@ pub enum NullIslandPolicy {
     Reject,
 }
 
-/// Options for [`CaptureGeo::from_exif_with`] and [`CaptureGeo::from_xmp_with`].
+/// What to do with an invalid *auxiliary* tag: anything but the position, which is
+/// `GPSLatitude`, `GPSLongitude` and their Refs.
 ///
-/// `#[non_exhaustive]`: build one from [`Default`] and the `const` `with_*` builder.
+/// The auxiliary tags are `GPSAltitude` / `GPSAltitudeRef`, `GPSHPositioningError`,
+/// `GPSDOP`, `GPSTimeStamp`, `GPSImgDirection` / `GPSImgDirectionRef`, `GPSSpeed` /
+/// `GPSSpeedRef` and `GPSTrack` / `GPSTrackRef`, and their XMP `exif:GPS*` forms. A
+/// position error fails the conversion under either policy.
 ///
 /// ```
-/// use geocoordinates::exif::{ExifOptions, NullIslandPolicy};
+/// use geocoordinates::exif::AuxiliaryTagPolicy;
 ///
-/// let options = ExifOptions::default().with_null_island(NullIslandPolicy::Reject);
+/// assert_eq!(AuxiliaryTagPolicy::default(), AuxiliaryTagPolicy::Reject);
+/// ```
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AuxiliaryTagPolicy {
+    /// Fail the whole conversion with the tag's error, so a malformed file is seen.
+    #[default]
+    Reject,
+    /// Omit the invalid tag, and the other half of its value / Ref pair, from the
+    /// result, keep the position, and record why in one `fix.source.notes` entry.
+    Drop,
+}
+
+/// Options for [`CaptureGeo::from_exif_with`] and [`CaptureGeo::from_xmp_with`].
+///
+/// `#[non_exhaustive]`: build one from [`Default`] and the `const` `with_*` builders.
+///
+/// ```
+/// use geocoordinates::exif::{AuxiliaryTagPolicy, ExifOptions, NullIslandPolicy};
+///
+/// let options = ExifOptions::default()
+///     .with_null_island(NullIslandPolicy::Reject)
+///     .with_invalid_auxiliary(AuxiliaryTagPolicy::Drop);
 /// assert_eq!(options.null_island, NullIslandPolicy::Reject);
+/// assert_eq!(options.invalid_auxiliary, AuxiliaryTagPolicy::Drop);
 /// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -325,6 +352,8 @@ pub enum NullIslandPolicy {
 pub struct ExifOptions {
     /// What to do with a position of exactly 0°, 0°.
     pub null_island: NullIslandPolicy,
+    /// What to do with an invalid auxiliary tag.
+    pub invalid_auxiliary: AuxiliaryTagPolicy,
 }
 
 impl ExifOptions {
@@ -342,6 +371,21 @@ impl ExifOptions {
         self
     }
 
+    /// Set [`invalid_auxiliary`](Self::invalid_auxiliary).
+    ///
+    /// ```
+    /// use geocoordinates::exif::{AuxiliaryTagPolicy, ExifOptions};
+    ///
+    /// const LENIENT: ExifOptions =
+    ///     ExifOptions::new().with_invalid_auxiliary(AuxiliaryTagPolicy::Drop);
+    /// assert_eq!(LENIENT.invalid_auxiliary, AuxiliaryTagPolicy::Drop);
+    /// ```
+    #[must_use]
+    pub const fn with_invalid_auxiliary(mut self, invalid_auxiliary: AuxiliaryTagPolicy) -> Self {
+        self.invalid_auxiliary = invalid_auxiliary;
+        self
+    }
+
     /// The default options, usable in a `const`.
     ///
     /// ```
@@ -353,6 +397,7 @@ impl ExifOptions {
     pub const fn new() -> Self {
         Self {
             null_island: NullIslandPolicy::Accept,
+            invalid_auxiliary: AuxiliaryTagPolicy::Reject,
         }
     }
 }
@@ -429,6 +474,11 @@ impl CaptureGeo {
     ///   [`DatumAmbiguity::PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02).
     /// - **Timestamp:** needs a date and a time. A partial or unreadable date gives no
     ///   timestamp rather than a guessed one, and an unreadable date adds a note.
+    /// - **Auxiliary tags:** an invalid one fails the conversion under
+    ///   [`AuxiliaryTagPolicy::Reject`], the default. Under
+    ///   [`AuxiliaryTagPolicy::Drop`] it is left out of the result together with the
+    ///   other half of its value / Ref pair, one `fix.source.notes` entry names the
+    ///   tag and the error, and the position is kept.
     ///
     /// [`Height::Orthometric`]: crate::Height::Orthometric
     /// [`Height::Ellipsoidal`]: crate::Height::Ellipsoidal
@@ -441,12 +491,18 @@ impl CaptureGeo {
     ///   value, minutes or seconds of 60 or more, a time stamp's hour of 24 or more or
     ///   seconds of 60 (so a UTC leap second is rejected), a bearing outside `[0, 360)`
     ///   (so 360 is rejected), an absent or unrecognised latitude / longitude Ref, or
-    ///   an unrecognised other Ref, with or without the tag it qualifies.
+    ///   an unrecognised other Ref, with or without the tag it qualifies. Under
+    ///   [`AuxiliaryTagPolicy::Drop`], only a latitude or longitude field.
     /// - [`Error::OutOfRange`]: the position is beyond ±90° / ±180°.
+    ///
+    /// Every position error is checked before any auxiliary one, so when both are
+    /// present the position error is the one returned.
     ///
     /// ```
     /// use geocoordinates::Error;
-    /// use geocoordinates::exif::{CaptureGeo, ExifGps, ExifOptions, NullIslandPolicy};
+    /// use geocoordinates::exif::{
+    ///     AuxiliaryTagPolicy, CaptureGeo, ExifGps, ExifOptions, NullIslandPolicy,
+    /// };
     ///
     /// let mut gps = ExifGps::default();
     /// let zero = (0_u32, 1_u32).into();
@@ -464,6 +520,19 @@ impl CaptureGeo {
     ///     CaptureGeo::from_exif_with(&gps, ExifOptions::default()),
     ///     Err(Error::InvalidValue { field: "longitude", .. })
     /// ));
+    ///
+    /// // An unset `0/0` altitude fails the default, and is dropped under `Drop`.
+    /// gps.longitude = Some([zero, zero, zero]);
+    /// gps.altitude = Some((0_u32, 0_u32).into());
+    /// assert!(matches!(
+    ///     CaptureGeo::from_exif_with(&gps, ExifOptions::default()),
+    ///     Err(Error::InvalidValue { field: "altitude", .. })
+    /// ));
+    /// let lenient = ExifOptions::default().with_invalid_auxiliary(AuxiliaryTagPolicy::Drop);
+    /// let capture = CaptureGeo::from_exif_with(&gps, lenient)?;
+    /// assert_eq!(capture.fix.coord.height(), None);
+    /// assert!(capture.fix.source.is_some_and(|s| s.notes.iter().any(|n| n.contains("GPSAltitude"))));
+    /// # Ok::<(), Error>(())
     /// ```
     pub fn from_exif_with(gps: &ExifGps, options: ExifOptions) -> Result<Self> {
         let (Some(latitude), Some(longitude)) = (gps.latitude, gps.longitude) else {
@@ -488,23 +557,21 @@ impl CaptureGeo {
             latitude_ref: gps.latitude_ref.as_deref(),
             longitude: triple(longitude, "longitude")?,
             longitude_ref: gps.longitude_ref.as_deref(),
-            altitude: single(gps.altitude, "altitude")?,
-            altitude_ref: gps.altitude_ref,
+            altitude: single(gps.altitude, "altitude"),
+            altitude_ref: Ok(gps.altitude_ref),
             map_datum: gps.map_datum.as_deref(),
-            h_positioning_error: single(gps.h_positioning_error, "h_positioning_error")?,
-            dop: single(gps.dop, "dop")?,
-            stamp: build::Stamp::new(
-                gps.date_stamp.as_deref(),
-                gps.time_stamp
-                    .map(|time| triple(time, "time_stamp"))
-                    .transpose()?,
-                0,
-            )?,
-            img_direction: single(gps.img_direction, "img_direction")?,
+            h_positioning_error: single(gps.h_positioning_error, "h_positioning_error"),
+            dop: single(gps.dop, "dop"),
+            stamp: gps
+                .time_stamp
+                .map(|time| triple(time, "time_stamp"))
+                .transpose()
+                .and_then(|time| build::Stamp::new(gps.date_stamp.as_deref(), time, 0)),
+            img_direction: single(gps.img_direction, "img_direction"),
             img_direction_ref: gps.img_direction_ref.as_deref(),
-            speed: single(gps.speed, "speed")?,
+            speed: single(gps.speed, "speed"),
             speed_ref: gps.speed_ref.as_deref(),
-            track: single(gps.track, "track")?,
+            track: single(gps.track, "track"),
             track_ref: gps.track_ref.as_deref(),
         };
         tags.build(options)
@@ -527,6 +594,8 @@ fn triple(values: [ExifRational; 3], field: &'static str) -> Result<[f64; 3]> {
     ])
 }
 
+/// An optional rational's value; an error is left for [`build::Tags::build`] to
+/// apply the [`AuxiliaryTagPolicy`] to.
 fn single(value: Option<ExifRational>, field: &'static str) -> Result<Option<f64>> {
     value.map(|r| r.value(field)).transpose()
 }

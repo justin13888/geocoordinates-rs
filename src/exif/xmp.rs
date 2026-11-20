@@ -90,16 +90,21 @@ impl CaptureGeo {
     /// [`ParseErrorKind::NoFix`]. A `time_stamp` missing its date, seconds or zone
     /// gives no timestamp, with a note.
     ///
+    /// [`AuxiliaryTagPolicy::Drop`](super::AuxiliaryTagPolicy::Drop) drops an
+    /// auxiliary property that does not read, as well as one out of range.
+    ///
     /// # Errors
     /// As [`from_exif_with`](Self::from_exif_with); [`Error::Parse`] with
     /// [`ParseErrorKind::Syntax`] for a coordinate or number that does not read in its
     /// XMP form, which includes `NaN` and infinities; and [`Error::InvalidValue`]
     /// naming the field for a rational whose quotient overflows to infinity, or a
-    /// `time_stamp` zone outside `±23:59`.
+    /// `time_stamp` zone outside `±23:59`. Under
+    /// [`AuxiliaryTagPolicy::Drop`](super::AuxiliaryTagPolicy::Drop), only a latitude
+    /// or longitude error.
     ///
     /// ```
     /// use geocoordinates::Error;
-    /// use geocoordinates::exif::{CaptureGeo, ExifOptions, XmpGps};
+    /// use geocoordinates::exif::{AuxiliaryTagPolicy, CaptureGeo, ExifOptions, XmpGps};
     ///
     /// let mut gps = XmpGps::default();
     /// gps.latitude = Some("51,60.0N".to_string());
@@ -108,6 +113,13 @@ impl CaptureGeo {
     ///     CaptureGeo::from_xmp_with(&gps, ExifOptions::default()),
     ///     Err(Error::InvalidValue { field: "latitude", .. })
     /// ));
+    ///
+    /// gps.latitude = Some("51,45.0N".to_string());
+    /// gps.altitude = Some("0/0".to_string());
+    /// let lenient = ExifOptions::default().with_invalid_auxiliary(AuxiliaryTagPolicy::Drop);
+    /// let capture = CaptureGeo::from_xmp_with(&gps, lenient)?;
+    /// assert_eq!(capture.fix.coord.height(), None);
+    /// # Ok::<(), Error>(())
     /// ```
     pub fn from_xmp_with(gps: &XmpGps, options: ExifOptions) -> Result<Self> {
         let (Some(latitude), Some(longitude)) = (
@@ -124,17 +136,17 @@ impl CaptureGeo {
             latitude_ref: Some(latitude_ref),
             longitude: longitude_components,
             longitude_ref: Some(longitude_ref),
-            altitude: number(gps.altitude.as_deref(), "altitude")?,
-            altitude_ref: altitude_ref(gps.altitude_ref.as_deref())?,
+            altitude: number(gps.altitude.as_deref(), "altitude"),
+            altitude_ref: altitude_ref(gps.altitude_ref.as_deref()),
             map_datum: gps.map_datum.as_deref(),
-            h_positioning_error: number(gps.h_positioning_error.as_deref(), "h_positioning_error")?,
-            dop: number(gps.dop.as_deref(), "dop")?,
-            stamp: stamp(gps.time_stamp.as_deref())?,
-            img_direction: number(gps.img_direction.as_deref(), "img_direction")?,
+            h_positioning_error: number(gps.h_positioning_error.as_deref(), "h_positioning_error"),
+            dop: number(gps.dop.as_deref(), "dop"),
+            stamp: stamp(gps.time_stamp.as_deref()),
+            img_direction: number(gps.img_direction.as_deref(), "img_direction"),
             img_direction_ref: gps.img_direction_ref.as_deref(),
-            speed: number(gps.speed.as_deref(), "speed")?,
+            speed: number(gps.speed.as_deref(), "speed"),
             speed_ref: gps.speed_ref.as_deref(),
-            track: number(gps.track.as_deref(), "track")?,
+            track: number(gps.track.as_deref(), "track"),
             track_ref: gps.track_ref.as_deref(),
         };
         tags.build(options)
