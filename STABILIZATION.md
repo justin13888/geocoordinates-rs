@@ -304,7 +304,8 @@ which part of it could not be re-measured. The release PR
   bindings, builds the WASM / TypeScript package and passes the Python and JVM
   tests, but its macOS Swift package build (`swift test`) was cancelled, so
   Swift has no green run on the settled surface. FFI run 39013401997 at
-  `ef195ff` (#212) is the last run with every language green.
+  `ef195ff` (#212), which this item cited before the pre-1.0 audit, had every
+  language green.
 - [x] `cargo run --all-features --example flagship` passes and exercises the
   full surface — "All 8 shipped Rust capability groups passed." at `1f122d1`.
 - [x] Coverage threshold enabled in CI and met — a 98% line floor in
