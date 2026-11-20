@@ -55,10 +55,12 @@ fn xmp_forms_match_the_ifd_path() {
     assert_eq!(from_ifd, from_text);
 }
 
-#[test]
-fn xmp_rejects_what_the_ifd_path_rejects() {
+/// One out-of-range value per row, with the field its error names;
+/// `policy_tests.rs` also runs it under
+/// [`AuxiliaryTagPolicy::Drop`](super::AuxiliaryTagPolicy::Drop).
+pub(super) fn xmp_rejections() -> Vec<(&'static str, XmpGps)> {
     let overflowing = format!("{}/0.001", "9".repeat(308));
-    for (field, gps) in [
+    vec![
         (
             "latitude",
             XmpGps {
@@ -151,7 +153,12 @@ fn xmp_rejects_what_the_ifd_path_rejects() {
                 ..xmp_base()
             },
         ),
-    ] {
+    ]
+}
+
+#[test]
+fn xmp_rejects_what_the_ifd_path_rejects() {
+    for (field, gps) in xmp_rejections() {
         match xmp_error(&gps) {
             Error::InvalidValue { field: got, .. } => assert_eq!(got, field, "{gps:?}"),
             other => panic!("{gps:?}: {other:?}"),

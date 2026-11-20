@@ -38,6 +38,8 @@ mod xmp;
 #[cfg(test)]
 mod device_tests;
 #[cfg(test)]
+mod policy_tests;
+#[cfg(test)]
 mod stamp_tests;
 #[cfg(test)]
 mod tests;

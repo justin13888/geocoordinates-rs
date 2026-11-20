@@ -12,7 +12,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use super::{CaptureGeo, ExifGps, ExifRational, NorthReference};
+use super::{AuxiliaryTagPolicy, CaptureGeo, ExifGps, ExifOptions, ExifRational, NorthReference};
 use crate::fix::DatumAmbiguity;
 use crate::{Crs, Error, Height, ParseErrorKind};
 
@@ -247,4 +247,48 @@ fn oneplus_8_placeholder_block_is_no_fix() {
             ..
         })
     ));
+}
+
+/// Constructed, not transcribed: the Oppo R7 Plus fix with the OnePlus 8's unset
+/// `GPSAltitude = 0/0` in place of its altitude, as a writer that leaves the
+/// rational unset stores it. The default rejects the file; `Drop` keeps the fix.
+#[test]
+fn unset_altitude_beside_a_valid_fix_is_kept_under_drop() {
+    let gps = ExifGps {
+        latitude_ref: text("N"),
+        latitude: dms([(60, 1), (16, 1), (28692, 10_000)]),
+        longitude_ref: text("E"),
+        longitude: dms([(8, 1), (46, 1), (160_768, 10_000)]),
+        altitude_ref: Some(0),
+        altitude: rational(0, 0),
+        time_stamp: dms([(15, 1), (52, 1), (22, 1)]),
+        date_stamp: text("2018:07:16"),
+        ..ExifGps::default()
+    };
+    assert!(matches!(
+        CaptureGeo::from_exif(&gps),
+        Err(Error::InvalidValue {
+            field: "altitude",
+            ..
+        })
+    ));
+    let drop = ExifOptions::default().with_invalid_auxiliary(AuxiliaryTagPolicy::Drop);
+    let capture = CaptureGeo::from_exif_with(&gps, drop).unwrap();
+    close(
+        capture.fix.coord.lat(),
+        60.0 + 16.0 / 60.0 + 2.8692 / 3600.0,
+    );
+    close(
+        capture.fix.coord.lon(),
+        8.0 + 46.0 / 60.0 + 16.0768 / 3600.0,
+    );
+    assert_eq!(capture.fix.coord.height(), None);
+    assert_eq!(capture.fix.timestamp, utc(1_531_756_342, 0));
+    assert!(
+        notes(&capture)
+            .iter()
+            .any(|n| n.starts_with("GPSAltitude") && n.contains("zero denominator")),
+        "{:?}",
+        notes(&capture)
+    );
 }
