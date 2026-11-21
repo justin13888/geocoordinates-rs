@@ -67,7 +67,10 @@ fn a_track_refuses_conflicts_mixed_datums_and_bad_records() {
     ));
     let mut bad = fix(0.0, 0.0, Some(1));
     bad.coord.lat = 91.0;
-    assert!(Track::new(vec![bad]).is_err());
+    assert!(matches!(
+        Track::new(vec![bad]),
+        Err(GeoError::OutOfRange { lat, .. }) if lat == 91.0
+    ));
 }
 
 #[test]
@@ -159,5 +162,8 @@ fn estimate_offset_ms_finds_the_camera_clock_error() {
         },
         ..reference
     };
-    assert!(estimate_offset_ms(track, vec![bad]).is_err());
+    assert!(matches!(
+        estimate_offset_ms(track, vec![bad]),
+        Err(GeoError::OutOfRange { lat, .. }) if lat == 91.0
+    ));
 }

@@ -167,7 +167,28 @@ fn call_scan_ignores_comments_strings_and_definitions() {
     assert_eq!(names, ["a", "b"]);
     assert_eq!(bodies[0].1, "fn a() { if x { b() } }");
     let none = BTreeSet::new();
-    assert!(checks_error("{ assert!(f().is_err()); }", &none));
+    // An error check counts only where it pins the variant.
+    assert!(!checks_error("{ assert!(f().is_err()); }", &none));
+    assert!(!checks_error("{ let _ = f().unwrap_err(); }", &none));
+    assert!(!checks_error("{ assert!(matches!(f(), Err(_))); }", &none));
+    assert!(!checks_error("{ if let Err(e) = f() { drop(e) } }", &none));
+    assert!(!checks_error(
+        "{ let _ = GeoError::Other; assert!(f().is_err()); }",
+        &none
+    ));
+    assert!(!checks_error(
+        "{ let _ = GeoError::other(); f().unwrap_err(); }",
+        &none
+    ));
+    assert!(checks_error(
+        "{ assert!(matches!(f().unwrap_err(), GeoError::Parse { .. })); }",
+        &none
+    ));
+    // The expected variant may be built before the error is taken.
+    assert!(checks_error(
+        "{ let want = GeoError::Other { detail }; assert_eq!(f().unwrap_err(), want); }",
+        &none
+    ));
     assert!(checks_error(
         "{ assert!(matches!(f(), Err(GeoError::Parse { .. }))); }",
         &none
@@ -176,26 +197,30 @@ fn call_scan_ignores_comments_strings_and_definitions() {
         "{ match f() { Err(GeoError::Parse { .. }) => {} _ => panic!() } }",
         &none
     ));
-    assert!(checks_error("{ if let Err(e) = f() { drop(e) } }", &none));
     assert!(checks_error(
-        "{ let Err(e) = f() else { panic!(\"no error\") }; }",
+        "{ if let Err(GeoError::Parse { kind, .. }) = f() { drop(kind) } }",
+        &none
+    ));
+    assert!(checks_error(
+        "{ let Err(e) = f() else { panic!(\"no error\") }; \
+         assert!(matches!(e, GeoError::Parse { .. })); }",
         &none
     ));
     // A success-only test whose `Err` arm or branch only fails the test.
     assert!(!checks_error(
-        "{ match f() { Ok(v) => assert_eq!(v, 1), Err(e) => panic!(\"{e}\") } }",
+        "{ match f() { Ok(v) => assert_eq!(v, 1), Err(e) => panic!(\"{e}\") } let _ = GeoError::Other; }",
         &none
     ));
     assert!(!checks_error(
-        "{ match f() { Ok(_) => {} Err(e) => { unreachable!(\"{e}\") } } }",
+        "{ match f() { Ok(_) => {} Err(e) => { unreachable!(\"{e}\") } } let _ = GeoError::Other; }",
         &none
     ));
     assert!(!checks_error(
-        "{ match f() { Ok(_) => {} Err(e) if e.is_x() => todo!() } }",
+        "{ match f() { Ok(_) => {} Err(e) if e.is_x() => todo!() } let _ = GeoError::Other; }",
         &none
     ));
     assert!(!checks_error(
-        "{ if let Err(e) = f() { panic!(\"{e}\") } }",
+        "{ if let Err(e) = f() { panic!(\"{e}\") } let _ = GeoError::Other; }",
         &none
     ));
     assert!(!checks_error("{ match f() { MyErr(e) => {} } }", &none));
@@ -203,10 +228,14 @@ fn call_scan_ignores_comments_strings_and_definitions() {
         "{ assert!(matches!(f(), Ok(_))); let _ = Err(1); }",
         &none
     ));
-    let code = strip("fn err_of(r: R) -> E { r.unwrap_err() } fn t() { err_of(f()); }");
+    let code = strip(
+        "fn field_of(r: R) -> String { match r { Err(GeoError::InvalidValue { field, .. }) \
+         => field, _ => panic!() } } fn t() { field_of(f()); } \
+         fn bare(r: R) -> E { r.unwrap_err() } fn u() { bare(f()); }",
+    );
     let bodies = fn_bodies(&code);
     let helpers = error_helpers(&bodies);
-    assert_eq!(helpers, BTreeSet::from(["err_of".into(), "t".into()]));
+    assert_eq!(helpers, BTreeSet::from(["field_of".into(), "t".into()]));
     assert!(!checks_error("{ my_err_of(f()); }", &helpers));
 }
 

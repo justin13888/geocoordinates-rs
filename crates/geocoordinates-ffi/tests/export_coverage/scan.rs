@@ -415,38 +415,49 @@ fn fails_first(code: &str) -> bool {
         .any(|m| code.starts_with(m))
 }
 
-/// Whether `body` checks an error: `is_err()`, `unwrap_err()`, `expect_err(…)`,
-/// a `matches!(…, Err(…))`, an `Err(…) =>` match arm (or `if let Err(…)`, or
-/// `let Err(…) = … else`), or a call to one of the `helpers` that does. An arm
-/// or `if let` branch whose body opens with `panic!` / `unreachable!` (or
-/// `todo!` / `unimplemented!`) rejects the error rather than checking it, so it
-/// does not count.
+/// Whether `code` names a `GeoError` variant (`GeoError::Parse`, not a
+/// `GeoError::` function).
+fn names_variant(code: &str) -> bool {
+    code.match_indices("GeoError::")
+        .any(|(i, s)| code[i + s.len()..].starts_with(char::is_uppercase))
+}
+
+/// Whether `body` checks an error and pins its variant: it takes the error
+/// with an `unwrap_err()` or `expect_err(…)`, a `matches!(…, Err(…))`, an
+/// `Err(…) =>` match arm (or `if let Err(…)`, or `let Err(…) = … else`), and
+/// names the `GeoError::Variant` it expects; or it calls one of the `helpers`
+/// that does. A bare `is_err()` pins nothing, so it does not count. An arm or
+/// `if let` branch whose body opens with `panic!` / `unreachable!` (or `todo!`
+/// / `unimplemented!`) rejects the error rather than checking it, so it does
+/// not count either.
 pub fn checks_error(body: &str, helpers: &BTreeSet<String>) -> bool {
-    body.contains(".is_err()")
-        || body.contains(".unwrap_err()")
-        || body.contains(".expect_err(")
-        || body
-            .match_indices("matches!(")
-            .any(|(i, _)| parens(&body[i..]).0.contains("Err("))
-        || body.match_indices("Err(").any(|(i, _)| {
-            if body[..i].ends_with(is_ident) {
-                return false;
-            }
-            let rest = parens(&body[i..]).1.trim_start();
-            let before = body[..i].trim_end();
-            if rest.starts_with("=>") || rest.starts_with("if ") {
-                // A match arm: its body follows the (guarded) `=>`.
-                rest.split_once("=>")
-                    .is_some_and(|(_, arm)| !fails_first(arm))
-            } else if before.ends_with("if let") || before.ends_with("while let") {
-                // The branch body follows the scrutinee's opening `{`.
-                rest.split_once('{')
-                    .is_some_and(|(_, branch)| !fails_first(branch))
-            } else {
-                // `let Err(…) = … else { … }` fails the test on success.
-                before.ends_with("let")
-            }
-        })
+    let pinned = names_variant(body);
+    pinned
+        && (body.contains(".unwrap_err()")
+            || body.contains(".expect_err(")
+            || body
+                .match_indices("matches!(")
+                .any(|(i, _)| parens(&body[i..]).0.contains("Err(")))
+        || pinned
+            && body.match_indices("Err(").any(|(i, _)| {
+                if body[..i].ends_with(is_ident) {
+                    return false;
+                }
+                let rest = parens(&body[i..]).1.trim_start();
+                let before = body[..i].trim_end();
+                if rest.starts_with("=>") || rest.starts_with("if ") {
+                    // A match arm: its body follows the (guarded) `=>`.
+                    rest.split_once("=>")
+                        .is_some_and(|(_, arm)| !fails_first(arm))
+                } else if before.ends_with("if let") || before.ends_with("while let") {
+                    // The branch body follows the scrutinee's opening `{`.
+                    rest.split_once('{')
+                        .is_some_and(|(_, branch)| !fails_first(branch))
+                } else {
+                    // `let Err(…) = … else { … }` fails the test on success.
+                    before.ends_with("let")
+                }
+            })
         || helpers.iter().any(|h| {
             body.match_indices(&format!("{h}("))
                 .any(|(i, _)| !body[..i].ends_with(is_ident))

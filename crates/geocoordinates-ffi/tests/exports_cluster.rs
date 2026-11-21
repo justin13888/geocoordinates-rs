@@ -120,13 +120,19 @@ fn grid_buckets_carry_their_cell() {
     let found = bucket_by_geohash(points.clone(), 5).unwrap();
     assert_eq!(found[0].key, "u4pru");
     assert_eq!(found[1].cluster.members, [1]);
-    assert!(bucket_by_geohash(points.clone(), 0).is_err());
-    assert!(bucket_by_geohash(vec![bad_record()], 5).is_err());
+    assert!(is_field(bucket_by_geohash(points.clone(), 0), "length"));
+    assert!(matches!(
+        bucket_by_geohash(vec![bad_record()], 5),
+        Err(GeoError::OutOfRange { .. })
+    ));
 
     let found = bucket_by_h3(vec![wgs84(40.7128, -74.006)], 9).unwrap();
     assert_eq!(found[0].key, "892a1072893ffff");
-    assert!(bucket_by_h3(points, 16).is_err());
-    assert!(bucket_by_h3(vec![bad_record()], 5).is_err());
+    assert!(is_field(bucket_by_h3(points, 16), "resolution"));
+    assert!(matches!(
+        bucket_by_h3(vec![bad_record()], 5),
+        Err(GeoError::OutOfRange { .. })
+    ));
 }
 
 #[test]

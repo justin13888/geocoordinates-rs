@@ -109,7 +109,10 @@ fn options_filter_and_bound_the_search() {
         lat: 91.0,
         ..sacre_coeur
     };
-    assert!(g.reverse(bad_record, defaults).is_err());
+    assert!(matches!(
+        g.reverse(bad_record, defaults),
+        Err(GeoError::OutOfRange { lat, .. }) if lat == 91.0
+    ));
 }
 
 #[test]
@@ -241,7 +244,10 @@ fn reverse_geocode_calls_any_implementation_and_checks_it() {
         Err(GeoError::Other { detail }) if detail == "offline"
     ));
     let bad_record = Coordinate { lat: 91.0, ..at };
-    assert!(reverse_geocode(Arc::new(Fixed(None)), bad_record, options).is_err());
+    assert!(matches!(
+        reverse_geocode(Arc::new(Fixed(None)), bad_record, options),
+        Err(GeoError::OutOfRange { lat, .. }) if lat == 91.0
+    ));
 }
 
 #[test]
