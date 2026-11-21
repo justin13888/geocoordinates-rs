@@ -50,6 +50,20 @@ fn accuracy_new_and_validate_check_magnitudes_and_keep_the_kind() {
 }
 
 #[test]
+fn accuracy_new_keeps_every_kind() {
+    for kind in [
+        AccuracyKind::Bound,
+        AccuracyKind::OneSigma,
+        AccuracyKind::Cep50,
+        AccuracyKind::Unspecified,
+    ] {
+        let accuracy = accuracy_new(kind, Some(2.0), None).unwrap();
+        assert_eq!(accuracy.kind, kind);
+        accuracy_validate(accuracy).unwrap();
+    }
+}
+
+#[test]
 fn raw_source_new_validates_its_confidence() {
     let source = raw_source_new("51.5, -0.12".to_string(), confidence_new(0.9).unwrap()).unwrap();
     assert_eq!(

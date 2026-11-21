@@ -451,3 +451,33 @@ fn fix_from_coord_carries_no_metadata() {
         }
     );
 }
+
+#[test]
+fn a_height_crossing_in_survives_ecef_and_back() {
+    let at = |height| Coordinate {
+        height,
+        ..wgs84(35.0, 139.0)
+    };
+    // An ellipsoidal height reaches the core as one: ECEF lifts the point by
+    // exactly that height along the normal, and the way back reads it again.
+    let ground = ecef_from_coordinate(at(None)).unwrap();
+    for meters in [1_234.5, -80.25] {
+        let ecef = ecef_from_coordinate(at(Some(Height::Ellipsoidal { meters }))).unwrap();
+        let lift = ((ecef.x - ground.x).powi(2)
+            + (ecef.y - ground.y).powi(2)
+            + (ecef.z - ground.z).powi(2))
+        .sqrt();
+        close(lift, meters.abs(), 1e-6);
+        match ecef_to_coordinate(ecef, Crs::Wgs84).unwrap().height {
+            Some(Height::Ellipsoidal { meters: back }) => close(back, meters, 1e-6),
+            other => panic!("expected an ellipsoidal height, got {other:?}"),
+        }
+    }
+    // An orthometric height reaches the core as orthometric: ECEF needs a
+    // height above the ellipsoid, so it refuses one above the geoid rather than
+    // reading it as ellipsoidal.
+    match ecef_from_coordinate(at(Some(Height::Orthometric { meters: 50.0 }))) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "height"),
+        other => panic!("expected InvalidValue for `height`, got {other:?}"),
+    }
+}

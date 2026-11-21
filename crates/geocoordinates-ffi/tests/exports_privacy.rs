@@ -1,7 +1,7 @@
 //! Calls every privacy FFI export at least once with an asserted value, including
 //! the failure each one documents.
 
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, UNIX_EPOCH};
 
 use geocoordinates_ffi::*;
 
@@ -143,6 +143,53 @@ fn zone_records_are_checked_and_measured_geodesically() {
         exclusion_zone_contains(fiji, nad27),
         Err(GeoError::CrsMismatch { .. })
     ));
+}
+
+#[test]
+fn a_full_fix_passes_through_exclusion_zones_unchanged() {
+    // Every field set, and every enum of the fix on a variant other than the
+    // first (NAD27 for the datum, so the zone is on NAD27 too; both `Height`
+    // variants), so a dropped field or a swapped variant in either direction
+    // shows.
+    let nad27 = |lat, lon| coordinate_new(lat, lon, Crs::Nad27).unwrap();
+    for height in [
+        Height::Ellipsoidal { meters: 12.5 },
+        Height::Orthometric { meters: -3.25 },
+    ] {
+        let fix = Fix {
+            coord: Coordinate {
+                height: Some(height),
+                ..nad27(20.0, 20.0)
+            },
+            accuracy: Some(Accuracy {
+                kind: AccuracyKind::OneSigma,
+                horizontal_m: Some(4.0),
+                vertical_m: Some(9.0),
+            }),
+            timestamp: Some(UNIX_EPOCH + Duration::from_millis(1_234_567)),
+            source: Some(RawSource {
+                raw: "20 20".to_string(),
+                confidence: Confidence { value: 0.75 },
+                axis_order: Some(AxisOrder::LonLat),
+                datum_ambiguity: Some(DatumAmbiguity::PossiblyGcj02),
+                geoid_separation_m: Some(-31.5),
+                notes: vec!["one".to_string(), "two".to_string()],
+            }),
+        };
+        let coarsen = ZoneAction::Coarsen {
+            precision: geohash(4),
+        };
+        for action in [ZoneAction::Strip, coarsen] {
+            let zones = vec![ExclusionZone::Circle {
+                center: nad27(10.0, 10.0),
+                radius_m: 100.0,
+            }];
+            assert_eq!(
+                apply_exclusion_zones(fix.clone(), zones, action).unwrap(),
+                Some(fix.clone())
+            );
+        }
+    }
 }
 
 #[test]
