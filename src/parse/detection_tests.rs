@@ -273,3 +273,152 @@ proptest! {
         }
     }
 }
+
+/// Input shaped like the interchange formats: fragments of GeoJSON, WKT,
+/// GPX and KML concatenated in any order, so a generated document reaches past
+/// the outermost syntax check into the parsers and the crates beneath them.
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml"))]
+fn interchange_input() -> impl Strategy<Value = String> {
+    let fragments = prop::sample::select(vec![
+        // GeoJSON
+        "{",
+        "}",
+        "[",
+        "]",
+        ",",
+        ":",
+        "\"type\"",
+        "\"Point\"",
+        "\"LineString\"",
+        "\"Polygon\"",
+        "\"MultiPoint\"",
+        "\"GeometryCollection\"",
+        "\"Feature\"",
+        "\"FeatureCollection\"",
+        "\"coordinates\"",
+        "\"geometry\"",
+        "\"geometries\"",
+        "\"features\"",
+        "\"properties\"",
+        "null",
+        // WKT
+        "POINT",
+        "LINESTRING",
+        "POLYGON",
+        "MULTIPOINT",
+        "MULTILINESTRING",
+        "MULTIPOLYGON",
+        "GEOMETRYCOLLECTION",
+        " Z",
+        " M",
+        " ZM",
+        " EMPTY",
+        "(",
+        ")",
+        "SRID=4326;",
+        // GPX
+        "<?xml version=\"1.0\"?>",
+        "<gpx version=\"1.1\">",
+        "</gpx>",
+        "<wpt lat=\"40.7\" lon=\"-74\">",
+        "<wpt lat=\"91\" lon=\"0\">",
+        "<wpt>",
+        "</wpt>",
+        "<trk>",
+        "</trk>",
+        "<trkseg>",
+        "</trkseg>",
+        "<trkpt lat=\"1\" lon=\"2\">",
+        "</trkpt>",
+        "<rte>",
+        "</rte>",
+        "<rtept lat=\"x\" lon=\"2\">",
+        "</rtept>",
+        "<ele>",
+        "</ele>",
+        "<time>",
+        "</time>",
+        "2024-01-01T00:00:00Z",
+        // KML
+        "<kml>",
+        "</kml>",
+        "<Document>",
+        "</Document>",
+        "<Folder>",
+        "</Folder>",
+        "<Placemark>",
+        "</Placemark>",
+        "<Point>",
+        "</Point>",
+        "<LineString>",
+        "</LineString>",
+        "<LinearRing>",
+        "</LinearRing>",
+        "<Polygon>",
+        "</Polygon>",
+        "<outerBoundaryIs>",
+        "</outerBoundaryIs>",
+        "<innerBoundaryIs>",
+        "</innerBoundaryIs>",
+        "<MultiGeometry>",
+        "</MultiGeometry>",
+        "<coordinates>",
+        "</coordinates>",
+        "<Point/>",
+        "<!-- -->",
+        "<![CDATA[1,2]]>",
+        // Shared: numbers, separators and stray markup.
+        "0",
+        "1",
+        "-74.006",
+        "40.7128",
+        "91",
+        "-181",
+        "1e308",
+        "NaN",
+        "inf",
+        " ",
+        "\n",
+        "\"",
+        "'",
+        "<",
+        ">",
+        "/",
+        "=",
+        "&amp;",
+        "&",
+    ]);
+    prop::collection::vec(fragments, 0..48).prop_map(|parts| parts.concat())
+}
+
+#[cfg(any(feature = "geojson", feature = "wkt", feature = "gpx", feature = "kml"))]
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1024))]
+
+    /// No interchange parser panics on arbitrary input: each either parses or
+    /// returns an error, for arbitrary text and for input shaped like JSON and
+    /// XML, whose malformed documents reach furthest into the parsers.
+    #[test]
+    fn interchange_parsers_never_panic_on_arbitrary_input(
+        input in prop_oneof![
+            any::<String>(),
+            "[\\[\\]{}\":,0-9.eE +\\-a-zA-Z]{0,64}",
+            "[<>/=\" a-zA-Z0-9.,\\-]{0,64}",
+            interchange_input(),
+        ],
+        lon_lat in any::<bool>(),
+    ) {
+        #[cfg(feature = "geojson")]
+        let _ = interchange::parse_geojson(&input);
+        #[cfg(feature = "wkt")]
+        let _ = interchange::parse_wkt(
+            &input,
+            if lon_lat { AxisOrder::LonLat } else { AxisOrder::LatLon },
+        );
+        #[cfg(feature = "gpx")]
+        let _ = interchange::parse_gpx(&input);
+        #[cfg(feature = "kml")]
+        let _ = interchange::parse_kml(&input);
+        let _ = lon_lat;
+    }
+}

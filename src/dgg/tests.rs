@@ -352,3 +352,57 @@ fn s2_decodes_at_the_poles_and_antimeridian() {
         }
     }
 }
+
+/// A position anywhere on the globe, half the draws pressed against a pole
+/// or the antimeridian, where cell geometry is least regular.
+#[cfg(any(feature = "h3", feature = "s2"))]
+fn globe_position() -> impl proptest::strategy::Strategy<Value = Coordinate> {
+    use proptest::prelude::*;
+
+    prop_oneof![
+        (-90.0..=90.0, -180.0..=180.0),
+        (prop_oneof![-90.0..-89.0, 89.0..=90.0], -180.0..=180.0),
+        (-90.0..=90.0, prop_oneof![-180.0..-179.0, 179.0..=180.0]),
+    ]
+    .prop_map(|(lat, lon)| c(lat, lon))
+}
+
+#[cfg(feature = "h3")]
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(512))]
+
+    #[test]
+    fn h3_encode_decode_bound_contains_input(point in globe_position(), res in 0..=15_u8) {
+        assert_decodes_around(H3Cell::encode(point, res).unwrap().decode(), point);
+    }
+
+    /// The centre a cell decodes to encodes back to that cell at its own
+    /// resolution, and its raw index rebuilds it.
+    #[test]
+    fn h3_cell_centre_re_encodes_to_same_cell(point in globe_position(), res in 0..=15_u8) {
+        let cell = H3Cell::encode(point, res).unwrap();
+        assert_eq!(cell.resolution(), res);
+        assert_eq!(H3Cell::encode(*cell.decode().value(), res).unwrap(), cell);
+        assert_eq!(H3Cell::new(cell.as_u64()).unwrap(), cell);
+    }
+}
+
+#[cfg(feature = "s2")]
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(512))]
+
+    #[test]
+    fn s2_encode_decode_bound_contains_input(point in globe_position(), level in 0..=30_u8) {
+        assert_decodes_around(S2CellId::encode(point, level).unwrap().decode(), point);
+    }
+
+    /// The centre a cell decodes to encodes back to that cell at its own
+    /// level, and its raw id rebuilds it.
+    #[test]
+    fn s2_cell_centre_re_encodes_to_same_cell(point in globe_position(), level in 0..=30_u8) {
+        let cell = S2CellId::encode(point, level).unwrap();
+        assert_eq!(cell.level(), level);
+        assert_eq!(S2CellId::encode(*cell.decode().value(), level).unwrap(), cell);
+        assert_eq!(S2CellId::new(cell.as_u64()).unwrap(), cell);
+    }
+}

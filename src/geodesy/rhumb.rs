@@ -6,7 +6,7 @@
 //! NAD27 pair on Clarke 1866. GCJ-02 and BD-09 are obfuscated renderings with
 //! no ellipsoid, so each of these rejects them with [`Error::CrsMismatch`];
 //! convert them to WGS-84 first. They are implemented here directly and
-//! re-exported from [`super::geodesic`].
+//! re-exported flat from [`geodesy`](super).
 //!
 //! A rhumb line is straight in isometric latitude `ψ` and longitude `λ`, so its
 //! bearing is `atan2(Δλ, Δψ)`, and its length is the meridian arc it climbs,

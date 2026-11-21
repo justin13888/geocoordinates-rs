@@ -211,6 +211,42 @@ fn cell_size_helpers_match_known_cells() {
     assert_eq!(maidenhead_cell(3), (1.0 / 24.0, 2.0 / 24.0));
 }
 
+/// Any printable text, or text drawn from the grid alphabets so that most
+/// draws get past the first character and exercise the deeper checks.
+fn grid_text() -> impl Strategy<Value = String> {
+    prop_oneof![
+        "\\PC{0,40}",
+        "[0-9A-Za-z+ ]{0,20}",
+        "[0-9]{1,2}[C-X][A-Z]{2}[0-9 ]{0,12}",
+        "[A-Ra-r]{2}([0-9]{2}([a-x]{2})?)?",
+        "[2-9CFGHJMPQRVWX]{0,8}\\+?[2-9CFGHJMPQRVWX]{0,7}",
+        "[0-3]{0,32}",
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(4096))]
+
+    /// Every grid parser returns a value or `InvalidGridRef` naming its own
+    /// grid: no panic, and no other error, on any text.
+    #[test]
+    fn grid_parsers_never_panic_and_fail_as_invalid_grid_ref(s in grid_text()) {
+        assert_invalid_grid_ref_or_ok("geohash", Geohash::parse(&s));
+        assert_invalid_grid_ref_or_ok("Plus Code", PlusCode::parse(&s));
+        assert_invalid_grid_ref_or_ok("Maidenhead", Maidenhead::parse(&s));
+        assert_invalid_grid_ref_or_ok("MGRS", crate::grids::Mgrs::parse(&s));
+        #[cfg(feature = "map")]
+        assert_invalid_grid_ref_or_ok("quadkey", crate::map::Tile::from_quadkey(&s));
+    }
+}
+
+#[track_caller]
+fn assert_invalid_grid_ref_or_ok<T: core::fmt::Debug>(grid: &str, r: Result<T>) {
+    if r.is_err() {
+        assert_invalid_grid_ref(grid, r);
+    }
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1024))]
 

@@ -6,7 +6,7 @@
 //! [`RawSource`], and
 //! [`DatumAmbiguity::PossiblyGcj02`](crate::fix::DatumAmbiguity::PossiblyGcj02)
 //! for China-EXIF datum ambiguity). Turning tag values already read into a [`Fix`]
-//! is the planned `exif` feature, not yet shipped.
+//! is the `exif` feature's job (the `exif` module).
 //!
 //! The three position sentences (`GGA`, `RMC`, `GLL`) are parsed directly — the
 //! grammar is small and parsing it here keeps the dependency surface (and the

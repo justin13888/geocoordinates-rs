@@ -59,3 +59,34 @@ try:
     raise AssertionError("expected InvalidValue for a foreign place with a bad country")
 except gc.GeoError.InvalidValue as e:
     assert e.field == "country_code", e.field
+
+
+class Failing(gc.ReverseGeocoder):
+    """A foreign geocoder whose provider fails, as a platform adapter's would."""
+
+    def __init__(self, failure):
+        self.failure = failure
+
+    def reverse(self, coordinate, options):
+        raise self.failure
+
+
+# a_throwing_foreign_geocoder_surfaces_its_geo_error: a `GeoError` the foreign
+# side raises crosses back as itself, fields intact.
+try:
+    gc.reverse_geocode(
+        Failing(gc.GeoError.InvalidValue("language", "provider has no such language")),
+        at,
+        gc.reverse_options_default(),
+    )
+    raise AssertionError("expected the foreign InvalidValue")
+except gc.GeoError.InvalidValue as e:
+    assert (e.field, e.detail) == ("language", "provider has no such language"), (e.field, e.detail)
+
+# a_throwing_foreign_geocoder_unexpected_exception_becomes_other: anything else
+# it raises surfaces as `Other`, its reason kept.
+try:
+    gc.reverse_geocode(Failing(RuntimeError("provider offline")), at, gc.reverse_options_default())
+    raise AssertionError("expected Other for an unexpected exception")
+except gc.GeoError.Other as e:
+    assert "provider offline" in e.detail, e.detail

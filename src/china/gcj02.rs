@@ -305,12 +305,12 @@ mod tests {
     use super::*;
     use crate::china::REFINED_BOUND_M;
     use crate::geodesy::haversine_distance;
-    use crate::test_support::{DATUM_VECTORS, assert_within_meters, china_box_grid};
+    use crate::test_support::{DATUM_VECTORS, REFERENCE_M, assert_within_meters, china_box_grid};
 
     #[test]
     fn wgs84_to_gcj02_matches_references() {
         for v in DATUM_VECTORS {
-            assert_within_meters(v.wgs84().to_gcj02(), v.gcj02(), 0.2);
+            assert_within_meters(v.wgs84().to_gcj02(), v.gcj02(), REFERENCE_M);
         }
     }
 
@@ -347,7 +347,7 @@ mod tests {
         assert_within_meters(
             *got.value(),
             Wgs84::new(GCJ_TO_WGS_FAST.0, GCJ_TO_WGS_FAST.1).unwrap(),
-            0.05,
+            REFERENCE_M,
         );
     }
 
@@ -364,6 +364,40 @@ mod tests {
                 (london.lat(), london.lon())
             );
             assert_eq!(back.max_error().meters(), 0.0);
+        }
+    }
+
+    /// The documented box is closed: a point on any edge or corner is inside
+    /// for both datums, and the next `f64` outward from it is outside.
+    #[test]
+    fn china_box_is_closed_on_every_edge() {
+        let (south, north, west, east) = (0.8293, 55.8271, 72.004, 137.8347);
+        let up = |v: f64| f64::from_bits(v.to_bits() + 1);
+        let down = |v: f64| f64::from_bits(v.to_bits() - 1);
+        let (mid_lat, mid_lon) = (30.0, 105.0);
+        let mut cases = vec![
+            ((south, mid_lon), (down(south), mid_lon)),
+            ((north, mid_lon), (up(north), mid_lon)),
+            ((mid_lat, west), (mid_lat, down(west))),
+            ((mid_lat, east), (mid_lat, up(east))),
+        ];
+        for (lat, out_lat) in [(south, down(south)), (north, up(north))] {
+            for (lon, out_lon) in [(west, down(west)), (east, up(east))] {
+                cases.extend([((lat, lon), (out_lat, lon)), ((lat, lon), (lat, out_lon))]);
+            }
+        }
+        for ((lat, lon), (out_lat, out_lon)) in cases {
+            assert!(
+                !Wgs84::new(lat, lon).unwrap().is_outside_china(),
+                "{lat},{lon}"
+            );
+            assert!(
+                !Gcj02::new(lat, lon).unwrap().is_outside_china(),
+                "{lat},{lon}"
+            );
+            let (w, g) = (Wgs84::new(out_lat, out_lon), Gcj02::new(out_lat, out_lon));
+            assert!(w.unwrap().is_outside_china(), "{out_lat},{out_lon}");
+            assert!(g.unwrap().is_outside_china(), "{out_lat},{out_lon}");
         }
     }
 

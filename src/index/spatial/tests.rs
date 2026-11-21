@@ -267,7 +267,6 @@ fn heap_entries_compare_equal_only_when_they_match() {
     assert!(refined(1.0, 2) == refined(1.0, 2));
     assert!(refined(1.0, 2) != refined(1.0, 3));
     assert!(refined(1.0, 2) != refined(2.0, 2));
-    assert!(KdTree::pending_eq_holds());
 }
 
 #[test]
@@ -319,50 +318,6 @@ fn a_large_set_splits_into_a_tree_and_stays_exact() {
                 .all(|hit| points[*hit.value()] == hit.coordinate())
         );
     }
-}
-
-#[test]
-fn by_chord_yields_every_point_by_rising_chord() {
-    let model = Model::for_crs(Crs::Wgs84).unwrap();
-    let points: Vec<Coordinate> = (0..100)
-        .map(|i| wgs84(f64::from(i) - 50.0, f64::from(i) * 3.0 - 150.0))
-        .collect();
-    let tree = KdTree::build(points.iter().map(|p| model.unit_vector(*p)));
-    let query = model.unit_vector(wgs84(10.0, 10.0));
-    // One past the expected count: a walk that overruns fails here, not by hanging.
-    let walk: Vec<(f64, usize)> = tree.by_chord(query).take(points.len() + 1).collect();
-    assert_eq!(walk.len(), points.len());
-    assert!(walk.windows(2).all(|pair| pair[0].0 <= pair[1].0));
-    let mut ids: Vec<usize> = walk.iter().map(|&(_, id)| id).collect();
-    ids.sort_unstable();
-    assert_eq!(ids, (0..100).collect::<Vec<_>>());
-    assert_eq!(KdTree::build([]).by_chord([1.0, 0.0, 0.0]).count(), 0);
-    let mut none = 0;
-    KdTree::build([]).for_each_within([1.0, 0.0, 0.0], 4.0, |_| none += 1);
-    assert_eq!(none, 0);
-}
-
-#[test]
-fn by_chord_reports_the_squared_chord_to_each_point() {
-    let tree = KdTree::build([[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]]);
-    let walk: Vec<(f64, usize)> = tree.by_chord([1.0, 0.0, 0.0]).take(3).collect();
-    assert_eq!(walk, [(8.0, 1), (13.0, 0)]);
-}
-
-#[test]
-fn for_each_within_keeps_only_points_inside_the_limit() {
-    let tree = KdTree::build([[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]]);
-    let mut found = Vec::new();
-    tree.for_each_within([1.0, 0.0, 0.0], 8.0, |id| found.push(id));
-    assert_eq!(found, [1]);
-}
-
-#[test]
-fn the_box_distance_sums_the_gap_along_each_axis() {
-    let tree = KdTree::build([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]);
-    // Past the high side on x, inside on y, past the low side on z.
-    assert_eq!(tree.root_box_chord_sq([3.0, 0.5, -1.0]), 5.0);
-    assert_eq!(tree.root_box_chord_sq([0.5, 0.5, 0.5]), 0.0);
 }
 
 /// Random points, mixed with the places a spatial routine breaks: the

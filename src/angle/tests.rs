@@ -66,6 +66,85 @@ fn dms_ddm_round_trips_agree_with_degrees() {
     }
 }
 
+/// An axis and a signed value in range for it: mostly anywhere in it,
+/// sometimes one of the fixed [`SAMPLES`] (signed zeros, the axis maxima).
+fn axis_and_value() -> impl proptest::strategy::Strategy<Value = (Axis, f64)> {
+    use proptest::prelude::*;
+    proptest::sample::select(&AXES[..]).prop_flat_map(|axis| {
+        let max = axis_max(axis);
+        let edges: Vec<f64> = samples(axis).collect();
+        (
+            Just(axis),
+            prop_oneof![3 => -max..=max, 1 => proptest::sample::select(edges)],
+        )
+    })
+}
+
+/// Valid DMS components on either axis, seconds reaching the largest `f64`
+/// below 60 so the minute carry in [`Dms::to_ddm`] is drawn.
+fn dms_components() -> impl proptest::strategy::Strategy<Value = Dms> {
+    use proptest::prelude::*;
+    let hemisphere = proptest::sample::select(
+        &[
+            Hemisphere::North,
+            Hemisphere::South,
+            Hemisphere::East,
+            Hemisphere::West,
+        ][..],
+    );
+    let seconds = prop_oneof![
+        3 => 0.0..60.0_f64,
+        1 => Just(f64::from_bits(60.0_f64.to_bits() - 1)),
+        1 => Just(-0.0),
+    ];
+    // A carry from 89° 59′ or 179° 59′ reaches the axis maximum itself.
+    let degrees =
+        prop_oneof![2 => 0..=180_u16, 1 => proptest::sample::select(&[0, 89, 90, 179, 180][..])];
+    let minutes = prop_oneof![2 => 0..60_u8, 1 => Just(59), 1 => Just(0)];
+    (degrees, minutes, seconds, hemisphere).prop_filter_map(
+        "components in range for the hemisphere's axis",
+        |(d, m, s, h)| Dms::new(d, m, s, h).ok(),
+    )
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(1024))]
+
+    /// Decomposing any in-range value into DMS or DDM, and converting either
+    /// to the other, returns the value to 1e-12° and yields components that
+    /// the validating constructors accept back unchanged; so does any valid
+    /// DMS converted to DDM and back, the 60″ carry included.
+    #[test]
+    fn dms_ddm_conversions_round_trip_and_stay_constructible(
+        (axis, v) in axis_and_value(),
+        dms in dms_components(),
+    ) {
+        use proptest::prelude::*;
+        let rebuilt_dms = |d: Dms| Dms::new(d.degrees(), d.minutes(), d.seconds(), d.hemisphere());
+        let rebuilt_ddm = |d: Ddm| Ddm::new(d.degrees(), d.minutes(), d.hemisphere());
+
+        let from_dms = Dms::from_degrees(v, axis).unwrap();
+        let from_ddm = Ddm::from_degrees(v, axis).unwrap();
+        for back in [
+            from_dms.to_degrees(),
+            from_ddm.to_degrees(),
+            from_dms.to_ddm().to_degrees(),
+            from_ddm.to_dms().to_degrees(),
+        ] {
+            prop_assert!((back - v).abs() <= 1e-12, "{v} came back as {back}");
+        }
+        for d in [from_dms, from_ddm.to_dms(), dms, dms.to_ddm().to_dms()] {
+            prop_assert_eq!(rebuilt_dms(d), Ok(d));
+        }
+        for d in [from_ddm, from_dms.to_ddm(), dms.to_ddm()] {
+            prop_assert_eq!(rebuilt_ddm(d), Ok(d));
+        }
+        prop_assert_eq!(from_dms.to_ddm().hemisphere(), from_ddm.hemisphere());
+        prop_assert!((dms.to_ddm().to_degrees() - dms.to_degrees()).abs() <= 1e-12);
+        prop_assert!((dms.to_ddm().to_dms().to_degrees() - dms.to_degrees()).abs() <= 1e-12);
+    }
+}
+
 #[test]
 fn from_impls_equal_the_named_conversions() {
     for axis in AXES {

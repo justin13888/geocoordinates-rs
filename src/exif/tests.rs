@@ -581,8 +581,11 @@ fn null_island_is_accepted_unless_rejected_by_policy() {
         longitude: text("0,0.0E"),
         ..XmpGps::default()
     };
-    assert!(CaptureGeo::from_exif(&ifd).is_ok());
-    assert!(CaptureGeo::from_xmp(&xmp).is_ok());
+    // Accepted as the origin itself, on WGS-84, not as some other point.
+    for capture in [CaptureGeo::from_exif(&ifd), CaptureGeo::from_xmp(&xmp)] {
+        let c = capture.unwrap().fix.coord;
+        assert_eq!((c.lat(), c.lon(), c.crs()), (0.0, 0.0, Crs::Wgs84));
+    }
     assert!(matches!(
         CaptureGeo::from_exif_with(&ifd, strict),
         Err(Error::Parse {
@@ -598,17 +601,15 @@ fn null_island_is_accepted_unless_rejected_by_policy() {
         })
     ));
     // Only both axes at zero count.
-    for gps in [
-        ExifGps {
-            latitude: dms(0, 0, 0),
-            ..base()
-        },
-        ExifGps {
-            longitude: dms(0, 0, 0),
-            ..base()
-        },
-    ] {
-        assert!(CaptureGeo::from_exif_with(&gps, strict).is_ok());
+    for (zero_lat, at) in [(true, (0.0, 20.0)), (false, (10.0, 0.0))] {
+        let mut gps = base();
+        *if zero_lat {
+            &mut gps.latitude
+        } else {
+            &mut gps.longitude
+        } = dms(0, 0, 0);
+        let coord = CaptureGeo::from_exif_with(&gps, strict).unwrap().fix.coord;
+        assert_eq!((coord.lat(), coord.lon()), at);
     }
 }
 

@@ -445,7 +445,15 @@ mod tests {
 
     #[test]
     fn geo_uri_scheme_is_case_insensitive() {
-        assert!(parse_geo_uri("GEO:13.4125,103.8667").is_ok());
+        assert_eq!(parse_geo_uri("GEO:1.5,-2.5").unwrap().coord, wgs(1.5, -2.5));
+    }
+
+    /// The kind of the parse error `input` is as a `geo:` URI, or `None`.
+    fn geo_kind(input: &str) -> Option<ParseErrorKind> {
+        match parse_geo_uri(input) {
+            Err(Error::Parse { kind, .. }) => Some(kind),
+            _ => None,
+        }
     }
 
     #[test]
@@ -454,20 +462,24 @@ mod tests {
         let known = parse_geo_uri("geo:1,2;crs=wgs84").unwrap();
         let notes = &known.source.unwrap().notes;
         assert!(notes.iter().all(|n| !n.contains("crs")), "{notes:?}");
-        assert!(parse_geo_uri("geo:1,2;crs=epsg:7030").is_err());
+        assert_eq!(
+            geo_kind("geo:1,2;crs=epsg:7030"),
+            Some(ParseErrorKind::Unsupported)
+        );
     }
 
     #[test]
-    fn geo_uri_errors() {
-        assert!(parse_geo_uri("geo:").is_err());
-        assert!(parse_geo_uri("geo:abc").is_err());
-        assert!(parse_geo_uri("http:1,2").is_err()); // wrong scheme
-        assert!(parse_geo_uri("geo:1,2;u=-1").is_err());
-        assert!(parse_geo_uri("geo:1,2;u=NaN").is_err());
-        assert!(parse_geo_uri("geo:1,2;u=1;crs=wgs84").is_err());
-        assert!(parse_geo_uri("geo:1,2;u=1;u=2").is_err());
-        assert!(parse_geo_uri("geo:1,2;").is_err());
-        assert!(parse_geo_uri("geo:1,2,inf").is_err());
+    fn geo_uri_malformed_input_is_syntax() {
+        let syntax = Some(ParseErrorKind::Syntax);
+        assert_eq!(geo_kind("geo:"), syntax);
+        assert_eq!(geo_kind("geo:abc"), syntax);
+        assert_eq!(geo_kind("http:1,2"), syntax); // wrong scheme
+        assert_eq!(geo_kind("geo:1,2;u=-1"), syntax);
+        assert_eq!(geo_kind("geo:1,2;u=NaN"), syntax);
+        assert_eq!(geo_kind("geo:1,2;u=1;crs=wgs84"), syntax); // `crs` must precede `u`
+        assert_eq!(geo_kind("geo:1,2;u=1;u=2"), syntax);
+        assert_eq!(geo_kind("geo:1,2;"), syntax);
+        assert_eq!(geo_kind("geo:1,2,inf"), syntax);
     }
 
     /// A `geo:` position off the globe is `OutOfRange`; malformed text is `Parse`.
@@ -477,10 +489,7 @@ mod tests {
         assert_eq!(parse_geo_uri("geo:91,0"), out(91.0, 0.0));
         assert_eq!(parse_geo_uri("geo:-45.5,180.25,12;u=3"), out(-45.5, 180.25));
         assert_eq!(parse_coordinate("geo:0,-181"), out(0.0, -181.0));
-        let syntax = ParseErrorKind::Syntax;
-        assert!(
-            matches!(parse_geo_uri("geo:91"), Err(Error::Parse { kind, .. }) if kind == syntax)
-        );
+        assert_eq!(geo_kind("geo:91"), Some(ParseErrorKind::Syntax));
     }
 
     /// RFC 5870 allows `u=0` (an exact position); only a negative value is
@@ -510,22 +519,6 @@ mod tests {
         assert_close(c.lat(), 40.7128, 1e-9);
         assert_close(c.lon(), -74.006, 1e-9);
         assert!(parse_coordinate("not a coordinate").is_err());
-    }
-
-    #[test]
-    fn round_trip_format_then_parse() {
-        // Default DD formatting (6 dp ≈ 0.11 m) must re-parse to within 0.2 m.
-        let coords = [
-            wgs(40.7128, -74.006),
-            wgs(-33.8688, 151.2093), // range rule forces order back
-            wgs(0.0, 0.0),
-            wgs(51.5074, -0.1278),
-        ];
-        for c in coords {
-            let text = format(c, FormatOptions::default()).unwrap();
-            let parsed = parse_coordinate(&text).unwrap();
-            assert_within_meters(parsed.coord, c, 0.2);
-        }
     }
 
     #[test]

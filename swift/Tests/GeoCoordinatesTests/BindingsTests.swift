@@ -118,6 +118,39 @@ final class ConversionTests: XCTestCase {
             sentence: "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10")
         XCTAssertEqual(rmc.timestamp, Date(timeIntervalSince1970: 764_426_119))
     }
+
+    func testPreEpochAndSubsecondTimestampsRoundTripThroughATrack() throws {
+        // About 56 m apart, inside the default 50 m/s speed limit. Every instant is
+        // at least a second before the epoch: one inside the last second crosses
+        // with its sign flipped (#342).
+        let before = Date(timeIntervalSince1970: -3.75)  // 1969-12-31T23:59:56.250Z
+        let after = Date(timeIntervalSince1970: -1.75)  // 1969-12-31T23:59:58.250Z
+        func timed(_ lon: Double, _ at: Date) throws -> Fix {
+            try Fix(coord: wgs84(0.0, lon), accuracy: nil, timestamp: at, source: nil)
+        }
+        let track = try Track(fixes: [timed(0.0005, after), timed(0.0, before)])
+        XCTAssertEqual(track.fixes().map(\.timestamp), [before, after])
+        let midway = Date(timeIntervalSince1970: -2.75)  // 1969-12-31T23:59:57.250Z
+        let between = try XCTUnwrap(track.locate(at: midway, options: geotagOptionsDefault()))
+        XCTAssertEqual(between.timestamp, midway)
+        XCTAssertEqual(between.coord.lon, 0.00025, accuracy: 1e-12)
+    }
+
+    func testS2CellAbove2To63RoundTrips() throws {
+        let cell = try s2Encode(coord: wgs84(40.7128, -74.006), level: 20)
+        XCTAssertEqual(cell.value, 9_926_595_630_970_437_632)
+        XCTAssertGreaterThanOrEqual(cell.value, UInt64(1) << 63)
+        try s2Validate(cell: cell)
+        XCTAssertEqual(try s2Level(cell: cell), 20)
+        let back = try s2Decode(cell: S2CellId(value: 9_926_595_630_970_437_632))
+        XCTAssertEqual(back.coord.lat, 40.712_762_829, accuracy: 1e-8)
+        XCTAssertEqual(back.coord.lon, -74.006_004_053, accuracy: 1e-8)
+        // The id an error carries crosses back just as wide.
+        guard case let .InvalidCellId(_, value)? = geoError({
+            try s2Decode(cell: S2CellId(value: .max))
+        }) else { return XCTFail("expected InvalidCellId for an id past every face") }
+        XCTAssertEqual(value, .max)
+    }
 }
 
 final class TypedErrorTests: XCTestCase {
@@ -221,6 +254,10 @@ final class TypedErrorTests: XCTestCase {
             try parseNmeaSentence(sentence: "$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
         }) else { return XCTFail("expected Parse for a bad checksum") }
         XCTAssertEqual(checksumKind, .checksum)
+        guard case let .Parse(unsupportedKind, _)? = geoError({
+            try parseNmeaSentence(sentence: "$GPVTG,054.7,T")
+        }) else { return XCTFail("expected Parse for a sentence type with no position") }
+        XCTAssertEqual(unsupportedKind, .unsupported)
         let deepWkt = String(repeating: "GEOMETRYCOLLECTION(", count: 200)
         guard case let .Parse(deepKind, _)? = geoError({
             try parseWkt(input: deepWkt, axisOrder: .lonLat)

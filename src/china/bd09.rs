@@ -1,9 +1,12 @@
 //! GCJ-02 ↔ BD-09 transforms, and WGS-84 ↔ BD-09 compositions.
 //!
-//! `gcj2bd` is an exact (empirical) forward nudge in polar coordinates using
-//! Baidu's [`X_PI`](super::X_PI) constant. `bd2gcj` is only an approximate
-//! inverse; for sub-meter round-trips it is wrapped in the same fixed-point
-//! iteration as the GCJ inverse.
+//! The forward nudge, [`Gcj02::try_to_bd09`], is exact (empirical): a shift in
+//! polar coordinates using Baidu's [`X_PI`](super::X_PI) constant. Its inverse
+//! is only approximate, in two forms. [`Bd09::try_to_gcj02_fast`] is the closed
+//! form, within 0.5 m except within 0.02° of the antimeridian, where the bound
+//! is 125 m. [`Bd09::try_to_gcj02_refined`] wraps it in the same fixed-point
+//! iteration as the GCJ inverse, reporting 0.5 m when the iteration converges
+//! and 0.5 m plus the residual when it does not.
 //!
 //! The nudge is **not** gated to China: like every reference port, it applies
 //! worldwide. It treats latitude and longitude as plane coordinates, so near
@@ -189,7 +192,8 @@ impl Bd09 {
 // --- WGS-84 ↔ BD-09 compositions ---
 
 impl Wgs84 {
-    /// WGS-84 → BD-09. **Exact** composition `gcj2bd(wgs2gcj(x))`.
+    /// WGS-84 → BD-09. **Exact** composition: [`Gcj02::try_to_bd09`] of
+    /// [`Wgs84::to_gcj02`].
     ///
     /// # Errors
     ///
@@ -296,7 +300,7 @@ mod tests {
     use super::*;
     use crate::china::{REFINED_BOUND_M, near_china_box};
     use crate::geodesy::haversine_distance;
-    use crate::test_support::{DATUM_VECTORS, assert_within_meters, china_box_grid};
+    use crate::test_support::{DATUM_VECTORS, REFERENCE_M, assert_within_meters, china_box_grid};
 
     fn bd(lat: f64, lon: f64) -> Bd09 {
         Bd09::new(lat, lon).unwrap()
@@ -311,7 +315,7 @@ mod tests {
         for v in DATUM_VECTORS {
             if let Some(expected) = v.bd09() {
                 let got = v.wgs84().try_to_bd09().unwrap();
-                assert_within_meters(got, expected, 0.2);
+                assert_within_meters(got, expected, REFERENCE_M);
                 assert_eq!(Bd09::try_from(v.wgs84()).unwrap(), got);
             }
         }
@@ -323,7 +327,7 @@ mod tests {
     fn gcj02_to_bd09_matches_coordtransform() {
         use crate::test_support::coordtransform::{GCJ_TO_BD, INPUT};
         let got = gcj(INPUT.0, INPUT.1).try_to_bd09().unwrap();
-        assert_within_meters(got, bd(GCJ_TO_BD.0, GCJ_TO_BD.1), 0.05);
+        assert_within_meters(got, bd(GCJ_TO_BD.0, GCJ_TO_BD.1), REFERENCE_M);
         assert_eq!(Bd09::try_from(gcj(INPUT.0, INPUT.1)).unwrap(), got);
     }
 
@@ -331,7 +335,7 @@ mod tests {
     fn bd09_to_gcj02_fast_matches_coordtransform() {
         use crate::test_support::coordtransform::{BD_TO_GCJ, INPUT};
         let got = bd(INPUT.0, INPUT.1).try_to_gcj02_fast().unwrap();
-        assert_within_meters(*got.value(), gcj(BD_TO_GCJ.0, BD_TO_GCJ.1), 0.05);
+        assert_within_meters(*got.value(), gcj(BD_TO_GCJ.0, BD_TO_GCJ.1), REFERENCE_M);
     }
 
     /// GCJ-02 → BD-09 is exact; the refined inverse recovers it to sub-meter.

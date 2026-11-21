@@ -20,6 +20,10 @@ fn wgs84(lat: f64, lon: f64) -> Coordinate {
     coordinate_new(lat, lon, Crs::Wgs84).unwrap()
 }
 
+fn crs_mismatch<T>(result: Result<T, GeoError>) -> bool {
+    matches!(result, Err(GeoError::CrsMismatch { .. }))
+}
+
 fn new_york() -> Coordinate {
     wgs84(40.7128, -74.006)
 }
@@ -241,18 +245,9 @@ fn midpoint_and_intermediate_lie_on_the_geodesic() {
 #[test]
 fn geodesic_exports_reject_mixed_datums_and_bad_input() {
     let gcj = coordinate_new(39.9, 116.4, Crs::Gcj02).unwrap();
-    assert!(matches!(
-        haversine_distance_m(new_york(), gcj),
-        Err(GeoError::CrsMismatch { .. })
-    ));
-    assert!(matches!(
-        final_bearing_deg(new_york(), gcj),
-        Err(GeoError::CrsMismatch { .. })
-    ));
-    assert!(matches!(
-        midpoint(new_york(), gcj),
-        Err(GeoError::CrsMismatch { .. })
-    ));
+    assert!(crs_mismatch(haversine_distance_m(new_york(), gcj)));
+    assert!(crs_mismatch(final_bearing_deg(new_york(), gcj)));
+    assert!(crs_mismatch(midpoint(new_york(), gcj)));
     match intermediate(new_york(), london(), 1.5) {
         Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "fraction"),
         other => panic!("expected InvalidValue, got {other:?}"),
@@ -346,10 +341,7 @@ fn ellipsoidal_cross_and_along_track_distances_are_pinned() {
         other => panic!("expected InvalidValue for `point`, got {other:?}"),
     }
     let tokyo = coordinate_new(1.0, 5.0, Crs::Tokyo).unwrap();
-    assert!(matches!(
-        cross_track_distance_m(tokyo, start, end),
-        Err(GeoError::CrsMismatch { .. })
-    ));
+    assert!(crs_mismatch(cross_track_distance_m(tokyo, start, end)));
 }
 
 #[test]
@@ -407,7 +399,7 @@ fn intersection_names_each_outcome() {
         SphericalIntersectionResult::NoForwardCrossing
     );
     let gcj = coordinate_new(30.0, 110.0, Crs::Gcj02).unwrap();
-    assert!(intersection_spherical(gcj, 0.0, gcj, 90.0).is_err());
+    assert!(crs_mismatch(intersection_spherical(gcj, 0.0, gcj, 90.0)));
 }
 
 #[test]
@@ -421,8 +413,15 @@ fn geodesics_use_the_datum_ellipsoid_and_reject_obfuscated_datums() {
         Crs::Tokyo
     );
     let gcj = |lat, lon| coordinate_new(lat, lon, Crs::Gcj02).unwrap();
-    assert!(geodesic_distance_m(gcj(30.0, 110.0), gcj(31.0, 111.0)).is_err());
-    assert!(initial_bearing_deg(new_york(), new_york()).is_err());
+    assert!(crs_mismatch(geodesic_distance_m(
+        gcj(30.0, 110.0),
+        gcj(31.0, 111.0)
+    )));
+    assert!(crs_mismatch(destination(gcj(30.0, 110.0), 0.0, 1_000.0)));
+    match initial_bearing_deg(new_york(), new_york()) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "points"),
+        other => panic!("expected InvalidValue for `points`, got {other:?}"),
+    }
 }
 
 // --- Helmert and datum transforms ---

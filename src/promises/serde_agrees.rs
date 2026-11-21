@@ -1,5 +1,5 @@
-//! Valid by construction through serde: for every type `AGENTS.md` lists, a
-//! JSON record deserializes exactly when its constructor accepts the same
+//! Valid by construction through serde: for each of the types below, a JSON
+//! record deserializes exactly when its constructor accepts the same
 //! fields, and then to the same value. The generated fields cross every
 //! range edge; JSON carries no NaN or infinity, so the floats are finite
 //! (overflowing magnitudes included), and each constructor's own tests cover
@@ -250,6 +250,20 @@ proptest! {
     ) {
         let record = json!({"kind": kind, "horizontal_m": horizontal, "vertical_m": vertical});
         agrees(record, Accuracy::new(kind, horizontal, vertical))?;
+    }
+
+    /// The bound crosses the sign, both zeros and the smallest magnitudes;
+    /// `null` is the unbounded `+∞` (JSON writes infinity as `null`).
+    #[test]
+    fn approx(
+        value in any::<u8>(),
+        max_error in proptest::option::of(
+            around(-10.0, 100.0, &[0.0, -0.0, -1e-9, -5e-324, 5e-324, 1.7e308, -1.7e308]),
+        ),
+    ) {
+        let record = json!({"value": value, "max_error_m": max_error});
+        let bound = Length::from_meters(max_error.unwrap_or(f64::INFINITY));
+        agrees(record, crate::Approx::new(value, bound))?;
     }
 
     #[test]

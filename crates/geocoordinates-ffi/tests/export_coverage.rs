@@ -1,11 +1,15 @@
 //! Guards the FFI surface against drift, by reading the crate's own source:
 //!
-//! - every export is called by a Rust test in this directory, and every
+//! - every export is called by a Rust test in this directory (a method on a
+//!   receiver of its own type, `export_coverage/receiver.rs`), and every
 //!   fallible export by a test that also checks an error;
 //! - every fallible export documents its failures under a non-empty `# Errors`;
 //! - every export follows the naming scheme in `README.md#naming`;
 //! - the export counts equal the pinned ones, so an export cannot disappear
-//!   unnoticed.
+//!   unnoticed;
+//! - every non-trait function and constant in the core crate's public API
+//!   snapshot (`public-api/geocoordinates/`) has an FFI form, save the
+//!   shrink-only lists in `export_coverage/parity_gaps.rs`.
 //!
 //! The scan is textual but comment- and string-aware: [`scan::strip`] blanks
 //! every comment, string literal and char literal before any code is matched,
@@ -14,6 +18,19 @@
 #[path = "export_coverage/scan.rs"]
 mod scan;
 
+#[path = "export_coverage/parity.rs"]
+mod parity;
+
+#[path = "export_coverage/parity_gaps.rs"]
+mod parity_gaps;
+
+#[path = "export_coverage/receiver.rs"]
+mod receiver;
+
+#[path = "export_coverage/self_tests.rs"]
+mod self_tests;
+
+use parity::*;
 use scan::*;
 use std::collections::BTreeSet;
 use std::fs;
@@ -80,169 +97,6 @@ fn fallible(exports: &[Export]) -> Vec<&Export> {
 }
 
 #[test]
-fn scanner_reads_every_export_form() {
-    let fixture = r##"
-        // #[uniffi::export]
-        // pub fn in_a_comment() {}
-        const S: &str = "#[uniffi::export] pub fn in_a_string() {}";
-        type Fallible<T> = Result<T, GeoError>;
-        pub type AlsoFallible = Fallible<u8>;
-
-        /// Plain.
-        #[uniffi::export]
-        pub fn plain(a: f64) -> f64 { a }
-
-        /// With arguments, a blank line and doc lines after the attribute.
-        #[uniffi::export(name = "renamed")]
-
-        /// # Errors
-        /// Always.
-        #[allow(clippy::needless_pass_by_value)]
-        pub fn with_args(
-            s: String,
-        ) -> Fallible<u8> where u8: Copy {
-            let _ = '{';
-            Err(GeoError::Other { detail: s })
-        }
-
-        /// # Errors
-        #[uniffi::export]
-        pub fn empty_errors() -> AlsoFallible { Ok(0) }
-
-        #[uniffi::export]
-        impl Thing {
-            /// # Errors
-            /// Never in practice.
-            #[uniffi::constructor]
-            pub fn new() -> Result<Arc<Self>, GeoError> { todo!("}") }
-            pub fn len(&self) -> u64 { 0 }
-            fn private(&self) {}
-        }
-
-        #[uniffi::export(with_foreign)]
-        pub trait Foreign: Send + Sync {
-            fn call(&self, x: u8) -> std::result::Result<u8, GeoError>;
-        }
-    "##;
-    let found = exports(fixture);
-    let labels: Vec<String> = found.iter().map(Export::label).collect();
-    assert_eq!(
-        labels,
-        [
-            "plain",
-            "with_args",
-            "empty_errors",
-            "Thing::new",
-            "Thing::len",
-            "Foreign::call"
-        ]
-    );
-    let kinds: Vec<Kind> = found.iter().map(|e| e.kind).collect();
-    use Kind::*;
-    assert_eq!(
-        kinds,
-        [Function, Function, Function, Constructor, Method, Method]
-    );
-    assert_eq!(found[0].ret, "f64");
-    assert_eq!(found[1].params, "s: String,");
-    assert_eq!(found[1].ret, "Fallible<u8>");
-
-    let aliases = result_aliases(&[fixture.to_string()]);
-    assert_eq!(
-        aliases,
-        BTreeSet::from(["AlsoFallible".into(), "Fallible".into()])
-    );
-    let fallible: Vec<String> = found
-        .iter()
-        .filter(|e| is_result(&e.ret, &aliases))
-        .map(Export::label)
-        .collect();
-    assert_eq!(
-        fallible,
-        ["with_args", "empty_errors", "Thing::new", "Foreign::call"]
-    );
-    let documented: Vec<bool> = found.iter().map(|e| documents_errors(&e.doc)).collect();
-    assert_eq!(documented, [false, true, false, true, false, false]);
-}
-
-#[test]
-fn call_scan_ignores_comments_strings_and_definitions() {
-    let export = |name: &str, owner: Option<&str>, kind| Export {
-        name: name.into(),
-        owner: owner.map(Into::into),
-        kind,
-        doc: Vec::new(),
-        params: String::new(),
-        ret: String::new(),
-    };
-    let f = export("geohash_encode", None, Kind::Function);
-    let reads = |text: &str| calls(&strip(text), &f);
-    assert!(!reads("// geohash_encode(c, 5)"));
-    assert!(!reads("/* geohash_encode(c, 5) */"));
-    assert!(!reads(r#"let s = "geohash_encode(c, 5)";"#));
-    assert!(!reads(r##"let s = r#"geohash_encode(c, 5)"#;"##));
-    assert!(!reads("fn geohash_encode(c: Coordinate) {}"));
-    assert!(!reads("my_geohash_encode(c, 5);"));
-    assert!(reads("let _ = geohash_encode(c, 5);"));
-    assert!(reads("let _ = ffi::geohash_encode(c, 5);"));
-
-    let ctor = export("new", Some("Track"), Kind::Constructor);
-    assert!(calls(&strip("Track::new(vec![])"), &ctor));
-    assert!(!calls(&strip("Vec::new()"), &ctor));
-    let method = export("locate", Some("Track"), Kind::Method);
-    assert!(calls(&strip("track.locate(t, o)"), &method));
-    assert!(!calls(&strip("fn locate(&self) {}"), &method));
-
-    let code = strip("fn a() { if x { b() } } fn b() -> u8 { 1 }");
-    let bodies = fn_bodies(&code);
-    let names: Vec<&str> = bodies.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, ["a", "b"]);
-    assert_eq!(bodies[0].1, "{ if x { b() } }");
-    let none = BTreeSet::new();
-    assert!(checks_error("{ assert!(f().is_err()); }", &none));
-    assert!(checks_error(
-        "{ assert!(matches!(f(), Err(GeoError::Parse { .. }))); }",
-        &none
-    ));
-    assert!(checks_error(
-        "{ match f() { Err(GeoError::Parse { .. }) => {} _ => panic!() } }",
-        &none
-    ));
-    assert!(checks_error("{ if let Err(e) = f() { drop(e) } }", &none));
-    assert!(checks_error(
-        "{ let Err(e) = f() else { panic!(\"no error\") }; }",
-        &none
-    ));
-    // A success-only test whose `Err` arm or branch only fails the test.
-    assert!(!checks_error(
-        "{ match f() { Ok(v) => assert_eq!(v, 1), Err(e) => panic!(\"{e}\") } }",
-        &none
-    ));
-    assert!(!checks_error(
-        "{ match f() { Ok(_) => {} Err(e) => { unreachable!(\"{e}\") } } }",
-        &none
-    ));
-    assert!(!checks_error(
-        "{ match f() { Ok(_) => {} Err(e) if e.is_x() => todo!() } }",
-        &none
-    ));
-    assert!(!checks_error(
-        "{ if let Err(e) = f() { panic!(\"{e}\") } }",
-        &none
-    ));
-    assert!(!checks_error("{ match f() { MyErr(e) => {} } }", &none));
-    assert!(!checks_error(
-        "{ assert!(matches!(f(), Ok(_))); let _ = Err(1); }",
-        &none
-    ));
-    let code = strip("fn err_of(r: R) -> E { r.unwrap_err() } fn t() { err_of(f()); }");
-    let bodies = fn_bodies(&code);
-    let helpers = error_helpers(&bodies);
-    assert_eq!(helpers, BTreeSet::from(["err_of".into(), "t".into()]));
-    assert!(!checks_error("{ my_err_of(f()); }", &helpers));
-}
-
-#[test]
 fn export_counts_match_the_pinned_counts() {
     let exports = crate_exports();
     let labels: BTreeSet<String> = exports.iter().map(Export::label).collect();
@@ -276,9 +130,11 @@ fn every_fallible_export_documents_its_errors() {
 #[test]
 fn every_export_is_called_by_a_rust_test() {
     let tests = test_code();
-    let missing: Vec<String> = crate_exports()
+    let exports = crate_exports();
+    let types = receiver::types(&tests, &exports);
+    let missing: Vec<String> = exports
         .iter()
-        .filter(|e| !tests.iter().any(|t| calls(t, e)))
+        .filter(|e| !tests.iter().any(|t| calls(t, e, &types)))
         .map(Export::label)
         .collect();
     assert!(missing.is_empty(), "exports with no Rust test: {missing:?}");
@@ -294,13 +150,14 @@ fn every_fallible_export_has_an_err_test() {
     let bodies: Vec<(String, &str)> = tests.iter().flat_map(|t| fn_bodies(t)).collect();
     let helpers = error_helpers(&bodies);
     let exports = crate_exports();
+    let types = receiver::types(&tests, &exports);
     let missing: Vec<String> = fallible(&exports)
         .into_iter()
         .filter(|e| !UNREACHABLE_ERRORS.contains(&e.label().as_str()))
         .filter(|e| {
             !bodies
                 .iter()
-                .any(|(_, b)| calls(b, e) && checks_error(b, &helpers))
+                .any(|(_, b)| calls(b, e, &types) && checks_error(b, &helpers))
         })
         .map(Export::label)
         .collect();
@@ -335,6 +192,39 @@ const BARE_F64_EXCEPTIONS: &[&str] = &[
     "ellipsoid_eccentricity_sq",
 ];
 
+/// The only exports suffixed `_meters`; every other length is `_m`.
+const METERS_SUFFIXED: &[&str] = &["height_meters", "mgrs_precision_meters"];
+
+/// The unit suffixes an `f64` parameter may end in.
+const PARAM_UNITS: &[&str] = &["_m", "_deg", "_px"];
+
+/// `export(param)`: the `f64` parameters with no unit suffix, each
+/// dimensionless or with its unit fixed elsewhere (`README.md#naming`). This
+/// list may only shrink.
+const F64_PARAM_EXCEPTIONS: &[&str] = &[
+    // A constructor's parameters take the names of the record fields they fill.
+    "coordinate_new(lat)",
+    "coordinate_new(lon)",
+    "coordinate_from_lon_lat(lat)",
+    "coordinate_from_lon_lat(lon)",
+    // The function names degrees as its input.
+    "dms_from_degrees(value)",
+    "ddm_from_degrees(value)",
+    "normalize_degrees(deg)",
+    // The `Length` converters: the unit argument names the other side.
+    "length_from_unit(value)",
+    "length_to_unit(meters)",
+    // Dimensionless: a confidence in `[0, 1]`, a fraction of a path, and a
+    // fractional zoom level.
+    "confidence_new(value)",
+    "intermediate(fraction)",
+    "world_pixel_from_coordinate(zoom)",
+    "world_pixel_to_coordinate(zoom)",
+    "fit_bounds(max_zoom)",
+    "clusters_in_view(zoom)",
+    "clusters_in_view_geojson(zoom)",
+];
+
 /// Records whose `TryFrom` only validates the records they embed, each of which
 /// has its own `_validate`: they hold no invariant of their own.
 const COMPOSITE_RECORDS: &[&str] = &["Fix", "RawSource", "ZoneAction"];
@@ -352,9 +242,8 @@ fn exports_follow_naming_scheme() {
         .iter()
         .filter(|e| value_type(&e.ret, &aliases) == "f64")
     {
-        let suffixed = ["_m", "_meters", "_deg"]
-            .iter()
-            .any(|s| e.name.ends_with(s));
+        let suffixed = ["_m", "_deg"].iter().any(|s| e.name.ends_with(s))
+            || METERS_SUFFIXED.contains(&e.name.as_str());
         if !suffixed && !BARE_F64_EXCEPTIONS.contains(&e.name.as_str()) {
             wrong.push(format!(
                 "{}: returns a bare f64 with no unit suffix",
@@ -362,10 +251,48 @@ fn exports_follow_naming_scheme() {
             ));
         }
     }
-    for name in BARE_F64_EXCEPTIONS {
+    for name in BARE_F64_EXCEPTIONS.iter().chain(METERS_SUFFIXED) {
         assert!(
             names.contains(name),
-            "`BARE_F64_EXCEPTIONS` names no export: {name}"
+            "`BARE_F64_EXCEPTIONS` / `METERS_SUFFIXED` names no export: {name}"
+        );
+    }
+    // `_meters` is the suffix of exactly the exports in `METERS_SUFFIXED`.
+    for e in &exports {
+        if e.name.ends_with("_meters") && !METERS_SUFFIXED.contains(&e.name.as_str()) {
+            wrong.push(format!(
+                "{}: `_meters` where the scheme uses `_m`",
+                e.label()
+            ));
+        }
+    }
+    // A bare `f64` parameter names its unit too.
+    let mut unsuffixed = BTreeSet::new();
+    for e in &exports {
+        for param in e.params.split(',').filter(|p| !p.trim().is_empty()) {
+            let Some((name, ty)) = param.split_once(':') else {
+                continue;
+            };
+            let name = name.trim();
+            if value_type(ty.trim(), &aliases) != "f64" {
+                continue;
+            }
+            let label = format!("{}({name})", e.label());
+            if name.ends_with("_meters") {
+                wrong.push(format!("{label}: `_meters` where the scheme uses `_m`"));
+            } else if !PARAM_UNITS.iter().any(|s| name.ends_with(s)) {
+                if F64_PARAM_EXCEPTIONS.contains(&label.as_str()) {
+                    unsuffixed.insert(label);
+                } else {
+                    wrong.push(format!("{label}: a bare f64 parameter with no unit suffix"));
+                }
+            }
+        }
+    }
+    for label in F64_PARAM_EXCEPTIONS {
+        assert!(
+            unsuffixed.contains(*label),
+            "`F64_PARAM_EXCEPTIONS` names no unsuffixed f64 parameter: {label}"
         );
     }
 
@@ -450,33 +377,65 @@ fn exports_follow_naming_scheme() {
     );
 }
 
-#[test]
-fn naming_scheme_records_are_read() {
-    let fixture = r"
-        macro_rules! mirror { ($($t:ident),*) => {$(
-            impl TryFrom<$t> for gc::china::$t { }
-        )*}; }
-        mirror!(Wgs84, Gcj02);
-        impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds { }
-        impl TryFrom<u8> for Local { }
-    ";
-    let records = validated_records(&[fixture.to_string()]);
-    assert_eq!(
-        records,
-        BTreeSet::from(["Gcj02".into(), "GeoBounds".into(), "Wgs84".into()])
-    );
-    assert_eq!(snake_case("BaiduMercator"), "baidu_mercator");
+/// Every non-trait `fn` and `const` in the core crate's all-features public
+/// API snapshot.
+fn core_items() -> BTreeSet<ApiItem> {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../public-api/geocoordinates");
+    let mut items = BTreeSet::new();
+    for entry in fs::read_dir(dir).expect("the public-api snapshots") {
+        let path = entry.expect("directory entry").path();
+        if path.extension().is_some_and(|ext| ext == "txt") {
+            items.extend(api_items(&fs::read_to_string(path).unwrap()));
+        }
+    }
+    items
+}
 
-    // The unit rule reads the value inside `Result` / `Option` and aliases.
-    let aliases = BTreeSet::from(["GeoResult".to_string()]);
-    assert_eq!(value_type("Result<f64, GeoError>", &aliases), "f64");
-    assert_eq!(value_type("std::result::Result<f64, E>", &aliases), "f64");
-    assert_eq!(value_type("Option<f64>", &aliases), "f64");
-    assert_eq!(value_type("GeoResult<Option<f64>>", &aliases), "f64");
-    assert_eq!(value_type("f64", &aliases), "f64");
-    assert_eq!(value_type("Vec<f64>", &aliases), "Vec<f64>");
+#[test]
+fn every_core_item_has_an_ffi_form() {
+    let items = core_items();
+    assert!(items.len() >= 350, "read only {} core items", items.len());
+    let exports = crate_exports();
+    let fields = record_fields(&crate_sources());
+    let unreached: BTreeSet<String> = items
+        .iter()
+        .filter(|item| !reaches(item, &exports, &fields))
+        .map(ApiItem::label)
+        .collect();
+    let names: BTreeSet<&str> = exports.iter().map(|e| e.name.as_str()).collect();
+    for (item, form) in parity_gaps::RENAMED {
+        let exists = match form.split_once('.') {
+            Some((record, field)) => fields.get(record).is_some_and(|f| f.contains(field)),
+            None => names.contains(form),
+        };
+        assert!(
+            exists,
+            "`RENAMED` maps {item} to {form}, which is no export or record field"
+        );
+    }
+    let allowed: BTreeSet<String> = parity_gaps::ALLOWED
+        .iter()
+        .chain(parity_gaps::RENAMED.iter().map(|(item, _)| item))
+        .map(|s| s.to_string())
+        .collect();
     assert_eq!(
-        value_type("Result<Vec<f64>, GeoError>", &aliases),
-        "Vec<f64>"
+        allowed.len(),
+        parity_gaps::ALLOWED.len() + parity_gaps::RENAMED.len(),
+        "an item is listed twice in `parity_gaps`"
+    );
+    let missing: Vec<&String> = unreached.difference(&allowed).collect();
+    assert!(
+        missing.is_empty(),
+        "core items with no FFI form (add one, or allow-list a deliberate exclusion):\n{}",
+        missing
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    let stale: Vec<&String> = allowed.difference(&unreached).collect();
+    assert!(
+        stale.is_empty(),
+        "`parity_gaps` entries an FFI form now reaches by name, or that name no core item; remove them: {stale:?}"
     );
 }

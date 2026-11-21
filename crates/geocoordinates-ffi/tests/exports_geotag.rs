@@ -67,7 +67,10 @@ fn a_track_refuses_conflicts_mixed_datums_and_bad_records() {
     ));
     let mut bad = fix(0.0, 0.0, Some(1));
     bad.coord.lat = 91.0;
-    assert!(Track::new(vec![bad]).is_err());
+    assert!(matches!(
+        Track::new(vec![bad]),
+        Err(GeoError::OutOfRange { lat, .. }) if lat == 91.0
+    ));
 }
 
 #[test]
@@ -125,6 +128,48 @@ fn locate_interpolates_applies_the_offset_and_marks_provenance() {
 }
 
 #[test]
+fn track_fixes_returns_its_input_records() {
+    // Fully populated, in time order, and with each height kind and a
+    // non-default accuracy kind, so `fixes()` must hand each record back as it
+    // crossed in: nothing dropped, defaulted or relabelled on the way.
+    let full = |lat, second, height, kind| Fix {
+        coord: Coordinate {
+            height: Some(height),
+            ..wgs84(lat, 0.0)
+        },
+        accuracy: Some(Accuracy {
+            kind,
+            horizontal_m: Some(3.0),
+            vertical_m: Some(6.0),
+        }),
+        timestamp: Some(at(second)),
+        source: Some(RawSource {
+            raw: format!("{lat} 0"),
+            confidence: Confidence { value: 0.5 },
+            axis_order: Some(AxisOrder::LonLat),
+            datum_ambiguity: Some(DatumAmbiguity::PossiblyGcj02),
+            geoid_separation_m: Some(17.0),
+            notes: vec!["kept".to_string()],
+        }),
+    };
+    let fixes = vec![
+        full(
+            0.0,
+            1_000,
+            Height::Ellipsoidal { meters: 3.0 },
+            AccuracyKind::Cep50,
+        ),
+        full(
+            0.01,
+            1_100,
+            Height::Orthometric { meters: -2.0 },
+            AccuracyKind::Bound,
+        ),
+    ];
+    assert_eq!(Track::new(fixes.clone()).unwrap().fixes(), fixes);
+}
+
+#[test]
 fn estimate_offset_ms_finds_the_camera_clock_error() {
     let track = track();
     // Photographed at the place the track passed at 1050 s; the camera read 1650 s.
@@ -159,5 +204,8 @@ fn estimate_offset_ms_finds_the_camera_clock_error() {
         },
         ..reference
     };
-    assert!(estimate_offset_ms(track, vec![bad]).is_err());
+    assert!(matches!(
+        estimate_offset_ms(track, vec![bad]),
+        Err(GeoError::OutOfRange { lat, .. }) if lat == 91.0
+    ));
 }

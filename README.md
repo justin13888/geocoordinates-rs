@@ -15,7 +15,7 @@ subsystem as stabilized on that side; the stabilization bar, and the evidence
 that each subsystem meets it, are in
 [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md#what-stabilized-means).
 
-Every public item has exactly one path (plus a `prelude` entry for each of the nine prelude types): the core
+Every public item has exactly one path (plus its `prelude` entry, if any): the core
 types sit at the crate root, and every other item sits flat in the module the
 table names, e.g. `geocoordinates::china::Wgs84` or
 `geocoordinates::grids::Utm`. `mise run public-api-check` enforces it. The

@@ -73,7 +73,9 @@ pub fn display_coordinate(point: Coordinate, display: DisplayDatum) -> Result<Co
 /// The WGS-84 position under a tap on a basemap, from the position the map reports
 /// in its own datum. A WGS-84 tap is exact. A GCJ-02 tap is inverted iteratively
 /// ([`Gcj02::to_wgs84_refined`](crate::china::Gcj02::to_wgs84_refined)), which is
-/// approximate: the result carries a bound of 0.5 m. The height is kept.
+/// approximate: the result carries a bound of 0.5 m when the refinement
+/// converges, otherwise the reported `max_error` (0.5 m plus the residual).
+/// The height is kept.
 ///
 /// # Errors
 ///

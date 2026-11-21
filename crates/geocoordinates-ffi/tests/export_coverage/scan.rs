@@ -2,6 +2,7 @@
 //! exports and reads test code, both through [`strip`], so a comment or a
 //! string literal never counts as code.
 
+use super::receiver::{self, Types};
 use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,8 +11,14 @@ pub enum Kind {
     Function,
     /// A `#[uniffi::constructor]` in an exported `impl`, called as `Owner::name(`.
     Constructor,
-    /// A method of an exported `impl` or foreign trait, called as `.name(`.
+    /// A method of an exported `impl`, called as `Owner::name(` or as
+    /// `.name(` on a receiver of type `Owner` (see [`calls`]).
     Method,
+    /// A method of an exported `with_foreign` trait: foreign code implements
+    /// it, so a test exercises it by handing an export a type that test code
+    /// implements the trait for (`impl Owner for T`), or by calling it on a
+    /// receiver of type `Owner`.
+    ForeignMethod,
 }
 
 #[derive(Debug, Clone)]
@@ -247,6 +254,8 @@ pub fn exports(source: &str) -> Vec<Export> {
                 if method {
                     let kind = if constructor {
                         Kind::Constructor
+                    } else if trait_item {
+                        Kind::ForeignMethod
                     } else {
                         Kind::Method
                     };
@@ -338,21 +347,38 @@ pub fn documents_errors(doc: &[String]) -> bool {
 }
 
 /// Whether the stripped test code `code` calls `export`, other than in the
-/// `fn` that defines a function of the same name.
-pub fn calls(code: &str, export: &Export) -> bool {
-    let needle = match (export.kind, &export.owner) {
-        (Kind::Constructor, Some(owner)) => format!("{owner}::{}(", export.name),
-        (Kind::Method, _) => format!(".{}(", export.name),
-        _ => format!("{}(", export.name),
+/// `fn` that defines a function of the same name. A method counts only on its
+/// own owner: called as `Owner::name(`, or as `.name(` on a receiver
+/// [`receiver::is_owned`] types as `Owner` from the `fn` it is called in and
+/// from `types`; a foreign-trait method also counts where the code passes a
+/// value of a type test code implements the trait for as a call argument
+/// ([`receiver::uses_implementor`]).
+pub fn calls(code: &str, export: &Export, types: &Types) -> bool {
+    let qualified = |needle: &str| {
+        code.match_indices(needle).any(|(i, _)| {
+            let before = code[..i].trim_end();
+            !code[..i].ends_with(is_ident)
+                && !(before.ends_with("fn") && !before[..before.len() - 2].ends_with(is_ident))
+        })
     };
-    code.match_indices(&needle).any(|(i, _)| {
-        let before = code[..i].trim_end();
-        let bounded = export.kind == Kind::Method || !code[..i].ends_with(is_ident);
-        bounded && !(before.ends_with("fn") && !before[..before.len() - 2].ends_with(is_ident))
-    })
+    let Some(owner) = &export.owner else {
+        return qualified(&format!("{}(", export.name));
+    };
+    if qualified(&format!("{owner}::{}(", export.name)) {
+        return true;
+    }
+    match export.kind {
+        Kind::Constructor | Kind::Function => false,
+        Kind::Method => receiver::method_calls(code, owner, &export.name, types),
+        Kind::ForeignMethod => {
+            receiver::uses_implementor(code, owner, types)
+                || receiver::method_calls(code, owner, &export.name, types)
+        }
+    }
 }
 
-/// The name and body of every `fn` in the stripped code `code`.
+/// The name and text of every `fn` in the stripped code `code`, from its
+/// `fn` keyword to its body's closing brace.
 pub fn fn_bodies(code: &str) -> Vec<(String, &str)> {
     let mut bodies = Vec::new();
     for (at, _) in code.match_indices("fn ") {
@@ -373,7 +399,7 @@ pub fn fn_bodies(code: &str) -> Vec<(String, &str)> {
                 _ => {}
             }
             if depth == 0 {
-                bodies.push((ident(&code[at + 3..]), &code[open..open + i + 1]));
+                bodies.push((ident(&code[at + 3..]), &code[at..open + i + 1]));
                 break;
             }
         }
@@ -391,38 +417,49 @@ fn fails_first(code: &str) -> bool {
         .any(|m| code.starts_with(m))
 }
 
-/// Whether `body` checks an error: `is_err()`, `unwrap_err()`, `expect_err(…)`,
-/// a `matches!(…, Err(…))`, an `Err(…) =>` match arm (or `if let Err(…)`, or
-/// `let Err(…) = … else`), or a call to one of the `helpers` that does. An arm
-/// or `if let` branch whose body opens with `panic!` / `unreachable!` (or
-/// `todo!` / `unimplemented!`) rejects the error rather than checking it, so it
-/// does not count.
+/// Whether `code` names a `GeoError` variant (`GeoError::Parse`, not a
+/// `GeoError::` function).
+fn names_variant(code: &str) -> bool {
+    code.match_indices("GeoError::")
+        .any(|(i, s)| code[i + s.len()..].starts_with(char::is_uppercase))
+}
+
+/// Whether `body` checks an error and pins its variant: it takes the error
+/// with an `unwrap_err()` or `expect_err(…)`, a `matches!(…, Err(…))`, an
+/// `Err(…) =>` match arm (or `if let Err(…)`, or `let Err(…) = … else`), and
+/// names the `GeoError::Variant` it expects; or it calls one of the `helpers`
+/// that does. A bare `is_err()` pins nothing, so it does not count. An arm or
+/// `if let` branch whose body opens with `panic!` / `unreachable!` (or `todo!`
+/// / `unimplemented!`) rejects the error rather than checking it, so it does
+/// not count either.
 pub fn checks_error(body: &str, helpers: &BTreeSet<String>) -> bool {
-    body.contains(".is_err()")
-        || body.contains(".unwrap_err()")
-        || body.contains(".expect_err(")
-        || body
-            .match_indices("matches!(")
-            .any(|(i, _)| parens(&body[i..]).0.contains("Err("))
-        || body.match_indices("Err(").any(|(i, _)| {
-            if body[..i].ends_with(is_ident) {
-                return false;
-            }
-            let rest = parens(&body[i..]).1.trim_start();
-            let before = body[..i].trim_end();
-            if rest.starts_with("=>") || rest.starts_with("if ") {
-                // A match arm: its body follows the (guarded) `=>`.
-                rest.split_once("=>")
-                    .is_some_and(|(_, arm)| !fails_first(arm))
-            } else if before.ends_with("if let") || before.ends_with("while let") {
-                // The branch body follows the scrutinee's opening `{`.
-                rest.split_once('{')
-                    .is_some_and(|(_, branch)| !fails_first(branch))
-            } else {
-                // `let Err(…) = … else { … }` fails the test on success.
-                before.ends_with("let")
-            }
-        })
+    let pinned = names_variant(body);
+    pinned
+        && (body.contains(".unwrap_err()")
+            || body.contains(".expect_err(")
+            || body
+                .match_indices("matches!(")
+                .any(|(i, _)| parens(&body[i..]).0.contains("Err(")))
+        || pinned
+            && body.match_indices("Err(").any(|(i, _)| {
+                if body[..i].ends_with(is_ident) {
+                    return false;
+                }
+                let rest = parens(&body[i..]).1.trim_start();
+                let before = body[..i].trim_end();
+                if rest.starts_with("=>") || rest.starts_with("if ") {
+                    // A match arm: its body follows the (guarded) `=>`.
+                    rest.split_once("=>")
+                        .is_some_and(|(_, arm)| !fails_first(arm))
+                } else if before.ends_with("if let") || before.ends_with("while let") {
+                    // The branch body follows the scrutinee's opening `{`.
+                    rest.split_once('{')
+                        .is_some_and(|(_, branch)| !fails_first(branch))
+                } else {
+                    // `let Err(…) = … else { … }` fails the test on success.
+                    before.ends_with("let")
+                }
+            })
         || helpers.iter().any(|h| {
             body.match_indices(&format!("{h}("))
                 .any(|(i, _)| !body[..i].ends_with(is_ident))
