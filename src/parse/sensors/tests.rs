@@ -310,6 +310,23 @@ fn unsupported_and_malformed_are_errors() {
     parse_error("$GPGGA,0,4807.0,N,01131.0,E,1,8,NaN,0,M,0,M"); // NaN HDOP
 }
 
+/// A hemisphere letter of the other axis is rejected on each axis: the
+/// latitude field takes only N / S and the longitude field only E / W, so a
+/// swapped pair never reads as a position.
+#[test]
+fn hemisphere_of_the_other_axis_is_rejected() {
+    for sentence in [
+        "$GPGLL,4916.45,E,12311.12,W,225444,A", // E on the latitude
+        "$GPGLL,4916.45,W,12311.12,W,225444,A", // W on the latitude
+        "$GPGLL,4916.45,N,12311.12,N,225444,A", // N on the longitude
+        "$GPGLL,4916.45,N,12311.12,S,225444,A", // S on the longitude
+        "$GPGLL,4916.45,W,12311.12,N,225444,A", // both swapped
+    ] {
+        let detail = parse_error(sentence);
+        assert!(detail.contains("bad NMEA axis/hemisphere"), "{detail}");
+    }
+}
+
 /// Well-formed fields that read as a position off the globe are the typed
 /// pair error with the values as read, in every sentence type; minutes of 60
 /// or more are a malformed field and stay a parse error.
