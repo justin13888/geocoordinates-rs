@@ -1,12 +1,29 @@
 //! `format(parse(format(c))) == format(c)`: rendering what was parsed back
 //! from a rendering reproduces it exactly, for every representation, each of
 //! its settings the module docs promise is stable, and both decimal
-//! separators.
+//! separators; and the value parsed back stays within the rendered precision.
 
 use proptest::prelude::*;
 
 use super::*;
-use crate::parse::{ParseOptions, parse_coordinate_with};
+use crate::parse::{ParseOptions, parse_coordinate, parse_coordinate_with};
+use crate::test_support::assert_within_meters;
+
+#[test]
+fn round_trip_format_then_parse() {
+    // Default DD formatting (6 dp ≈ 0.11 m) must re-parse to within 0.2 m.
+    let coords = [
+        wgs(40.7128, -74.006),
+        wgs(-33.8688, 151.2093), // range rule forces order back
+        wgs(0.0, 0.0),
+        wgs(51.5074, -0.1278),
+    ];
+    for c in coords {
+        let text = format(c, FormatOptions::default()).unwrap();
+        let parsed = parse_coordinate(&text).unwrap();
+        assert_within_meters(parsed.coord, c, 0.2);
+    }
+}
 
 /// A latitude biased toward the places formatting breaks: the poles, the
 /// equator, and values that round to zero or to a pole at the rendered
