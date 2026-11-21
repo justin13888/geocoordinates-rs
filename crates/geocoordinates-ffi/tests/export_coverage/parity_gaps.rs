@@ -84,10 +84,14 @@ pub const ALLOWED: &[&str] = &[
     "Neighbor::value",
     // Deliberate: `NorthBearing` is output-only across the boundary.
     "NorthBearing::new",
-    // Gaps: no FFI form yet.
+    // Gaps: no FFI form yet, each tracked by an issue.
+    // #336
     "ExifOptions::new",
+    // #333
     "MAX_ZOOM",
+    // #335
     "Place::localized_name",
+    // #334
     "Representation::MAX_DDM_MINUTE_DECIMALS",
     "Representation::MAX_DD_DECIMALS",
     "Representation::MAX_DMS_SECOND_DECIMALS",
