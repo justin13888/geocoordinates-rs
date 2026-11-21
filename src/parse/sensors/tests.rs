@@ -304,10 +304,10 @@ fn unsupported_and_malformed_are_errors() {
         ParseErrorKind::Unsupported,
     );
     assert!(vtg.contains("GPVTG"), "{vtg}");
-    assert!(parse_nmea_sentence("$GPGGA,,,N,,E,,,,,,,,,").is_err()); // empty coordinate
-    assert!(parse_nmea_sentence("$GPGLL,4916.45,X,12311.12,W,225444,A").is_err()); // bad hemi
-    assert!(parse_nmea_sentence("$GPGLL,4960.00,N,12311.12,W,225444,A").is_err());
-    assert!(parse_nmea_sentence("$GPGGA,0,4807.0,N,01131.0,E,1,8,NaN,0,M,0,M").is_err());
+    parse_error("$GPGGA,,,N,,E,,,,,,,,,"); // empty coordinate
+    parse_error("$GPGLL,4916.45,X,12311.12,W,225444,A"); // bad hemisphere
+    parse_error("$GPGLL,4960.00,N,12311.12,W,225444,A"); // minutes of 60
+    parse_error("$GPGGA,0,4807.0,N,01131.0,E,1,8,NaN,0,M,0,M"); // NaN HDOP
 }
 
 /// Well-formed fields that read as a position off the globe are the typed
@@ -341,56 +341,56 @@ fn out_of_range_position_is_the_pair_error() {
 
 #[test]
 fn non_ascii_sentence_type_is_parse_error_not_panic() {
-    assert!(matches!(
-        parse_nmea_sentence("$éAB"),
-        Err(Error::Parse { .. })
-    ));
+    parse_error_of("$éAB", ParseErrorKind::Unsupported);
 }
 
 #[test]
 fn non_ascii_coordinate_field_is_parse_error_not_panic() {
-    assert!(matches!(
-        parse_nmea_sentence("$GPGLL,1é,N,12311.12,W,225444,A"),
-        Err(Error::Parse { .. })
-    ));
+    parse_error("$GPGLL,1é,N,12311.12,W,225444,A");
     // Longitude has 3 degree digits, so the split point (byte 3) falls
     // inside 'é' here, unlike the latitude case above (2 degree digits).
-    assert!(matches!(
-        parse_nmea_sentence("$GPGLL,4916.45,N,12é11.12,W,225444,A"),
-        Err(Error::Parse { .. })
-    ));
+    parse_error("$GPGLL,4916.45,N,12é11.12,W,225444,A");
 }
 
 #[test]
 fn non_ascii_and_truncated_inputs_never_panic() {
+    // A sentence type that does not read is `Unsupported`, a checksum that
+    // does not match or read is `Checksum`, and every other field `Syntax`.
+    let (syntax, unsupported, checksum) = (
+        ParseErrorKind::Syntax,
+        ParseErrorKind::Unsupported,
+        ParseErrorKind::Checksum,
+    );
     let probes = [
-        "$éAB",
-        "$GPGLL,1é,N,12311.12,W,225444,A",
-        "$GPGGA,é,N,é,E,,,,,,,,,",
-        "$GPRMC,é",
-        "$é",
-        "é",
-        "$",
-        "",
-        "$GPGLL,é,é,é,é,é,é",
-        "$GPGGA,123519,48é7.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
-        "$GPGLL,4916.45,N,12311.12,Wé,225444,A",
-        "$GPGLL,4916.45,N,12é11.12,W,225444,A",
-        "$GP\u{1F30D}A",
-        "$GPGGA,,,é,,é,,,,,,,,,",
-        "$G",
-        "$éé",
-        "$GPGLLé",
-        "$GPGLL,é",
-        "$GPGGAé,1,N,1,E",
-        "€€€",
-        "$*é",
-        "$GPGLL,4916.45é,N,12311.12,W,225444,A",
+        ("$éAB", unsupported),
+        ("$GPGLL,1é,N,12311.12,W,225444,A", syntax),
+        ("$GPGGA,é,N,é,E,,,,,,,,,", syntax),
+        ("$GPRMC,é", syntax),
+        ("$é", unsupported),
+        ("é", unsupported),
+        ("$", unsupported),
+        ("", unsupported),
+        ("$GPGLL,é,é,é,é,é,é", syntax),
+        (
+            "$GPGGA,123519,48é7.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
+            checksum,
+        ),
+        ("$GPGLL,4916.45,N,12311.12,Wé,225444,A", syntax),
+        ("$GPGLL,4916.45,N,12é11.12,W,225444,A", syntax),
+        ("$GP\u{1F30D}A", unsupported),
+        ("$GPGGA,,,é,,é,,,,,,,,,", syntax),
+        ("$G", unsupported),
+        ("$éé", unsupported),
+        ("$GPGLLé", unsupported),
+        ("$GPGLL,é", syntax),
+        ("$GPGGAé,1,N,1,E", unsupported),
+        ("€€€", unsupported),
+        ("$*é", checksum),
+        ("$GPGLL,4916.45é,N,12311.12,W,225444,A", syntax),
     ];
-    // Every probe is rejected as a parse error; a panic or any other
-    // variant fails the test.
-    for p in probes {
-        let r = parse_nmea_sentence(p);
-        assert!(matches!(r, Err(Error::Parse { .. })), "{p:?}: {r:?}");
+    // Every probe is rejected as a parse error of its kind; a panic, another
+    // kind or any other variant fails the test.
+    for (p, kind) in probes {
+        parse_error_of(p, kind);
     }
 }

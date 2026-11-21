@@ -145,7 +145,7 @@ impl Representation {
     /// let c = Coordinate::wgs84(40.7128, -74.006)?;
     /// assert!(format(c,dd(Representation::MAX_DD_DECIMALS)).is_ok());
     /// let too_fine = dd(Representation::MAX_DD_DECIMALS + 1);
-    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { .. })));
+    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { field: "decimals", .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub const MAX_DD_DECIMALS: u8 = 15;
@@ -171,7 +171,7 @@ impl Representation {
     /// let c = Coordinate::wgs84(40.7128, -74.006)?;
     /// assert!(format(c,dms(Representation::MAX_DMS_SECOND_DECIMALS)).is_ok());
     /// let too_fine = dms(Representation::MAX_DMS_SECOND_DECIMALS + 1);
-    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { .. })));
+    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { field: "second_decimals", .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub const MAX_DMS_SECOND_DECIMALS: u8 = 9;
@@ -197,7 +197,7 @@ impl Representation {
     /// let c = Coordinate::wgs84(40.7128, -74.006)?;
     /// assert!(format(c,ddm(Representation::MAX_DDM_MINUTE_DECIMALS)).is_ok());
     /// let too_fine = ddm(Representation::MAX_DDM_MINUTE_DECIMALS + 1);
-    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { .. })));
+    /// assert!(matches!(format(c,too_fine), Err(Error::InvalidValue { field: "minute_decimals", .. })));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub const MAX_DDM_MINUTE_DECIMALS: u8 = 12;
@@ -470,7 +470,7 @@ pub fn format(coord: Coordinate, options: FormatOptions) -> Result<String> {
 ///     decimals: Some(16),
 ///     hemisphere: HemisphereStyle::Signed,
 /// });
-/// assert!(matches!(format_fix(&fix,too_fine), Err(Error::InvalidValue { .. })));
+/// assert!(matches!(format_fix(&fix,too_fine), Err(Error::InvalidValue { field: "decimals", .. })));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
 pub fn format_fix(fix: &Fix, options: FormatOptions) -> Result<String> {
