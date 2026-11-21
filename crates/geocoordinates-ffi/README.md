@@ -23,7 +23,11 @@ explicit `max_error_m`.
 | `Wgs84::is_outside_china` / `Gcj02::is_outside_china` methods | `wgs84_is_outside_china` / `gcj02_is_outside_china` |
 | `Length` + operator overloads | lengths as `f64` meters (`haversine_distance_m`) |
 | `From` / `TryFrom` conversions | named free functions (`wgs84_to_gcj02`, …) |
-| Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, …) |
+| Inherent methods and constructors | free functions prefixed with the type (`coordinate_new`, `coordinate_from_lon_lat`, `utm_to_coordinate`, `utm_zone_for` for `Utm::zone_for`, …) |
+| `Coordinate::try_to_crs` | `convert`, the export's name from before the method existed |
+| `ParseOptions::for_format` | `format_options_parse_options`, the export's name from before the method moved to `ParseOptions` |
+| `CaptureGeo::from_exif` / `from_exif_with` / `from_xmp` / `from_xmp_with` | `parse_exif` / `parse_exif_with` / `parse_xmp` / `parse_xmp_with`, named like the other readers |
+| `Height::length` | `height_meters`, the height as `f64` meters |
 | `SpatialIndex<T>` (generic, holds its entries) | the object `SpatialIndex` over coordinates, whose results carry each entry's build-list position for the caller's own payload lookup |
 | `ClusterIndex` (`insert` / `remove` take `&mut self`) | the object `ClusterIndex`, whose updates take a lock |
 | `Approx<Coordinate>` inside a cluster | flat `centroid` and `centroid_max_error_m` fields on `Cluster` and `MapCluster` |

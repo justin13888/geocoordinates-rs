@@ -3,8 +3,9 @@
 //! Low-level geospatial coordinate primitives for Rust — China datums
 //! (GCJ-02/BD-09), angle encodings, coordinate parsing/formatting, and geodesy
 //! utilities. Following the UNIX philosophy, this crate abstracts *only*
-//! geo-related complexity; higher-level concerns (e.g. EXIF extraction) live in
-//! separate libraries that consume these primitives.
+//! geo-related complexity; higher-level concerns (e.g. reading EXIF out of a
+//! JPEG, TIFF or HEIF file) live in separate libraries that consume these
+//! primitives, and the `exif` feature starts from the tag values they read.
 //!
 //! ## Conversion conventions
 //!
@@ -71,8 +72,11 @@
 //! surface spans the core primitives, the China datums, formatting and
 //! parsing, interchange and sensor ingestion, geodesy (with the
 //! antimeridian-aware [`geodesy::GeoBounds`] box, in every build), projected
-//! and encoded grids, and runtime CRS dispatch. `README.md` tabulates it by subsystem,
-//! together with the FFI parity status of each entry.
+//! and encoded grids, and runtime CRS conversion (`Coordinate::try_to_crs`);
+//! behind their features, discrete global grids, a geodesic spatial index,
+//! EXIF / XMP GPS tag values, clustering, offline reverse geocoding, map-view
+//! math, track-based geotagging and location privacy. `README.md` tabulates
+//! it by subsystem, together with the FFI parity status of each entry.
 //!
 //! Two capabilities remain deliberately unreleased because they need a system
 //! library or multi-megabyte external data: PROJ-backed EPSG transforms and
