@@ -95,13 +95,12 @@
 uniffi::setup_scaffolding!();
 
 // Most modules mirror the core subsystem of the same name (`angle`, `china`,
-// `cluster`, `dgg`, `exif`, `geodesy`, `geotag`, `grids`, `index`, `map`,
-// `privacy`, `reverse`). The rest regroup: `core` holds the crate-root types
-// (`Coordinate`, `Crs`, `Height`, `Length`, `LengthUnit`, `Approx`) together
-// with the `fix` subsystem and the runtime CRS conversion; `text` merges
-// `format` with the free-text and `geo:` URI readers of `parse`;
-// `interchange` holds `parse::interchange` and `parse::sensors`; `datum` holds
-// the Helmert / datum-transform part of `geodesy`; and `error` mirrors the
+// `cluster`, `dgg`, `exif`, `fix`, `geodesy`, `geotag`, `grids`, `index`,
+// `map`, `privacy`, `reverse`). The rest regroup: `core` holds the crate-root
+// types (`Coordinate`, `Crs`, `Height`, `Length`, `LengthUnit`, `Approx`)
+// together with the runtime CRS conversion; `text` merges `format` with the
+// free-text and `geo:` URI readers of `parse`; `interchange` holds
+// `parse::interchange` and `parse::sensors`; and `error` mirrors the
 // crate-root `Error` and `ParseErrorKind`. The mirrors are
 // hand-written (rather than `#[uniffi::remote]`) so the FFI surface is
 // flattened into language-neutral forms — and because `Approx<T>` must be
@@ -113,10 +112,10 @@ mod angle;
 mod china;
 mod cluster;
 mod core;
-mod datum;
 mod dgg;
 mod error;
 mod exif;
+mod fix;
 mod geodesy;
 mod geotag;
 mod grids;
@@ -131,10 +130,10 @@ pub use self::angle::*;
 pub use self::china::*;
 pub use self::cluster::*;
 pub use self::core::*;
-pub use self::datum::*;
 pub use self::dgg::*;
 pub use self::error::*;
 pub use self::exif::*;
+pub use self::fix::*;
 pub use self::geodesy::*;
 pub use self::geotag::*;
 pub use self::grids::*;
