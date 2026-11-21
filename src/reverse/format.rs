@@ -4,9 +4,9 @@ use super::place::{FeatureClass, is_language_tag};
 use crate::error::{Error, ParseErrorKind, Result};
 
 /// The four bytes every gazetteer file starts with.
-const MAGIC: [u8; 4] = *b"GCGZ";
+pub(super) const MAGIC: [u8; 4] = *b"GCGZ";
 /// The one format version this build reads.
-const VERSION: u16 = 1;
+pub(super) const VERSION: u16 = 1;
 /// Magic, version, flags, payload length and checksum.
 const HEADER_LEN: usize = 16;
 /// The fewest payload bytes a place takes: two `i32`s, a one-byte name varint, the
