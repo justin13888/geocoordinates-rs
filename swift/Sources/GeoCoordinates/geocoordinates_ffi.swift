@@ -11848,9 +11848,9 @@ public func aerToNed(aer: Aer)throws  -> Ned  {
  * An azimuth outside `[0, 360)` is valid; the conversions normalize it.
  *
  * # Errors
- * `GeoError::InvalidValue` naming `azimuth` when it is not finite,
- * `elevation` when it is not finite or outside `[-90, 90]`, and `range` when
- * it is not finite or negative.
+ * `GeoError::InvalidValue` naming `azimuth_deg` when it is not finite,
+ * `elevation_deg` when it is not finite or outside `[-90, 90]`, and `range`
+ * (the parameters of `Aer::new`) when it is not finite or negative.
  */
 public func aerValidate(aer: Aer)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
     uniffi_geocoordinates_ffi_fn_func_aer_validate(
@@ -12073,8 +12073,8 @@ public func enuToNed(enu: Enu)throws  -> Ned  {
  * Validate a (possibly hand-built) ENU record — the FFI form of `Enu::new`.
  *
  * # Errors
- * `GeoError::InvalidValue` naming `east`, `north`, or `up` when that
- * component is not finite, and `magnitude` when the offset's length
+ * `GeoError::InvalidValue` naming `east_m`, `north_m`, or `up_m` (the
+ * parameters of `Enu::new`) when that component is not finite, and `magnitude` when the offset's length
  * overflows.
  */
 public func enuValidate(enu: Enu)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12165,8 +12165,8 @@ public func nedToEnu(ned: Ned)throws  -> Enu  {
  * Validate a (possibly hand-built) NED record — the FFI form of `Ned::new`.
  *
  * # Errors
- * `GeoError::InvalidValue` naming `north`, `east`, or `down` when that
- * component is not finite, and `magnitude` when the offset's length
+ * `GeoError::InvalidValue` naming `north_m`, `east_m`, or `down_m` (the
+ * parameters of `Ned::new`) when that component is not finite, and `magnitude` when the offset's length
  * overflows.
  */
 public func nedValidate(ned: Ned)throws   {try rustCallWithError(FfiConverterTypeGeoError_lift) {
@@ -12427,7 +12427,7 @@ public func helmertInverseFirstOrder(helmert: Helmert) -> Helmert  {
  *
  * # Errors
  * `GeoError::CrsMismatch` for a GCJ-02 / BD-09 start;
- * `GeoError::InvalidValue` for a non-finite bearing (field `bearing`) or a
+ * `GeoError::InvalidValue` for a non-finite bearing (field `bearing_deg`) or a
  * non-finite or negative distance (field `distance`); `GeoError::OutOfRange`
  * / `GeoError::InvalidValue` for an invalid coordinate record.
  */
@@ -12708,8 +12708,8 @@ public func intersection(a: Coordinate, bearingADeg: Double, b: Coordinate, bear
  *
  * # Errors
  * `GeoError::CrsMismatch` for mixed reference systems or GCJ-02 / BD-09
- * inputs; `GeoError::InvalidValue` (field `bearing`) for a non-finite
- * bearing; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
+ * inputs; `GeoError::InvalidValue` (field `bearing_a_deg` or
+ * `bearing_b_deg`, `a`'s checked first) for a non-finite bearing; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
  * coordinate record.
  */
 public func intersectionSpherical(a: Coordinate, bearingADeg: Double, b: Coordinate, bearingBDeg: Double)throws  -> SphericalIntersectionResult  {
@@ -14159,7 +14159,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_aer_to_ned() != 59255) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_aer_validate() != 22020) {
+    if (uniffi_geocoordinates_ffi_checksum_func_aer_validate() != 49369) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_ecef_from_coordinate() != 4916) {
@@ -14210,7 +14210,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_enu_to_ned() != 55495) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_enu_validate() != 32923) {
+    if (uniffi_geocoordinates_ffi_checksum_func_enu_validate() != 27614) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_haversine_distance_m() != 49123) {
@@ -14228,7 +14228,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_ned_to_enu() != 2993) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_ned_validate() != 10459) {
+    if (uniffi_geocoordinates_ffi_checksum_func_ned_validate() != 35153) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_geo_bounds_center() != 21626) {
@@ -14279,7 +14279,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_helmert_inverse_first_order() != 25448) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_destination() != 46716) {
+    if (uniffi_geocoordinates_ffi_checksum_func_destination() != 59258) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_final_bearing_deg() != 301) {
@@ -14321,7 +14321,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_intersection() != 47656) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 16278) {
+    if (uniffi_geocoordinates_ffi_checksum_func_intersection_spherical() != 20554) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_estimate_offset_ms() != 12166) {
