@@ -204,10 +204,64 @@ pub(crate) fn finite(value: f64, field: &'static str) -> Result<f64> {
     }
 }
 
+/// Days from 1970-01-01 to a proleptic Gregorian date (Hinnant's algorithm),
+/// negative before the epoch. `month` is 1–12 and `day` 1–31; the caller has
+/// already checked the day against its month.
+#[cfg(any(feature = "exif", feature = "nmea"))]
+pub(crate) fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = y.div_euclid(400);
+    let year_of_era = y.rem_euclid(400);
+    let shifted_month = (month + 9) % 12;
+    let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_support::assert_close;
+
+    /// Every date from 1900 to 2099 is the day count reached by walking the
+    /// calendar one day at a time from 1970-01-01, both ways.
+    #[cfg(any(feature = "exif", feature = "nmea"))]
+    #[test]
+    fn days_from_civil_counts_every_day_from_the_epoch() {
+        let month_days = |year: i64, month: i64| match month {
+            2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+            2 => 28,
+            4 | 6 | 9 | 11 => 30,
+            _ => 31,
+        };
+        let mut expected = 0;
+        for year in 1970..2100 {
+            for month in 1..=12 {
+                for day in 1..=month_days(year, month) {
+                    assert_eq!(
+                        days_from_civil(year, month, day),
+                        expected,
+                        "{year}-{month}-{day}"
+                    );
+                    expected += 1;
+                }
+            }
+        }
+        let mut expected = 0;
+        for year in (1900..1970).rev() {
+            for month in (1..=12).rev() {
+                for day in (1..=month_days(year, month)).rev() {
+                    expected -= 1;
+                    assert_eq!(
+                        days_from_civil(year, month, day),
+                        expected,
+                        "{year}-{month}-{day}"
+                    );
+                }
+            }
+        }
+        assert_eq!(days_from_civil(2000, 3, 1), 11_017);
+    }
 
     const UNITS: &[LengthUnit] = &[
         LengthUnit::Meter,

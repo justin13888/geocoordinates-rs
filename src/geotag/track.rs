@@ -4,7 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::{GeotagOptions, Interpolation};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, Fix, RawSource};
-use crate::geodesy::{Ellipsoid, geodesic_distance, intermediate};
+use crate::geodesy::{ellipsoid_of, geodesic_distance, intermediate};
 use crate::{Coordinate, Crs, Error, Height, Length, Result};
 
 /// A GPS track: recorded [`Fix`]es in time order, each with a timestamp, all on
@@ -101,13 +101,10 @@ impl Track {
         for (time, fix) in timed {
             let found = fix.coord.crs();
             match crs {
-                None if Ellipsoid::for_crs(found).is_none() => {
-                    return Err(Error::CrsMismatch {
-                        expected: Crs::Wgs84,
-                        found,
-                    });
+                None => {
+                    ellipsoid_of(found)?;
+                    crs = Some(found);
                 }
-                None => crs = Some(found),
                 Some(expected) if expected != found => {
                     return Err(Error::CrsMismatch { expected, found });
                 }

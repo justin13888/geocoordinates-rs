@@ -3,7 +3,7 @@
 
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::geodesy::Ellipsoid;
+use crate::geodesy::ellipsoid_of;
 use crate::{Approx, Length};
 
 /// Added to every merged bound, in meters, to cover round-off in the vectors.
@@ -31,10 +31,7 @@ pub(super) fn normal(point: Coordinate) -> [f64; 3] {
 ///
 /// [`Error::CrsMismatch`] on GCJ-02 / BD-09, which have no ellipsoid.
 pub(super) fn normal_radius_m(crs: Crs) -> Result<f64> {
-    let ellipsoid = Ellipsoid::for_crs(crs).ok_or(Error::CrsMismatch {
-        expected: Crs::Wgs84,
-        found: crs,
-    })?;
+    let ellipsoid = ellipsoid_of(crs)?;
     let (a, b) = (
         ellipsoid.semi_major().meters(),
         ellipsoid.semi_minor().meters(),

@@ -10,15 +10,15 @@ use super::{
 use crate::china::outside_china_box;
 use crate::coord::{Coordinate, Crs, Height};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, DatumAmbiguity, Fix, RawSource};
-use crate::units::Length;
+use crate::units::{Length, LengthUnit, days_from_civil};
 use crate::{Error, Result};
 
 /// Confidence when `GPSMapDatum` did not name a datum and WGS-84 was assumed.
 const CONFIDENCE_DATUM_ASSUMED: Confidence = Confidence::from_constant(0.7);
 
-const KMH_TO_MPS: f64 = 1000.0 / 3600.0;
-const MPH_TO_MPS: f64 = 1609.344 / 3600.0;
-const KNOT_TO_MPS: f64 = 1852.0 / 3600.0;
+const KMH_TO_MPS: f64 = LengthUnit::Kilometer.meters_per_unit() / 3600.0;
+const MPH_TO_MPS: f64 = LengthUnit::Mile.meters_per_unit() / 3600.0;
+const KNOT_TO_MPS: f64 = LengthUnit::NauticalMile.meters_per_unit() / 3600.0;
 
 /// Tag values with their numbers already read, from either path. An auxiliary tag
 /// that failed to read keeps its error, for [`Tags::build`] to apply the
@@ -363,17 +363,6 @@ fn fixed_digits(text: &str, width: usize) -> Option<i64> {
     (text.len() == width && text.bytes().all(|b| b.is_ascii_digit()))
         .then(|| text.parse().ok())
         .flatten()
-}
-
-/// Days from 1970-01-01 to a proleptic Gregorian date (Hinnant's algorithm).
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let y = if month <= 2 { year - 1 } else { year };
-    let era = y.div_euclid(400);
-    let year_of_era = y.rem_euclid(400);
-    let shifted_month = (month + 9) % 12;
-    let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
 }
 
 /// The instant of a time of day on a day, taking the fraction apart from the whole

@@ -4,6 +4,7 @@
 use crate::approx::Approx;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
+use crate::grids::require_wgs84;
 use crate::units::Length;
 
 /// The datum a basemap draws positions in.
@@ -26,18 +27,6 @@ pub enum DisplayDatum {
     Wgs84,
     /// GCJ-02, which basemaps inside China draw.
     Gcj02,
-}
-
-/// Checks that `point` is the WGS-84 position a layer holds.
-fn require_wgs84(point: Coordinate) -> Result<()> {
-    if point.crs() == Crs::Wgs84 {
-        Ok(())
-    } else {
-        Err(Error::CrsMismatch {
-            expected: Crs::Wgs84,
-            found: point.crs(),
-        })
-    }
 }
 
 /// Where a basemap drawing `display` must place the WGS-84 `point`: unchanged for

@@ -18,7 +18,7 @@ use crate::angle::{Axis, Hemisphere};
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, ParseErrorKind, Result};
 use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
-use crate::units::Length;
+use crate::units::{Length, days_from_civil};
 
 use super::{hdop_accuracy, syntax};
 
@@ -352,14 +352,6 @@ fn days_in_month(year: u32, month: u32) -> u32 {
     }
 }
 
-/// Days from 1970-01-01 to `year-month-day` (proleptic Gregorian, `year ≥ 1970`).
-fn days_since_epoch(year: u32, month: u32, day: u32) -> u64 {
-    let leap_days = (1970..year).filter(|y| y % 4 == 0).count();
-    let year_days = u64::from(year - 1970) * 365 + leap_days as u64;
-    let month_days: u32 = (1..month).map(|m| days_in_month(year, m)).sum();
-    year_days + u64::from(month_days) + u64::from(day - 1)
-}
-
 /// An RMC UTC time (`hhmmss` with an optional `.fraction`) and date (`ddmmyy`)
 /// as a [`SystemTime`], or `None` when either is malformed or out of range.
 /// A leap second (`ss = 60`) is accepted and lands on the next second.
@@ -390,8 +382,14 @@ fn utc_timestamp(time: &str, date: &str) -> Option<SystemTime> {
         .chain(std::iter::repeat(b'0'))
         .take(9)
         .fold(0, |acc, b| acc * 10 + u32::from(b - b'0'));
-    let seconds =
-        days_since_epoch(year, month, day) * 86_400 + u64::from(hour * 3600 + minute * 60 + second);
+    // The 1980–2079 window is after the epoch, so the day count is never negative.
+    let days = u64::try_from(days_from_civil(
+        i64::from(year),
+        i64::from(month),
+        i64::from(day),
+    ))
+    .ok()?;
+    let seconds = days * 86_400 + u64::from(hour * 3600 + minute * 60 + second);
     Some(SystemTime::UNIX_EPOCH + Duration::new(seconds, nanos))
 }
 

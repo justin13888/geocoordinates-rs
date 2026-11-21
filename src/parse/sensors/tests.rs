@@ -231,8 +231,8 @@ fn days_in_each_month() {
     }
     assert_eq!(days_in_month(2000, 2), 29);
     assert_eq!(days_in_month(2024, 2), 29);
-    assert_eq!(days_since_epoch(1970, 1, 1), 0);
-    assert_eq!(days_since_epoch(1973, 1, 1), 365 * 3 + 1);
+    assert_eq!(days_from_civil(1970, 1, 1), 0);
+    assert_eq!(days_from_civil(1973, 1, 1), 365 * 3 + 1);
 }
 
 #[test]

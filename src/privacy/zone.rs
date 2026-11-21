@@ -6,7 +6,7 @@ use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::fix::Fix;
 use crate::geodesy::GeoBounds;
-use crate::geodesy::{Ellipsoid, geodesic_distance};
+use crate::geodesy::{ellipsoid_of, geodesic_distance};
 use crate::units::Length;
 
 /// A place whose fixes are never shared exactly: a geodesic circle, or a
@@ -113,12 +113,7 @@ impl ExclusionZone {
                 detail: format!("must be finite and nonnegative, got {meters} m"),
             });
         }
-        if Ellipsoid::for_crs(center.crs()).is_none() {
-            return Err(Error::CrsMismatch {
-                expected: Crs::Wgs84,
-                found: center.crs(),
-            });
-        }
+        ellipsoid_of(center.crs())?;
         Ok(Self {
             shape: Shape::Circle { center, radius },
         })
