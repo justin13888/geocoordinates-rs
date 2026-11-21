@@ -229,18 +229,20 @@ const F64_PARAM_EXCEPTIONS: &[&str] = &[
 /// has its own `_validate`: they hold no invariant of their own.
 const COMPOSITE_RECORDS: &[&str] = &["Fix", "RawSource", "ZoneAction"];
 
-#[test]
-fn exports_follow_naming_scheme() {
-    let sources = crate_sources();
-    let exports = crate_exports();
-    let names: BTreeSet<&str> = exports.iter().map(|e| e.name.as_str()).collect();
+/// The unit-suffix rules of `README.md#naming` over `exports`: the violations,
+/// and the labels of the unsuffixed `f64` parameters `F64_PARAM_EXCEPTIONS`
+/// excused. A function apart from the gate so `self_tests.rs` can show each
+/// rejection firing on a fixture.
+fn unit_suffix_violations(
+    exports: &[Export],
+    aliases: &BTreeSet<String>,
+) -> (Vec<String>, BTreeSet<String>) {
     let mut wrong = Vec::new();
 
     // A bare length or angle names its unit, also inside `Result` / `Option`.
-    let aliases = result_aliases(&sources);
     for e in exports
         .iter()
-        .filter(|e| value_type(&e.ret, &aliases) == "f64")
+        .filter(|e| value_type(&e.ret, aliases) == "f64")
     {
         let suffixed = ["_m", "_deg"].iter().any(|s| e.name.ends_with(s))
             || METERS_SUFFIXED.contains(&e.name.as_str());
@@ -251,14 +253,8 @@ fn exports_follow_naming_scheme() {
             ));
         }
     }
-    for name in BARE_F64_EXCEPTIONS.iter().chain(METERS_SUFFIXED) {
-        assert!(
-            names.contains(name),
-            "`BARE_F64_EXCEPTIONS` / `METERS_SUFFIXED` names no export: {name}"
-        );
-    }
     // `_meters` is the suffix of exactly the exports in `METERS_SUFFIXED`.
-    for e in &exports {
+    for e in exports {
         if e.name.ends_with("_meters") && !METERS_SUFFIXED.contains(&e.name.as_str()) {
             wrong.push(format!(
                 "{}: `_meters` where the scheme uses `_m`",
@@ -268,13 +264,13 @@ fn exports_follow_naming_scheme() {
     }
     // A bare `f64` parameter names its unit too.
     let mut unsuffixed = BTreeSet::new();
-    for e in &exports {
+    for e in exports {
         for param in e.params.split(',').filter(|p| !p.trim().is_empty()) {
             let Some((name, ty)) = param.split_once(':') else {
                 continue;
             };
             let name = name.trim();
-            if value_type(ty.trim(), &aliases) != "f64" {
+            if value_type(ty.trim(), aliases) != "f64" {
                 continue;
             }
             let label = format!("{}({name})", e.label());
@@ -288,6 +284,23 @@ fn exports_follow_naming_scheme() {
                 }
             }
         }
+    }
+    (wrong, unsuffixed)
+}
+
+#[test]
+fn exports_follow_naming_scheme() {
+    let sources = crate_sources();
+    let exports = crate_exports();
+    let names: BTreeSet<&str> = exports.iter().map(|e| e.name.as_str()).collect();
+
+    let aliases = result_aliases(&sources);
+    let (mut wrong, unsuffixed) = unit_suffix_violations(&exports, &aliases);
+    for name in BARE_F64_EXCEPTIONS.iter().chain(METERS_SUFFIXED) {
+        assert!(
+            names.contains(name),
+            "`BARE_F64_EXCEPTIONS` / `METERS_SUFFIXED` names no export: {name}"
+        );
     }
     for label in F64_PARAM_EXCEPTIONS {
         assert!(

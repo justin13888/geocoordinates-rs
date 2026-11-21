@@ -281,6 +281,40 @@ fn naming_scheme_records_are_read() {
 }
 
 #[test]
+fn unit_suffix_rules_reject_each_violation() {
+    let fixture = r"
+        type GeoResult<T> = Result<T, GeoError>;
+        #[uniffi::export]
+        pub fn heading() -> f64 { 0.0 }
+        #[uniffi::export]
+        pub fn span_meters() -> u8 { 0 }
+        #[uniffi::export]
+        pub fn buffer(radius_meters: f64) -> u8 { 0 }
+        #[uniffi::export]
+        pub fn scale(factor: f64) -> u8 { 0 }
+
+        #[uniffi::export]
+        pub fn height_meters() -> f64 { 0.0 }
+        #[uniffi::export]
+        pub fn offset_m(dx_m: f64, bearing_deg: Option<f64>, width_px: f64, n: u32) -> GeoResult<f64> { Ok(0.0) }
+        #[uniffi::export]
+        pub fn confidence_new(value: f64) -> u8 { 0 }
+    ";
+    let aliases = result_aliases(&[fixture.to_string()]);
+    let (wrong, unsuffixed) = super::unit_suffix_violations(&exports(fixture), &aliases);
+    assert_eq!(
+        wrong,
+        [
+            "heading: returns a bare f64 with no unit suffix",
+            "span_meters: `_meters` where the scheme uses `_m`",
+            "buffer(radius_meters): `_meters` where the scheme uses `_m`",
+            "scale(factor): a bare f64 parameter with no unit suffix",
+        ]
+    );
+    assert_eq!(unsuffixed, BTreeSet::from(["confidence_new(value)".into()]));
+}
+
+#[test]
 fn parity_reads_the_public_api_listing() {
     let listing = "\
 pub mod geocoordinates::cluster
