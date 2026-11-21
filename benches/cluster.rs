@@ -2,8 +2,12 @@
 //! `ClusterIndex` updates against a rebuild. It uses no benchmark framework, so it
 //! adds no dependency: `cargo bench --features cluster --bench cluster`.
 
+mod support;
+
 use std::hint::black_box;
 use std::time::{Duration, Instant, UNIX_EPOCH};
+
+use support::Rng;
 
 use geocoordinates::cluster::{
     ClusterIndex, bucket_by_geohash, centroid, dbscan, segment_trips, segment_visits,
@@ -17,18 +21,7 @@ const CITIES: usize = 200;
 const UPDATES: usize = 1_000;
 const QUERIES: usize = 100;
 
-/// A small deterministic generator (SplitMix64), so every run sees the same points.
-struct Rng(u64);
-
 impl Rng {
-    fn unit(&mut self) -> f64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        ((z ^ (z >> 31)) >> 11) as f64 / (1_u64 << 53) as f64
-    }
-
     /// A photo-library shape: points scattered about 10 km around a few cities.
     fn photo(&mut self, cities: &[(f64, f64)]) -> Coordinate {
         let (lat, lon) = cities[(self.unit() * cities.len() as f64) as usize];
