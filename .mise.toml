@@ -409,7 +409,9 @@ import tomllib
 
 CONFIG = ".cargo/mutants.toml"
 text = pathlib.Path(CONFIG).read_text(encoding="utf-8")
-command = ["cargo", "mutants", *"{{ vars.mutants_flags }}".split(), "--list", "--no-config"]
+# `--colors never`: CI sets CARGO_TERM_COLOR=always, which cargo-mutants reads,
+# and ANSI escapes in the listing would keep every entry from matching.
+command = ["cargo", "mutants", *"{{ vars.mutants_flags }}".split(), "--list", "--no-config", "--colors", "never"]
 listing = subprocess.run(command, stdout=subprocess.PIPE, text=True)
 if listing.returncode != 0:
     sys.exit(f"mutants-anchor-check: `{' '.join(command)}` exited {listing.returncode}")
