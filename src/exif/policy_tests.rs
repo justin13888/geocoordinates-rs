@@ -3,8 +3,11 @@
 
 use super::tests::{U, base, field_of, rejections, text, whole, xmp_base};
 use super::xmp_tests::xmp_rejections;
-use super::{AuxiliaryTagPolicy, CaptureGeo, ExifGps, ExifOptions, NullIslandPolicy, XmpGps};
+use super::{
+    AuxiliaryTagPolicy, CaptureGeo, ExifGps, ExifOptions, ExifRational, NullIslandPolicy, XmpGps,
+};
 use crate::{Error, ParseErrorKind};
+use proptest::prelude::*;
 
 const DROP: ExifOptions = ExifOptions::new().with_invalid_auxiliary(AuxiliaryTagPolicy::Drop);
 
@@ -226,4 +229,142 @@ fn invalid_auxiliary_round_trips_and_defaults_to_reject() {
     assert_eq!(serde_json::from_str::<ExifOptions>(&json).unwrap(), DROP);
     let options: ExifOptions = serde_json::from_str("{}").unwrap();
     assert_eq!(options.invalid_auxiliary, AuxiliaryTagPolicy::Reject);
+}
+
+/// Every option combination: both auxiliary-tag and both null-island policies.
+const ALL_OPTIONS: [ExifOptions; 4] = [
+    ExifOptions::new(),
+    DROP,
+    ExifOptions::new().with_null_island(NullIslandPolicy::Reject),
+    DROP.with_null_island(NullIslandPolicy::Reject),
+];
+
+/// The result is `Ok`, or one of the typed errors a reader of tag values
+/// produces; under `Drop` an input `Reject` accepts reads the same.
+fn assert_typed(results: [crate::Result<CaptureGeo>; 4], input: &dyn std::fmt::Debug) {
+    for result in &results {
+        assert!(
+            matches!(
+                result,
+                Ok(_)
+                    | Err(Error::InvalidValue { .. }
+                        | Error::Parse { .. }
+                        | Error::OutOfRange { .. })
+            ),
+            "{result:?} from {input:?}"
+        );
+    }
+    for (reject, drop) in [(0, 1), (2, 3)] {
+        if let Ok(accepted) = &results[reject] {
+            assert_eq!(results[drop].as_ref().ok(), Some(accepted), "{input:?}");
+        }
+    }
+}
+
+/// Any rational: the full `u32` / `i32` range, zero denominators included,
+/// biased toward the small values a real GPS IFD holds.
+fn rational() -> impl Strategy<Value = ExifRational> {
+    prop_oneof![
+        (0u32..120, 0u32..4).prop_map(|(n, d)| U(n, d)),
+        any::<(u32, u32)>().prop_map(|(n, d)| U(n, d)),
+        any::<(i32, i32)>().prop_map(|(n, d)| ExifRational::Signed(n, d)),
+    ]
+}
+
+/// A hemisphere, reference or datum string: a meaningful letter or any text.
+fn letter() -> impl Strategy<Value = Option<String>> {
+    proptest::option::of(prop_oneof![
+        proptest::sample::select(vec!["N", "S", "E", "W", "T", "M", "K", "", "WGS-84"])
+            .prop_map(String::from),
+        "\\PC{0,6}",
+    ])
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1024))]
+
+    #[test]
+    fn exif_rationals_never_panic(
+        position in (
+            proptest::option::of([rational(), rational(), rational()]),
+            letter(),
+            proptest::option::of([rational(), rational(), rational()]),
+            letter(),
+        ),
+        altitude in (proptest::option::of(rational()), proptest::option::of(any::<u8>())),
+        quality in (
+            letter(),
+            proptest::option::of(rational()),
+            proptest::option::of(rational()),
+            proptest::option::of("[0-9: ]{0,12}|\\PC{0,12}"),
+            proptest::option::of([rational(), rational(), rational()]),
+        ),
+        motion in (
+            proptest::option::of(rational()),
+            letter(),
+            proptest::option::of(rational()),
+            letter(),
+            proptest::option::of(rational()),
+            letter(),
+        ),
+    ) {
+        let gps = ExifGps {
+            latitude: position.0,
+            latitude_ref: position.1,
+            longitude: position.2,
+            longitude_ref: position.3,
+            altitude: altitude.0,
+            altitude_ref: altitude.1,
+            map_datum: quality.0,
+            h_positioning_error: quality.1,
+            dop: quality.2,
+            date_stamp: quality.3,
+            time_stamp: quality.4,
+            img_direction: motion.0,
+            img_direction_ref: motion.1,
+            speed: motion.2,
+            speed_ref: motion.3,
+            track: motion.4,
+            track_ref: motion.5,
+        };
+        assert_typed(ALL_OPTIONS.map(|o| CaptureGeo::from_exif_with(&gps, o)), &gps);
+    }
+
+    #[test]
+    fn xmp_property_strings_never_panic(
+        position in (
+            proptest::option::of(
+                "[0-9]{1,3},[0-9]{1,2}(\\.[0-9]{0,4})?[NSEW]|[0-9]{1,3},[0-9]{1,2},[0-9]{1,2}[NSEW]|\\PC{0,16}"
+            ),
+            proptest::option::of(
+                "[0-9]{1,3},[0-9]{1,2}(\\.[0-9]{0,4})?[NSEW]|[0-9]{1,3},[0-9]{1,2},[0-9]{1,2}[NSEW]|\\PC{0,16}"
+            ),
+        ),
+        values in proptest::collection::vec(
+            proptest::option::of("-?[0-9]{1,6}(/[0-9]{0,4}|\\.[0-9]{0,3})?|\\PC{0,12}"),
+            7,
+        ),
+        stamp in proptest::option::of(
+            "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\\.[0-9]{1,3})?)?(Z|[+-][0-9]{2}:[0-9]{2})?|\\PC{0,24}"
+        ),
+        letters in (letter(), letter(), letter(), letter()),
+    ) {
+        let gps = XmpGps {
+            latitude: position.0,
+            longitude: position.1,
+            altitude: values[0].clone(),
+            altitude_ref: values[1].clone(),
+            map_datum: letters.0,
+            h_positioning_error: values[2].clone(),
+            dop: values[3].clone(),
+            time_stamp: stamp,
+            img_direction: values[4].clone(),
+            img_direction_ref: letters.1,
+            speed: values[5].clone(),
+            speed_ref: letters.2,
+            track: values[6].clone(),
+            track_ref: letters.3,
+        };
+        assert_typed(ALL_OPTIONS.map(|o| CaptureGeo::from_xmp_with(&gps, o)), &gps);
+    }
 }

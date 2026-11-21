@@ -10,7 +10,7 @@
 //! Every item is reached flat at `exif::NAME`.
 //!
 //! ```
-//! use geocoordinates::Height;
+//! use geocoordinates::{Error, Height};
 //! use geocoordinates::exif::{CaptureGeo, ExifGps};
 //!
 //! let mut gps = ExifGps::default();
@@ -28,7 +28,10 @@
 //!
 //! // A hemisphere letter is never guessed.
 //! gps.latitude_ref = Some("Q".to_string());
-//! assert!(CaptureGeo::from_exif(&gps).is_err());
+//! assert!(matches!(
+//!     CaptureGeo::from_exif(&gps),
+//!     Err(Error::InvalidValue { field: "latitude_ref", .. })
+//! ));
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 
