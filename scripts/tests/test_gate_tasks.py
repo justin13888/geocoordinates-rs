@@ -72,11 +72,12 @@ class GateTask(unittest.TestCase):
             "fixture",
         )
 
-    def run_task(self, name, base, ci=False):
+    def run_task(self, name, base, ci=False, extra_env=None):
         env = {k: v for k, v in os.environ.items() if k != "CI"}
         env["usage_base"] = base
         if ci:
             env["CI"] = "true"
+        env.update(extra_env or {})
         return subprocess.run(
             ["bash", "-c", task_script(name)],
             cwd=self.repo,
@@ -200,6 +201,134 @@ class VersionCheck(GateTask):
     def test_plugin_version_is_not_the_project_version(self):
         self.gradle('plugins {\n    kotlin("jvm") version "2.1.0"\n}\n' + GRADLE_READS_CARGO)
         self.assertPasses(self.run_task("version-check", "HEAD"))
+
+
+# A stand-in for `cargo` on PATH: it prints the listing file the test wrote,
+# but only for `cargo mutants ... --list --no-config`. Like cargo-mutants, it
+# colors the listing when CARGO_TERM_COLOR=always unless `--colors never` is
+# passed, with escapes inside each name, so a colored listing matches no entry.
+STUB_CARGO = r"""#!/usr/bin/env python3
+import os, pathlib, re, sys
+args = sys.argv[1:]
+if os.environ.get("STUB_EXIT"):
+    sys.exit(int(os.environ["STUB_EXIT"]))
+if args[:1] != ["mutants"] or "--list" not in args or "--no-config" not in args:
+    sys.exit(f"stub cargo: unexpected arguments {args}")
+colors = os.environ.get("CARGO_TERM_COLOR", "auto")
+if "--colors" in args:
+    colors = args[args.index("--colors") + 1]
+for line in pathlib.Path(os.environ["STUB_LISTING"]).read_text().splitlines():
+    if colors == "always":
+        line = re.sub(r"^([^:]+)", "\x1b[35m\\1\x1b[0m", line)
+    print(line)
+"""
+
+SOURCE = "pub fn add(a: u32, b: u32) -> u32 {\n    // sum\n    a + b\n}\n"
+LISTING = "src/lib.rs:3:7: replace + with - in add\nsrc/lib.rs:3:7: replace + with * in add\n"
+ENTRY = r"'src/lib\.rs:3:.*: replace \+ with - in add',"
+
+
+class MutantsAnchorCheck(GateTask):
+    def setUp(self):
+        super().setUp()
+        self.write("src/lib.rs", SOURCE)
+        self.write("listing.txt", LISTING)
+        bin_dir = self.repo / "bin"
+        bin_dir.mkdir()
+        cargo = bin_dir / "cargo"
+        cargo.write_text(STUB_CARGO, encoding="utf-8")
+        cargo.chmod(0o755)
+        self.env = {
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+            "STUB_LISTING": str(self.repo / "listing.txt"),
+        }
+
+    def config(self, *lines):
+        body = "".join(f"    {line}\n" for line in lines)
+        self.write(".cargo/mutants.toml", f"exclude_re = [\n{body}]\n")
+
+    def check(self, **env):
+        return self.run_task(
+            "mutants-anchor-check", "HEAD", extra_env={**self.env, **env}
+        )
+
+    def test_anchored_entry_naming_its_expression_passes(self):
+        self.config("# argument", "# anchor: a + b", ENTRY, "'src/lib\\.rs:.*: other',")
+        result = self.check()
+        self.assertPasses(result)
+        self.assertIn("1 anchored exclusions", result.stdout)
+
+    def test_colored_listing_still_matches(self):
+        self.config("# anchor: a + b", ENTRY)
+        self.assertPasses(self.check(CARGO_TERM_COLOR="always"))
+
+    def test_stub_colored_listing_matches_no_entry(self):
+        # Without `--colors never` the stub's listing defeats the entry, so the
+        # test above passes only because the task turns color off.
+        listing = subprocess.run(
+            [self.repo / "bin" / "cargo", "mutants", "--list", "--no-config"],
+            env={**os.environ, **self.env, "CARGO_TERM_COLOR": "always"},
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        self.assertIn("\x1b[", listing)
+        pattern = ENTRY.strip("',")
+        self.assertFalse(any(re.search(pattern, n) for n in listing.splitlines()))
+
+    def test_missing_anchor_fails(self):
+        self.config("# argument", ENTRY)
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("has no `# anchor:` comment", result.stderr)
+
+    def test_anchor_not_directly_above_an_entry_fails(self):
+        self.config("# anchor: a + b", "# argument", ENTRY)
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("is not directly above an anchored entry", result.stderr)
+
+    def test_trailing_anchor_fails(self):
+        self.config("# anchor: a + b", ENTRY, "# anchor: a + b")
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("is not directly above an anchored entry", result.stderr)
+
+    def test_text_not_on_the_named_line_fails(self):
+        self.config("# anchor: a - b", ENTRY)
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("`a - b` is not on src/lib.rs:3", result.stderr)
+
+    def test_line_past_the_end_of_the_file_fails(self):
+        self.config("# anchor: a + b", ENTRY.replace(":3:", ":30:"))
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("is not on src/lib.rs:30", result.stderr)
+
+    def test_regex_matching_no_mutant_fails(self):
+        self.config("# anchor: a + b", ENTRY.replace("with -", "with /"))
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("matches no mutant", result.stderr)
+
+    def test_non_plain_path_fails(self):
+        self.config("# anchor: a + b", ENTRY.replace("lib\\.rs", "(lib|main)\\.rs"))
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("is not a plain path", result.stderr)
+
+    def test_entry_the_line_scanner_missed_fails(self):
+        self.write(".cargo/mutants.toml", f"exclude_re = [{ENTRY}]\n")
+        result = self.check()
+        self.assertFails(result)
+        self.assertIn("is not written on a line of its own", result.stderr)
+
+    def test_failing_listing_fails(self):
+        self.config("# anchor: a + b", ENTRY)
+        result = self.check(STUB_EXIT="3")
+        self.assertFails(result)
+        self.assertIn("exited 3", result.stderr)
 
 
 if __name__ == "__main__":
