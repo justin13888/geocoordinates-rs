@@ -84,7 +84,8 @@ impl TryFrom<Cluster> for gc::cluster::Cluster {
 /// `GeoError::InvalidValue` with field `members` when they are empty or not strictly
 /// ascending, field `count` when it does not match them, or for an invalid bound or
 /// bounds; `GeoError::CrsMismatch` when the centroid and bounds disagree;
-/// `GeoError::OutOfRange` for an invalid centroid.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` (field `height`) for an
+/// invalid centroid.
 #[uniffi::export]
 pub fn cluster_validate(cluster: Cluster) -> Result<(), GeoError> {
     gc::cluster::Cluster::try_from(cluster)?;
@@ -98,8 +99,8 @@ pub fn cluster_validate(cluster: Cluster) -> Result<(), GeoError> {
 /// # Errors
 /// `GeoError::InvalidValue` (field `points`) for no points, or for points whose unit
 /// vectors cancel, such as an antipodal pair; `GeoError::CrsMismatch` when the
-/// reference systems differ or are GCJ-02 / BD-09; `GeoError::OutOfRange` for an
-/// invalid coordinate record.
+/// reference systems differ or are GCJ-02 / BD-09; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn centroid(points: Vec<Coordinate>) -> Result<ApproxCoordinate, GeoError> {
     Ok(approx_coordinate(gc::cluster::centroid(&core_points(
@@ -136,7 +137,8 @@ pub struct DbscanResult {
 /// `GeoError::InvalidValue` with field `eps` when `eps_m` is negative or non-finite,
 /// field `min_points` when it is zero, and field `points` when a cluster's unit
 /// vectors cancel; `GeoError::CrsMismatch` when the reference systems differ or are
-/// GCJ-02 / BD-09; `GeoError::OutOfRange` for an invalid coordinate record.
+/// GCJ-02 / BD-09; `GeoError::OutOfRange` / `GeoError::InvalidValue` (field
+/// `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn dbscan(
     points: Vec<Coordinate>,
@@ -186,8 +188,8 @@ fn grid_buckets(buckets: Vec<gc::cluster::GridBucket>) -> Vec<GridBucket> {
 ///
 /// # Errors
 /// `GeoError::InvalidValue` for a `length` outside the geohash range;
-/// `GeoError::CrsMismatch` for a non-WGS-84 point; `GeoError::OutOfRange` for an
-/// invalid coordinate record.
+/// `GeoError::CrsMismatch` for a non-WGS-84 point; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn bucket_by_geohash(points: Vec<Coordinate>, length: u8) -> Result<Vec<GridBucket>, GeoError> {
     Ok(grid_buckets(gc::cluster::bucket_by_geohash(
@@ -200,7 +202,8 @@ pub fn bucket_by_geohash(points: Vec<Coordinate>, length: u8) -> Result<Vec<Grid
 ///
 /// # Errors
 /// `GeoError::InvalidValue` for a `resolution` above 15; `GeoError::CrsMismatch` for
-/// a non-WGS-84 point; `GeoError::OutOfRange` for an invalid coordinate record.
+/// a non-WGS-84 point; `GeoError::OutOfRange` / `GeoError::InvalidValue` (field
+/// `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn bucket_by_h3(points: Vec<Coordinate>, resolution: u8) -> Result<Vec<GridBucket>, GeoError> {
     Ok(grid_buckets(gc::cluster::bucket_by_h3(
@@ -399,8 +402,8 @@ impl ClusterIndex {
     /// # Errors
     /// `GeoError::InvalidValue` with field `radius_px` or `tile_px` unless the option
     /// is finite and positive; `GeoError::CrsMismatch` when the reference systems
-    /// differ or are GCJ-02 / BD-09; `GeoError::OutOfRange` for an invalid coordinate
-    /// record.
+    /// differ or are GCJ-02 / BD-09; `GeoError::OutOfRange` /
+    /// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
     #[uniffi::constructor]
     pub fn new(
         points: Vec<Coordinate>,
@@ -436,7 +439,8 @@ impl ClusterIndex {
     ///
     /// # Errors
     /// `GeoError::CrsMismatch` when `point` is on GCJ-02 / BD-09 or another reference
-    /// system than the points held; `GeoError::OutOfRange` for an invalid record.
+    /// system than the points held; `GeoError::OutOfRange` /
+    /// `GeoError::InvalidValue` (field `height`) for an invalid record.
     pub fn insert(&self, point: Coordinate) -> Result<u64, GeoError> {
         Ok(self.write().insert(point.try_into()?)?)
     }

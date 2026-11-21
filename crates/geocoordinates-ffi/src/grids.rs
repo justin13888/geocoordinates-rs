@@ -13,7 +13,8 @@ use crate::{ApproxCoordinate, Coordinate, GeoError};
 ///
 /// # Errors
 /// Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
-/// [`GeoError::InvalidValue`] for any other `length`.
+/// [`GeoError::InvalidValue`] for any other `length`; [`GeoError::OutOfRange`] /
+/// [`GeoError::InvalidValue`] (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn plus_code_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
     gc::grids::PlusCode::encode(coord.try_into()?, length)
@@ -49,7 +50,9 @@ pub fn plus_code_canonicalize(code: String) -> Result<String, GeoError> {
 ///
 /// # Errors
 /// Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
-/// [`GeoError::InvalidValue`] for a `length` outside 1–12.
+/// [`GeoError::InvalidValue`] for a `length` outside 1–12;
+/// [`GeoError::OutOfRange`] / [`GeoError::InvalidValue`] (field `height`) for an
+/// invalid coordinate record.
 #[uniffi::export]
 pub fn geohash_encode(coord: Coordinate, length: u8) -> Result<String, GeoError> {
     gc::grids::Geohash::encode(coord.try_into()?, length)
@@ -87,7 +90,9 @@ pub fn geohash_canonicalize(code: String) -> Result<String, GeoError> {
 ///
 /// # Errors
 /// Returns [`GeoError::CrsMismatch`] for a non-WGS-84 coordinate and
-/// [`GeoError::InvalidValue`] for `pairs` outside 1–3.
+/// [`GeoError::InvalidValue`] for `pairs` outside 1–3;
+/// [`GeoError::OutOfRange`] / [`GeoError::InvalidValue`] (field `height`) for an
+/// invalid coordinate record.
 #[uniffi::export]
 pub fn maidenhead_encode(coord: Coordinate, pairs: u8) -> Result<String, GeoError> {
     gc::grids::Maidenhead::encode(coord.try_into()?, pairs)
@@ -224,7 +229,8 @@ impl TryFrom<Ups> for gc::grids::Ups {
 ///
 /// # Errors
 /// `GeoError::OutsideDomain` (operation `"UTM"`) outside the 80°S–84°N band;
-/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
+/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn utm_from_coordinate(coord: Coordinate) -> Result<Utm, GeoError> {
     gc::grids::Utm::try_from_coordinate(coord.try_into()?)
@@ -263,7 +269,8 @@ pub fn utm_to_coordinate(utm: Utm) -> Result<Coordinate, GeoError> {
 ///
 /// # Errors
 /// `GeoError::OutsideDomain` (operation `"UTM"`) outside `[-80, 84)` latitude;
-/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
+/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn utm_zone_for(coord: Coordinate) -> Result<u8, GeoError> {
     gc::grids::Utm::zone_for(coord.try_into()?).map_err(GeoError::from)
@@ -282,7 +289,9 @@ pub fn utm_central_meridian_deg(zone: u8) -> Result<f64, GeoError> {
 ///
 /// # Errors
 /// `GeoError::OutsideDomain` (operation `"UPS"`) strictly between 80°S and
-/// 84°N; `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
+/// 84°N; `GeoError::CrsMismatch` for a non-WGS-84 coordinate;
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` (field `height`) for an
+/// invalid coordinate record.
 #[uniffi::export]
 pub fn ups_from_coordinate(coord: Coordinate) -> Result<Ups, GeoError> {
     gc::grids::Ups::try_from_coordinate(coord.try_into()?)
@@ -371,7 +380,8 @@ pub fn mgrs_precision_meters(precision: MgrsPrecision) -> u32 {
 /// size that contains it.
 ///
 /// # Errors
-/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate.
+/// `GeoError::CrsMismatch` for a non-WGS-84 coordinate; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn mgrs_from_coordinate(
     coord: Coordinate,

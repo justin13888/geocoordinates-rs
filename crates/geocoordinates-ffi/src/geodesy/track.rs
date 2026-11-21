@@ -8,7 +8,10 @@ use crate::{Coordinate, GeoError};
 
 /// Signed perpendicular distance (meters) from `point` to the great-circle
 /// path `start` → `end` on the mean sphere (positive to the right).
-/// Approximate: the sphere is not the ellipsoid.
+/// Approximate: the sphere is not the ellipsoid, and a great-circle distance
+/// differs from the ellipsoidal geodesic by up to about 0.56% (see
+/// [`haversine_distance_m`](crate::haversine_distance_m)); use
+/// [`cross_track_distance_m`] where that matters.
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` when the three coordinates are not all in one
@@ -31,7 +34,10 @@ pub fn cross_track_distance_spherical_m(
 
 /// Along-track distance (meters) from `start` to the foot of the perpendicular
 /// from `point` onto the great-circle path `start` → `end` on the mean sphere.
-/// Approximate: the sphere is not the ellipsoid.
+/// Approximate: the sphere is not the ellipsoid, and a great-circle distance
+/// differs from the ellipsoidal geodesic by up to about 0.56% (see
+/// [`haversine_distance_m`](crate::haversine_distance_m)); use
+/// [`along_track_distance_m`] where that matters.
 ///
 /// # Errors
 /// As [`cross_track_distance_spherical_m`], and `GeoError::InvalidValue`
@@ -85,7 +91,10 @@ impl From<gc::geodesy::SphericalIntersection> for SphericalIntersectionResult {
 
 /// Where two great-circle paths (each a start point and an initial bearing in
 /// degrees) cross ahead of both starts, on the mean sphere. Approximate: the
-/// sphere is not the ellipsoid.
+/// sphere is not the ellipsoid (see
+/// [`haversine_distance_m`](crate::haversine_distance_m) for the size of that
+/// difference, up to about 0.56% of a distance); use [`intersection`] where
+/// that matters.
 ///
 /// At a pole a bearing follows the meridian of the start's own longitude.
 ///
