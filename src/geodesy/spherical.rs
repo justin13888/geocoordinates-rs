@@ -322,7 +322,8 @@ fn dot(u: Vec3, v: Vec3) -> f64 {
     u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
 }
 
-fn cross(u: Vec3, v: Vec3) -> Vec3 {
+/// The cross product `u × v`.
+pub(super) fn cross(u: Vec3, v: Vec3) -> Vec3 {
     [
         u[1] * v[2] - u[2] * v[1],
         u[2] * v[0] - u[0] * v[2],
@@ -376,21 +377,22 @@ fn is_forward(along: f64) -> bool {
 fn validate_path(point: impl LatLon, start: impl LatLon, end: impl LatLon) -> Result<()> {
     validate_pair(point, start)?;
     validate_pair(start, end)?;
-    if coincident_or_antipodal(start, end) {
+    check_path(start, end)
+}
+
+/// Rejects a path whose `start` and `end` are the same place or antipodal, to
+/// within about 6 µm (see [`is_parallel`]): either fixes no single path
+/// between them. The ellipsoidal cross/along-track pair rejects the same
+/// paths, with the same error.
+pub(super) fn check_path(start: impl LatLon, end: impl LatLon) -> Result<()> {
+    let normal = cross(n_vector(start), n_vector(end));
+    if is_parallel(dot(normal, normal).sqrt()) {
         return Err(Error::InvalidValue {
             field: "path",
             detail: "start and end must be distinct and not antipodal".into(),
         });
     }
     Ok(())
-}
-
-/// Whether two positions are the same place or antipodal, to within about
-/// 6 µm (see [`is_parallel`]). Either fixes no single path between them; the
-/// ellipsoidal cross/along-track pair rejects the same paths.
-pub(super) fn coincident_or_antipodal(a: impl LatLon, b: impl LatLon) -> bool {
-    let normal = cross(n_vector(a), n_vector(b));
-    is_parallel(dot(normal, normal).sqrt())
 }
 
 /// Initial bearing on a sphere, in radians.
