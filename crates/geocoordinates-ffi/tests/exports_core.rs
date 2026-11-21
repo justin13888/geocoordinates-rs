@@ -192,8 +192,8 @@ fn baidu_mercator_round_trips_through_bd09_and_coordinate() {
         lon: BD.1,
     })
     .unwrap();
-    close(merc.x, 12_959_580.673_891_693, 1e-6);
-    close(merc.y, 4_827_036.867_073_46, 1e-6);
+    close(merc.x_m, 12_959_580.673_891_693, 1e-6);
+    close(merc.y_m, 4_827_036.867_073_46, 1e-6);
     let back = baidu_mercator_to_bd09(merc).unwrap();
     close(back.lat, 39.922_699_628_640_58, 1e-12);
     close(back.lon, 116.416_627_243_787_27, 1e-12);
@@ -463,9 +463,9 @@ fn a_height_crossing_in_survives_ecef_and_back() {
     let ground = ecef_from_coordinate(at(None)).unwrap();
     for meters in [1_234.5, -80.25] {
         let ecef = ecef_from_coordinate(at(Some(Height::Ellipsoidal { meters }))).unwrap();
-        let lift = ((ecef.x - ground.x).powi(2)
-            + (ecef.y - ground.y).powi(2)
-            + (ecef.z - ground.z).powi(2))
+        let lift = ((ecef.x_m - ground.x_m).powi(2)
+            + (ecef.y_m - ground.y_m).powi(2)
+            + (ecef.z_m - ground.z_m).powi(2))
         .sqrt();
         close(lift, meters.abs(), 1e-6);
         match ecef_to_coordinate(ecef, Crs::Wgs84).unwrap().height {

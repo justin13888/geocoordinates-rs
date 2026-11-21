@@ -59,7 +59,13 @@ Every export follows one scheme, so a name reads the same in every language
   names degrees as its target (`dms_to_degrees`, `ddm_to_degrees`,
   `normalize_degrees`). Length and angle parameters carry the same suffix
   (`distance_m`, `bearing_deg`), and a screen-space parameter in pixels ends
-  in `_px` (`tile_px`, `padding_px`). Exceptions, where the unit is already fixed elsewhere or there is
+  in `_px` (`tile_px`, `padding_px`). A record field holding meters ends in
+  `_m` the same way, whether it is a magnitude or a projected or Cartesian
+  component: `Ecef` `x_m` / `y_m` / `z_m`, `Enu` `east_m` / `north_m` /
+  `up_m`, `Ned` `north_m` / `east_m` / `down_m`, `Utm` and `Ups`
+  `easting_m` / `northing_m`, `BaiduMercator` and `WebMercator` `x_m` /
+  `y_m`, `Helmert` `tx_m` / `ty_m` / `tz_m`, `Aer` `range_m`, and
+  `ApproxWgs84` `max_error_m`. Exceptions, where the unit is already fixed elsewhere or there is
   none:
   - a constructor's parameters take the names of the record fields they fill,
     so `coordinate_new` and `coordinate_from_lon_lat` take `lat` / `lon` like
@@ -71,6 +77,10 @@ Every export follows one scheme, so a name reads the same in every language
     always the other side (`length_from_unit(value)` returns meters,
     `length_to_unit(meters)` takes them, and `length_unit_meters_per_unit`
     returns the ratio);
+  - the `ExifGps` and `XmpGps` tag-value records name each field after the
+    GPS tag it holds, so their meter-valued `altitude` (`GPSAltitude`) and
+    `h_positioning_error` (`GPSHPositioningError`) stay unsuffixed: they
+    carry the tag's raw value, not a crate magnitude;
   - a dimensionless value has no unit to name: a confidence in `[0, 1]`
     (`confidence_new(value)`), a fraction of a path
     (`intermediate(fraction)`), a fractional zoom level (`zoom` in

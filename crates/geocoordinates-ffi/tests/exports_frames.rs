@@ -26,13 +26,13 @@ fn enu_ned_and_aer_from_coordinate_agree() {
     let origin = wgs84(40.0, -75.0);
     let target = wgs84(40.1, -74.9);
     let enu = enu_from_coordinate(target, origin).unwrap();
-    close(enu.east, 8_526.911_601_003_281, 1e-6);
-    close(enu.north, 11_108.336_797_369_358, 1e-6);
-    close(enu.up, -15.389_949_872_675_06, 1e-6);
+    close(enu.east_m, 8_526.911_601_003_281, 1e-6);
+    close(enu.north_m, 11_108.336_797_369_358, 1e-6);
+    close(enu.up_m, -15.389_949_872_675_06, 1e-6);
     let ned = ned_from_coordinate(target, origin).unwrap();
     assert_eq!(
-        (ned.north, ned.east, ned.down),
-        (enu.north, enu.east, -enu.up)
+        (ned.north_m, ned.east_m, ned.down_m),
+        (enu.north_m, enu.east_m, -enu.up_m)
     );
     let aer = aer_from_coordinate(target, origin).unwrap();
     close(aer.azimuth_deg, 37.510_338_419_019_85, 1e-9);
@@ -52,9 +52,9 @@ fn frame_offsets_recover_the_absolute_coordinate() {
 
     let north = ned_to_coordinate(
         Ned {
-            north: 1000.0,
-            east: 0.0,
-            down: 0.0,
+            north_m: 1000.0,
+            east_m: 0.0,
+            down_m: 0.0,
         },
         origin,
     )
@@ -114,21 +114,21 @@ fn frames_accept_any_shared_classic_datum() {
 #[test]
 fn frame_conversions_swap_axes_and_signs() {
     let enu = Enu {
-        east: 1.0,
-        north: 2.0,
-        up: 3.0,
+        east_m: 1.0,
+        north_m: 2.0,
+        up_m: 3.0,
     };
     let ned = Ned {
-        north: 2.0,
-        east: 1.0,
-        down: -3.0,
+        north_m: 2.0,
+        east_m: 1.0,
+        down_m: -3.0,
     };
     assert_eq!(enu_to_ned(enu), Ok(ned));
     assert_eq!(ned_to_enu(ned), Ok(enu));
     let north = enu_to_aer(Enu {
-        east: 0.0,
-        north: 100.0,
-        up: 0.0,
+        east_m: 0.0,
+        north_m: 100.0,
+        up_m: 0.0,
     })
     .unwrap();
     assert_eq!(
@@ -136,9 +136,9 @@ fn frame_conversions_swap_axes_and_signs() {
         (0.0, 0.0, 100.0)
     );
     let up_east = ned_to_aer(Ned {
-        north: 0.0,
-        east: 100.0,
-        down: -100.0,
+        north_m: 0.0,
+        east_m: 100.0,
+        down_m: -100.0,
     })
     .unwrap();
     close(up_east.azimuth_deg, 90.0, 1e-12);
@@ -154,79 +154,79 @@ fn aer_converts_to_enu_and_ned() {
         range_m: 100.0,
     })
     .unwrap();
-    close(enu.east, 100.0, 1e-9);
-    close(enu.north, 0.0, 1e-9);
-    close(enu.up, 0.0, 1e-9);
+    close(enu.east_m, 100.0, 1e-9);
+    close(enu.north_m, 0.0, 1e-9);
+    close(enu.up_m, 0.0, 1e-9);
     let ned = aer_to_ned(Aer {
         azimuth_deg: 0.0,
         elevation_deg: 90.0,
         range_m: 100.0,
     })
     .unwrap();
-    close(ned.north, 0.0, 1e-9);
-    close(ned.east, 0.0, 1e-9);
-    close(ned.down, -100.0, 1e-9);
+    close(ned.north_m, 0.0, 1e-9);
+    close(ned.east_m, 0.0, 1e-9);
+    close(ned.down_m, -100.0, 1e-9);
 }
 
 #[test]
 fn validators_name_the_invalid_field() {
     let enu = Enu {
-        east: 0.0,
-        north: 0.0,
-        up: 0.0,
+        east_m: 0.0,
+        north_m: 0.0,
+        up_m: 0.0,
     };
     assert_eq!(enu_validate(enu), Ok(()));
     assert_eq!(
         invalid_field(enu_validate(Enu {
-            east: f64::NAN,
+            east_m: f64::NAN,
             ..enu
         })),
         "east_m"
     );
     assert_eq!(
         invalid_field(enu_validate(Enu {
-            north: f64::INFINITY,
+            north_m: f64::INFINITY,
             ..enu
         })),
         "north_m"
     );
     assert_eq!(
         invalid_field(enu_validate(Enu {
-            up: f64::NAN,
+            up_m: f64::NAN,
             ..enu
         })),
         "up_m"
     );
     let huge = Enu {
-        east: f64::MAX,
-        north: f64::MAX,
-        up: 0.0,
+        east_m: f64::MAX,
+        north_m: f64::MAX,
+        up_m: 0.0,
     };
     assert_eq!(invalid_field(enu_validate(huge)), "magnitude");
 
     let ned = Ned {
-        north: 0.0,
-        east: 0.0,
-        down: 0.0,
+        north_m: 0.0,
+        east_m: 0.0,
+        down_m: 0.0,
     };
     assert_eq!(ned_validate(ned), Ok(()));
     assert_eq!(
         invalid_field(ned_validate(Ned {
-            north: f64::NAN,
+            north_m: f64::NAN,
             ..ned
         })),
         "north_m"
     );
     assert_eq!(
         invalid_field(ned_validate(Ned {
-            east: f64::NAN,
+            east_m: f64::NAN,
             ..ned
         })),
         "east_m"
     );
     assert_eq!(
         invalid_field(ned_validate(Ned {
-            down: f64::NAN,
+            down_m: f64::NAN,
             ..ned
         })),
         "down_m"
@@ -270,17 +270,17 @@ fn validators_name_the_invalid_field() {
 fn exports_reject_invalid_records_and_normalize_azimuth() {
     let origin = wgs84(40.0, -75.0);
     let bad_enu = Enu {
-        east: f64::NAN,
-        north: 0.0,
-        up: 0.0,
+        east_m: f64::NAN,
+        north_m: 0.0,
+        up_m: 0.0,
     };
     assert_eq!(invalid_field(enu_to_coordinate(bad_enu, origin)), "east_m");
     assert_eq!(invalid_field(enu_to_ned(bad_enu)), "east_m");
     assert_eq!(invalid_field(enu_to_aer(bad_enu)), "east_m");
     let bad_ned = Ned {
-        north: 0.0,
-        east: 0.0,
-        down: f64::INFINITY,
+        north_m: 0.0,
+        east_m: 0.0,
+        down_m: f64::INFINITY,
     };
     assert_eq!(invalid_field(ned_to_coordinate(bad_ned, origin)), "down_m");
     assert_eq!(invalid_field(ned_to_enu(bad_ned)), "down_m");

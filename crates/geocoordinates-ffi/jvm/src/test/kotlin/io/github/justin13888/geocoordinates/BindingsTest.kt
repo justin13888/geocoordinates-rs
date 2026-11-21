@@ -173,7 +173,7 @@ class BindingsTest {
         val utm = utmFromCoordinate(wgs84(40.0, -75.0))
         assertEquals(18.toUByte(), utm.zone)
         assertEquals(UtmHemisphere.NORTH, utm.hemisphere)
-        assertEquals(4_427_757.2188, utm.northing, 1e-3)
+        assertEquals(4_427_757.2188, utm.northingM, 1e-3)
 
         val cell = h3Decode(h3Encode(wgs84(40.7128, -74.006), 9u))
         assertEquals(205.872_541, cell.maxErrorM, 1e-5)

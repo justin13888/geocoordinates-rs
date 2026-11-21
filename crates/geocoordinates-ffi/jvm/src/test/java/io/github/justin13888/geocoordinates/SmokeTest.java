@@ -175,7 +175,7 @@ class SmokeTest {
     @Test
     void ellipsoidFollowsTheCrsFromJava() throws GeoException {
         Ecef nad27 = ecefFromCoordinate(coordinateNew(0.0, 0.0, Crs.NAD27));
-        assertEquals(6_378_206.4, nad27.getX(), 1e-6);
+        assertEquals(6_378_206.4, nad27.getXM(), 1e-6);
         assertEquals(ellipsoidClarke1866(), ellipsoidForCrs(Crs.NAD27));
         assertNull(ellipsoidForCrs(Crs.GCJ02));
         GeoException.CrsMismatch noEllipsoid =

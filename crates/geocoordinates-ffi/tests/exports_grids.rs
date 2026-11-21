@@ -113,8 +113,8 @@ fn maidenhead_encodes_and_decodes_its_square() {
 fn utm_matches_published_values_and_round_trips() {
     let utm = utm_from_coordinate(wgs84(40.0, -75.0)).unwrap();
     assert_eq!((utm.zone, utm.hemisphere), (18, UtmHemisphere::North));
-    close(utm.easting, 500_000.0, 1e-3);
-    close(utm.northing, 4_427_757.218_8, 1e-3);
+    close(utm.easting_m, 500_000.0, 1e-3);
+    close(utm.northing_m, 4_427_757.218_8, 1e-3);
     let back = utm_to_coordinate(utm).unwrap();
     close(back.lat, 40.0, 1e-9);
     close(back.lon, -75.0, 1e-9);
@@ -123,8 +123,8 @@ fn utm_matches_published_values_and_round_trips() {
     // Sydney, southern hemisphere (false northing applied).
     let sydney = utm_from_coordinate(wgs84(-33.8688, 151.2093)).unwrap();
     assert_eq!((sydney.zone, sydney.hemisphere), (56, UtmHemisphere::South));
-    close(sydney.easting, 334_368.633_648_095_25, 1e-6);
-    close(sydney.northing, 6_250_948.345_385_062, 1e-6);
+    close(sydney.easting_m, 334_368.633_648_095_25, 1e-6);
+    close(sydney.northing_m, 6_250_948.345_385_062, 1e-6);
 }
 
 #[test]
@@ -137,11 +137,11 @@ fn utm_rejects_polar_latitudes() {
 
 #[test]
 fn utm_to_coordinate_accepts_only_the_forward_image() {
-    let record = |zone, easting, northing| Utm {
+    let record = |zone, easting_m, northing_m| Utm {
         zone,
         hemisphere: UtmHemisphere::North,
-        easting,
-        northing,
+        easting_m,
+        northing_m,
     };
     // Zone 60's 180° edge decodes just west of 180°, so it stays in zone 60.
     let edge = utm_from_coordinate(wgs84(0.0, 180.0)).unwrap();
@@ -195,8 +195,8 @@ fn utm_zone_helpers_validate_their_input() {
 fn ups_covers_the_poles_and_round_trips() {
     let ups = ups_from_coordinate(wgs84(85.0, 0.0)).unwrap();
     assert_eq!(ups.hemisphere, UtmHemisphere::North);
-    close(ups.easting, 2_000_000.0, 1e-6);
-    close(ups.northing, 1_444_542.608_617_322_5, 1e-6);
+    close(ups.easting_m, 2_000_000.0, 1e-6);
+    close(ups.northing_m, 1_444_542.608_617_322_5, 1e-6);
     let back = ups_to_coordinate(ups).unwrap();
     close(back.lat, 85.0, 1e-9);
     close(back.lon, 0.0, 1e-9);
@@ -207,8 +207,8 @@ fn ups_covers_the_poles_and_round_trips() {
     ));
     let off_grid = Ups {
         hemisphere: UtmHemisphere::South,
-        easting: 2_000_000.0,
-        northing: 4_000_001.0,
+        easting_m: 2_000_000.0,
+        northing_m: 4_000_001.0,
     };
     assert!(matches!(
         ups_to_coordinate(off_grid),
@@ -217,8 +217,8 @@ fn ups_covers_the_poles_and_round_trips() {
     // On the grid, but its corner decodes near 64°N, outside the 84°N cap.
     let off_cap = Ups {
         hemisphere: UtmHemisphere::North,
-        easting: 0.0,
-        northing: 0.0,
+        easting_m: 0.0,
+        northing_m: 0.0,
     };
     assert!(matches!(
         ups_to_coordinate(off_cap),

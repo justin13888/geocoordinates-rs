@@ -88,7 +88,7 @@ except gc.GeoError.CrsMismatch as e:
     # The reference systems cross as the typed Crs enum, not as strings.
     assert e.expected == gc.Crs.BD09 and e.found == gc.Crs.WGS84, (e.expected, e.found)
 ok =gc.baidu_mercator_from_coordinate(bd09_coord(BD[0], BD[1]))
-assert approx(ok.x, merc.x, 1e-6) and approx(ok.y, merc.y, 1e-6)
+assert approx(ok.x_m, merc.x_m, 1e-6) and approx(ok.y_m, merc.y_m, 1e-6)
 
 # --- China records: validation, Coordinate bridges, and domain edges ---
 gc.wgs84_validate(gc.Wgs84(lat=WGS[0], lon=WGS[1]))
@@ -414,10 +414,10 @@ except gc.GeoError.InvalidValue:
 assert gc.ellipsoid_for_crs(gc.Crs.NAD27) == gc.ellipsoid_clarke_1866()
 assert gc.ellipsoid_for_crs(gc.Crs.GCJ02) is None
 ecef = gc.ecef_from_coordinate(wgs84_coord(0.0, 0.0))
-assert approx(ecef.x, 6_378_137.0, 1e-3) and approx(ecef.y, 0.0, 1e-3)
+assert approx(ecef.x_m, 6_378_137.0, 1e-3) and approx(ecef.y_m, 0.0, 1e-3)
 assert approx(gc.ecef_to_coordinate(ecef, gc.Crs.WGS84).lat, 0.0, 1e-9)
 nad27_origin = gc.Coordinate(lat=0.0, lon=0.0, height=None, crs=gc.Crs.NAD27)
-assert approx(gc.ecef_from_coordinate(nad27_origin).x, 6_378_206.4, 1e-6)
+assert approx(gc.ecef_from_coordinate(nad27_origin).x_m, 6_378_206.4, 1e-6)
 try:
     gc.ecef_from_coordinate(gc.Coordinate(lat=39.9, lon=116.4, height=None, crs=gc.Crs.GCJ02))
     raise AssertionError("expected CrsMismatch: GCJ-02 has no ellipsoid")
@@ -426,16 +426,16 @@ except gc.GeoError.CrsMismatch:
 # A hand-built ECEF record is validated, naming the non-finite component.
 gc.ecef_validate(ecef)
 try:
-    gc.ecef_validate(gc.Ecef(x=0.0, y=0.0, z=float("nan")))
+    gc.ecef_validate(gc.Ecef(x_m=0.0, y_m=0.0, z_m=float("nan")))
     raise AssertionError("expected GeoError.InvalidValue for a NaN z")
 except gc.GeoError.InvalidValue as e:
     assert e.field == "z_m", e.field
 origin = wgs84_coord(40.0, -75.0)
 enu = gc.enu_from_coordinate(wgs84_coord(40.1, -75.0), origin)
 # 0.1 deg of meridian arc at 40 N; the target sits below the tangent plane.
-assert approx(enu.north, 11_103.553_727, 1e-5), enu.north
-assert approx(enu.east, 0.0, 1e-6) and approx(enu.up, -9.689_709, 1e-5), (enu.east, enu.up)
-aer = gc.enu_to_aer(gc.Enu(east=0.0, north=100.0, up=0.0))
+assert approx(enu.north_m, 11_103.553_727, 1e-5), enu.north_m
+assert approx(enu.east_m, 0.0, 1e-6) and approx(enu.up_m, -9.689_709, 1e-5), (enu.east_m, enu.up_m)
+aer = gc.enu_to_aer(gc.Enu(east_m=0.0, north_m=100.0, up_m=0.0))
 assert approx(aer.azimuth_deg, 0.0, 1e-9) and approx(aer.range_m, 100.0, 1e-9)
 # A hand-built frame record is validated on use, naming the invalid field.
 try:
@@ -513,8 +513,8 @@ except gc.GeoError.InvalidValue as e:
 assert approx(gc.convert(nad27, gc.Crs.WGS84).max_error_m, 86 ** 0.5, 1e-12)
 # apply_ecef + inverse identity at the ECEF level.
 ident = gc.helmert_inverse_first_order(gc.helmert_identity())
-e = gc.helmert_apply_ecef(ident, gc.Ecef(x=4_000_000.0, y=-2_000_000.0, z=4_500_000.0))
-assert approx(e.x, 4_000_000.0, 1e-6)
+e = gc.helmert_apply_ecef(ident, gc.Ecef(x_m=4_000_000.0, y_m=-2_000_000.0, z_m=4_500_000.0))
+assert approx(e.x_m, 4_000_000.0, 1e-6)
 
 # --- Runtime conversion dispatch ---
 assert gc.convert(bd09_coord(BD[0], BD[1]), gc.Crs.TOKYO).coord.crs == gc.Crs.TOKYO
@@ -532,7 +532,7 @@ assert gb.max_error_m == 0.0 and approx(gb.coord.lat, BD[0], 1e-9)
 # --- UTM / UPS / MGRS ---
 u = gc.utm_from_coordinate(wgs84_coord(40.0, -75.0))
 assert u.zone == 18 and u.hemisphere == gc.UtmHemisphere.NORTH
-assert approx(u.easting, 500_000.0, 1e-3) and approx(u.northing, 4_427_757.2188, 1e-3)
+assert approx(u.easting_m, 500_000.0, 1e-3) and approx(u.northing_m, 4_427_757.2188, 1e-3)
 roundtrip = gc.utm_to_coordinate(u)
 assert approx(roundtrip.lat, 40.0, 1e-9) and approx(roundtrip.lon, -75.0, 1e-9)
 try:
@@ -543,13 +543,13 @@ except gc.GeoError.OutsideDomain as e:
 # Only the forward image decodes: zone 1 west of 180° (zone 60's longitude), past the pole, north of 84°N.
 for e_m, n_m, field in [(150_000.0, 0.0, "easting"), (500_000.0, 9_999_000.0, "northing"), (500_000.0, 9_900_000.0, "northing")]:
     try:
-        gc.utm_to_coordinate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=e_m, northing=n_m))
+        gc.utm_to_coordinate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting_m=e_m, northing_m=n_m))
         raise AssertionError(f"expected InvalidValue for {e_m}, {n_m}")
     except gc.GeoError.InvalidValue as e:
         assert e.field == field
 gc.utm_validate(u)  # a record this library returned is valid
 try:
-    gc.utm_validate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting=150_000.0, northing=0.0))
+    gc.utm_validate(gc.Utm(zone=1, hemisphere=gc.UtmHemisphere.NORTH, easting_m=150_000.0, northing_m=0.0))
     raise AssertionError("expected utm_validate to reject zone 1 west of 180°")
 except gc.GeoError.InvalidValue as e:
     assert e.field == "easting"
@@ -561,10 +561,10 @@ try:
 except gc.GeoError.InvalidValue as e:
     assert e.field == "zone"
 ups = gc.ups_from_coordinate(wgs84_coord(85.0, 0.0))
-assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting, 2_000_000.0, 1e-3)
+assert ups.hemisphere == gc.UtmHemisphere.NORTH and approx(ups.easting_m, 2_000_000.0, 1e-3)
 gc.ups_validate(ups)
 try:
-    gc.ups_validate(gc.Ups(hemisphere=gc.UtmHemisphere.NORTH, easting=0.0, northing=0.0))
+    gc.ups_validate(gc.Ups(hemisphere=gc.UtmHemisphere.NORTH, easting_m=0.0, northing_m=0.0))
     raise AssertionError("expected ups_validate to reject a corner outside the polar cap")
 except gc.GeoError.InvalidValue as e:
     assert e.field == "northing"

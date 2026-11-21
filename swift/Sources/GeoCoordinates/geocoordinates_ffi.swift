@@ -2422,23 +2422,23 @@ public struct BaiduMercator: Equatable, Hashable {
     /**
      * Easting (longitude axis), in meters.
      */
-    public var x: Double
+    public var xM: Double
     /**
      * Northing (latitude axis), in meters.
      */
-    public var y: Double
+    public var yM: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
          * Easting (longitude axis), in meters.
-         */x: Double, 
+         */xM: Double, 
         /**
          * Northing (latitude axis), in meters.
-         */y: Double) {
-        self.x = x
-        self.y = y
+         */yM: Double) {
+        self.xM = xM
+        self.yM = yM
     }
 
     
@@ -2457,14 +2457,14 @@ public struct FfiConverterTypeBaiduMercator: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BaiduMercator {
         return
             try BaiduMercator(
-                x: FfiConverterDouble.read(from: &buf), 
-                y: FfiConverterDouble.read(from: &buf)
+                xM: FfiConverterDouble.read(from: &buf), 
+                yM: FfiConverterDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: BaiduMercator, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.x, into: &buf)
-        FfiConverterDouble.write(value.y, into: &buf)
+        FfiConverterDouble.write(value.xM, into: &buf)
+        FfiConverterDouble.write(value.yM, into: &buf)
     }
 }
 
@@ -3431,31 +3431,31 @@ public struct Ecef: Equatable, Hashable {
     /**
      * X axis (meters), through the prime meridian at the equator.
      */
-    public var x: Double
+    public var xM: Double
     /**
      * Y axis (meters), 90° east at the equator.
      */
-    public var y: Double
+    public var yM: Double
     /**
      * Z axis (meters), through the north pole.
      */
-    public var z: Double
+    public var zM: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
          * X axis (meters), through the prime meridian at the equator.
-         */x: Double, 
+         */xM: Double, 
         /**
          * Y axis (meters), 90° east at the equator.
-         */y: Double, 
+         */yM: Double, 
         /**
          * Z axis (meters), through the north pole.
-         */z: Double) {
-        self.x = x
-        self.y = y
-        self.z = z
+         */zM: Double) {
+        self.xM = xM
+        self.yM = yM
+        self.zM = zM
     }
 
     
@@ -3474,16 +3474,16 @@ public struct FfiConverterTypeEcef: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ecef {
         return
             try Ecef(
-                x: FfiConverterDouble.read(from: &buf), 
-                y: FfiConverterDouble.read(from: &buf), 
-                z: FfiConverterDouble.read(from: &buf)
+                xM: FfiConverterDouble.read(from: &buf), 
+                yM: FfiConverterDouble.read(from: &buf), 
+                zM: FfiConverterDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: Ecef, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.x, into: &buf)
-        FfiConverterDouble.write(value.y, into: &buf)
-        FfiConverterDouble.write(value.z, into: &buf)
+        FfiConverterDouble.write(value.xM, into: &buf)
+        FfiConverterDouble.write(value.yM, into: &buf)
+        FfiConverterDouble.write(value.zM, into: &buf)
     }
 }
 
@@ -3590,31 +3590,31 @@ public struct Enu: Equatable, Hashable {
     /**
      * East offset (meters).
      */
-    public var east: Double
+    public var eastM: Double
     /**
      * North offset (meters).
      */
-    public var north: Double
+    public var northM: Double
     /**
      * Up offset (meters).
      */
-    public var up: Double
+    public var upM: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
          * East offset (meters).
-         */east: Double, 
+         */eastM: Double, 
         /**
          * North offset (meters).
-         */north: Double, 
+         */northM: Double, 
         /**
          * Up offset (meters).
-         */up: Double) {
-        self.east = east
-        self.north = north
-        self.up = up
+         */upM: Double) {
+        self.eastM = eastM
+        self.northM = northM
+        self.upM = upM
     }
 
     
@@ -3633,16 +3633,16 @@ public struct FfiConverterTypeEnu: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Enu {
         return
             try Enu(
-                east: FfiConverterDouble.read(from: &buf), 
-                north: FfiConverterDouble.read(from: &buf), 
-                up: FfiConverterDouble.read(from: &buf)
+                eastM: FfiConverterDouble.read(from: &buf), 
+                northM: FfiConverterDouble.read(from: &buf), 
+                upM: FfiConverterDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: Enu, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.east, into: &buf)
-        FfiConverterDouble.write(value.north, into: &buf)
-        FfiConverterDouble.write(value.up, into: &buf)
+        FfiConverterDouble.write(value.eastM, into: &buf)
+        FfiConverterDouble.write(value.northM, into: &buf)
+        FfiConverterDouble.write(value.upM, into: &buf)
     }
 }
 
@@ -5001,31 +5001,31 @@ public struct Ned: Equatable, Hashable {
     /**
      * North offset (meters).
      */
-    public var north: Double
+    public var northM: Double
     /**
      * East offset (meters).
      */
-    public var east: Double
+    public var eastM: Double
     /**
      * Down offset (meters).
      */
-    public var down: Double
+    public var downM: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
          * North offset (meters).
-         */north: Double, 
+         */northM: Double, 
         /**
          * East offset (meters).
-         */east: Double, 
+         */eastM: Double, 
         /**
          * Down offset (meters).
-         */down: Double) {
-        self.north = north
-        self.east = east
-        self.down = down
+         */downM: Double) {
+        self.northM = northM
+        self.eastM = eastM
+        self.downM = downM
     }
 
     
@@ -5044,16 +5044,16 @@ public struct FfiConverterTypeNed: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ned {
         return
             try Ned(
-                north: FfiConverterDouble.read(from: &buf), 
-                east: FfiConverterDouble.read(from: &buf), 
-                down: FfiConverterDouble.read(from: &buf)
+                northM: FfiConverterDouble.read(from: &buf), 
+                eastM: FfiConverterDouble.read(from: &buf), 
+                downM: FfiConverterDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: Ned, into buf: inout [UInt8]) {
-        FfiConverterDouble.write(value.north, into: &buf)
-        FfiConverterDouble.write(value.east, into: &buf)
-        FfiConverterDouble.write(value.down, into: &buf)
+        FfiConverterDouble.write(value.northM, into: &buf)
+        FfiConverterDouble.write(value.eastM, into: &buf)
+        FfiConverterDouble.write(value.downM, into: &buf)
     }
 }
 
@@ -6030,11 +6030,11 @@ public struct Ups: Equatable, Hashable {
     /**
      * Easting in meters.
      */
-    public var easting: Double
+    public var eastingM: Double
     /**
      * Northing in meters.
      */
-    public var northing: Double
+    public var northingM: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -6044,13 +6044,13 @@ public struct Ups: Equatable, Hashable {
          */hemisphere: UtmHemisphere, 
         /**
          * Easting in meters.
-         */easting: Double, 
+         */eastingM: Double, 
         /**
          * Northing in meters.
-         */northing: Double) {
+         */northingM: Double) {
         self.hemisphere = hemisphere
-        self.easting = easting
-        self.northing = northing
+        self.eastingM = eastingM
+        self.northingM = northingM
     }
 
     
@@ -6070,15 +6070,15 @@ public struct FfiConverterTypeUps: FfiConverterRustBuffer {
         return
             try Ups(
                 hemisphere: FfiConverterTypeUtmHemisphere.read(from: &buf), 
-                easting: FfiConverterDouble.read(from: &buf), 
-                northing: FfiConverterDouble.read(from: &buf)
+                eastingM: FfiConverterDouble.read(from: &buf), 
+                northingM: FfiConverterDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: Ups, into buf: inout [UInt8]) {
         FfiConverterTypeUtmHemisphere.write(value.hemisphere, into: &buf)
-        FfiConverterDouble.write(value.easting, into: &buf)
-        FfiConverterDouble.write(value.northing, into: &buf)
+        FfiConverterDouble.write(value.eastingM, into: &buf)
+        FfiConverterDouble.write(value.northingM, into: &buf)
     }
 }
 
@@ -6119,11 +6119,11 @@ public struct Utm: Equatable, Hashable {
     /**
      * Easting in meters (false-easting applied).
      */
-    public var easting: Double
+    public var eastingM: Double
     /**
      * Northing in meters.
      */
-    public var northing: Double
+    public var northingM: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -6136,14 +6136,14 @@ public struct Utm: Equatable, Hashable {
          */hemisphere: UtmHemisphere, 
         /**
          * Easting in meters (false-easting applied).
-         */easting: Double, 
+         */eastingM: Double, 
         /**
          * Northing in meters.
-         */northing: Double) {
+         */northingM: Double) {
         self.zone = zone
         self.hemisphere = hemisphere
-        self.easting = easting
-        self.northing = northing
+        self.eastingM = eastingM
+        self.northingM = northingM
     }
 
     
@@ -6164,16 +6164,16 @@ public struct FfiConverterTypeUtm: FfiConverterRustBuffer {
             try Utm(
                 zone: FfiConverterUInt8.read(from: &buf), 
                 hemisphere: FfiConverterTypeUtmHemisphere.read(from: &buf), 
-                easting: FfiConverterDouble.read(from: &buf), 
-                northing: FfiConverterDouble.read(from: &buf)
+                eastingM: FfiConverterDouble.read(from: &buf), 
+                northingM: FfiConverterDouble.read(from: &buf)
         )
     }
 
     public static func write(_ value: Utm, into buf: inout [UInt8]) {
         FfiConverterUInt8.write(value.zone, into: &buf)
         FfiConverterTypeUtmHemisphere.write(value.hemisphere, into: &buf)
-        FfiConverterDouble.write(value.easting, into: &buf)
-        FfiConverterDouble.write(value.northing, into: &buf)
+        FfiConverterDouble.write(value.eastingM, into: &buf)
+        FfiConverterDouble.write(value.northingM, into: &buf)
     }
 }
 
