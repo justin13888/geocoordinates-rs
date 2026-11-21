@@ -134,6 +134,20 @@ pub(crate) fn china_box_grid() -> impl Iterator<Item = (f64, f64)> {
         .flat_map(|i| (145..=275_u32).map(move |j| (f64::from(i) * 0.5, f64::from(j) * 0.5)))
 }
 
+/// How far, in meters, an exact closed-form China transform may land from a
+/// reference value below ([`DATUM_VECTORS`], [`coordtransform`]).
+///
+/// The forward offsets and the single-step fast inverses reproduce every
+/// reference bit for bit (a measured margin of 0 m), so the floor is the
+/// references' own precision: each is the shortest `f64` spelling, whose
+/// resolution at 120° longitude is one ulp, about 1.5e-9 m. This allows a few
+/// ulps for a platform `sin` / `cos` that rounds the last bit differently.
+pub(crate) const REFERENCE_M: f64 = 1e-8;
+
+/// [`REFERENCE_M`] for a single latitude or longitude component, in degrees:
+/// 1e-13° is at most about 1.1e-8 m, seven ulps of a 120° longitude.
+pub(crate) const REFERENCE_DEG: f64 = 1e-13;
+
 /// Full-precision reference points (same physical location across datums).
 ///
 /// - The first three are eviltransform's `TESTS` (WGS-84 → GCJ-02 pairs).

@@ -161,7 +161,7 @@ mod tests {
     use crate::china::REFINED_BOUND_M;
     use crate::coord::Height;
     use crate::geodesy::haversine_distance;
-    use crate::test_support::assert_close;
+    use crate::test_support::{REFERENCE_DEG, assert_close};
 
     // Reference triple from `test_support` (a single WGS-84 point and its exact
     // GCJ-02 / BD-09 images): (lat, lon).
@@ -191,7 +191,8 @@ mod tests {
         let g = Wgs84::new(WGS.0, WGS.1).unwrap().to_gcj02();
         assert_close(r.value().lat(), g.lat(), 1e-12);
         assert_close(r.value().lon(), g.lon(), 1e-12);
-        assert_close(r.value().lat(), GCJ.0, 1e-9);
+        assert_close(r.value().lat(), GCJ.0, REFERENCE_DEG);
+        assert_close(r.value().lon(), GCJ.1, REFERENCE_DEG);
     }
 
     #[test]
@@ -226,7 +227,8 @@ mod tests {
         let b = Gcj02::new(GCJ.0, GCJ.1).unwrap().try_to_bd09().unwrap();
         assert_close(r.value().lat(), b.lat(), 1e-12);
         assert_close(r.value().lon(), b.lon(), 1e-12);
-        assert_close(r.value().lat(), BD.0, 1e-9);
+        assert_close(r.value().lat(), BD.0, REFERENCE_DEG);
+        assert_close(r.value().lon(), BD.1, REFERENCE_DEG);
     }
 
     /// #172: BD-09 → GCJ-02 takes the direct refined inverse, so its bound is
@@ -425,6 +427,41 @@ mod tests {
                     .unwrap_or_else(|e| panic!("{from:?} -> {to:?}: {e}"));
                 assert_eq!(r.value().crs(), to);
             }
+        }
+    }
+
+    /// A position mostly inside the China box, sometimes straddling its west
+    /// or north edge (where the GCJ-02 inverse cannot converge), sometimes
+    /// anywhere on the globe.
+    fn position() -> impl proptest::strategy::Strategy<Value = (f64, f64)> {
+        use proptest::prelude::*;
+        prop_oneof![
+            3 => (1.0..=55.0_f64, 73.0..=137.0_f64),
+            1 => (1.0..=55.0_f64, 71.99..=72.02_f64),
+            1 => (55.81..=55.84_f64, 73.0..=137.0_f64),
+            1 => (-89.0..=89.0_f64, -180.0..=180.0_f64),
+        ]
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(512))]
+
+        /// The documented bound is the sum of the legs' estimates, so A → B
+        /// → A lands within the two results' summed `max_error` of where it
+        /// started, for every pair of modeled systems.
+        #[test]
+        fn crs_round_trip_lands_within_the_summed_bound(
+            (lat, lon) in position(),
+            from in proptest::sample::select(&ALL[..]),
+            to in proptest::sample::select(&ALL[..]),
+        ) {
+            let start = Coordinate::new(lat, lon, from).unwrap();
+            let there = start.try_to_crs(to).unwrap();
+            let back = there.value().try_to_crs(from).unwrap();
+            proptest::prop_assert_eq!(back.value().crs(), from);
+            let bound = there.max_error().meters() + back.max_error().meters();
+            let gap = haversine_distance(*back.value(), start).unwrap().meters();
+            proptest::prop_assert!(gap <= bound, "{from:?} -> {to:?} -> {from:?}: {gap} m > {bound} m");
         }
     }
 

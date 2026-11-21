@@ -252,6 +252,20 @@ proptest! {
         agrees(record, Accuracy::new(kind, horizontal, vertical))?;
     }
 
+    /// The bound crosses the sign, both zeros and the smallest magnitudes;
+    /// `null` is the unbounded `+∞` (JSON writes infinity as `null`).
+    #[test]
+    fn approx(
+        value in any::<u8>(),
+        max_error in proptest::option::of(
+            around(-10.0, 100.0, &[0.0, -0.0, -1e-9, -5e-324, 5e-324, 1.7e308, -1.7e308]),
+        ),
+    ) {
+        let record = json!({"value": value, "max_error_m": max_error});
+        let bound = Length::from_meters(max_error.unwrap_or(f64::INFINITY));
+        agrees(record, crate::Approx::new(value, bound))?;
+    }
+
     #[test]
     fn confidence(value in around(-1.0, 2.0, &[0.0, -0.0, 1.0, 1.000_000_1, -1e-9])) {
         agrees(json!(value), Confidence::new(value))?;

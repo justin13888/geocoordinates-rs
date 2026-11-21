@@ -338,3 +338,87 @@ fn frame_from_impls_equal_named_methods() {
     assert_eq!(Aer::from(n), n.to_aer());
     assert_eq!(Ned::from(a), a.to_ned());
 }
+
+/// Any latitude, the poles and the equator drawn on their own.
+fn latitude() -> impl proptest::strategy::Strategy<Value = f64> {
+    use proptest::prelude::*;
+    prop_oneof![-90.0..=90.0_f64, Just(90.0), Just(-90.0), Just(0.0)]
+}
+
+/// Any longitude, both sides of the antimeridian drawn on their own.
+fn longitude() -> impl proptest::strategy::Strategy<Value = f64> {
+    use proptest::prelude::*;
+    prop_oneof![
+        -180.0..=180.0_f64,
+        Just(180.0),
+        Just(-180.0),
+        Just(179.999_999),
+        Just(-179.999_999),
+        Just(0.0),
+    ]
+}
+
+/// An origin anywhere, and a target either near it (within about 50 km, so
+/// it crosses a pole or the antimeridian when the origin is on one) or
+/// anywhere else on the globe, both on one classic datum.
+fn origin_and_target() -> impl proptest::strategy::Strategy<Value = (Coordinate, Coordinate)> {
+    use proptest::prelude::*;
+    let crs = proptest::sample::select(&[Crs::Wgs84, Crs::Nad27, Crs::Tokyo, Crs::Pulkovo42][..]);
+    let height = || -500.0..=9_000.0_f64;
+    (latitude(), longitude(), height(), crs).prop_flat_map(move |(lat, lon, h, crs)| {
+        let near = (-0.5..=0.5_f64, -0.5..=0.5_f64).prop_map(move |(d_lat, d_lon)| {
+            (
+                (lat + d_lat).clamp(-90.0, 90.0),
+                crate::angle::wrap_longitude(lon + d_lon),
+            )
+        });
+        let target = prop_oneof![near.boxed(), (latitude(), longitude()).boxed()];
+        (target, height()).prop_map(move |((t_lat, t_lon), t_h)| {
+            let at = |lat, lon, h| {
+                Coordinate::new(lat, lon, crs)
+                    .unwrap()
+                    .with_height(Height::Ellipsoidal(h))
+                    .unwrap()
+            };
+            (at(lat, lon, h), at(t_lat, t_lon, t_h))
+        })
+    })
+}
+
+/// Meters between two positions, measured as the chord between their ECEF
+/// points, so a pole's free longitude and the antimeridian's two spellings
+/// read as the one place they are.
+fn ecef_gap_m(a: Coordinate, b: Coordinate) -> f64 {
+    let a = Ecef::try_from_coordinate(a).unwrap();
+    let b = Ecef::try_from_coordinate(b).unwrap();
+    (a.x_m() - b.x_m())
+        .hypot(a.y_m() - b.y_m())
+        .hypot(a.z_m() - b.z_m())
+}
+
+proptest::proptest! {
+    #![proptest_config(proptest::prelude::ProptestConfig::with_cases(1024))]
+
+    /// The module calls the frames exact to round-off: from any origin, the
+    /// poles and the antimeridian included, a target taken into ENU, NED or
+    /// AER and back lands within 0.1 µm of itself, on the origin's
+    /// datum and with an ellipsoidal height.
+    #[test]
+    fn enu_round_trip_is_exact_for_any_origin_incl_poles_and_antimeridian(
+        (origin, target) in origin_and_target(),
+    ) {
+        let enu = Enu::try_from_coordinate(target, origin).unwrap();
+        let ned = Ned::try_from_coordinate(target, origin).unwrap();
+        let aer = Aer::try_from_coordinate(target, origin).unwrap();
+        for back in [
+            enu.try_to_coordinate(origin).unwrap(),
+            ned.try_to_coordinate(origin).unwrap(),
+            aer.try_to_coordinate(origin).unwrap(),
+        ] {
+            proptest::prop_assert_eq!(back.crs(), target.crs());
+            proptest::prop_assert!(matches!(back.height(), Some(Height::Ellipsoidal(_))));
+            let gap = ecef_gap_m(back, target);
+            proptest::prop_assert!(gap <= 1e-7, "{} m off {:?} from {:?}", gap, target, origin);
+        }
+    }
+}
