@@ -1,9 +1,10 @@
-"""Fixture tests for the gate tasks defined inline in `.mise.toml`.
+"""Fixture tests for the gate tasks defined in `.mise.toml`.
 
 Each test reads a task's `run` script straight from `.mise.toml`, fills in its
-`{{ vars.* }}` references from the same file's `[vars]` table, and runs it with
-bash inside a throwaway git repository holding only the fixture files, so the
-script under test is the one the gate runs. Run through `mise run scripts-test`.
+`{{ vars.* }}` references from the same file's `[vars]` table (and
+`{{ config_root }}` with this checkout, for a task that calls a script under
+`scripts/`), and runs it with bash inside a throwaway git repository holding
+only the fixture files, so the script under test is the one the gate runs. Run through `mise run scripts-test`.
 """
 
 import os
@@ -21,11 +22,14 @@ MISSING_REF = "refs/heads/no-such-base"
 
 
 def task_script(name):
-    """The task's `run` script with its `{{ vars.NAME }}` references filled in."""
+    """The task's `run` script with its `{{ vars.NAME }}` and `{{ config_root }}`
+    references filled in, the latter with this checkout's root, so a task that
+    calls a script under `scripts/` runs this checkout's copy of it."""
     script = CONFIG["tasks"][name]["run"]
     script = re.sub(
         r"\{\{\s*vars\.(\w+)\s*\}\}", lambda m: CONFIG["vars"][m.group(1)], script
     )
+    script = re.sub(r"\{\{\s*config_root\s*\}\}", lambda _: str(ROOT), script)
     if "{{" in script:
         raise AssertionError(f"{name}: unrendered template left in its script")
     return script
