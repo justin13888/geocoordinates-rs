@@ -70,23 +70,15 @@ use crate::angle::wrap_longitude;
 use crate::approx::Approx;
 use crate::coord::Coordinate;
 #[cfg(feature = "h3")]
-use crate::dgg::H3Cell;
+use crate::dgg::{H3_MAX_RESOLUTION, H3Cell};
 #[cfg(feature = "s2")]
-use crate::dgg::S2CellId;
+use crate::dgg::{S2_MAX_LEVEL, S2CellId};
 use crate::error::{Error, Result};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, Fix, RawSource};
 // The longest geohash `coarsen` snaps to is the longest `Geohash::encode`
 // accepts, so the two share one constant and cannot drift apart.
 use crate::grids::{GEOHASH_MAX_LENGTH, Geohash};
 use crate::units::Length;
-
-/// The finest H3 resolution.
-#[cfg(feature = "h3")]
-const H3_MAX_RESOLUTION: u8 = 15;
-
-/// The finest S2 level.
-#[cfg(feature = "s2")]
-const S2_MAX_LEVEL: u8 = 30;
 
 /// Meters per degree of latitude along a WGS-84 meridian at the equator,
 /// rounded down: `a (1 - e²) π / 180` is 110 574.27 m. The meridian's radius of
@@ -449,7 +441,7 @@ pub fn coarsen(coord: Coordinate, precision: Precision) -> Result<Fix> {
 /// [`Bound`](AccuracyKind::Bound) when the fix carried a bound or no horizontal
 /// magnitude, and is [`Unspecified`](AccuracyKind::Unspecified) when the fix's
 /// magnitude was a statistical one, which a hard offset does not preserve.
-pub(crate) fn coarsen_fix(fix: Fix, precision: Precision) -> Result<Fix> {
+fn coarsen_fix(fix: Fix, precision: Precision) -> Result<Fix> {
     let mut coarse = coarsen(fix.coord, precision)?;
     coarse.timestamp = fix.timestamp;
     if let Some((kind, own)) = fix

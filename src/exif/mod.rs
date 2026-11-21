@@ -96,7 +96,7 @@ impl ExifRational {
     }
 
     /// The value as `f64`, rejecting a zero denominator or a negative value.
-    pub(crate) fn value(self, field: &'static str) -> Result<f64> {
+    fn value(self, field: &'static str) -> Result<f64> {
         let (numerator, denominator) = match self {
             Self::Unsigned(n, d) => (f64::from(n), f64::from(d)),
             Self::Signed(n, d) => (f64::from(n), f64::from(d)),
@@ -584,7 +584,7 @@ impl CaptureGeo {
 }
 
 /// A [`ParseErrorKind::NoFix`] error.
-pub(crate) fn no_fix(detail: &str) -> Error {
+fn no_fix(detail: &str) -> Error {
     Error::Parse {
         kind: ParseErrorKind::NoFix,
         detail: detail.to_string(),

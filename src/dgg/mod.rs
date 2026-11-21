@@ -11,6 +11,14 @@ use crate::error::{Error, Result};
 use crate::geodesy::farthest_geodesic_m;
 use crate::grids::require_wgs84;
 
+/// The finest H3 resolution.
+#[cfg(feature = "h3")]
+pub(crate) const H3_MAX_RESOLUTION: u8 = 15;
+
+/// The finest S2 level: a leaf cell.
+#[cfg(feature = "s2")]
+pub(crate) const S2_MAX_LEVEL: u8 = 30;
+
 /// An H3 cell index at a given resolution (0–15), valid by construction.
 ///
 /// The index is private: build one with [`encode`](Self::encode), or from a
@@ -117,11 +125,13 @@ impl H3Cell {
         require_wgs84(coord)?;
         let res = Resolution::try_from(resolution).map_err(|_| Error::InvalidValue {
             field: "resolution",
-            detail: "must be in 0..=15".into(),
+            detail: format!("must be in 0..={H3_MAX_RESOLUTION}"),
         })?;
+        // Unreachable for a valid `Coordinate`, which is finite and in range; kept
+        // so a future `h3o` rejection surfaces as an error, not a panic.
         let cell = LatLng::new(coord.lat(), coord.lon())
             .map_err(|error| Error::InvalidValue {
-                field: "coordinate",
+                field: "coord",
                 detail: error.to_string(),
             })?
             .to_cell(res);
@@ -291,10 +301,10 @@ impl S2CellId {
         use s2::latlng::LatLng;
 
         require_wgs84(coord)?;
-        if level > 30 {
+        if level > S2_MAX_LEVEL {
             return Err(Error::InvalidValue {
                 field: "level",
-                detail: "must be in 0..=30".into(),
+                detail: format!("must be in 0..={S2_MAX_LEVEL}"),
             });
         }
         let leaf = CellID::from(LatLng::from_degrees(coord.lat(), coord.lon()));
