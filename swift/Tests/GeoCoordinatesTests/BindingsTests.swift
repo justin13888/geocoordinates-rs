@@ -89,7 +89,7 @@ final class ConversionTests: XCTestCase {
         let utm = try utmFromCoordinate(coord: wgs84(40.0, -75.0))
         XCTAssertEqual(utm.zone, 18)
         XCTAssertEqual(utm.hemisphere, .north)
-        XCTAssertEqual(utm.northing, 4_427_757.2188, accuracy: 1e-3)
+        XCTAssertEqual(utm.northingM, 4_427_757.2188, accuracy: 1e-3)
 
         let cell = try h3Decode(cell: h3Encode(coord: wgs84(40.7128, -74.006), resolution: 9))
         XCTAssertEqual(cell.maxErrorM, 205.872_541, accuracy: 1e-5)
@@ -187,7 +187,7 @@ final class TypedErrorTests: XCTestCase {
         }) else { return XCTFail("expected InvalidValue") }
         XCTAssertEqual(field, "zone")
         guard case let .InvalidValue(capField, _)? = geoError({
-            try upsValidate(ups: Ups(hemisphere: .north, easting: 0.0, northing: 0.0))
+            try upsValidate(ups: Ups(hemisphere: .north, eastingM: 0.0, northingM: 0.0))
         }) else { return XCTFail("expected InvalidValue from upsValidate") }
         XCTAssertEqual(capField, "northing")
     }

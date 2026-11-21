@@ -61,17 +61,17 @@ fn datum_records_validate_like_their_core_constructors() {
 
 #[test]
 fn baidu_mercator_records_must_be_finite() {
-    assert!(baidu_mercator_validate(BaiduMercator { x: 1.0, y: 2.0 }).is_ok());
+    assert!(baidu_mercator_validate(BaiduMercator { x_m: 1.0, y_m: 2.0 }).is_ok());
     match baidu_mercator_validate(BaiduMercator {
-        x: 0.0,
-        y: f64::INFINITY,
+        x_m: 0.0,
+        y_m: f64::INFINITY,
     }) {
         Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "y"),
         other => panic!("expected InvalidValue, got {other:?}"),
     }
     match baidu_mercator_to_bd09(BaiduMercator {
-        x: 0.0,
-        y: 13_000_000.0,
+        x_m: 0.0,
+        y_m: 13_000_000.0,
     }) {
         Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "y"),
         other => panic!("expected InvalidValue, got {other:?}"),
@@ -262,8 +262,8 @@ fn datum_conversions_reject_an_out_of_range_record() {
         Err(GeoError::OutOfRange { .. })
     ));
     let bad_mercator = BaiduMercator {
-        x: f64::NAN,
-        y: 0.0,
+        x_m: f64::NAN,
+        y_m: 0.0,
     };
     assert!(matches!(
         baidu_mercator_to_coordinate(bad_mercator),

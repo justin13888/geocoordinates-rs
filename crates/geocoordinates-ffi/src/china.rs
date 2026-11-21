@@ -41,9 +41,9 @@ pub struct Bd09 {
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct BaiduMercator {
     /// Easting (longitude axis), in meters.
-    pub x: f64,
+    pub x_m: f64,
     /// Northing (latitude axis), in meters.
-    pub y: f64,
+    pub y_m: f64,
 }
 
 /// An **approximate** WGS-84 position — the FFI-flattened form of
@@ -101,8 +101,8 @@ datum_mirror!(Wgs84, Gcj02, Bd09);
 impl From<gc::china::BaiduMercator> for BaiduMercator {
     fn from(m: gc::china::BaiduMercator) -> Self {
         BaiduMercator {
-            x: m.x_m(),
-            y: m.y_m(),
+            x_m: m.x_m(),
+            y_m: m.y_m(),
         }
     }
 }
@@ -111,7 +111,7 @@ impl TryFrom<BaiduMercator> for gc::china::BaiduMercator {
     type Error = GeoError;
 
     fn try_from(m: BaiduMercator) -> Result<Self, GeoError> {
-        gc::china::BaiduMercator::new(m.x, m.y).map_err(GeoError::from)
+        gc::china::BaiduMercator::new(m.x_m, m.y_m).map_err(GeoError::from)
     }
 }
 

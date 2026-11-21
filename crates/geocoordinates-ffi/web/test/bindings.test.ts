@@ -171,8 +171,8 @@ describe("grids and geodesics", () => {
   it("projects to UTM", () => {
     const utm = utmFromCoordinate(coordinateNew(40.0, -75.0, Crs.Wgs84));
     assert.equal(utm.zone, 18);
-    near(utm.easting, 500_000.0, 1e-3, "easting");
-    near(utm.northing, 4_427_757.2188, 1e-3, "northing");
+    near(utm.eastingM, 500_000.0, 1e-3, "easting");
+    near(utm.northingM, 4_427_757.2188, 1e-3, "northing");
   });
 
   it("measures Karney geodesics on WGS-84", () => {
@@ -280,14 +280,14 @@ describe("typed GeoError variants", () => {
     // Only the forward image decodes: zone 1 west of the antimeridian is
     // zone 60's longitude.
     const west = thrown(() =>
-      utmToCoordinate({ zone: 1, hemisphere: UtmHemisphere.North, easting: 150_000.0, northing: 0.0 }),
+      utmToCoordinate({ zone: 1, hemisphere: UtmHemisphere.North, eastingM: 150_000.0, northingM: 0.0 }),
     );
     assert.ok(GeoError.InvalidValue.instanceOf(west), String(west));
     assert.equal(west.inner.field, "easting");
     // `utmValidate` applies the same rules without decoding.
     utmValidate(utmFromCoordinate(coordinateNew(40.0, -75.0, Crs.Wgs84)));
     const westRecord = thrown(() =>
-      utmValidate({ zone: 1, hemisphere: UtmHemisphere.North, easting: 150_000.0, northing: 0.0 }),
+      utmValidate({ zone: 1, hemisphere: UtmHemisphere.North, eastingM: 150_000.0, northingM: 0.0 }),
     );
     assert.ok(GeoError.InvalidValue.instanceOf(westRecord), String(westRecord));
     assert.equal(westRecord.inner.field, "easting");

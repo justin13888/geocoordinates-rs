@@ -169,9 +169,9 @@ pub struct Utm {
     /// Hemisphere band.
     pub hemisphere: UtmHemisphere,
     /// Easting in meters (false-easting applied).
-    pub easting: f64,
+    pub easting_m: f64,
     /// Northing in meters.
-    pub northing: f64,
+    pub northing_m: f64,
 }
 
 /// A UPS (polar) coordinate — mirror of [`gc::Ups`](gc::grids::Ups).
@@ -185,9 +185,9 @@ pub struct Ups {
     /// North or south polar zone.
     pub hemisphere: UtmHemisphere,
     /// Easting in meters.
-    pub easting: f64,
+    pub easting_m: f64,
     /// Northing in meters.
-    pub northing: f64,
+    pub northing_m: f64,
 }
 
 impl From<gc::grids::Utm> for Utm {
@@ -195,8 +195,8 @@ impl From<gc::grids::Utm> for Utm {
         Utm {
             zone: u.zone(),
             hemisphere: u.hemisphere().into(),
-            easting: u.easting_m(),
-            northing: u.northing_m(),
+            easting_m: u.easting_m(),
+            northing_m: u.northing_m(),
         }
     }
 }
@@ -204,7 +204,7 @@ impl TryFrom<Utm> for gc::grids::Utm {
     type Error = GeoError;
 
     fn try_from(u: Utm) -> Result<Self, GeoError> {
-        gc::grids::Utm::new(u.zone, u.hemisphere.into(), u.easting, u.northing)
+        gc::grids::Utm::new(u.zone, u.hemisphere.into(), u.easting_m, u.northing_m)
             .map_err(GeoError::from)
     }
 }
@@ -212,8 +212,8 @@ impl From<gc::grids::Ups> for Ups {
     fn from(u: gc::grids::Ups) -> Self {
         Ups {
             hemisphere: u.hemisphere().into(),
-            easting: u.easting_m(),
-            northing: u.northing_m(),
+            easting_m: u.easting_m(),
+            northing_m: u.northing_m(),
         }
     }
 }
@@ -221,7 +221,7 @@ impl TryFrom<Ups> for gc::grids::Ups {
     type Error = GeoError;
 
     fn try_from(u: Ups) -> Result<Self, GeoError> {
-        gc::grids::Ups::new(u.hemisphere.into(), u.easting, u.northing).map_err(GeoError::from)
+        gc::grids::Ups::new(u.hemisphere.into(), u.easting_m, u.northing_m).map_err(GeoError::from)
     }
 }
 

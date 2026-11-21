@@ -66,11 +66,11 @@ pub struct Ellipsoid {
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ecef {
     /// X axis (meters), through the prime meridian at the equator.
-    pub x: f64,
+    pub x_m: f64,
     /// Y axis (meters), 90° east at the equator.
-    pub y: f64,
+    pub y_m: f64,
     /// Z axis (meters), through the north pole.
-    pub z: f64,
+    pub z_m: f64,
 }
 
 /// East-North-Up offset (meters) — mirror of [`gc::Enu`](gc::geodesy::Enu).
@@ -81,11 +81,11 @@ pub struct Ecef {
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Enu {
     /// East offset (meters).
-    pub east: f64,
+    pub east_m: f64,
     /// North offset (meters).
-    pub north: f64,
+    pub north_m: f64,
     /// Up offset (meters).
-    pub up: f64,
+    pub up_m: f64,
 }
 
 /// North-East-Down offset (meters) — mirror of [`gc::Ned`](gc::geodesy::Ned).
@@ -95,11 +95,11 @@ pub struct Enu {
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Ned {
     /// North offset (meters).
-    pub north: f64,
+    pub north_m: f64,
     /// East offset (meters).
-    pub east: f64,
+    pub east_m: f64,
     /// Down offset (meters).
-    pub down: f64,
+    pub down_m: f64,
 }
 
 /// Azimuth-Elevation-Range — mirror of [`gc::Aer`](gc::geodesy::Aer), with the
@@ -159,9 +159,9 @@ impl TryFrom<Ellipsoid> for gc::geodesy::Ellipsoid {
 impl From<gc::geodesy::Ecef> for Ecef {
     fn from(c: gc::geodesy::Ecef) -> Self {
         Ecef {
-            x: c.x_m(),
-            y: c.y_m(),
-            z: c.z_m(),
+            x_m: c.x_m(),
+            y_m: c.y_m(),
+            z_m: c.z_m(),
         }
     }
 }
@@ -169,15 +169,15 @@ impl TryFrom<Ecef> for gc::geodesy::Ecef {
     type Error = GeoError;
 
     fn try_from(c: Ecef) -> Result<Self, GeoError> {
-        gc::geodesy::Ecef::new(c.x, c.y, c.z).map_err(GeoError::from)
+        gc::geodesy::Ecef::new(c.x_m, c.y_m, c.z_m).map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Enu> for Enu {
     fn from(e: gc::geodesy::Enu) -> Self {
         Enu {
-            east: e.east_m(),
-            north: e.north_m(),
-            up: e.up_m(),
+            east_m: e.east_m(),
+            north_m: e.north_m(),
+            up_m: e.up_m(),
         }
     }
 }
@@ -185,15 +185,15 @@ impl TryFrom<Enu> for gc::geodesy::Enu {
     type Error = GeoError;
 
     fn try_from(e: Enu) -> Result<Self, GeoError> {
-        gc::geodesy::Enu::new(e.east, e.north, e.up).map_err(GeoError::from)
+        gc::geodesy::Enu::new(e.east_m, e.north_m, e.up_m).map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Ned> for Ned {
     fn from(n: gc::geodesy::Ned) -> Self {
         Ned {
-            north: n.north_m(),
-            east: n.east_m(),
-            down: n.down_m(),
+            north_m: n.north_m(),
+            east_m: n.east_m(),
+            down_m: n.down_m(),
         }
     }
 }
@@ -201,7 +201,7 @@ impl TryFrom<Ned> for gc::geodesy::Ned {
     type Error = GeoError;
 
     fn try_from(n: Ned) -> Result<Self, GeoError> {
-        gc::geodesy::Ned::new(n.north, n.east, n.down).map_err(GeoError::from)
+        gc::geodesy::Ned::new(n.north_m, n.east_m, n.down_m).map_err(GeoError::from)
     }
 }
 impl From<gc::geodesy::Aer> for Aer {

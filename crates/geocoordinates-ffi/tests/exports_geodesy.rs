@@ -143,9 +143,9 @@ fn ellipsoid_derived_quantities_match_published_wgs84_values() {
 fn ecef_round_trips_through_the_coordinate() {
     let origin = wgs84(40.0, -75.0);
     let ecef = ecef_from_coordinate(origin).unwrap();
-    close(ecef.x, 1_266_325.909_016_660_2, 1e-6);
-    close(ecef.y, -4_725_992.631_391_02, 1e-6);
-    close(ecef.z, 4_077_985.572_200_376, 1e-6);
+    close(ecef.x_m, 1_266_325.909_016_660_2, 1e-6);
+    close(ecef.y_m, -4_725_992.631_391_02, 1e-6);
+    close(ecef.z_m, 4_077_985.572_200_376, 1e-6);
     let back = ecef_to_coordinate(ecef, Crs::Wgs84).unwrap();
     close(back.lat, 40.0, 1e-12);
     close(back.lon, -75.0, 1e-12);
@@ -159,10 +159,10 @@ fn ecef_round_trips_through_the_coordinate() {
 #[test]
 fn ecef_from_coordinate_uses_the_ellipsoid_of_the_crs() {
     let ecef = ecef_from_coordinate(wgs84(0.0, 0.0)).unwrap();
-    assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_137.0, 0.0, 0.0));
+    assert_eq!((ecef.x_m, ecef.y_m, ecef.z_m), (6_378_137.0, 0.0, 0.0));
     let nad27 = coordinate_new(0.0, 0.0, Crs::Nad27).unwrap();
     let ecef = ecef_from_coordinate(nad27).unwrap();
-    assert_eq!((ecef.x, ecef.y, ecef.z), (6_378_206.4, 0.0, 0.0));
+    assert_eq!((ecef.x_m, ecef.y_m, ecef.z_m), (6_378_206.4, 0.0, 0.0));
     let back = ecef_to_coordinate(ecef, Crs::Nad27).unwrap();
     assert_eq!((back.lat, back.lon, back.crs), (0.0, 0.0, Crs::Nad27));
     // A GCJ-02 coordinate is on the wrong datum; BD-09 named as the target
@@ -185,7 +185,7 @@ fn ecef_from_coordinate_uses_the_ellipsoid_of_the_crs() {
 /// `ecef_validate` and by every export that takes one, naming the component.
 #[test]
 fn ecef_validate_rejects_each_non_finite_component() {
-    let at = |x, y, z| Ecef { x, y, z };
+    let at = |x_m, y_m, z_m| Ecef { x_m, y_m, z_m };
     assert_eq!(ecef_validate(at(6_378_137.0, 0.0, 0.0)), Ok(()));
     for (bad, field) in [
         (at(f64::NAN, 0.0, 0.0), "x_m"),

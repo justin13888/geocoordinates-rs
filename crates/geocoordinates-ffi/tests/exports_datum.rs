@@ -42,18 +42,18 @@ fn helmert_identity_inverse_and_apply() {
     let moved = helmert_apply_ecef(
         shift,
         Ecef {
-            x: 10.0,
-            y: 20.0,
-            z: 30.0,
+            x_m: 10.0,
+            y_m: 20.0,
+            z_m: 30.0,
         },
     )
     .unwrap();
     assert_eq!(
         moved,
         Ecef {
-            x: 11.0,
-            y: 22.0,
-            z: 33.0,
+            x_m: 11.0,
+            y_m: 22.0,
+            z_m: 33.0,
         }
     );
     let inverse = helmert_inverse_first_order(shift);
@@ -64,14 +64,21 @@ fn helmert_identity_inverse_and_apply() {
     assert_eq!(
         helmert_apply_ecef(inverse, moved),
         Ok(Ecef {
-            x: 10.0,
-            y: 20.0,
-            z: 30.0,
+            x_m: 10.0,
+            y_m: 20.0,
+            z_m: 30.0,
         })
     );
     // A non-finite record, a non-finite parameter, and an overflowing result
     // are each an error naming what failed.
-    let field_of = |h: Helmert, x: f64, y: f64| match helmert_apply_ecef(h, Ecef { x, y, z: 0.0 }) {
+    let field_of = |h: Helmert, x: f64, y: f64| match helmert_apply_ecef(
+        h,
+        Ecef {
+            x_m: x,
+            y_m: y,
+            z_m: 0.0,
+        },
+    ) {
         Err(GeoError::InvalidValue { field, .. }) => field,
         other => panic!("expected InvalidValue, got {other:?}"),
     };
