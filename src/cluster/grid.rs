@@ -20,11 +20,63 @@ use crate::grids::Geohash;
 /// assert_eq!(buckets[0].cluster().count(), 1);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
+///
+/// Under `serde` it deserializes only a `key` in the canonical form a bucketing
+/// function writes: a lowercase geohash, or, with the `h3` feature, a valid H3 cell
+/// in lowercase hexadecimal. Without `h3` an H3 key cannot be checked, so it is
+/// rejected rather than accepted unverified.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "GridBucketRepr"))]
 pub struct GridBucket {
     key: String,
     cluster: Cluster,
+}
+
+/// The unchecked wire shape of a [`GridBucket`], validated on its way in.
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct GridBucketRepr {
+    key: String,
+    cluster: Cluster,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<GridBucketRepr> for GridBucket {
+    type Error = crate::error::Error;
+
+    fn try_from(repr: GridBucketRepr) -> Result<Self> {
+        if !is_cell_key(&repr.key) {
+            return Err(crate::error::Error::InvalidValue {
+                field: "key",
+                detail: format!(
+                    "{:?} is neither a lowercase geohash nor a lowercase-hex H3 cell",
+                    repr.key
+                ),
+            });
+        }
+        Ok(Self {
+            key: repr.key,
+            cluster: repr.cluster,
+        })
+    }
+}
+
+/// Whether `key` is a cell key exactly as [`bucket_by_geohash`] or `bucket_by_h3`
+/// writes it: a geohash, or a valid H3 cell in canonical lowercase hexadecimal.
+///
+/// The H3 arm is inline rather than a function stubbed out per feature, so the
+/// all-features mutation run never mutates a body it does not compile.
+#[cfg(feature = "serde")]
+fn is_cell_key(key: &str) -> bool {
+    let geohash = Geohash::parse(key).is_ok_and(|hash| hash.as_str() == key);
+    #[cfg(feature = "h3")]
+    let h3 = u64::from_str_radix(key, 16)
+        .is_ok_and(|index| crate::dgg::H3Cell::new(index).is_ok() && format!("{index:x}") == key);
+    // Without the `h3` feature no H3 key can be checked, so none is accepted.
+    #[cfg(not(feature = "h3"))]
+    let h3 = false;
+    geohash || h3
 }
 
 impl GridBucket {

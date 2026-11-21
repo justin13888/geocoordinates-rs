@@ -481,3 +481,49 @@ fn serde_round_trips_and_rejects_invalid_values() {
         bucket
     );
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn grid_bucket_deserialize_rejects_a_key_that_is_not_a_cell() {
+    use geocoordinates::cluster::GridBucket;
+
+    let bucket = bucket_by_geohash(&[wgs(57.64911, 10.40744)], 5).unwrap();
+    let json = serde_json::to_value(&bucket[0]).unwrap();
+    assert_eq!(json["key"], "u4pru");
+    let with_key = |key: &str| {
+        let mut value = json.clone();
+        value["key"] = serde_json::json!(key);
+        serde_json::from_value::<GridBucket>(value)
+    };
+    assert_eq!(with_key("u4pru").unwrap(), bucket[0]);
+    // Not base-32, not canonical (upper case, padded), empty, or overlong hex.
+    for key in [
+        "u4pra",
+        "U4PRU",
+        " u4pru",
+        "",
+        "not a cell",
+        "+892a1072893ffff",
+    ] {
+        let message = with_key(key).unwrap_err().to_string();
+        assert!(message.contains("key"), "{key:?}: {message}");
+    }
+    // A hex string that is no H3 cell.
+    assert!(with_key("ffffffffffffffff").is_err());
+
+    #[cfg(feature = "h3")]
+    {
+        let nyc = wgs(40.7128, -74.006);
+        let h3 = geocoordinates::cluster::bucket_by_h3(&[nyc], 9).unwrap();
+        let h3_json = serde_json::to_value(&h3[0]).unwrap();
+        assert_eq!(
+            serde_json::from_value::<GridBucket>(h3_json).unwrap(),
+            h3[0]
+        );
+        assert!(with_key("892a1072893ffff").is_ok());
+        assert!(with_key("892A1072893FFFF").is_err());
+        assert!(with_key("0892a1072893ffff").is_err());
+    }
+    #[cfg(not(feature = "h3"))]
+    assert!(with_key("892a1072893ffff").is_err());
+}
