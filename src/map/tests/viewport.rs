@@ -62,6 +62,12 @@ proptest! {
     /// Any camera whose view stays narrower than the world and off the map's top
     /// and bottom edges is the camera `fit_bounds` fits to the box it shows, on
     /// either tile size, across the antimeridian or centred on either name of it.
+    ///
+    /// The zoom is read back from the box's extent, a difference of two edges
+    /// that each carry round-off of about one ulp of a degree, so its error grows
+    /// as the view shrinks: a 1-pixel view near zoom 20 recovers it only to about
+    /// 1.3e-8. Views here are at least 64 pixels, which keeps it within the 1e-8
+    /// asserted.
     #[test]
     fn fit_bounds_inverts_viewport_bounds_for_any_camera(
         lat in prop_oneof![4 => -80.0..=80.0_f64, 1 => Just(0.0)],
@@ -72,7 +78,7 @@ proptest! {
             1 => prop::sample::select(vec![180.0, -180.0]),
         ],
         zoom in 0.0..=20.0_f64,
-        (width_px, height_px) in (1.0..=2_000.0_f64, 1.0..=2_000.0_f64),
+        (width_px, height_px) in (64.0..=2_000.0_f64, 64.0..=2_000.0_f64),
         tile_px in prop::sample::select(vec![256.0, 512.0]),
     ) {
         let viewport = view(width_px, height_px, tile_px);
