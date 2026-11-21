@@ -192,6 +192,39 @@ const BARE_F64_EXCEPTIONS: &[&str] = &[
     "ellipsoid_eccentricity_sq",
 ];
 
+/// The only exports suffixed `_meters`; every other length is `_m`.
+const METERS_SUFFIXED: &[&str] = &["height_meters", "mgrs_precision_meters"];
+
+/// The unit suffixes an `f64` parameter may end in.
+const PARAM_UNITS: &[&str] = &["_m", "_deg", "_px"];
+
+/// `export(param)`: the `f64` parameters with no unit suffix, each
+/// dimensionless or with its unit fixed elsewhere (`README.md#naming`). This
+/// list may only shrink.
+const F64_PARAM_EXCEPTIONS: &[&str] = &[
+    // A constructor's parameters take the names of the record fields they fill.
+    "coordinate_new(lat)",
+    "coordinate_new(lon)",
+    "coordinate_from_lon_lat(lat)",
+    "coordinate_from_lon_lat(lon)",
+    // The function names degrees as its input.
+    "dms_from_degrees(value)",
+    "ddm_from_degrees(value)",
+    "normalize_degrees(deg)",
+    // The `Length` converters: the unit argument names the other side.
+    "length_from_unit(value)",
+    "length_to_unit(meters)",
+    // Dimensionless: a confidence in `[0, 1]`, a fraction of a path, and a
+    // fractional zoom level.
+    "confidence_new(value)",
+    "intermediate(fraction)",
+    "world_pixel_from_coordinate(zoom)",
+    "world_pixel_to_coordinate(zoom)",
+    "fit_bounds(max_zoom)",
+    "clusters_in_view(zoom)",
+    "clusters_in_view_geojson(zoom)",
+];
+
 /// Records whose `TryFrom` only validates the records they embed, each of which
 /// has its own `_validate`: they hold no invariant of their own.
 const COMPOSITE_RECORDS: &[&str] = &["Fix", "RawSource", "ZoneAction"];
@@ -209,9 +242,8 @@ fn exports_follow_naming_scheme() {
         .iter()
         .filter(|e| value_type(&e.ret, &aliases) == "f64")
     {
-        let suffixed = ["_m", "_meters", "_deg"]
-            .iter()
-            .any(|s| e.name.ends_with(s));
+        let suffixed = ["_m", "_deg"].iter().any(|s| e.name.ends_with(s))
+            || METERS_SUFFIXED.contains(&e.name.as_str());
         if !suffixed && !BARE_F64_EXCEPTIONS.contains(&e.name.as_str()) {
             wrong.push(format!(
                 "{}: returns a bare f64 with no unit suffix",
@@ -219,10 +251,48 @@ fn exports_follow_naming_scheme() {
             ));
         }
     }
-    for name in BARE_F64_EXCEPTIONS {
+    for name in BARE_F64_EXCEPTIONS.iter().chain(METERS_SUFFIXED) {
         assert!(
             names.contains(name),
-            "`BARE_F64_EXCEPTIONS` names no export: {name}"
+            "`BARE_F64_EXCEPTIONS` / `METERS_SUFFIXED` names no export: {name}"
+        );
+    }
+    // `_meters` is the suffix of exactly the exports in `METERS_SUFFIXED`.
+    for e in &exports {
+        if e.name.ends_with("_meters") && !METERS_SUFFIXED.contains(&e.name.as_str()) {
+            wrong.push(format!(
+                "{}: `_meters` where the scheme uses `_m`",
+                e.label()
+            ));
+        }
+    }
+    // A bare `f64` parameter names its unit too.
+    let mut unsuffixed = BTreeSet::new();
+    for e in &exports {
+        for param in e.params.split(',').filter(|p| !p.trim().is_empty()) {
+            let Some((name, ty)) = param.split_once(':') else {
+                continue;
+            };
+            let name = name.trim();
+            if value_type(ty.trim(), &aliases) != "f64" {
+                continue;
+            }
+            let label = format!("{}({name})", e.label());
+            if name.ends_with("_meters") {
+                wrong.push(format!("{label}: `_meters` where the scheme uses `_m`"));
+            } else if !PARAM_UNITS.iter().any(|s| name.ends_with(s)) {
+                if F64_PARAM_EXCEPTIONS.contains(&label.as_str()) {
+                    unsuffixed.insert(label);
+                } else {
+                    wrong.push(format!("{label}: a bare f64 parameter with no unit suffix"));
+                }
+            }
+        }
+    }
+    for label in F64_PARAM_EXCEPTIONS {
+        assert!(
+            unsuffixed.contains(*label),
+            "`F64_PARAM_EXCEPTIONS` names no unsuffixed f64 parameter: {label}"
         );
     }
 
