@@ -68,6 +68,17 @@ jobs:
       - name: Check every manifest ships the workspace version
         run: mise run version-check
 
+  scripts:
+    name: Gate script tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13
+      - name: Run the fixture tests for the gate scripts and tasks
+        run: mise run scripts-test
+
   file-length:
     name: File length
     runs-on: ubuntu-latest

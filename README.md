@@ -199,6 +199,7 @@ mise run check   # fmt-check + clippy + tests
 | `mise run ffi-check`        | Clippy on the FFI crate (the mirror gates every release)             |
 | `mise run ffi-test`         | Tests for the FFI crate (`mise run test` covers only the core crate) |
 | `mise run version-check`    | Every crate and binding manifest ships the workspace version (`mise run version-sync` fixes npm) |
+| `mise run scripts-test`     | Fixture tests for `scripts/check_public_paths.py` and the `file-length-check`, `coverage-ratchet` and `version-check` tasks |
 | `mise run doc`              | Rustdoc build (CI denies its warnings)                               |
 | `mise run public-api-check` | Every public item has one path besides any prelude entry, no fewer items than the floor in `scripts/check_public_paths.py`, and the surface matches the snapshots in `public-api/` (pinned nightly rustdoc JSON, `cargo-public-api`) |
 | `mise run features`         | Library check with no features and each feature alone (cargo-hack); tests with no features |
