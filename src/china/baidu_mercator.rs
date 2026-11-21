@@ -204,6 +204,9 @@ fn poly(factors: &[f64], x: f64) -> f64 {
 /// whether they lie inside the projection's domain is checked by
 /// [`BaiduMercator::try_to_bd09`].
 ///
+/// Under the `serde` feature it serializes as `{"x_m": …, "y_m": …}`, the
+/// keys naming its getters, and deserializes through [`BaiduMercator::new`].
+///
 /// ```
 /// use geocoordinates::china::BaiduMercator;
 ///
@@ -215,7 +218,9 @@ fn poly(factors: &[f64], x: f64) -> f64 {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "BaiduMercatorRecord"))]
 pub struct BaiduMercator {
+    #[cfg_attr(feature = "serde", serde(rename = "x_m"))]
     x: f64,
+    #[cfg_attr(feature = "serde", serde(rename = "y_m"))]
     y: f64,
 }
 
@@ -224,7 +229,9 @@ pub struct BaiduMercator {
 #[cfg(feature = "serde")]
 #[derive(serde::Deserialize)]
 struct BaiduMercatorRecord {
+    #[serde(rename = "x_m")]
     x: f64,
+    #[serde(rename = "y_m")]
     y: f64,
 }
 

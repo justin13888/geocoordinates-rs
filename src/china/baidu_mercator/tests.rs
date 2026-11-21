@@ -192,8 +192,10 @@ fn northing_limit_is_the_image_of_74_degrees() {
 fn serde_round_trips_through_the_record() {
     let m = merc(REF_XY.0, REF_XY.1);
     let json = serde_json::to_string(&m).unwrap();
-    assert_eq!(json, r#"{"x":12949156.8,"y":4817450.0}"#);
+    assert_eq!(json, r#"{"x_m":12949156.8,"y_m":4817450.0}"#);
     assert_eq!(serde_json::from_str::<BaiduMercator>(&json).unwrap(), m);
+    // The pre-0.15 `x` / `y` keys are not read as an alias.
+    assert!(serde_json::from_str::<BaiduMercator>(r#"{"x":1.0,"y":2.0}"#).is_err());
     // JSON cannot carry a non-finite number, so validation is exercised
     // directly on the record conversion.
     let bad = BaiduMercatorRecord {
