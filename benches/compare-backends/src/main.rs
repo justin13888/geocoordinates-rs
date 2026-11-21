@@ -40,6 +40,17 @@ impl Rng {
     }
 }
 
+// `unit_vector` and `chord_sq_limit` copy `Model::unit_vector` and
+// `Model::chord_sq_limit` in `src/index/spatial.rs`, so every tree here is
+// prefiltered exactly as `SpatialIndex` is. They are copies, not calls, because
+// those are private; a change there must be followed here. Track:
+// - `FLATTENING` and `SEMI_MINOR_M` above: the WGS-84 values the crate's `Model`
+//   reads from `Ellipsoid::for_crs(Crs::Wgs84)`.
+// - `CHORD_SLACK_REL` (`1e-12`) and `CHORD_SLACK_ABS` (`1e-14`): inlined below as
+//   literals.
+// One difference: past a half-angle of pi/2 the crate's limit is infinite, while
+// this one clamps to the antipodal chord (4 plus slack); both then admit every
+// point.
 fn unit_vector((lat, lon): (f64, f64)) -> Vector {
     let (sin_lat, cos_lat) = lat.to_radians().sin_cos();
     let (sin_lon, cos_lon) = lon.to_radians().sin_cos();
