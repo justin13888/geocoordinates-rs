@@ -1,6 +1,7 @@
 //! Guards the FFI surface against drift, by reading the crate's own source:
 //!
-//! - every export is called by a Rust test in this directory, and every
+//! - every export is called by a Rust test in this directory (a method on a
+//!   receiver of its own type, `export_coverage/receiver.rs`), and every
 //!   fallible export by a test that also checks an error;
 //! - every fallible export documents its failures under a non-empty `# Errors`;
 //! - every export follows the naming scheme in `README.md#naming`;
@@ -22,6 +23,12 @@ mod parity;
 
 #[path = "export_coverage/parity_gaps.rs"]
 mod parity_gaps;
+
+#[path = "export_coverage/receiver.rs"]
+mod receiver;
+
+#[path = "export_coverage/self_tests.rs"]
+mod self_tests;
 
 use parity::*;
 use scan::*;
@@ -90,169 +97,6 @@ fn fallible(exports: &[Export]) -> Vec<&Export> {
 }
 
 #[test]
-fn scanner_reads_every_export_form() {
-    let fixture = r##"
-        // #[uniffi::export]
-        // pub fn in_a_comment() {}
-        const S: &str = "#[uniffi::export] pub fn in_a_string() {}";
-        type Fallible<T> = Result<T, GeoError>;
-        pub type AlsoFallible = Fallible<u8>;
-
-        /// Plain.
-        #[uniffi::export]
-        pub fn plain(a: f64) -> f64 { a }
-
-        /// With arguments, a blank line and doc lines after the attribute.
-        #[uniffi::export(name = "renamed")]
-
-        /// # Errors
-        /// Always.
-        #[allow(clippy::needless_pass_by_value)]
-        pub fn with_args(
-            s: String,
-        ) -> Fallible<u8> where u8: Copy {
-            let _ = '{';
-            Err(GeoError::Other { detail: s })
-        }
-
-        /// # Errors
-        #[uniffi::export]
-        pub fn empty_errors() -> AlsoFallible { Ok(0) }
-
-        #[uniffi::export]
-        impl Thing {
-            /// # Errors
-            /// Never in practice.
-            #[uniffi::constructor]
-            pub fn new() -> Result<Arc<Self>, GeoError> { todo!("}") }
-            pub fn len(&self) -> u64 { 0 }
-            fn private(&self) {}
-        }
-
-        #[uniffi::export(with_foreign)]
-        pub trait Foreign: Send + Sync {
-            fn call(&self, x: u8) -> std::result::Result<u8, GeoError>;
-        }
-    "##;
-    let found = exports(fixture);
-    let labels: Vec<String> = found.iter().map(Export::label).collect();
-    assert_eq!(
-        labels,
-        [
-            "plain",
-            "with_args",
-            "empty_errors",
-            "Thing::new",
-            "Thing::len",
-            "Foreign::call"
-        ]
-    );
-    let kinds: Vec<Kind> = found.iter().map(|e| e.kind).collect();
-    use Kind::*;
-    assert_eq!(
-        kinds,
-        [Function, Function, Function, Constructor, Method, Method]
-    );
-    assert_eq!(found[0].ret, "f64");
-    assert_eq!(found[1].params, "s: String,");
-    assert_eq!(found[1].ret, "Fallible<u8>");
-
-    let aliases = result_aliases(&[fixture.to_string()]);
-    assert_eq!(
-        aliases,
-        BTreeSet::from(["AlsoFallible".into(), "Fallible".into()])
-    );
-    let fallible: Vec<String> = found
-        .iter()
-        .filter(|e| is_result(&e.ret, &aliases))
-        .map(Export::label)
-        .collect();
-    assert_eq!(
-        fallible,
-        ["with_args", "empty_errors", "Thing::new", "Foreign::call"]
-    );
-    let documented: Vec<bool> = found.iter().map(|e| documents_errors(&e.doc)).collect();
-    assert_eq!(documented, [false, true, false, true, false, false]);
-}
-
-#[test]
-fn call_scan_ignores_comments_strings_and_definitions() {
-    let export = |name: &str, owner: Option<&str>, kind| Export {
-        name: name.into(),
-        owner: owner.map(Into::into),
-        kind,
-        doc: Vec::new(),
-        params: String::new(),
-        ret: String::new(),
-    };
-    let f = export("geohash_encode", None, Kind::Function);
-    let reads = |text: &str| calls(&strip(text), &f);
-    assert!(!reads("// geohash_encode(c, 5)"));
-    assert!(!reads("/* geohash_encode(c, 5) */"));
-    assert!(!reads(r#"let s = "geohash_encode(c, 5)";"#));
-    assert!(!reads(r##"let s = r#"geohash_encode(c, 5)"#;"##));
-    assert!(!reads("fn geohash_encode(c: Coordinate) {}"));
-    assert!(!reads("my_geohash_encode(c, 5);"));
-    assert!(reads("let _ = geohash_encode(c, 5);"));
-    assert!(reads("let _ = ffi::geohash_encode(c, 5);"));
-
-    let ctor = export("new", Some("Track"), Kind::Constructor);
-    assert!(calls(&strip("Track::new(vec![])"), &ctor));
-    assert!(!calls(&strip("Vec::new()"), &ctor));
-    let method = export("locate", Some("Track"), Kind::Method);
-    assert!(calls(&strip("track.locate(t, o)"), &method));
-    assert!(!calls(&strip("fn locate(&self) {}"), &method));
-
-    let code = strip("fn a() { if x { b() } } fn b() -> u8 { 1 }");
-    let bodies = fn_bodies(&code);
-    let names: Vec<&str> = bodies.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, ["a", "b"]);
-    assert_eq!(bodies[0].1, "{ if x { b() } }");
-    let none = BTreeSet::new();
-    assert!(checks_error("{ assert!(f().is_err()); }", &none));
-    assert!(checks_error(
-        "{ assert!(matches!(f(), Err(GeoError::Parse { .. }))); }",
-        &none
-    ));
-    assert!(checks_error(
-        "{ match f() { Err(GeoError::Parse { .. }) => {} _ => panic!() } }",
-        &none
-    ));
-    assert!(checks_error("{ if let Err(e) = f() { drop(e) } }", &none));
-    assert!(checks_error(
-        "{ let Err(e) = f() else { panic!(\"no error\") }; }",
-        &none
-    ));
-    // A success-only test whose `Err` arm or branch only fails the test.
-    assert!(!checks_error(
-        "{ match f() { Ok(v) => assert_eq!(v, 1), Err(e) => panic!(\"{e}\") } }",
-        &none
-    ));
-    assert!(!checks_error(
-        "{ match f() { Ok(_) => {} Err(e) => { unreachable!(\"{e}\") } } }",
-        &none
-    ));
-    assert!(!checks_error(
-        "{ match f() { Ok(_) => {} Err(e) if e.is_x() => todo!() } }",
-        &none
-    ));
-    assert!(!checks_error(
-        "{ if let Err(e) = f() { panic!(\"{e}\") } }",
-        &none
-    ));
-    assert!(!checks_error("{ match f() { MyErr(e) => {} } }", &none));
-    assert!(!checks_error(
-        "{ assert!(matches!(f(), Ok(_))); let _ = Err(1); }",
-        &none
-    ));
-    let code = strip("fn err_of(r: R) -> E { r.unwrap_err() } fn t() { err_of(f()); }");
-    let bodies = fn_bodies(&code);
-    let helpers = error_helpers(&bodies);
-    assert_eq!(helpers, BTreeSet::from(["err_of".into(), "t".into()]));
-    assert!(!checks_error("{ my_err_of(f()); }", &helpers));
-}
-
-#[test]
 fn export_counts_match_the_pinned_counts() {
     let exports = crate_exports();
     let labels: BTreeSet<String> = exports.iter().map(Export::label).collect();
@@ -286,9 +130,11 @@ fn every_fallible_export_documents_its_errors() {
 #[test]
 fn every_export_is_called_by_a_rust_test() {
     let tests = test_code();
-    let missing: Vec<String> = crate_exports()
+    let exports = crate_exports();
+    let types = receiver::types(&tests, &exports);
+    let missing: Vec<String> = exports
         .iter()
-        .filter(|e| !tests.iter().any(|t| calls(t, e)))
+        .filter(|e| !tests.iter().any(|t| calls(t, e, &types)))
         .map(Export::label)
         .collect();
     assert!(missing.is_empty(), "exports with no Rust test: {missing:?}");
@@ -304,13 +150,14 @@ fn every_fallible_export_has_an_err_test() {
     let bodies: Vec<(String, &str)> = tests.iter().flat_map(|t| fn_bodies(t)).collect();
     let helpers = error_helpers(&bodies);
     let exports = crate_exports();
+    let types = receiver::types(&tests, &exports);
     let missing: Vec<String> = fallible(&exports)
         .into_iter()
         .filter(|e| !UNREACHABLE_ERRORS.contains(&e.label().as_str()))
         .filter(|e| {
             !bodies
                 .iter()
-                .any(|(_, b)| calls(b, e) && checks_error(b, &helpers))
+                .any(|(_, b)| calls(b, e, &types) && checks_error(b, &helpers))
         })
         .map(Export::label)
         .collect();
@@ -460,37 +307,6 @@ fn exports_follow_naming_scheme() {
     );
 }
 
-#[test]
-fn naming_scheme_records_are_read() {
-    let fixture = r"
-        macro_rules! mirror { ($($t:ident),*) => {$(
-            impl TryFrom<$t> for gc::china::$t { }
-        )*}; }
-        mirror!(Wgs84, Gcj02);
-        impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds { }
-        impl TryFrom<u8> for Local { }
-    ";
-    let records = validated_records(&[fixture.to_string()]);
-    assert_eq!(
-        records,
-        BTreeSet::from(["Gcj02".into(), "GeoBounds".into(), "Wgs84".into()])
-    );
-    assert_eq!(snake_case("BaiduMercator"), "baidu_mercator");
-
-    // The unit rule reads the value inside `Result` / `Option` and aliases.
-    let aliases = BTreeSet::from(["GeoResult".to_string()]);
-    assert_eq!(value_type("Result<f64, GeoError>", &aliases), "f64");
-    assert_eq!(value_type("std::result::Result<f64, E>", &aliases), "f64");
-    assert_eq!(value_type("Option<f64>", &aliases), "f64");
-    assert_eq!(value_type("GeoResult<Option<f64>>", &aliases), "f64");
-    assert_eq!(value_type("f64", &aliases), "f64");
-    assert_eq!(value_type("Vec<f64>", &aliases), "Vec<f64>");
-    assert_eq!(
-        value_type("Result<Vec<f64>, GeoError>", &aliases),
-        "Vec<f64>"
-    );
-}
-
 /// Every non-trait `fn` and `const` in the core crate's all-features public
 /// API snapshot.
 fn core_items() -> BTreeSet<ApiItem> {
@@ -552,74 +368,4 @@ fn every_core_item_has_an_ffi_form() {
         stale.is_empty(),
         "`parity_gaps` entries an FFI form now reaches by name, or that name no core item; remove them: {stale:?}"
     );
-}
-
-#[test]
-fn parity_reads_the_public_api_listing() {
-    let listing = "\
-pub mod geocoordinates::cluster
-pub struct geocoordinates::cluster::Cluster
-impl geocoordinates::cluster::Cluster
-pub const fn geocoordinates::cluster::Cluster::bounds(&self) -> geocoordinates::geodesy::GeoBounds
-pub fn geocoordinates::cluster::Cluster::new(usize) -> geocoordinates::Result<Self>
-impl core::clone::Clone for geocoordinates::cluster::Cluster
-pub fn geocoordinates::cluster::Cluster::clone(&self) -> Self
-#[non_exhaustive] pub struct geocoordinates::cluster::Options
-pub geocoordinates::cluster::Options::radius_px: f64
-pub const fn geocoordinates::cluster::Options::with_radius_px(self, f64) -> Self
-pub trait geocoordinates::LatLon
-pub fn geocoordinates::LatLon::lat(&self) -> f64
-pub const geocoordinates::cluster::MAX_ZOOM: u8
-pub fn geocoordinates::cluster::centroid<T>(&[T]) -> geocoordinates::Result<T>
-pub fn geocoordinates::prelude::reexported()
-";
-    let labels: Vec<String> = api_items(listing).iter().map(ApiItem::label).collect();
-    assert_eq!(
-        labels,
-        [
-            "Cluster::bounds",
-            "Cluster::new",
-            "Options::with_radius_px",
-            "MAX_ZOOM",
-            "centroid"
-        ]
-    );
-
-    let fixture = "
-        pub struct Cluster { pub bounds: GeoBounds, count: u64 }
-        pub struct Options { pub radius_px: f64 }
-        pub struct Tuple(pub f64);
-        #[uniffi::export]
-        pub fn cluster_validate(c: Cluster) {}
-        #[uniffi::export]
-        pub fn centroid() {}
-        #[uniffi::export]
-        impl Index {
-            pub fn len(&self) -> u64 { 0 }
-        }
-    ";
-    let fields = record_fields(&[fixture.to_string()]);
-    assert_eq!(fields["Cluster"], BTreeSet::from(["bounds".to_string()]));
-    let exports = exports(fixture);
-    let reached = |label: &str| {
-        let item = match label.split_once("::") {
-            Some((owner, name)) => ApiItem {
-                owner: Some(owner.into()),
-                name: name.into(),
-            },
-            None => ApiItem {
-                owner: None,
-                name: label.into(),
-            },
-        };
-        reaches(&item, &exports, &fields)
-    };
-    assert!(reached("Cluster::bounds"));
-    assert!(reached("Cluster::new"));
-    assert!(reached("Options::with_radius_px"));
-    assert!(reached("centroid"));
-    assert!(reached("Index::len"));
-    assert!(!reached("Cluster::count"));
-    assert!(!reached("Other::len"));
-    assert!(!reached("MAX_ZOOM"));
 }

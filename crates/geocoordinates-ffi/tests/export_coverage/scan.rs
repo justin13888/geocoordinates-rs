@@ -2,6 +2,7 @@
 //! exports and reads test code, both through [`strip`], so a comment or a
 //! string literal never counts as code.
 
+use super::receiver::{self, Types};
 use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,8 +11,13 @@ pub enum Kind {
     Function,
     /// A `#[uniffi::constructor]` in an exported `impl`, called as `Owner::name(`.
     Constructor,
-    /// A method of an exported `impl` or foreign trait, called as `.name(`.
+    /// A method of an exported `impl`, called as `Owner::name(` or as
+    /// `.name(` on a receiver of type `Owner` (see [`calls`]).
     Method,
+    /// A method of an exported `with_foreign` trait: foreign code implements
+    /// it, so a test exercises it by implementing it (`impl Owner for T` with
+    /// a `fn name(`) or by calling it on a receiver of type `Owner`.
+    ForeignMethod,
 }
 
 #[derive(Debug, Clone)]
@@ -247,6 +253,8 @@ pub fn exports(source: &str) -> Vec<Export> {
                 if method {
                     let kind = if constructor {
                         Kind::Constructor
+                    } else if trait_item {
+                        Kind::ForeignMethod
                     } else {
                         Kind::Method
                     };
@@ -338,21 +346,37 @@ pub fn documents_errors(doc: &[String]) -> bool {
 }
 
 /// Whether the stripped test code `code` calls `export`, other than in the
-/// `fn` that defines a function of the same name.
-pub fn calls(code: &str, export: &Export) -> bool {
-    let needle = match (export.kind, &export.owner) {
-        (Kind::Constructor, Some(owner)) => format!("{owner}::{}(", export.name),
-        (Kind::Method, _) => format!(".{}(", export.name),
-        _ => format!("{}(", export.name),
+/// `fn` that defines a function of the same name. A method counts only on its
+/// own owner: called as `Owner::name(`, or as `.name(` on a receiver
+/// [`receiver::is_owned`] types as `Owner` from the `fn` it is called in and
+/// from `types`; a foreign-trait method also counts where the code names a
+/// type that test code implements the trait for.
+pub fn calls(code: &str, export: &Export, types: &Types) -> bool {
+    let qualified = |needle: &str| {
+        code.match_indices(needle).any(|(i, _)| {
+            let before = code[..i].trim_end();
+            !code[..i].ends_with(is_ident)
+                && !(before.ends_with("fn") && !before[..before.len() - 2].ends_with(is_ident))
+        })
     };
-    code.match_indices(&needle).any(|(i, _)| {
-        let before = code[..i].trim_end();
-        let bounded = export.kind == Kind::Method || !code[..i].ends_with(is_ident);
-        bounded && !(before.ends_with("fn") && !before[..before.len() - 2].ends_with(is_ident))
-    })
+    let Some(owner) = &export.owner else {
+        return qualified(&format!("{}(", export.name));
+    };
+    if qualified(&format!("{owner}::{}(", export.name)) {
+        return true;
+    }
+    match export.kind {
+        Kind::Constructor | Kind::Function => false,
+        Kind::Method => receiver::method_calls(code, owner, &export.name, types),
+        Kind::ForeignMethod => {
+            receiver::uses_implementor(code, owner, types)
+                || receiver::method_calls(code, owner, &export.name, types)
+        }
+    }
 }
 
-/// The name and body of every `fn` in the stripped code `code`.
+/// The name and text of every `fn` in the stripped code `code`, from its
+/// `fn` keyword to its body's closing brace.
 pub fn fn_bodies(code: &str) -> Vec<(String, &str)> {
     let mut bodies = Vec::new();
     for (at, _) in code.match_indices("fn ") {
@@ -373,7 +397,7 @@ pub fn fn_bodies(code: &str) -> Vec<(String, &str)> {
                 _ => {}
             }
             if depth == 0 {
-                bodies.push((ident(&code[at + 3..]), &code[open..open + i + 1]));
+                bodies.push((ident(&code[at + 3..]), &code[at..open + i + 1]));
                 break;
             }
         }
