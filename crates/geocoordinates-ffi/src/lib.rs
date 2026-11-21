@@ -94,7 +94,15 @@
 
 uniffi::setup_scaffolding!();
 
-// Each module mirrors one subsystem of the core crate. The mirrors are
+// Most modules mirror the core subsystem of the same name (`angle`, `china`,
+// `cluster`, `dgg`, `exif`, `geodesy`, `geotag`, `grids`, `index`, `map`,
+// `privacy`, `reverse`). The rest regroup: `core` holds the crate-root types
+// (`Coordinate`, `Crs`, `Height`, `Length`, `LengthUnit`, `Approx`) together
+// with the `fix` subsystem and the runtime CRS conversion; `text` merges
+// `format` with the free-text and `geo:` URI readers of `parse`;
+// `interchange` holds `parse::interchange` and `parse::sensors`; `datum` holds
+// the Helmert / datum-transform part of `geodesy`; and `error` mirrors the
+// crate-root `Error` and `ParseErrorKind`. The mirrors are
 // hand-written (rather than `#[uniffi::remote]`) so the FFI surface is
 // flattened into language-neutral forms — and because `Approx<T>` must be
 // flattened anyway. Every module holds its mirror types, their `From`

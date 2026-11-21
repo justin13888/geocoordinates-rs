@@ -357,7 +357,8 @@ pub fn decimal_separator_for_locale(tag: String) -> DecimalSeparator {
 /// Render a coordinate to a string using the given options.
 ///
 /// # Errors
-/// - `GeoError::OutOfRange` for an out-of-range coordinate record.
+/// - `GeoError::OutOfRange` for an out-of-range coordinate record, and
+///   `GeoError::InvalidValue` (field `height`) for one with a non-finite height.
 /// - `GeoError::InvalidValue` when a decimal count exceeds the most that
 ///   round-trips (DD 15, DMS 9, DDM 12), or a grid representation's size is
 ///   outside the range its variant documents.

@@ -165,7 +165,8 @@ pub fn exclusion_zone_validate(zone: ExclusionZone) -> Result<(), GeoError> {
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` when `point` is not on the zone's datum; as
-/// [`exclusion_zone_validate`] for an invalid zone.
+/// [`exclusion_zone_validate`] for an invalid zone; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn exclusion_zone_contains(zone: ExclusionZone, point: Coordinate) -> Result<bool, GeoError> {
     Ok(gc::privacy::ExclusionZone::try_from(zone)?.contains(point.try_into()?)?)

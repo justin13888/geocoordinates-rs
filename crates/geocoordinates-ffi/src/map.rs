@@ -183,7 +183,8 @@ pub fn web_mercator_validate(point: WebMercator) -> Result<(), GeoError> {
 /// Projects `point`, clamping a latitude beyond ±85.05112878° to the map's edge.
 ///
 /// # Errors
-/// `GeoError::OutOfRange` for an invalid coordinate record.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` (field `height`) for an
+/// invalid coordinate record.
 #[uniffi::export]
 pub fn web_mercator_from_coordinate(point: Coordinate) -> Result<WebMercator, GeoError> {
     Ok(gc::map::WebMercator::from_coordinate(point.try_into()?).into())
@@ -204,8 +205,8 @@ pub fn web_mercator_to_coordinate(point: WebMercator) -> Result<Coordinate, GeoE
 ///
 /// # Errors
 /// `GeoError::InvalidValue` with field `zoom` unless it is finite and in `[0, 30]`,
-/// or `tile_px` unless it is finite and positive; `GeoError::OutOfRange` for an
-/// invalid coordinate record.
+/// or `tile_px` unless it is finite and positive; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn world_pixel_from_coordinate(
     point: Coordinate,
@@ -253,8 +254,8 @@ pub fn tile_validate(tile: Tile) -> Result<(), GeoError> {
 /// The tile at zoom `z` that `point` is drawn in.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` (field `z`) above 30; `GeoError::OutOfRange` for an
-/// invalid coordinate record.
+/// `GeoError::InvalidValue` (field `z`) above 30; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn tile_from_coordinate(point: Coordinate, z: u8) -> Result<Tile, GeoError> {
     Ok(gc::map::Tile::from_coordinate(point.try_into()?, z)?.into())
@@ -325,7 +326,8 @@ pub fn viewport_validate(viewport: Viewport) -> Result<(), GeoError> {
 ///
 /// # Errors
 /// `GeoError::InvalidValue` (field `zoom`) unless it is finite and in `[0, 30]`;
-/// `GeoError::OutOfRange` for an invalid centre.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` (field `height`) for an
+/// invalid centre.
 #[uniffi::export]
 pub fn camera_validate(camera: Camera) -> Result<(), GeoError> {
     gc::map::Camera::try_from(camera)?;
@@ -390,8 +392,8 @@ pub fn clusters_in_view(
 /// WGS-84, the exact forward offset for GCJ-02.
 ///
 /// # Errors
-/// `GeoError::CrsMismatch` unless `point` is on WGS-84; `GeoError::OutOfRange` for
-/// an invalid coordinate record.
+/// `GeoError::CrsMismatch` unless `point` is on WGS-84; `GeoError::OutOfRange` /
+/// `GeoError::InvalidValue` (field `height`) for an invalid coordinate record.
 #[uniffi::export]
 pub fn display_coordinate(
     point: Coordinate,
@@ -405,7 +407,8 @@ pub fn display_coordinate(
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` unless `tap` is on WGS-84 or GCJ-02;
-/// `GeoError::OutOfRange` for an invalid coordinate record.
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` (field `height`) for an
+/// invalid coordinate record.
 #[uniffi::export]
 pub fn tap_to_wgs84(tap: Coordinate) -> Result<ApproxCoordinate, GeoError> {
     Ok(approx_coordinate(gc::map::tap_to_wgs84(tap.try_into()?)?))
@@ -416,8 +419,9 @@ pub fn tap_to_wgs84(tap: Coordinate) -> Result<ApproxCoordinate, GeoError> {
 /// coordinates `[lon, lat]` drawn in `display`.
 ///
 /// # Errors
-/// `GeoError::CrsMismatch` unless every point is on WGS-84; `GeoError::OutOfRange`
-/// for an invalid coordinate record.
+/// `GeoError::CrsMismatch` unless every point is on WGS-84;
+/// `GeoError::OutOfRange` / `GeoError::InvalidValue` (field `height`) for an
+/// invalid coordinate record.
 #[uniffi::export]
 pub fn points_to_geojson(
     points: Vec<Coordinate>,
