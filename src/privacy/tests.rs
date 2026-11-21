@@ -4,6 +4,7 @@
 use proptest::prelude::*;
 
 use super::{Precision, SnapGrid, coarsen, coarsen_fix, geohash_min_height_m};
+use crate::angle::wrap_longitude;
 use crate::fix::{Accuracy, AccuracyKind, Fix};
 use crate::geodesy::geodesic_distance;
 use crate::grids::Geohash;
@@ -284,8 +285,22 @@ fn a_fix_keeps_its_time_and_widens_its_bound_by_its_own() {
     );
 }
 
-fn any_wgs84() -> impl Strategy<Value = Coordinate> {
-    (-90.0..=90.0_f64, -180.0..=180.0_f64).prop_map(|(lat, lon)| wgs84(lat, lon))
+/// A position anywhere, often on or by a pole and the antimeridian, where a
+/// grid's cells and the coarsening bound are hardest to get right.
+pub(super) fn any_wgs84() -> impl Strategy<Value = Coordinate> {
+    let lat = prop_oneof![
+        4 => -90.0..=90.0_f64,
+        1 => 89.0..=90.0_f64,
+        1 => -90.0..=-89.0_f64,
+        1 => prop::sample::select(vec![90.0, -90.0, 0.0]),
+    ];
+    let lon = prop_oneof![
+        4 => -180.0..=180.0_f64,
+        1 => 179.0..=180.0_f64,
+        1 => -180.0..=-179.0_f64,
+        1 => prop::sample::select(vec![180.0, -180.0, 0.0]),
+    ];
+    (lat, lon).prop_map(|(lat, lon)| wgs84(lat, lon))
 }
 
 fn any_precision() -> impl Strategy<Value = Precision> {
@@ -317,9 +332,11 @@ proptest! {
         length in 1..=12_u8,
         (north, east) in (0.0..1.0_f64, 0.0..1.0_f64),
     ) {
-        // A second point drawn inside the first point's geohash cell.
+        // A second point drawn inside the geohash cell `coarsen` reads the first
+        // point in: a pole at longitude 0, and longitude 180 as -180.
         let precision = Precision::geohash(length).unwrap();
-        let cell = Geohash::encode(point, length).unwrap().decode();
+        let lon = if point.lat().abs() == 90.0 { 0.0 } else { wrap_longitude(point.lon()) };
+        let cell = Geohash::encode(wgs84(point.lat(), lon), length).unwrap().decode();
         let lon_bits = (5 * i32::from(length) + 1) / 2;
         let lat_bits = 5 * i32::from(length) / 2;
         let half_height = 90.0 / 2_f64.powi(lat_bits);

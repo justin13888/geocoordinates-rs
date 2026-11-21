@@ -3,6 +3,7 @@
 
 use proptest::prelude::*;
 
+use super::tests::any_wgs84;
 use super::{ExclusionZone, Precision, ZoneAction, apply, coarsen};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, Fix, RawSource};
 use crate::geodesy::GeoBounds;
@@ -287,4 +288,59 @@ proptest! {
         let shared = apply(fix.clone(), &[zone], ZoneAction::Strip).unwrap();
         prop_assert_eq!(shared, if inside { None } else { Some(fix) });
     }
+
+    /// Over any number of circles and boxes, a fix is stripped exactly when some
+    /// zone contains it, and passes through untouched otherwise.
+    #[test]
+    fn apply_over_many_zones_matches_any_membership(
+        point in any_wgs84(),
+        zones in prop::collection::vec(any_zone(), 0..6),
+    ) {
+        let fix = Fix::from_coord(point);
+        let mut inside = false;
+        for zone in &zones {
+            inside |= zone.contains(point).unwrap();
+        }
+        let shared = apply(fix.clone(), &zones, ZoneAction::Strip).unwrap();
+        prop_assert_eq!(shared, if inside { None } else { Some(fix) });
+    }
+
+    /// Inside a zone, `Coarsen` shares what `coarsen` makes of the fix's
+    /// position, keeping only the fix's timestamp: no height, no source.
+    #[test]
+    fn coarsen_action_equals_coarsen_of_the_fix(
+        point in any_wgs84(),
+        zones in prop::collection::vec(any_zone(), 1..4),
+        length in 1..=12_u8,
+        secs in 0..2_000_000_000_u64,
+    ) {
+        let precision = Precision::geohash(length).unwrap();
+        let mut fix = Fix::from_coord(point.with_height(Height::Ellipsoidal(12.0)).unwrap());
+        fix.timestamp = Some(std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs));
+        fix.source = Some(RawSource::new("exact", Confidence::CERTAIN));
+        let inside = zones.iter().any(|zone| zone.contains(point).unwrap());
+        let shared = apply(fix.clone(), &zones, ZoneAction::Coarsen(precision)).unwrap();
+        let expected = if inside {
+            let mut coarse = coarsen(point, precision).unwrap();
+            coarse.timestamp = fix.timestamp;
+            coarse
+        } else {
+            fix
+        };
+        prop_assert_eq!(shared, Some(expected));
+    }
+}
+
+/// A circle up to 3 000 km across or a box, anywhere, often at a pole or across
+/// the antimeridian.
+fn any_zone() -> impl Strategy<Value = ExclusionZone> {
+    let circle = (any_wgs84(), 0.0..3_000_000.0_f64).prop_map(|(center, radius_m)| {
+        ExclusionZone::from_circle(center, Length::from_meters(radius_m)).unwrap()
+    });
+    let bounds = (any_wgs84(), any_wgs84()).prop_map(|(a, b)| {
+        let (south, north) = (a.lat().min(b.lat()), a.lat().max(b.lat()));
+        let edges = GeoBounds::from_edges(south, a.lon(), north, b.lon(), Crs::Wgs84);
+        ExclusionZone::from_bounds(edges.unwrap())
+    });
+    prop_oneof![circle, bounds]
 }
