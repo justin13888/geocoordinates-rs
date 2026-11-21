@@ -202,7 +202,10 @@ pub(crate) fn boundaries_and_typed_errors() -> DemoResult {
     ));
     assert!(matches!(
         Enu::new(f64::NAN, 0.0, 0.0),
-        Err(Error::InvalidValue { field: "east", .. })
+        Err(Error::InvalidValue {
+            field: "east_m",
+            ..
+        })
     ));
     let nad27_transform = DatumTransform::catalog_to_wgs84(Crs::Nad27).expect("catalogued");
     assert!(

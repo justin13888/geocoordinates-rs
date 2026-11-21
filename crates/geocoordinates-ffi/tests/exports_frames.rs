@@ -181,21 +181,21 @@ fn validators_name_the_invalid_field() {
             east: f64::NAN,
             ..enu
         })),
-        "east"
+        "east_m"
     );
     assert_eq!(
         invalid_field(enu_validate(Enu {
             north: f64::INFINITY,
             ..enu
         })),
-        "north"
+        "north_m"
     );
     assert_eq!(
         invalid_field(enu_validate(Enu {
             up: f64::NAN,
             ..enu
         })),
-        "up"
+        "up_m"
     );
     let huge = Enu {
         east: f64::MAX,
@@ -215,21 +215,21 @@ fn validators_name_the_invalid_field() {
             north: f64::NAN,
             ..ned
         })),
-        "north"
+        "north_m"
     );
     assert_eq!(
         invalid_field(ned_validate(Ned {
             east: f64::NAN,
             ..ned
         })),
-        "east"
+        "east_m"
     );
     assert_eq!(
         invalid_field(ned_validate(Ned {
             down: f64::NAN,
             ..ned
         })),
-        "down"
+        "down_m"
     );
 
     let aer = Aer {
@@ -242,12 +242,12 @@ fn validators_name_the_invalid_field() {
         azimuth_deg: f64::NAN,
         ..aer
     };
-    assert_eq!(invalid_field(aer_validate(az)), "azimuth");
+    assert_eq!(invalid_field(aer_validate(az)), "azimuth_deg");
     let el = Aer {
         elevation_deg: 90.5,
         ..aer
     };
-    assert_eq!(invalid_field(aer_validate(el)), "elevation");
+    assert_eq!(invalid_field(aer_validate(el)), "elevation_deg");
     let range = Aer {
         range_m: -1.0,
         ..aer
@@ -260,7 +260,7 @@ fn validators_name_the_invalid_field() {
     assert_eq!(built.elevation_deg, 10.0);
     assert!(built.range_m == 0.0 && built.range_m.is_sign_positive());
     assert_eq!(aer_new(370.0, 0.0, 1.0).unwrap().azimuth_deg, 10.0);
-    assert_eq!(invalid_field(aer_new(0.0, 90.5, 1.0)), "elevation");
+    assert_eq!(invalid_field(aer_new(0.0, 90.5, 1.0)), "elevation_deg");
     assert_eq!(invalid_field(aer_new(0.0, 0.0, -1.0)), "range");
 }
 
@@ -274,17 +274,17 @@ fn exports_reject_invalid_records_and_normalize_azimuth() {
         north: 0.0,
         up: 0.0,
     };
-    assert_eq!(invalid_field(enu_to_coordinate(bad_enu, origin)), "east");
-    assert_eq!(invalid_field(enu_to_ned(bad_enu)), "east");
-    assert_eq!(invalid_field(enu_to_aer(bad_enu)), "east");
+    assert_eq!(invalid_field(enu_to_coordinate(bad_enu, origin)), "east_m");
+    assert_eq!(invalid_field(enu_to_ned(bad_enu)), "east_m");
+    assert_eq!(invalid_field(enu_to_aer(bad_enu)), "east_m");
     let bad_ned = Ned {
         north: 0.0,
         east: 0.0,
         down: f64::INFINITY,
     };
-    assert_eq!(invalid_field(ned_to_coordinate(bad_ned, origin)), "down");
-    assert_eq!(invalid_field(ned_to_enu(bad_ned)), "down");
-    assert_eq!(invalid_field(ned_to_aer(bad_ned)), "down");
+    assert_eq!(invalid_field(ned_to_coordinate(bad_ned, origin)), "down_m");
+    assert_eq!(invalid_field(ned_to_enu(bad_ned)), "down_m");
+    assert_eq!(invalid_field(ned_to_aer(bad_ned)), "down_m");
     let bad_aer = Aer {
         azimuth_deg: 0.0,
         elevation_deg: -91.0,
@@ -292,10 +292,10 @@ fn exports_reject_invalid_records_and_normalize_azimuth() {
     };
     assert_eq!(
         invalid_field(aer_to_coordinate(bad_aer, origin)),
-        "elevation"
+        "elevation_deg"
     );
-    assert_eq!(invalid_field(aer_to_enu(bad_aer)), "elevation");
-    assert_eq!(invalid_field(aer_to_ned(bad_aer)), "elevation");
+    assert_eq!(invalid_field(aer_to_enu(bad_aer)), "elevation_deg");
+    assert_eq!(invalid_field(aer_to_ned(bad_aer)), "elevation_deg");
 
     let wrapped = Aer {
         azimuth_deg: -270.0,

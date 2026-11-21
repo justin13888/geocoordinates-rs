@@ -100,8 +100,8 @@ impl From<gc::geodesy::SphericalIntersection> for SphericalIntersectionResult {
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` for mixed reference systems or GCJ-02 / BD-09
-/// inputs; `GeoError::InvalidValue` (field `bearing`) for a non-finite
-/// bearing; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
+/// inputs; `GeoError::InvalidValue` (field `bearing_a_deg` or
+/// `bearing_b_deg`, `a`'s checked first) for a non-finite bearing; `GeoError::OutOfRange` / `GeoError::InvalidValue` for an invalid
 /// coordinate record.
 #[uniffi::export]
 pub fn intersection_spherical(

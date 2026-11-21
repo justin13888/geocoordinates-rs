@@ -21,7 +21,7 @@ use super::ellipsoid::ellipsoid_of;
 use super::geodesic::{finish, validate_pair};
 use crate::coord::{Coordinate, LatLon};
 use crate::error::{Error, Result};
-use crate::units::Length;
+use crate::units::{Length, finite};
 
 /// IUGG mean Earth radius R1 = (2a + b) / 3, in meters, used by every
 /// spherical routine: haversine, cross/along-track, and intersection.
@@ -235,7 +235,8 @@ pub enum SphericalIntersection {
 ///
 /// [`Error::CrsMismatch`] when the CRSs differ or are GCJ-02 / BD-09
 /// (obfuscated renderings; convert them to WGS-84 first), and
-/// [`Error::InvalidValue`] (`field: "bearing"`) for a non-finite bearing.
+/// [`Error::InvalidValue`] (`field: "bearing_a_deg"` or `"bearing_b_deg"`)
+/// for that bearing when it is not finite (`a`'s is checked first).
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Error, geodesy::{SphericalIntersection, intersection_spherical}};
@@ -248,7 +249,7 @@ pub enum SphericalIntersection {
 /// assert!(p.lat() > 9.0 && p.lon().abs() < 1e-9);
 /// assert!(matches!(
 ///     intersection_spherical(a,f64::NAN, b,315.0),
-///     Err(Error::InvalidValue { field: "bearing", .. })
+///     Err(Error::InvalidValue { field: "bearing_a_deg", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
@@ -260,12 +261,8 @@ pub fn intersection_spherical(
 ) -> Result<SphericalIntersection> {
     validate_pair(a, b)?;
     ellipsoid_of(a.crs())?;
-    if !bearing_a_deg.is_finite() || !bearing_b_deg.is_finite() {
-        return Err(Error::InvalidValue {
-            field: "bearing",
-            detail: "must be finite".into(),
-        });
-    }
+    finite(bearing_a_deg, "bearing_a_deg")?;
+    finite(bearing_b_deg, "bearing_b_deg")?;
     let Some(crossings) = great_circle_crossings(a, bearing_a_deg, b, bearing_b_deg) else {
         return Ok(SphericalIntersection::SameGreatCircle);
     };

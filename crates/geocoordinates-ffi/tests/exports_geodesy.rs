@@ -364,8 +364,12 @@ fn ellipsoidal_intersection_names_each_outcome() {
         GeodesicIntersectionResult::NoForwardCrossing
     );
     match intersection(wgs84(0.0, 0.0), f64::NAN, wgs84(0.0, 30.0), 0.0) {
-        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "bearing"),
-        other => panic!("expected InvalidValue for `bearing`, got {other:?}"),
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "bearing_a_deg"),
+        other => panic!("expected InvalidValue for `bearing_a_deg`, got {other:?}"),
+    }
+    match intersection(wgs84(0.0, 0.0), 0.0, wgs84(0.0, 30.0), f64::NAN) {
+        Err(GeoError::InvalidValue { field, .. }) => assert_eq!(field, "bearing_b_deg"),
+        other => panic!("expected InvalidValue for `bearing_b_deg`, got {other:?}"),
     }
 }
 

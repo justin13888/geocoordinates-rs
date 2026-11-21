@@ -55,7 +55,7 @@ pub fn final_bearing_deg(a: Coordinate, b: Coordinate) -> Result<f64, GeoError> 
 ///
 /// # Errors
 /// `GeoError::CrsMismatch` for a GCJ-02 / BD-09 start;
-/// `GeoError::InvalidValue` for a non-finite bearing (field `bearing`) or a
+/// `GeoError::InvalidValue` for a non-finite bearing (field `bearing_deg`) or a
 /// non-finite or negative distance (field `distance`); `GeoError::OutOfRange`
 /// / `GeoError::InvalidValue` for an invalid coordinate record.
 #[uniffi::export]

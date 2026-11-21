@@ -17,7 +17,7 @@ use super::spherical::{check_path, cross, great_circle_crossings};
 use crate::coord::Crs;
 use crate::coord::{Coordinate, LatLon};
 use crate::error::{Error, Result};
-use crate::units::Length;
+use crate::units::{Length, finite};
 
 /// Signed perpendicular distance from `point` to the geodesic path `start` →
 /// `end`, on the ellipsoid of their shared [`Crs`] (positive to the right,
@@ -211,7 +211,8 @@ pub enum GeodesicIntersection {
 /// # Errors
 ///
 /// [`Error::CrsMismatch`] when the CRSs differ or are GCJ-02 / BD-09, and
-/// [`Error::InvalidValue`]: `field: "bearing"` for a non-finite bearing, and
+/// [`Error::InvalidValue`]: `field: "bearing_a_deg"` or `"bearing_b_deg"`
+/// for that bearing when it is not finite (`a`'s is checked first), and
 /// `field: "paths"` when the iteration cannot locate a crossing that the
 /// mean sphere places ahead of both starts (reported rather than guessed;
 /// none was met in a sweep of 200,000 random WGS-84 path pairs).
@@ -234,7 +235,7 @@ pub enum GeodesicIntersection {
 /// assert!(cross_track_distance(p, lisbon, ahead_b)?.meters().abs() < 1e-6);
 /// assert!(matches!(
 ///     intersection(nyc, f64::NAN, lisbon, 315.0),
-///     Err(Error::InvalidValue { field: "bearing", .. })
+///     Err(Error::InvalidValue { field: "bearing_a_deg", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
@@ -245,12 +246,8 @@ pub fn intersection(
     bearing_b_deg: f64,
 ) -> Result<GeodesicIntersection> {
     let g = geodesic_for_pair(a, b)?;
-    if !bearing_a_deg.is_finite() || !bearing_b_deg.is_finite() {
-        return Err(Error::InvalidValue {
-            field: "bearing",
-            detail: "must be finite".into(),
-        });
-    }
+    finite(bearing_a_deg, "bearing_a_deg")?;
+    finite(bearing_b_deg, "bearing_b_deg")?;
     let path_a = Path::new(&g, a, bearing_a_deg);
     let path_b = Path::new(&g, b, bearing_b_deg);
     if path_a.carries(b, bearing_b_deg) {
