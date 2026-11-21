@@ -634,4 +634,12 @@ mod tests {
                 .to_string()
         );
     }
+
+    /// The offset's Krasovsky literals are the geodesy catalog's, bit for bit.
+    #[test]
+    fn gcj_constants_are_the_catalog_krasovsky_1940() {
+        let k = crate::geodesy::Ellipsoid::KRASOVSKY_1940;
+        assert_eq!(GCJ_A.to_bits(), k.semi_major().meters().to_bits());
+        assert_eq!(EE.to_bits(), k.eccentricity_sq().to_bits());
+    }
 }

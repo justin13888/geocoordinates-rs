@@ -367,6 +367,40 @@ mod tests {
         }
     }
 
+    /// The documented box is closed: a point on any edge or corner is inside
+    /// for both datums, and the next `f64` outward from it is outside.
+    #[test]
+    fn china_box_is_closed_on_every_edge() {
+        let (south, north, west, east) = (0.8293, 55.8271, 72.004, 137.8347);
+        let up = |v: f64| f64::from_bits(v.to_bits() + 1);
+        let down = |v: f64| f64::from_bits(v.to_bits() - 1);
+        let (mid_lat, mid_lon) = (30.0, 105.0);
+        let mut cases = vec![
+            ((south, mid_lon), (down(south), mid_lon)),
+            ((north, mid_lon), (up(north), mid_lon)),
+            ((mid_lat, west), (mid_lat, down(west))),
+            ((mid_lat, east), (mid_lat, up(east))),
+        ];
+        for (lat, out_lat) in [(south, down(south)), (north, up(north))] {
+            for (lon, out_lon) in [(west, down(west)), (east, up(east))] {
+                cases.extend([((lat, lon), (out_lat, lon)), ((lat, lon), (lat, out_lon))]);
+            }
+        }
+        for ((lat, lon), (out_lat, out_lon)) in cases {
+            assert!(
+                !Wgs84::new(lat, lon).unwrap().is_outside_china(),
+                "{lat},{lon}"
+            );
+            assert!(
+                !Gcj02::new(lat, lon).unwrap().is_outside_china(),
+                "{lat},{lon}"
+            );
+            let (w, g) = (Wgs84::new(out_lat, out_lon), Gcj02::new(out_lat, out_lon));
+            assert!(w.unwrap().is_outside_china(), "{out_lat},{out_lon}");
+            assert!(g.unwrap().is_outside_china(), "{out_lat},{out_lon}");
+        }
+    }
+
     /// C3: at the box edge the fixed point does not converge, and the refined
     /// inverse must not claim a bound it did not reach. Its result's forward
     /// image must land within the reported `max_error` of the input, and the
