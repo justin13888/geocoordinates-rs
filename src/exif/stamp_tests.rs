@@ -42,6 +42,20 @@ fn timestamps_are_utc_and_keep_fractional_seconds() {
     );
 }
 
+/// The last day of a year and a leap day of a century leap year (divisible by
+/// 400) resolve to their exact instants, not merely to some instant.
+#[test]
+fn leap_day_and_year_end_stamps_resolve_exactly() {
+    let at = |secs| Some(SystemTime::UNIX_EPOCH + Duration::from_secs(secs));
+    let t = [whole(1), whole(2), whole(3)];
+    // 2024-12-31T01:02:03Z and 2000-02-29T01:02:03Z.
+    assert_eq!(stamped("2024:12:31", t), at(1_735_606_923));
+    assert_eq!(stamped("2000:02:29", t), at(951_786_123));
+    // The day after each is the next day, not a wrapped or skipped one.
+    assert_eq!(stamped("2025:01:01", t), at(1_735_606_923 + 86_400));
+    assert_eq!(stamped("2000:03:01", t), at(951_786_123 + 86_400));
+}
+
 #[test]
 fn partial_or_unreadable_stamps_give_no_timestamp() {
     let t = [whole(1), whole(2), whole(3)];
@@ -72,8 +86,6 @@ fn partial_or_unreadable_stamps_give_no_timestamp() {
             "{date}"
         );
     }
-    assert!(stamped("2024:12:31", t).is_some());
-    assert!(stamped("2000:02:29", t).is_some());
     for date in ["", "\0\0", "    "] {
         let gps = ExifGps {
             date_stamp: text(date),
