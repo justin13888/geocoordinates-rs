@@ -8,6 +8,9 @@
 
 mod viewport;
 
+use proptest::prelude::*;
+
+use super::mercator::{unit_x, unit_y};
 use super::{MAX_LATITUDE, MAX_TILE_ZOOM, Tile, WebMercator, WorldPixel, tiles_covering};
 use crate::geodesy::GeoBounds;
 use crate::{Coordinate, Crs, Error};
@@ -430,4 +433,94 @@ fn serde_round_trips_and_rejects_invalid_values() {
         .unwrap()
         .replace("3.5", "31.0");
     assert!(serde_json::from_str::<Camera>(&far).is_err());
+}
+
+/// Half the projected world's width, in meters: `π × 6 378 137`.
+const HALF_WORLD_M: f64 = std::f64::consts::PI * 6_378_137.0;
+
+/// A latitude anywhere, often on the places a projection breaks: the poles, the
+/// map's own edges at ±[`MAX_LATITUDE`], and the equator.
+fn any_lat() -> impl Strategy<Value = f64> {
+    prop_oneof![
+        4 => -90.0..=90.0_f64,
+        1 => 84.0..=90.0_f64,
+        1 => -90.0..=-84.0_f64,
+        1 => prop::sample::select(vec![90.0, -90.0, MAX_LATITUDE, -MAX_LATITUDE, 0.0]),
+    ]
+}
+
+/// A longitude anywhere, often near or on the antimeridian.
+fn any_lon() -> impl Strategy<Value = f64> {
+    prop_oneof![
+        4 => -180.0..=180.0_f64,
+        1 => 179.0..=180.0_f64,
+        1 => -180.0..=-179.0_f64,
+        1 => prop::sample::select(vec![180.0, -180.0, 0.0]),
+    ]
+}
+
+/// Any tile: a zoom up to [`MAX_TILE_ZOOM`] and a column and row on it, often
+/// on the grid's first or last.
+fn any_tile() -> impl Strategy<Value = Tile> {
+    (0..=MAX_TILE_ZOOM).prop_flat_map(|z| {
+        let last = ((1_u64 << z) - 1) as u32;
+        let index = prop_oneof![3 => 0..=last, 1 => Just(0), 1 => Just(last)];
+        (index.clone(), index).prop_map(move |(x, y)| tile(x, y, z))
+    })
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    #[test]
+    fn quadkey_round_trips_every_tile(t in any_tile()) {
+        let quadkey = t.quadkey();
+        prop_assert_eq!(quadkey.len(), usize::from(t.z()));
+        prop_assert_eq!(Tile::from_quadkey(&quadkey).unwrap(), t);
+    }
+
+    /// The tile a point is drawn on contains it; a point beyond the map's top or
+    /// bottom edge is drawn on that edge.
+    #[test]
+    fn tile_contains_every_point_it_encodes(
+        lat in any_lat(),
+        lon in any_lon(),
+        z in 0..=MAX_TILE_ZOOM,
+    ) {
+        let t = Tile::from_coordinate(wgs(lat, lon), z).unwrap();
+        let drawn = wgs(lat.clamp(-MAX_LATITUDE, MAX_LATITUDE), lon);
+        prop_assert!(t.bounds(Crs::Wgs84).contains(drawn).unwrap(), "{t:?} {drawn:?}");
+    }
+
+    #[test]
+    fn web_mercator_round_trips_within_max_latitude(
+        lat in prop_oneof![
+            -MAX_LATITUDE..=MAX_LATITUDE,
+            prop::sample::select(vec![MAX_LATITUDE, -MAX_LATITUDE]),
+        ],
+        lon in any_lon(),
+        (x_m, y_m) in (-HALF_WORLD_M..=HALF_WORLD_M, -HALF_WORLD_M..=HALF_WORLD_M),
+    ) {
+        let back = WebMercator::from_coordinate(wgs(lat, lon)).to_coordinate();
+        prop_assert!((back.lat() - lat).abs() < 1e-11, "{lat} -> {back:?}");
+        prop_assert!((back.lon() - lon).abs() < 1e-11, "{lon} -> {back:?}");
+        // And from the projected side: every point on the square comes back.
+        let point = WebMercator::new(x_m, y_m, Crs::Wgs84).unwrap();
+        let again = WebMercator::from_coordinate(point.to_coordinate());
+        prop_assert!((again.x_m() - x_m).abs() < 1e-6, "{point:?} -> {again:?}");
+        prop_assert!((again.y_m() - y_m).abs() < 1e-6, "{point:?} -> {again:?}");
+    }
+
+    /// `WebMercator`'s meters and the unit square the tiles, views and cluster
+    /// index share are one projection, scaled: they agree to round-off.
+    #[test]
+    fn web_mercator_meters_agree_with_the_unit_square(lat in any_lat(), lon in any_lon()) {
+        let projected = WebMercator::from_coordinate(wgs(lat, lon));
+        let x_m = (unit_x(lon) - 0.5) * 2.0 * HALF_WORLD_M;
+        let y_m = (0.5 - unit_y(lat)) * 2.0 * HALF_WORLD_M;
+        // About 64 ulps of the world's half-width.
+        let tolerance = 64.0 * f64::EPSILON * HALF_WORLD_M;
+        prop_assert!((projected.x_m() - x_m).abs() <= tolerance, "{lon}: {} vs {x_m}", projected.x_m());
+        prop_assert!((projected.y_m() - y_m).abs() <= tolerance, "{lat}: {} vs {y_m}", projected.y_m());
+    }
 }

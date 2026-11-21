@@ -1,6 +1,8 @@
 //! `fit_bounds` against `viewport_bounds`, the clusters in view, and the GCJ-02
 //! display helpers.
 
+use proptest::prelude::*;
+
 use crate::cluster::{ClusterIndex, ClusterIndexOptions, MAX_ZOOM};
 use crate::geodesy::GeoBounds;
 use crate::map::{
@@ -50,6 +52,49 @@ fn fit_bounds_inverts_viewport_bounds() {
             let again = viewport_bounds(fitted, viewport).unwrap();
             assert!(close(again.west(), bounds.west()) && close(again.east(), bounds.east()));
             assert_eq!(again.crosses_antimeridian(), bounds.crosses_antimeridian());
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(512))]
+
+    /// Any camera whose view stays narrower than the world and off the map's top
+    /// and bottom edges is the camera `fit_bounds` fits to the box it shows, on
+    /// either tile size, across the antimeridian or centred on either name of it.
+    #[test]
+    fn fit_bounds_inverts_viewport_bounds_for_any_camera(
+        lat in prop_oneof![4 => -80.0..=80.0_f64, 1 => Just(0.0)],
+        lon in prop_oneof![
+            3 => -180.0..=180.0_f64,
+            1 => 179.0..=180.0_f64,
+            1 => -180.0..=-179.0_f64,
+            1 => prop::sample::select(vec![180.0, -180.0]),
+        ],
+        zoom in 0.0..=20.0_f64,
+        (width_px, height_px) in (1.0..=2_000.0_f64, 1.0..=2_000.0_f64),
+        tile_px in prop::sample::select(vec![256.0, 512.0]),
+    ) {
+        let viewport = view(width_px, height_px, tile_px);
+        prop_assume!(width_px < tile_px * zoom.exp2());
+        let camera = Camera::new(wgs(lat, lon), zoom).unwrap();
+        let bounds = viewport_bounds(camera, viewport).unwrap();
+        prop_assume!(bounds.north() < 90.0 && bounds.south() > -90.0);
+        let fitted = fit_bounds(bounds, viewport, 0.0, 30.0).unwrap();
+        prop_assert!((fitted.zoom() - zoom).abs() < 1e-8, "{camera:?}: {fitted:?}");
+        prop_assert!((fitted.center().lat() - lat).abs() < 1e-8, "{camera:?}: {fitted:?}");
+        let dlon = (fitted.center().lon() - lon).rem_euclid(360.0);
+        prop_assert!(dlon < 1e-8 || dlon > 360.0 - 1e-8, "{camera:?}: {fitted:?}");
+        let again = viewport_bounds(fitted, viewport).unwrap();
+        prop_assert_eq!(again.crosses_antimeridian(), bounds.crosses_antimeridian());
+        for (got, want) in [
+            (again.west(), bounds.west()),
+            (again.east(), bounds.east()),
+            (again.south(), bounds.south()),
+            (again.north(), bounds.north()),
+        ] {
+            let off = (got - want).rem_euclid(360.0);
+            prop_assert!(off < 1e-8 || off > 360.0 - 1e-8, "{bounds:?} vs {again:?}");
         }
     }
 }
