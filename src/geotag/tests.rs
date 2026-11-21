@@ -3,6 +3,8 @@
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use proptest::prelude::*;
+
 use super::{GeotagOptions, Interpolation, Track, estimate_offset};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, DatumAmbiguity, Fix, RawSource};
 use crate::geodesy::{geodesic_distance, intermediate};
@@ -564,4 +566,50 @@ fn options_round_trip_through_serde_and_fill_defaults() {
     let partial: GeotagOptions = serde_json::from_str(r#"{"clock_offset_ms":7}"#).unwrap();
     assert_eq!(partial, GeotagOptions::default().with_clock_offset_ms(7));
     assert!(serde_json::from_str::<Interpolation>(r#""Linear""#).is_err());
+}
+
+/// A position anywhere, often by a pole or on either side of the antimeridian.
+fn any_position() -> impl Strategy<Value = (f64, f64)> {
+    let lat = prop_oneof![3 => -90.0..=90.0_f64, 1 => 89.0..=90.0_f64, 1 => -90.0..=-89.0_f64];
+    let lon = prop_oneof![
+        3 => -180.0..=180.0_f64,
+        1 => 179.0..=180.0_f64,
+        1 => -180.0..=-179.0_f64,
+    ];
+    (lat, lon)
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// Between two fixes, the result lies on the geodesic joining them, the
+    /// elapsed fraction of the way along, and its bound is the smaller of the two
+    /// reaches `locate` documents: own accuracy, plus speed times time, plus the
+    /// distance from that fix.
+    #[test]
+    fn located_point_lies_on_the_bracketing_geodesic_within_its_bound(
+        (a, b) in (any_position(), any_position()),
+        (gap, step) in (2..=10_000_i64).prop_flat_map(|gap| (Just(gap), 1..gap)),
+        (own_a, own_b) in (0.0..100.0_f64, 0.0..100.0_f64),
+        speed in 0.0..100.0_f64,
+    ) {
+        let first = with_accuracy(fix(0, a.0, a.1), AccuracyKind::Bound, own_a);
+        let last = with_accuracy(fix(gap, b.0, b.1), AccuracyKind::Bound, own_b);
+        let (from, to) = (first.coord, last.coord);
+        let track = Track::new(vec![first, last]).unwrap();
+        let options = options()
+            .with_max_gap(Duration::from_secs(gap.unsigned_abs()))
+            .with_max_speed_mps(speed);
+        let located = track.locate(at(step), options).unwrap().unwrap();
+        let p = located.coord;
+        let d = |x, y| geodesic_distance(x, y).unwrap().meters();
+        let (whole, to_p, from_p) = (d(from, to), d(from, p), d(p, to));
+        let fraction = step as f64 / gap as f64;
+        prop_assert!((to_p + from_p - whole).abs() < 1e-6, "{p:?} is off the geodesic");
+        prop_assert!((to_p - fraction * whole).abs() < 1e-6, "{p:?} is not {fraction} along");
+        let reach_a = own_a + speed * step as f64 + to_p;
+        let reach_b = own_b + speed * (gap - step) as f64 + from_p;
+        prop_assert_eq!(located.accuracy.unwrap().kind(), AccuracyKind::Bound);
+        prop_assert!((horizontal(&located) - reach_a.min(reach_b)).abs() < 1e-6);
+    }
 }
