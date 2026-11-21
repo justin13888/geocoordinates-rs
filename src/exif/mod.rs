@@ -45,6 +45,8 @@ mod policy_tests;
 #[cfg(test)]
 mod stamp_tests;
 #[cfg(test)]
+mod tag_tests;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod xmp_tests;
