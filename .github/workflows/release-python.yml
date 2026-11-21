@@ -1,6 +1,6 @@
 name: Release (PyPI)
 
-# Publishes the Python wheels for `geocoordinates` (the UniFFI bindings) to PyPI.
+# Publishes the Python wheels for `geocoordinates-rs` (the UniFFI bindings) to PyPI.
 #
 # Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
 # `publish=true`), so the binding version tracks the Rust crate version. A manual

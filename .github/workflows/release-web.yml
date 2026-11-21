@@ -1,6 +1,6 @@
 name: Release (npm)
 
-# Publishes the WebAssembly/TypeScript `geocoordinates` package to npm.
+# Publishes the WebAssembly/TypeScript `geocoordinates-rs` package to npm.
 #
 # Trigger: dispatched by release-plz.yml after it cuts the `v*` release (with
 # `publish=true`). A manual `workflow_dispatch` (publish defaulting to false) builds

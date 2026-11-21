@@ -67,7 +67,7 @@ resolver = "3"
 [workspace.package]
 version = "0.14.2"
 
-# Every `pub` item needs a doc comment (see CLAUDE.md). `warn` keeps local
+# Every `pub` item needs a doc comment (see AGENTS.md). `warn` keeps local
 # iteration unblocked; CI's `RUSTFLAGS="-D warnings"` and clippy's `-D warnings`
 # turn it into a hard failure.
 [lints.rust]
