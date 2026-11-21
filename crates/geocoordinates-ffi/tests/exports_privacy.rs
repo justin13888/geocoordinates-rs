@@ -147,8 +147,11 @@ fn zone_records_are_checked_and_measured_geodesically() {
 
 #[test]
 fn a_full_fix_passes_through_exclusion_zones_unchanged() {
-    // Every field set, and every enum on a variant other than the first, so a
-    // dropped field or a swapped variant in either direction shows.
+    // Every field set, and every enum of the fix on a variant other than the
+    // first (NAD27 for the datum, so the zone is on NAD27 too; both `Height`
+    // variants), so a dropped field or a swapped variant in either direction
+    // shows.
+    let nad27 = |lat, lon| coordinate_new(lat, lon, Crs::Nad27).unwrap();
     for height in [
         Height::Ellipsoidal { meters: 12.5 },
         Height::Orthometric { meters: -3.25 },
@@ -156,7 +159,7 @@ fn a_full_fix_passes_through_exclusion_zones_unchanged() {
         let fix = Fix {
             coord: Coordinate {
                 height: Some(height),
-                ..wgs84(20.0, 20.0)
+                ..nad27(20.0, 20.0)
             },
             accuracy: Some(Accuracy {
                 kind: AccuracyKind::OneSigma,
@@ -177,7 +180,10 @@ fn a_full_fix_passes_through_exclusion_zones_unchanged() {
             precision: geohash(4),
         };
         for action in [ZoneAction::Strip, coarsen] {
-            let zones = vec![circle(10.0, 10.0, 100.0)];
+            let zones = vec![ExclusionZone::Circle {
+                center: nad27(10.0, 10.0),
+                radius_m: 100.0,
+            }];
             assert_eq!(
                 apply_exclusion_zones(fix.clone(), zones, action).unwrap(),
                 Some(fix.clone())
