@@ -350,8 +350,9 @@ pub fn documents_errors(doc: &[String]) -> bool {
 /// `fn` that defines a function of the same name. A method counts only on its
 /// own owner: called as `Owner::name(`, or as `.name(` on a receiver
 /// [`receiver::is_owned`] types as `Owner` from the `fn` it is called in and
-/// from `types`; a foreign-trait method also counts where the code names a
-/// type that test code implements the trait for.
+/// from `types`; a foreign-trait method also counts where the code passes a
+/// value of a type test code implements the trait for as a call argument
+/// ([`receiver::uses_implementor`]).
 pub fn calls(code: &str, export: &Export, types: &Types) -> bool {
     let qualified = |needle: &str| {
         code.match_indices(needle).any(|(i, _)| {

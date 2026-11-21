@@ -218,12 +218,73 @@ pub fn method_calls(code: &str, owner: &str, name: &str, types: &Types) -> bool 
     })
 }
 
-/// Whether the stripped code `code` names a type test code implements the
-/// trait `owner` for: a foreign-trait method runs when such a value is handed
-/// to an export, the way foreign code hands one over.
+/// `code` with the text of every `impl owner for T { … }` block blanked out, so
+/// that an implementor's own methods never count as using it.
+fn without_impls_of(code: &str, owner: &str) -> String {
+    let mut out = code.to_string();
+    for (at, _) in code.match_indices("impl ") {
+        if code[..at].ends_with(is_ident) {
+            continue;
+        }
+        let Some(open) = code[at..].find('{').map(|o| at + o) else {
+            continue;
+        };
+        let is_owner = code[at + 5..open]
+            .split_once(" for ")
+            .is_some_and(|(tr, _)| ident(tr.trim()) == owner);
+        if !is_owner {
+            continue;
+        }
+        let mut depth = 0;
+        for (i, ch) in code[open..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                _ => {}
+            }
+            if depth == 0 {
+                let end = open + i + 1;
+                out.replace_range(at..end, &" ".repeat(end - at));
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// Whether the stripped code `code` passes a value of a type test code
+/// implements the trait `owner` for as a call argument: inside the argument
+/// list of a call in the body of a `fn` that is not one of the implementor's
+/// own methods. A foreign-trait method runs when such a value is handed to an
+/// export, the way foreign code hands one over; defining the implementor (its
+/// `struct`, its `impl` header, a `fn` signature naming it) does not count.
 pub fn uses_implementor(code: &str, owner: &str, types: &Types) -> bool {
-    types.implementors.get(owner).is_some_and(|tys| {
-        code.split(|c: char| !is_ident(c))
-            .any(|token| tys.contains(token))
+    let Some(tys) = types.implementors.get(owner) else {
+        return false;
+    };
+    let code = without_impls_of(code, owner);
+    fn_bodies(&code).iter().any(|(_, item)| {
+        let Some(open) = item.find('{') else {
+            return false;
+        };
+        let body = &item[open..];
+        let mut depth = 0i32;
+        let mut token = String::new();
+        for ch in body.chars() {
+            if is_ident(ch) {
+                token.push(ch);
+                continue;
+            }
+            if depth > 0 && tys.contains(&token) {
+                return true;
+            }
+            token.clear();
+            match ch {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+        }
+        false
     })
 }

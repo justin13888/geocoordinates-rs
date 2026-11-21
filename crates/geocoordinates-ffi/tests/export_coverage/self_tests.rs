@@ -160,6 +160,16 @@ fn call_scan_ignores_comments_strings_and_definitions() {
         &call,
         &impl_types
     ));
+    // Defining the implementor, or naming it outside a call's arguments, is
+    // not handing one over.
+    for defines in [
+        "struct Mine; impl Foreign for Mine { fn call(&self) {} }",
+        "impl Foreign for Mine { fn call(&self) -> u8 { helper(Mine) } }",
+        "fn t(m: Mine) -> Mine { m }",
+        "fn t() { let _ = Mine; }",
+    ] {
+        assert!(!calls(&strip(defines), &call, &impl_types), "{defines}");
+    }
 
     let code = strip("fn a() { if x { b() } } fn b() -> u8 { 1 }");
     let bodies = fn_bodies(&code);
