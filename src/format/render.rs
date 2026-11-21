@@ -7,7 +7,7 @@
 //! an all-zero rendering, so they are unsigned.
 
 use super::{DecimalSeparator, HemisphereStyle, SymbolStyle};
-use crate::angle::{Axis, Ddm, Dms};
+use crate::angle::{Axis, Ddm, Dms, Hemisphere};
 use crate::coord::Coordinate;
 use crate::error::Result;
 
@@ -38,7 +38,9 @@ fn dd_component(
     match hemisphere {
         HemisphereStyle::Signed if negative => format!("-{digits}"),
         HemisphereStyle::Signed => digits,
-        HemisphereStyle::Cardinal => format!("{digits} {}", cardinal_letter(axis, negative)),
+        HemisphereStyle::Cardinal => {
+            format!("{digits} {}", Hemisphere::on_axis(axis, negative).letter())
+        }
     }
 }
 
@@ -105,7 +107,9 @@ impl AngleStyle {
         };
         let negative = value.is_sign_negative() && !is_zero;
         Ok(match self.hemisphere {
-            HemisphereStyle::Cardinal => format!("{core}{}", cardinal_letter(axis, negative)),
+            HemisphereStyle::Cardinal => {
+                format!("{core}{}", Hemisphere::on_axis(axis, negative).letter())
+            }
             HemisphereStyle::Signed if negative => format!("-{core}"),
             HemisphereStyle::Signed => core,
         })
@@ -148,17 +152,6 @@ fn pad_two(value: f64, p: u8) -> String {
     let prec = usize::from(p);
     let width = if p > 0 { prec + 3 } else { 2 };
     format!("{value:0width$.prec$}")
-}
-
-/// The cardinal letter for a component whose rounded rendering is (or is not)
-/// negative.
-fn cardinal_letter(axis: Axis, negative: bool) -> char {
-    match (axis, negative) {
-        (Axis::Latitude, false) => 'N',
-        (Axis::Latitude, true) => 'S',
-        (Axis::Longitude, false) => 'E',
-        (Axis::Longitude, true) => 'W',
-    }
 }
 
 /// The `(degree, minute, second)` glyphs for a symbol style. The degree sign

@@ -2,7 +2,7 @@
 //! the free-text parser.
 
 use super::resolve::Component;
-use crate::angle::{Axis, Hemisphere};
+use crate::angle::Hemisphere;
 use crate::error::ParseErrorKind;
 
 /// Canonicalize typography: Unicode primes → `'`/`"`, masculine ordinal → `°`,
@@ -166,7 +166,7 @@ pub(super) fn parse_component(component: &str) -> Result<Component, ParseErrorKi
     let mut negative = false;
     let mut axis = None;
     if let Some(h) = hemi {
-        axis = Some(hemi_axis(h));
+        axis = Some(h.axis());
         negative = matches!(h, Hemisphere::South | Hemisphere::West);
     }
     let body = body.trim();
@@ -296,19 +296,7 @@ fn nmea_decode(value: f64) -> Option<f64> {
     (minutes < 60.0).then_some(degrees + minutes / 60.0)
 }
 
+/// The hemisphere a cardinal letter names, in either case.
 fn hemi_from_char(c: char) -> Option<Hemisphere> {
-    match c.to_ascii_uppercase() {
-        'N' => Some(Hemisphere::North),
-        'S' => Some(Hemisphere::South),
-        'E' => Some(Hemisphere::East),
-        'W' => Some(Hemisphere::West),
-        _ => None,
-    }
-}
-
-fn hemi_axis(h: Hemisphere) -> Axis {
-    match h {
-        Hemisphere::North | Hemisphere::South => Axis::Latitude,
-        Hemisphere::East | Hemisphere::West => Axis::Longitude,
-    }
+    Hemisphere::from_letter(c.to_ascii_uppercase())
 }

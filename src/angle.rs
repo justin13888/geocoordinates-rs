@@ -140,19 +140,54 @@ impl Hemisphere {
             Hemisphere::South | Hemisphere::West => -1.0,
         }
     }
+
+    /// The hemisphere on `axis` of a value that is (or is not) negative.
+    pub(crate) fn on_axis(axis: Axis, negative: bool) -> Hemisphere {
+        match (axis, negative) {
+            (Axis::Latitude, false) => Hemisphere::North,
+            (Axis::Latitude, true) => Hemisphere::South,
+            (Axis::Longitude, false) => Hemisphere::East,
+            (Axis::Longitude, true) => Hemisphere::West,
+        }
+    }
+
+    /// The axis this hemisphere lies on: North / South latitude, East / West
+    /// longitude.
+    pub(crate) fn axis(self) -> Axis {
+        match self {
+            Hemisphere::North | Hemisphere::South => Axis::Latitude,
+            Hemisphere::East | Hemisphere::West => Axis::Longitude,
+        }
+    }
+
+    /// The cardinal letter: `N`, `S`, `E`, or `W`.
+    pub(crate) fn letter(self) -> char {
+        match self {
+            Hemisphere::North => 'N',
+            Hemisphere::South => 'S',
+            Hemisphere::East => 'E',
+            Hemisphere::West => 'W',
+        }
+    }
+
+    /// The hemisphere an uppercase cardinal letter names, if it names one.
+    pub(crate) fn from_letter(letter: char) -> Option<Hemisphere> {
+        match letter {
+            'N' => Some(Hemisphere::North),
+            'S' => Some(Hemisphere::South),
+            'E' => Some(Hemisphere::East),
+            'W' => Some(Hemisphere::West),
+            _ => None,
+        }
+    }
 }
 
-/// The hemisphere for a signed value on the given axis.
+/// The hemisphere for a finite signed value on the given axis.
 ///
 /// Treats `-0.0` as non-negative (North / East), so a zeroed component never
 /// reads as South / West.
 fn hemisphere_for(axis: Axis, value: f64) -> Hemisphere {
-    match (axis, value >= 0.0) {
-        (Axis::Latitude, true) => Hemisphere::North,
-        (Axis::Latitude, false) => Hemisphere::South,
-        (Axis::Longitude, true) => Hemisphere::East,
-        (Axis::Longitude, false) => Hemisphere::West,
-    }
+    Hemisphere::on_axis(axis, value < 0.0)
 }
 
 impl Dms {
@@ -182,12 +217,7 @@ impl Dms {
     /// ));
     /// ```
     pub fn new(degrees: u16, minutes: u8, seconds: f64, hemisphere: Hemisphere) -> Result<Self> {
-        validate_components(
-            degrees,
-            f64::from(minutes),
-            seconds,
-            axis_for_hemisphere(hemisphere),
-        )?;
+        validate_components(degrees, f64::from(minutes), seconds, hemisphere.axis())?;
         Ok(Dms {
             degrees,
             minutes,
@@ -360,7 +390,7 @@ impl Ddm {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn new(degrees: u16, minutes: f64, hemisphere: Hemisphere) -> Result<Self> {
-        validate_components(degrees, minutes, 0.0, axis_for_hemisphere(hemisphere))?;
+        validate_components(degrees, minutes, 0.0, hemisphere.axis())?;
         Ok(Ddm {
             degrees,
             minutes,
@@ -514,13 +544,6 @@ impl From<Dms> for Ddm {
 impl From<Ddm> for Dms {
     fn from(ddm: Ddm) -> Dms {
         ddm.to_dms()
-    }
-}
-
-fn axis_for_hemisphere(hemisphere: Hemisphere) -> Axis {
-    match hemisphere {
-        Hemisphere::North | Hemisphere::South => Axis::Latitude,
-        Hemisphere::East | Hemisphere::West => Axis::Longitude,
     }
 }
 
