@@ -51,6 +51,15 @@ class Everywhere implements ReverseGeocoder {
   }
 }
 
+/** A TypeScript geocoder whose provider fails, as a platform adapter's would. */
+class Failing implements ReverseGeocoder {
+  constructor(private readonly failure: unknown) {}
+
+  reverse(_coordinate: Coordinate, _options: ReverseOptions): Place | undefined {
+    throw this.failure;
+  }
+}
+
 before(async () => {
   const wasm = await readFile(
     new URL("../src/generated/web/wasm-bindgen/index_bg.wasm", import.meta.url),
@@ -91,5 +100,22 @@ describe("Reverse geocoding", () => {
     assert.equal(lying.inner.field, "country_code");
     const gazetteer = gazetteerAsReverseGeocoder(Gazetteer.fromBytes(fixture));
     assert.equal(reverseGeocode(gazetteer, at(45.75, 4.85), reverseOptionsDefault())?.name, "Lyon");
+  });
+
+  it("surfaces the GeoError a throwing TypeScript geocoder raises", () => {
+    const failure = new GeoError.InvalidValue({
+      field: "language",
+      detail: "provider has no such language",
+    });
+    const e = thrown(() => reverseGeocode(new Failing(failure), at(0, 1), reverseOptionsDefault()));
+    assert.ok(GeoError.InvalidValue.instanceOf(e), String(e));
+    assert.deepEqual({ ...e.inner }, { field: "language", detail: "provider has no such language" });
+  });
+
+  it("turns an unexpected exception from a TypeScript geocoder into Other", () => {
+    const failure = new Error("provider offline");
+    const e = thrown(() => reverseGeocode(new Failing(failure), at(0, 1), reverseOptionsDefault()));
+    assert.ok(GeoError.Other.instanceOf(e), String(e));
+    assert.match(e.inner.detail, /provider offline/);
   });
 });
