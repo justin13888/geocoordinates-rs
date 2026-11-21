@@ -17,7 +17,7 @@
 
 use core::f64::consts::PI;
 
-use super::ecef::ellipsoid_of;
+use super::ellipsoid::ellipsoid_of;
 use super::geodesic::{finish, validate_pair};
 use crate::coord::{Coordinate, LatLon};
 use crate::error::{Error, Result};

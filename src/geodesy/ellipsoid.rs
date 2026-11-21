@@ -8,9 +8,28 @@
 //! ```
 
 use crate::coord::Crs;
-#[cfg(any(feature = "serde", test))]
 use crate::error::{Error, Result};
 use crate::units::Length;
+
+/// The ellipsoid of a coordinate's own `crs`, or [`Error::CrsMismatch`]
+/// (expecting WGS-84) for the China obfuscation systems, which have none.
+pub(crate) fn ellipsoid_of(crs: Crs) -> Result<Ellipsoid> {
+    Ellipsoid::for_crs(crs).ok_or(Error::CrsMismatch {
+        expected: Crs::Wgs84,
+        found: crs,
+    })
+}
+
+/// The ellipsoid of a `crs` the caller passed as an argument, or
+/// [`Error::InvalidValue`] naming that argument (`field`) for the China
+/// obfuscation systems, which have none. No coordinate is on the wrong datum
+/// here, so the error is not a [`Error::CrsMismatch`].
+pub(crate) fn ellipsoid_of_argument(crs: Crs, field: &'static str) -> Result<Ellipsoid> {
+    Ellipsoid::for_crs(crs).ok_or_else(|| Error::InvalidValue {
+        field,
+        detail: format!("{crs} is not a geodetic datum and has no ellipsoid"),
+    })
+}
 
 /// A reference ellipsoid defined by its semi-major axis and inverse flattening.
 ///

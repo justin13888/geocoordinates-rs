@@ -5,6 +5,8 @@
 
 use core::ops::{Add, Mul, Sub};
 
+use crate::error::{Error, Result};
+
 /// A length, stored in meters, with conversions to common units.
 ///
 /// Distinguishes the **US survey foot** from the **international foot** — a
@@ -232,6 +234,18 @@ impl Mul<f64> for Length {
         Length {
             meters: self.meters * rhs,
         }
+    }
+}
+
+/// `value` if it is finite, else [`Error::InvalidValue`] naming `field`.
+pub(crate) fn finite(value: f64, field: &'static str) -> Result<f64> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(Error::InvalidValue {
+            field,
+            detail: "must be finite".into(),
+        })
     }
 }
 

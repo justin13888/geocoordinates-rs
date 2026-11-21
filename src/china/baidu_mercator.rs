@@ -31,6 +31,7 @@
 use super::Bd09;
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
+use crate::units::finite;
 
 /// Largest latitude magnitude (degrees) Baidu's projection accepts: its own
 /// `convertLL2MC` clamps latitude to ±74°.
@@ -236,18 +237,6 @@ impl TryFrom<BaiduMercatorRecord> for BaiduMercator {
     }
 }
 
-/// Reject a non-finite projected component, naming it.
-fn finite(field: &'static str, value: f64) -> Result<()> {
-    if value.is_finite() {
-        Ok(())
-    } else {
-        Err(Error::InvalidValue {
-            field,
-            detail: "must be finite".into(),
-        })
-    }
-}
-
 impl BaiduMercator {
     /// Construct from easting/northing in meters.
     ///
@@ -265,9 +254,10 @@ impl BaiduMercator {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn new(x: f64, y: f64) -> Result<Self> {
-        finite("x", x)?;
-        finite("y", y)?;
-        Ok(Self { x, y })
+        Ok(Self {
+            x: finite(x, "x")?,
+            y: finite(y, "y")?,
+        })
     }
 
     /// Easting (longitude axis), in meters.

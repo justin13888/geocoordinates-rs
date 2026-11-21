@@ -51,7 +51,8 @@ use core::f64::consts::PI;
 
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::geodesy::ecef::{Ecef, ellipsoid_of_argument};
+use crate::geodesy::ecef::Ecef;
+use crate::geodesy::ellipsoid::ellipsoid_of_argument;
 use crate::units::Length;
 
 /// Arc-seconds → radians (the rotation parameters are published in arc-seconds).
