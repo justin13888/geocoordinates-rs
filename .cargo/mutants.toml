@@ -62,29 +62,42 @@ exclude_re = [
     'src/cluster/hierarchy/forest\.rs:.*: replace cell_of -> u64 with 0',
     # The entries below name a line where one function holds both harmless mutants
     # and answer-changing ones, so a broader regex would hide the latter. An edit that
-    # moves such a line brings its mutants back as missed, which is the safe failure:
-    # re-anchor the entry to the same expression.
+    # moves such a line can leave the entry matching a different expression's mutant,
+    # so each entry sits under an `# anchor:` comment holding the expression it means,
+    # and `mise run mutants-anchor-check` (run first by `mutants` and `mutants-all`)
+    # fails unless that text is on the named line and the entry matches some mutant
+    # there. When it fails, re-anchor the entry to the line the expression moved to.
     #
     # The upper row limit of a search: a row past the grid's end holds nothing, so
     # raising `cells - 1` (`for_each_near`, `candidates`) adds no candidate. Dropping
     # `candidates`' one row of slack below the box keeps `cell_of(bottom)`, and a point
     # inside the box maps through the same monotonic function to no later a row.
+    # anchor: (row + 1).min(cells - 1)
     'src/cluster/hierarchy/forest\.rs:340:.*: replace - with (\+|/) in Forest::for_each_near',
+    # anchor: (cell_of(bottom, cells) + 1).min(cells - 1)
     'src/cluster/hierarchy/forest\.rs:575:.*: replace - with (\+|/) in Forest::candidates',
+    # anchor: (cell_of(bottom, cells) + 1).min(cells - 1)
     'src/cluster/hierarchy/forest\.rs:575:.*: replace \+ with \* in Forest::candidates',
     # `start`'s `% cells`: the loop reduces `start + step` by `cells` again, so leaving
     # `start` unreduced walks the same columns.
+    # anchor: (cell_of(unit_x(west), cells) + cells - 1) % cells
     'src/cluster/hierarchy/forest\.rs:573:.*: replace % with \+ in Forest::candidates',
     # Forest::candidates may always return more than the box holds, because
     # `ClusterIndex::clusters` filters by `contains`. Raising the column count, or
     # choosing the full walk (even at every query), changes speed, never an answer.
+    # anchor: (span / 360.0 * cells as f64)
     'src/cluster/hierarchy/forest\.rs:567:.*: replace \* with \+ in Forest::candidates',
+    # anchor: (span / 360.0 * cells as f64)
     'src/cluster/hierarchy/forest\.rs:567:.*: replace / with \* in Forest::candidates',
+    # anchor: columns < grid.len()
     'src/cluster/hierarchy/forest\.rs:570:.*: replace < with (==|<=|>) in Forest::candidates',
     # ClusterIndex::clusters' `rows` of `None` is the full walk, so a mutant that
     # makes it `None` for every box changes speed, never an answer.
+    # anchor: bounds.north() < 90.0
     'src/cluster/hierarchy\.rs:421:.*: replace < with > in ClusterIndex::clusters',
+    # anchor: bounds.south() > -90.0
     'src/cluster/hierarchy\.rs:421:.*: replace > with < in ClusterIndex::clusters',
+    # anchor: bounds.south() > -90.0
     'src/cluster/hierarchy\.rs:421:.*: delete - in ClusterIndex::clusters',
     # Forest::seed_for compares keys unique by id, and a node equal to `best` is the
     # node itself, which `best` already names.

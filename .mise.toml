@@ -389,8 +389,80 @@ exec bash "{{ config_root }}/scripts/file_length_check.sh" "{{ vars.max_file_lin
 
 # --- Mutation testing (cargo-mutants) ---
 
+# A line-anchored `exclude_re` entry (`'src/...rs:LINE:...'`) names one expression
+# on that line, written in the `# anchor: TEXT` comment directly above it. Fails
+# when an anchored entry has no such comment, when TEXT is not on LINE of its
+# file, or when the entry matches none of the mutants cargo-mutants lists without
+# the config, so an edit that moves the line cannot silently re-aim the entry.
+[tasks.mutants-anchor-check]
+description = "Fail when a line-anchored mutation exclusion no longer names its expression"
+tools = { "cargo:cargo-mutants" = "27.1.0" }
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+python3 -I - <<'PY'
+import pathlib
+import re
+import subprocess
+import sys
+import tomllib
+
+CONFIG = ".cargo/mutants.toml"
+text = pathlib.Path(CONFIG).read_text(encoding="utf-8")
+command = ["cargo", "mutants", *"{{ vars.mutants_flags }}".split(), "--list", "--no-config"]
+listing = subprocess.run(command, stdout=subprocess.PIPE, text=True)
+if listing.returncode != 0:
+    sys.exit(f"mutants-anchor-check: `{' '.join(command)}` exited {listing.returncode}")
+names = listing.stdout.splitlines()
+entry = re.compile(r"^\s*'(?P<re>(?P<file>src/[^':]+):(?P<line>[0-9]+):[^']*)',?\s*$")
+anchor = re.compile(r"^\s*# anchor: (?P<text>.+?)\s*$")
+
+errors = []
+found = []
+pending = None
+for number, line in enumerate(text.splitlines(), start=1):
+    where = f"{CONFIG}:{number}"
+    if pending is not None and not entry.match(line):
+        errors.append(f"{pending[0]}: `# anchor:` is not directly above an anchored entry")
+        pending = None
+    if match := anchor.match(line):
+        pending = (where, match["text"])
+        continue
+    if not (match := entry.match(line)):
+        continue
+    found.append(match["re"])
+    if pending is None:
+        errors.append(f"{where}: anchored entry has no `# anchor:` comment directly above it")
+        continue
+    expression, pending = pending[1], None
+    path = match["file"].replace("\\.", ".")
+    if re.search(r"[\\()\[\]|*+?{}^$]", path):
+        errors.append(f"{where}: anchored file `{match['file']}` is not a plain path")
+        continue
+    source = pathlib.Path(path)
+    lines = source.read_text(encoding="utf-8").splitlines() if source.is_file() else []
+    at = int(match["line"])
+    if at > len(lines) or expression not in lines[at - 1]:
+        errors.append(f"{where}: `{expression}` is not on {path}:{at}; re-anchor the entry")
+    elif not any(re.search(match["re"], name) for name in names):
+        errors.append(f"{where}: matches no mutant cargo-mutants lists; re-anchor the entry")
+if pending is not None:
+    errors.append(f"{pending[0]}: `# anchor:` is not directly above an anchored entry")
+
+# Every entry the config holds that names a line must have been read above.
+expected = [r for r in tomllib.loads(text)["exclude_re"] if re.match(r"src/[^:]+:[0-9]+:", r)]
+if expected != found:
+    errors.append(f"{CONFIG}: an anchored entry is not written on a line of its own")
+
+if errors:
+    sys.exit("mutants-anchor-check:\n  " + "\n  ".join(errors))
+print(f"mutants-anchor-check: {len(found)} anchored exclusions name their expressions")
+PY
+'''
+
 [tasks.mutants]
 description = "Mutation-test only the lines changed vs trunk (CI gate)"
+depends = ["mutants-anchor-check"]
 tools = { "cargo:cargo-mutants" = "27.1.0" }
 # Warn-only mutants must still build to be evaluated, else they count as
 # unviable rather than missed (CI's `mutants` job relaxes it the same way).
@@ -420,6 +492,7 @@ cargo mutants {{ vars.mutants_flags }} --in-diff "$diff"
 
 [tasks.mutants-all]
 description = "Full-tree mutation test of the published crate (slow, may report gaps)"
+depends = ["mutants-anchor-check"]
 tools = { "cargo:cargo-mutants" = "27.1.0" }
 env = { RUSTFLAGS = "" } # as in `mutants`
 run = "cargo mutants {{ vars.mutants_flags }}"
