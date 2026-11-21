@@ -44,20 +44,10 @@ const RADIUS_M: f64 = 6_378_137.0;
 /// Half the width of the projected world, in meters: `π × 6 378 137`.
 const HALF_WORLD_M: f64 = PI * RADIUS_M;
 
-// `lon` / `lat` as fractions of the world's width and height (west and top edges 0),
-// latitude clamped to the square. The cluster index's own projection, so the pins it
-// places and the views and tiles drawn here share one formula.
-pub(super) use crate::cluster::{world_x as unit_x, world_y as unit_y};
-
-/// The longitude at the unit-square column `x`, wrapped into `[-180, 180)`.
-pub(super) fn lon_at(x: f64) -> f64 {
-    x.rem_euclid(1.0) * 360.0 - 180.0
-}
-
-/// The latitude at the unit-square row `y`, which lies in `[0, 1]`.
-pub(super) fn lat_at(y: f64) -> f64 {
-    (PI * (1.0 - 2.0 * y)).sinh().atan().to_degrees()
-}
+// The unit-square projection both ways (west and top edges 0, latitude clamped to
+// the square). The cluster index's own, so the pins it places and the views and
+// tiles drawn here share one formula.
+pub(super) use crate::cluster::{edge_lon_at, lat_at, lon_at, unit_x, unit_y};
 
 /// Checks a fractional map zoom: finite, in `[0, MAX_TILE_ZOOM]`.
 pub(super) fn check_zoom(field: &'static str, zoom: f64) -> Result<()> {

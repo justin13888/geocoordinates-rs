@@ -1,6 +1,6 @@
 //! [`Tile`] and [`tiles_covering`], re-exported flat from [`map`](super).
 
-use super::mercator::{MAX_TILE_ZOOM, lat_at, unit_x, unit_y};
+use super::mercator::{MAX_TILE_ZOOM, edge_lon_at, lat_at, unit_x, unit_y};
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::geodesy::GeoBounds;
@@ -201,9 +201,9 @@ impl Tile {
         let (x, y) = (f64::from(self.x), f64::from(self.y));
         GeoBounds::from_edges(
             lat_at((y + 1.0) / n),
-            x / n * 360.0 - 180.0,
+            edge_lon_at(x / n),
             lat_at(y / n),
-            (x + 1.0) / n * 360.0 - 180.0,
+            edge_lon_at((x + 1.0) / n),
             crs,
         )
         .expect("a tile's edges are valid bounds")
@@ -283,11 +283,7 @@ pub fn tiles_covering(bounds: GeoBounds, z: u8, max_tiles: usize) -> Result<Vec<
     Tile::new(z, 0, 0)?;
     let n = tiles_across(z);
     let first_column = (unit_x(bounds.west()) * n as f64).floor() as u64;
-    let span = if bounds.crosses_antimeridian() {
-        bounds.east() - bounds.west() + 360.0
-    } else {
-        bounds.east() - bounds.west()
-    };
+    let span = bounds.lon_span();
     let east = (unit_x(bounds.west()) + span / 360.0) * n as f64;
     // A box at least a world wide takes every column once.
     let columns = ((east.ceil() as u64).max(first_column + 1) - first_column).min(n);

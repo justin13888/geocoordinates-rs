@@ -224,12 +224,7 @@ impl Camera {
 /// The span of `bounds` as a fraction of the world's width, and its west edge on
 /// the unit square.
 fn columns_of(bounds: GeoBounds) -> (f64, f64) {
-    let span = if bounds.crosses_antimeridian() {
-        bounds.east() - bounds.west() + 360.0
-    } else {
-        bounds.east() - bounds.west()
-    };
-    (unit_x(bounds.west()), span / 360.0)
+    (unit_x(bounds.west()), bounds.lon_span() / 360.0)
 }
 
 /// The camera that shows all of `bounds` in `viewport`, at the deepest zoom up to

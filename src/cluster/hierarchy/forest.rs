@@ -23,6 +23,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use super::super::centroid::{ROUND_OFF_M, angle_between, from_sum, normal};
+use super::super::unit_square::{unit_x, unit_y};
 use crate::coord::{Coordinate, Crs};
 use crate::geodesy::GeoBounds;
 
@@ -104,24 +105,7 @@ impl Aggregate {
 /// past about ±85.05° clamp to the square's edge. `x = 0` and `x = 1` are one meridian:
 /// distances wrap, and the grid's first and last columns are neighbors.
 fn world_xy(point: Coordinate) -> (f64, f64) {
-    (world_x(point.lon()), world_y(point.lat()))
-}
-
-/// `lon` as a fraction of the world's width, west edge 0, east edge 1. The one
-/// copy of the unit-square projection that pins, tiles and views share: `map`
-/// draws its views and tiles through it too, so the pins this index places and
-/// the views a map shows cannot drift apart. `WebMercator`'s meters come from
-/// its own closed form instead.
-pub(crate) fn world_x(lon: f64) -> f64 {
-    (lon + 180.0) / 360.0
-}
-
-/// `lat` as a fraction of the world's height, top edge 0, bottom edge 1, clamped to
-/// the square, so a pole lands on its edge. Shared with `map`, as [`world_x`] is.
-pub(crate) fn world_y(lat: f64) -> f64 {
-    let sin = lat.to_radians().sin();
-    let y = 0.5 - ((1.0 + sin) / (1.0 - sin)).ln() / (4.0 * std::f64::consts::PI);
-    y.clamp(0.0, 1.0)
+    (unit_x(point.lon()), unit_y(point.lat()))
 }
 
 /// One cluster on one level.
@@ -586,7 +570,7 @@ impl Forest {
         let Some((top, bottom)) = rows.filter(|_| columns < grid.len() as u64) else {
             return grid.iter().map(|(_, id)| *id).collect();
         };
-        let start = (cell_of(world_x(west), cells) + cells - 1) % cells;
+        let start = (cell_of(unit_x(west), cells) + cells - 1) % cells;
         let low = cell_of(top, cells).saturating_sub(1);
         let high = (cell_of(bottom, cells) + 1).min(cells - 1);
         let mut found = Vec::new();

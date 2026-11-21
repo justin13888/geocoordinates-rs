@@ -339,6 +339,20 @@ impl GeoBounds {
         self.west > self.east
     }
 
+    /// The degrees east from the west edge to the east edge, across the
+    /// antimeridian where the box crosses it: in `[0, 360]`, 360 for a box
+    /// round the world. Computed as `east - west` (plus 360 when crossing),
+    /// so a box with an east edge of 180 spans `180 - west` exactly.
+    #[cfg(feature = "cluster")]
+    #[must_use]
+    pub(crate) fn lon_span(self) -> f64 {
+        if self.crosses_antimeridian() {
+            self.east - self.west + 360.0
+        } else {
+            self.east - self.west
+        }
+    }
+
     /// Whether `point` lies in the box, edges included. Its height is ignored.
     ///
     /// A pole is inside a box that reaches it, whatever the box's longitudes.

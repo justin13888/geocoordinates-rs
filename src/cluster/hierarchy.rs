@@ -3,13 +3,11 @@
 mod forest;
 mod pin;
 
-#[cfg(feature = "map")]
-pub(crate) use self::forest::world_x;
-pub(crate) use self::forest::world_y;
 use self::forest::{DEEPEST, Forest, LEAF_LEVEL};
 pub use self::pin::MapCluster;
 use self::pin::decode_id;
 use super::centroid::normal_radius_m;
+use super::unit_square::unit_y;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
 use crate::geodesy::GeoBounds;
@@ -417,15 +415,11 @@ impl ClusterIndex {
             });
         }
         let level = usize::from(zoom);
-        let span = if bounds.crosses_antimeridian() {
-            bounds.east() - bounds.west() + 360.0
-        } else {
-            bounds.east() - bounds.west()
-        };
+        let span = bounds.lon_span();
         // A box reaching a pole holds the pole at every longitude, so only the
         // full walk can find a centroid exactly there.
         let rows = (bounds.north() < 90.0 && bounds.south() > -90.0)
-            .then(|| (world_y(bounds.north()), world_y(bounds.south())));
+            .then(|| (unit_y(bounds.north()), unit_y(bounds.south())));
         let mut found = Vec::new();
         for id in forest.candidates(level, bounds.west(), span, rows) {
             let aggregate = &forest.node(level, id).aggregate;
