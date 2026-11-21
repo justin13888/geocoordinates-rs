@@ -50,8 +50,8 @@ pub use dbscan::{Dbscan, PointLabel, dbscan};
 pub use grid::bucket_by_h3;
 pub use grid::{GridBucket, bucket_by_geohash};
 pub use hierarchy::{ClusterIndex, ClusterIndexOptions, MAX_ZOOM, MapCluster};
-// The Web Mercator unit square the index clusters on, which `map` draws in.
 pub use segment::{Trip, Visit, segment_trips, segment_visits};
 pub use types::Cluster;
+// The Web Mercator unit square the index clusters on, which `map` draws in.
 #[cfg(feature = "map")]
 pub(crate) use unit_square::{edge_lon_at, lat_at, lon_at, unit_x, unit_y};

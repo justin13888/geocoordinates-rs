@@ -90,6 +90,8 @@ pub(crate) use datum::HubRoute;
 pub use datum::{DatumTransform, Helmert};
 pub use ecef::Ecef;
 pub use ellipsoid::Ellipsoid;
+#[cfg(any(feature = "index", feature = "privacy", feature = "geotag"))]
+pub(crate) use ellipsoid::ellipsoid_of;
 pub use frames::{Aer, Enu, Ned};
 pub(crate) use geodesic::farthest_geodesic_m;
 pub use geodesic::{

@@ -19,7 +19,7 @@ use geographiclib_rs::{Geodesic, InverseGeodesic};
 use super::kdtree::KdTree;
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::geodesy::Ellipsoid;
+use crate::geodesy::{Ellipsoid, ellipsoid_of};
 use crate::units::Length;
 
 /// Relative slack on a squared chord limit.
@@ -78,10 +78,7 @@ struct Model {
 
 impl Model {
     fn for_crs(crs: Crs) -> Result<Self> {
-        let ellipsoid = Ellipsoid::for_crs(crs).ok_or(Error::CrsMismatch {
-            expected: Crs::Wgs84,
-            found: crs,
-        })?;
+        let ellipsoid = ellipsoid_of(crs)?;
         Ok(Self {
             crs,
             geodesic: Geodesic::new(ellipsoid.semi_major().meters(), ellipsoid.flattening()),
