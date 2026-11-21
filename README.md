@@ -317,6 +317,11 @@ code's licence. An application that shows places from it must credit GeoNames;
 
 To regenerate the bundled file, download `cities1000.zip` (unzipped to
 `cities1000.txt`), `admin1CodesASCII.txt` and `admin2Codes.txt` from the
-[GeoNames dump](https://download.geonames.org/export/dump/) and run `cargo run -p geocoordinates-gazetteer -- --cities cities1000.txt --admin1
-admin1CodesASCII.txt --admin2 admin2Codes.txt --source-date YYYY-MM-DD --out
-src/reverse/data/geonames-cities1000.gaz`, with the dump's date as `--source-date`.
+[GeoNames dump](https://download.geonames.org/export/dump/) and run, with the
+dump's date as `--source-date`:
+
+```bash
+cargo run -p geocoordinates-gazetteer -- --cities cities1000.txt \
+    --admin1 admin1CodesASCII.txt --admin2 admin2Codes.txt \
+    --source-date YYYY-MM-DD --out src/reverse/data/geonames-cities1000.gaz
+```
