@@ -11,6 +11,7 @@ import org.junit.jupiter.api.assertThrows
 import uniffi.geocoordinates_ffi.Accuracy
 import uniffi.geocoordinates_ffi.AccuracyKind
 import uniffi.geocoordinates_ffi.AuxiliaryTagPolicy
+import uniffi.geocoordinates_ffi.AxisOrder
 import uniffi.geocoordinates_ffi.Bd09
 import uniffi.geocoordinates_ffi.Crs
 import uniffi.geocoordinates_ffi.DatumAmbiguity
@@ -18,6 +19,7 @@ import uniffi.geocoordinates_ffi.ExifDms
 import uniffi.geocoordinates_ffi.ExifGps
 import uniffi.geocoordinates_ffi.ExifOptions
 import uniffi.geocoordinates_ffi.ExifRational
+import uniffi.geocoordinates_ffi.Fix
 import uniffi.geocoordinates_ffi.Gcj02
 import uniffi.geocoordinates_ffi.GeoException
 import uniffi.geocoordinates_ffi.H3Cell
@@ -31,6 +33,7 @@ import uniffi.geocoordinates_ffi.parseExifWith
 import uniffi.geocoordinates_ffi.parseXmp
 import uniffi.geocoordinates_ffi.parseXmpWith
 import uniffi.geocoordinates_ffi.S2CellId
+import uniffi.geocoordinates_ffi.Track
 import uniffi.geocoordinates_ffi.Ups
 import uniffi.geocoordinates_ffi.Utm
 import uniffi.geocoordinates_ffi.UtmHemisphere
@@ -52,6 +55,7 @@ import uniffi.geocoordinates_ffi.gcj02ToBd09
 import uniffi.geocoordinates_ffi.gcj02ToWgs84Fast
 import uniffi.geocoordinates_ffi.gcj02ToWgs84Refined
 import uniffi.geocoordinates_ffi.geodesicDistanceM
+import uniffi.geocoordinates_ffi.geotagOptionsDefault
 import uniffi.geocoordinates_ffi.h3Decode
 import uniffi.geocoordinates_ffi.h3Encode
 import uniffi.geocoordinates_ffi.h3Validate
@@ -61,7 +65,11 @@ import uniffi.geocoordinates_ffi.mgrsToCoordinate
 import uniffi.geocoordinates_ffi.parseCoordinate
 import uniffi.geocoordinates_ffi.parseNmeaSentence
 import uniffi.geocoordinates_ffi.parseText
+import uniffi.geocoordinates_ffi.parseWkt
 import uniffi.geocoordinates_ffi.rhumbBearingDeg
+import uniffi.geocoordinates_ffi.s2Decode
+import uniffi.geocoordinates_ffi.s2Encode
+import uniffi.geocoordinates_ffi.s2Level
 import uniffi.geocoordinates_ffi.s2Validate
 import uniffi.geocoordinates_ffi.upsToCoordinate
 import uniffi.geocoordinates_ffi.upsValidate
@@ -181,6 +189,22 @@ class BindingsTest {
     }
 
     @Test
+    fun preEpochAndSubsecondTimestampsRoundTripThroughATrack() {
+        // About 56 m apart, inside the default 50 m/s speed limit. Every instant is
+        // at least a second before the epoch: one inside the last second crosses
+        // with its sign flipped (#342).
+        val before = Instant.parse("1969-12-31T23:59:56.250Z")
+        val after = Instant.parse("1969-12-31T23:59:58.250Z")
+        fun timed(lon: Double, at: Instant) = Fix(wgs84(0.0, lon), null, at, null)
+        val track = Track(listOf(timed(0.0005, after), timed(0.0, before)))
+        assertEquals(listOf(before, after), track.fixes().map { it.timestamp })
+        val midway = Instant.parse("1969-12-31T23:59:57.250Z")
+        val between = track.locate(midway, geotagOptionsDefault())!!
+        assertEquals(midway, between.timestamp)
+        assertEquals(0.00025, between.coord.lon, 1e-12)
+    }
+
+    @Test
     fun fixAccuracyIsTaggedAndValidated() {
         val gga = parseNmeaSentence("\$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")
         assertEquals(AccuracyKind.ONE_SIGMA, gga.accuracy?.kind)
@@ -255,6 +279,21 @@ class BindingsTest {
     }
 
     @Test
+    fun s2CellAbove2To63RoundTrips() {
+        val cell = s2Encode(wgs84(40.7128, -74.006), 20u)
+        assertEquals(9_926_595_630_970_437_632uL, cell.value)
+        assertTrue(cell.value >= 1uL shl 63)
+        s2Validate(cell)
+        assertEquals(20.toUByte(), s2Level(cell))
+        val back = s2Decode(S2CellId(9_926_595_630_970_437_632uL))
+        assertEquals(40.712_762_829, back.coord.lat, 1e-8)
+        assertEquals(-74.006_004_053, back.coord.lon, 1e-8)
+        // The id an error carries crosses back just as wide.
+        val bad = throwsVariant<GeoException.InvalidCellId> { s2Decode(S2CellId(ULong.MAX_VALUE)) }
+        assertEquals(ULong.MAX_VALUE, bad.value)
+    }
+
+    @Test
     fun normalizedNamesCarryTheirUnitAndAxisOrder() {
         assertEquals(90.0, initialBearingDeg(wgs84(0.0, 0.0), wgs84(0.0, 1.0)), 1e-6)
         assertEquals(90.0, rhumbBearingDeg(wgs84(60.0, -10.0), wgs84(60.0, 30.0)), 1e-9)
@@ -294,6 +333,13 @@ class BindingsTest {
                 parseNmeaSentence("\$GPGLL,4916.45,N,12311.12,W,225444,A,*1E")
             }
         assertEquals(ParseErrorKind.CHECKSUM, corrupt.kind)
+        val unsupported = throwsVariant<GeoException.Parse> { parseNmeaSentence("\$GPVTG,054.7,T") }
+        assertEquals(ParseErrorKind.UNSUPPORTED, unsupported.kind)
+        val deep =
+            throwsVariant<GeoException.Parse> {
+                parseWkt("GEOMETRYCOLLECTION(".repeat(200), AxisOrder.LON_LAT)
+            }
+        assertEquals(ParseErrorKind.TOO_DEEP, deep.kind)
     }
 
     @Test

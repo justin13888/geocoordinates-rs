@@ -36,6 +36,11 @@ private class Everywhere(private val countryCode: String) : ReverseGeocoder {
         }
 }
 
+/** A foreign geocoder whose provider fails, as a platform adapter's would. */
+private class Failing(private val failure: Exception) : ReverseGeocoder {
+    override fun reverse(coordinate: Coordinate, options: ReverseOptions): Place? = throw failure
+}
+
 class ReverseBindingsTest {
     @Test
     fun gazetteerLoadsAndResolves() {
@@ -65,5 +70,23 @@ class ReverseBindingsTest {
         assertEquals("country_code", lying.field)
         val gazetteer = gazetteerAsReverseGeocoder(Gazetteer.fromBytes(fixture.readBytes()))
         assertEquals("Lyon", reverseGeocode(gazetteer, at(45.75, 4.85), reverseOptionsDefault())?.name)
+    }
+
+    @Test
+    fun aThrowingForeignGeocoderSurfacesItsGeoError() {
+        val failure = GeoException.InvalidValue("language", "provider has no such language")
+        val e = assertThrows<GeoException.InvalidValue> {
+            reverseGeocode(Failing(failure), at(0.0, 1.0), reverseOptionsDefault())
+        }
+        assertEquals("language", e.field)
+        assertEquals("provider has no such language", e.detail)
+    }
+
+    @Test
+    fun aThrowingForeignGeocodersUnexpectedExceptionBecomesOther() {
+        val e = assertThrows<GeoException.Other> {
+            reverseGeocode(Failing(IllegalStateException("provider offline")), at(0.0, 1.0), reverseOptionsDefault())
+        }
+        assertTrue(e.detail.contains("provider offline"), e.detail)
     }
 }
