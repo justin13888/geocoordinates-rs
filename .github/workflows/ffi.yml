@@ -195,7 +195,7 @@ jobs:
   # typed GeoError case).
   swift-build:
     name: Swift package build
-    runs-on: macos-14
+    runs-on: macos-15 # arm64; every macos-14 image is retired
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
