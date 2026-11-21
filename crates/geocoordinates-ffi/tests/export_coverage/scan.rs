@@ -15,8 +15,9 @@ pub enum Kind {
     /// `.name(` on a receiver of type `Owner` (see [`calls`]).
     Method,
     /// A method of an exported `with_foreign` trait: foreign code implements
-    /// it, so a test exercises it by implementing it (`impl Owner for T` with
-    /// a `fn name(`) or by calling it on a receiver of type `Owner`.
+    /// it, so a test exercises it by handing an export a type that test code
+    /// implements the trait for (`impl Owner for T`), or by calling it on a
+    /// receiver of type `Owner`.
     ForeignMethod,
 }
 
