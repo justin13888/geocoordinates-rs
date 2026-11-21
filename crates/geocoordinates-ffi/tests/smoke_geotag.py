@@ -35,3 +35,22 @@ try:
     raise AssertionError("no references must raise")
 except gc.GeoError.InvalidValue as e:
     assert e.field == "references", e
+
+# pre_epoch_and_subsecond_timestamps_round_trip_through_a_track: an instant
+# before 1970 with a fractional second crosses both ways unchanged. The fixes
+# are 0.0005 degrees (about 56 m) apart, inside the default 50 m/s speed limit.
+# Every instant is at least a second before the epoch: one inside the last
+# second crosses with its sign flipped (#342).
+before = datetime.datetime(1969, 12, 31, 23, 59, 56, 250_000, tzinfo=utc)
+after = datetime.datetime(1969, 12, 31, 23, 59, 58, 250_000, tzinfo=utc)
+pre_epoch = gc.Track(
+    [
+        gc.Fix(coord=gc.coordinate_new(0.0, 0.0005, gc.Crs.WGS84), accuracy=None, timestamp=after, source=None),
+        gc.Fix(coord=gc.coordinate_new(0.0, 0.0, gc.Crs.WGS84), accuracy=None, timestamp=before, source=None),
+    ]
+)
+assert [f.timestamp for f in pre_epoch.fixes()] == [before, after], pre_epoch.fixes()
+midway = datetime.datetime(1969, 12, 31, 23, 59, 57, 250_000, tzinfo=utc)
+between = pre_epoch.locate(midway, gc.geotag_options_default())
+assert between.timestamp == midway, between.timestamp
+assert abs(between.coord.lon - 0.00025) < 1e-12, between.coord
