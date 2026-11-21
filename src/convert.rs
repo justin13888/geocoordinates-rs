@@ -430,6 +430,41 @@ mod tests {
         }
     }
 
+    /// A position mostly inside the China box, sometimes straddling its west
+    /// or north edge (where the GCJ-02 inverse cannot converge), sometimes
+    /// anywhere on the globe.
+    fn position() -> impl proptest::strategy::Strategy<Value = (f64, f64)> {
+        use proptest::prelude::*;
+        prop_oneof![
+            3 => (1.0..=55.0_f64, 73.0..=137.0_f64),
+            1 => (1.0..=55.0_f64, 71.99..=72.02_f64),
+            1 => (55.81..=55.84_f64, 73.0..=137.0_f64),
+            1 => (-89.0..=89.0_f64, -180.0..=180.0_f64),
+        ]
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(512))]
+
+        /// The documented bound is the sum of the legs' estimates, so A → B
+        /// → A lands within the two results' summed `max_error` of where it
+        /// started, for every pair of modeled systems.
+        #[test]
+        fn crs_round_trip_lands_within_the_summed_bound(
+            (lat, lon) in position(),
+            from in proptest::sample::select(&ALL[..]),
+            to in proptest::sample::select(&ALL[..]),
+        ) {
+            let start = Coordinate::new(lat, lon, from).unwrap();
+            let there = start.try_to_crs(to).unwrap();
+            let back = there.value().try_to_crs(from).unwrap();
+            proptest::prop_assert_eq!(back.value().crs(), from);
+            let bound = there.max_error().meters() + back.max_error().meters();
+            let gap = haversine_distance(*back.value(), start).unwrap().meters();
+            proptest::prop_assert!(gap <= bound, "{from:?} -> {to:?} -> {from:?}: {gap} m > {bound} m");
+        }
+    }
+
     /// A BD-09 leg that would carry a latitude past a pole is reported as
     /// outside BD-09's domain, on the direct path and through the hub.
     #[test]
