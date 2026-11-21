@@ -5,7 +5,10 @@
 //! - every fallible export documents its failures under a non-empty `# Errors`;
 //! - every export follows the naming scheme in `README.md#naming`;
 //! - the export counts equal the pinned ones, so an export cannot disappear
-//!   unnoticed.
+//!   unnoticed;
+//! - every non-trait function and constant in the core crate's public API
+//!   snapshot (`public-api/geocoordinates/`) has an FFI form, save the
+//!   shrink-only lists in `export_coverage/parity_gaps.rs`.
 //!
 //! The scan is textual but comment- and string-aware: [`scan::strip`] blanks
 //! every comment, string literal and char literal before any code is matched,
@@ -14,6 +17,13 @@
 #[path = "export_coverage/scan.rs"]
 mod scan;
 
+#[path = "export_coverage/parity.rs"]
+mod parity;
+
+#[path = "export_coverage/parity_gaps.rs"]
+mod parity_gaps;
+
+use parity::*;
 use scan::*;
 use std::collections::BTreeSet;
 use std::fs;
@@ -479,4 +489,137 @@ fn naming_scheme_records_are_read() {
         value_type("Result<Vec<f64>, GeoError>", &aliases),
         "Vec<f64>"
     );
+}
+
+/// Every non-trait `fn` and `const` in the core crate's all-features public
+/// API snapshot.
+fn core_items() -> BTreeSet<ApiItem> {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../public-api/geocoordinates");
+    let mut items = BTreeSet::new();
+    for entry in fs::read_dir(dir).expect("the public-api snapshots") {
+        let path = entry.expect("directory entry").path();
+        if path.extension().is_some_and(|ext| ext == "txt") {
+            items.extend(api_items(&fs::read_to_string(path).unwrap()));
+        }
+    }
+    items
+}
+
+#[test]
+fn every_core_item_has_an_ffi_form() {
+    let items = core_items();
+    assert!(items.len() >= 350, "read only {} core items", items.len());
+    let exports = crate_exports();
+    let fields = record_fields(&crate_sources());
+    let unreached: BTreeSet<String> = items
+        .iter()
+        .filter(|item| !reaches(item, &exports, &fields))
+        .map(ApiItem::label)
+        .collect();
+    let names: BTreeSet<&str> = exports.iter().map(|e| e.name.as_str()).collect();
+    for (item, form) in parity_gaps::RENAMED {
+        let exists = match form.split_once('.') {
+            Some((record, field)) => fields.get(record).is_some_and(|f| f.contains(field)),
+            None => names.contains(form),
+        };
+        assert!(
+            exists,
+            "`RENAMED` maps {item} to {form}, which is no export or record field"
+        );
+    }
+    let allowed: BTreeSet<String> = parity_gaps::ALLOWED
+        .iter()
+        .chain(parity_gaps::RENAMED.iter().map(|(item, _)| item))
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        allowed.len(),
+        parity_gaps::ALLOWED.len() + parity_gaps::RENAMED.len(),
+        "an item is listed twice in `parity_gaps`"
+    );
+    let missing: Vec<&String> = unreached.difference(&allowed).collect();
+    assert!(
+        missing.is_empty(),
+        "core items with no FFI form (add one, or allow-list a deliberate exclusion):\n{}",
+        missing
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    let stale: Vec<&String> = allowed.difference(&unreached).collect();
+    assert!(
+        stale.is_empty(),
+        "`parity_gaps` entries an FFI form now reaches by name, or that name no core item; remove them: {stale:?}"
+    );
+}
+
+#[test]
+fn parity_reads_the_public_api_listing() {
+    let listing = "\
+pub mod geocoordinates::cluster
+pub struct geocoordinates::cluster::Cluster
+impl geocoordinates::cluster::Cluster
+pub const fn geocoordinates::cluster::Cluster::bounds(&self) -> geocoordinates::geodesy::GeoBounds
+pub fn geocoordinates::cluster::Cluster::new(usize) -> geocoordinates::Result<Self>
+impl core::clone::Clone for geocoordinates::cluster::Cluster
+pub fn geocoordinates::cluster::Cluster::clone(&self) -> Self
+#[non_exhaustive] pub struct geocoordinates::cluster::Options
+pub geocoordinates::cluster::Options::radius_px: f64
+pub const fn geocoordinates::cluster::Options::with_radius_px(self, f64) -> Self
+pub trait geocoordinates::LatLon
+pub fn geocoordinates::LatLon::lat(&self) -> f64
+pub const geocoordinates::cluster::MAX_ZOOM: u8
+pub fn geocoordinates::cluster::centroid<T>(&[T]) -> geocoordinates::Result<T>
+pub fn geocoordinates::prelude::reexported()
+";
+    let labels: Vec<String> = api_items(listing).iter().map(ApiItem::label).collect();
+    assert_eq!(
+        labels,
+        [
+            "Cluster::bounds",
+            "Cluster::new",
+            "Options::with_radius_px",
+            "MAX_ZOOM",
+            "centroid"
+        ]
+    );
+
+    let fixture = "
+        pub struct Cluster { pub bounds: GeoBounds, count: u64 }
+        pub struct Options { pub radius_px: f64 }
+        pub struct Tuple(pub f64);
+        #[uniffi::export]
+        pub fn cluster_validate(c: Cluster) {}
+        #[uniffi::export]
+        pub fn centroid() {}
+        #[uniffi::export]
+        impl Index {
+            pub fn len(&self) -> u64 { 0 }
+        }
+    ";
+    let fields = record_fields(&[fixture.to_string()]);
+    assert_eq!(fields["Cluster"], BTreeSet::from(["bounds".to_string()]));
+    let exports = exports(fixture);
+    let reached = |label: &str| {
+        let item = match label.split_once("::") {
+            Some((owner, name)) => ApiItem {
+                owner: Some(owner.into()),
+                name: name.into(),
+            },
+            None => ApiItem {
+                owner: None,
+                name: label.into(),
+            },
+        };
+        reaches(&item, &exports, &fields)
+    };
+    assert!(reached("Cluster::bounds"));
+    assert!(reached("Cluster::new"));
+    assert!(reached("Options::with_radius_px"));
+    assert!(reached("centroid"));
+    assert!(reached("Index::len"));
+    assert!(!reached("Cluster::count"));
+    assert!(!reached("Other::len"));
+    assert!(!reached("MAX_ZOOM"));
 }
