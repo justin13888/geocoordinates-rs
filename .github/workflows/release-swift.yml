@@ -53,7 +53,7 @@ permissions:
 jobs:
   xcframework:
     name: Build + publish XCFramework
-    runs-on: macos-14
+    runs-on: macos-15 # arm64; every macos-14 image is retired
     permissions:
       contents: write # upload the release asset, re-point the tag
     steps:
