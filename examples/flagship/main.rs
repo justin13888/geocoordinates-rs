@@ -1,4 +1,4 @@
-//! Full-surface, self-verifying field lab for `geocoordinates`.
+//! Self-verifying field lab for the eight core capability groups of `geocoordinates`.
 //!
 //! Run with:
 //!
@@ -37,7 +37,7 @@ use projected_grids::classic_datums_and_projected_grids;
 #[cfg(not(test))]
 fn main() -> Result<(), Box<dyn StdError>> {
     println!(
-        "geocoordinates {} — full-surface field lab",
+        "geocoordinates {} — core-surface field lab",
         env!("CARGO_PKG_VERSION")
     );
     for section in [
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
     ] {
         println!("[ok] {section}");
     }
-    println!("All 8 shipped Rust capability groups passed.");
+    println!("All 8 core capability groups passed.");
     Ok(())
 }
 
