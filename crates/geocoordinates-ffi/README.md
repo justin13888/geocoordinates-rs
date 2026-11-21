@@ -56,14 +56,29 @@ Every export follows one scheme, so a name reads the same in every language
   `height_meters` and `mgrs_precision_meters`. One returning an angle ends in
   `_deg` (`initial_bearing_deg`, `final_bearing_deg`, `rhumb_bearing_deg`,
   `wrap_longitude_deg`, `clamp_latitude_deg`, `utm_central_meridian_deg`) or
-  names degrees as its target (`dms_to_degrees`, `normalize_degrees`). Length
-  and angle parameters carry the same suffix (`distance_m`, `bearing_deg`).
-  Two exceptions, where the unit is already fixed elsewhere: a constructor's
-  parameters take the names of the record fields they fill, so `coordinate_new`
-  and `coordinate_from_lon_lat` take `lat` / `lon` like the `Coordinate`
-  record (decimal degrees); and the `Length` converters name the unit they
-  convert between, with meters always the other side (`length_from_unit`
-  returns meters, `length_to_unit` takes them).
+  names degrees as its target (`dms_to_degrees`, `ddm_to_degrees`,
+  `normalize_degrees`). Length and angle parameters carry the same suffix
+  (`distance_m`, `bearing_deg`), and a screen-space parameter in pixels ends
+  in `_px` (`tile_px`, `padding_px`). Exceptions, where the unit is already fixed elsewhere or there is
+  none:
+  - a constructor's parameters take the names of the record fields they fill,
+    so `coordinate_new` and `coordinate_from_lon_lat` take `lat` / `lon` like
+    the `Coordinate` record (decimal degrees);
+  - a function that names degrees as its input takes them unsuffixed
+    (`dms_from_degrees(value)`, `ddm_from_degrees(value)`,
+    `normalize_degrees(deg)`);
+  - the `Length` converters name the unit they convert between, with meters
+    always the other side (`length_from_unit(value)` returns meters,
+    `length_to_unit(meters)` takes them, and `length_unit_meters_per_unit`
+    returns the ratio);
+  - a dimensionless value has no unit to name: a confidence in `[0, 1]`
+    (`confidence_new(value)`), a fraction of a path
+    (`intermediate(fraction)`), a fractional zoom level (`zoom` in
+    `world_pixel_from_coordinate`, `world_pixel_to_coordinate`,
+    `clusters_in_view` and `clusters_in_view_geojson`, `max_zoom` in
+    `fit_bounds`), a sign (`hemisphere_sign` returns `-1.0` or `+1.0`), and
+    the ellipsoid shape parameters (`ellipsoid_flattening`,
+    `ellipsoid_eccentricity_sq`).
 - **Ingestion is `parse_*`.** `parse_coordinate`, `parse_coordinate_with`,
   `parse_text`, `parse_text_with`, `parse_geo_uri`, `parse_geojson`,
   `parse_wkt`, `parse_gpx`, `parse_kml` and `parse_nmea_sentence` each read
