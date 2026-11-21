@@ -189,6 +189,14 @@ class VersionCheck(GateTask):
         self.gradle('project.version = "1.2.3"\n')
         self.assertFails(self.run_task("version-check", "HEAD"))
 
+    def test_indented_literal_version_fails(self):
+        self.gradle('allprojects {\n    version = "1.2.3"\n}\n')
+        self.assertFails(self.run_task("version-check", "HEAD"))
+
+    def test_plugin_version_is_not_the_project_version(self):
+        self.gradle('plugins {\n    kotlin("jvm") version "2.1.0"\n}\n' + GRADLE_READS_CARGO)
+        self.assertPasses(self.run_task("version-check", "HEAD"))
+
 
 if __name__ == "__main__":
     unittest.main()
