@@ -64,11 +64,13 @@ jobs:
         include:
           - { runner: ubuntu-latest, target: x86_64-unknown-linux-gnu, jna: linux-x86-64, lib: libgeocoordinates_ffi.so }
           - { runner: ubuntu-latest, target: aarch64-unknown-linux-gnu, jna: linux-aarch64, lib: libgeocoordinates_ffi.so, cross: true }
-          - { runner: macos-14, target: aarch64-apple-darwin, jna: darwin-aarch64, lib: libgeocoordinates_ffi.dylib }
-          # Cross-build the Intel dylib on the arm64 runner: GitHub's Intel
-          # macos-13 runners are being retired and queue indefinitely. The arm64
-          # Apple toolchain links x86_64-apple-darwin natively, so no Intel runner.
-          - { runner: macos-14, target: x86_64-apple-darwin, jna: darwin-x86-64, lib: libgeocoordinates_ffi.dylib }
+          # macos-15 is GitHub's arm64 macOS 15 image; every macos-14 image is
+          # retired, and GitHub refuses a job that still asks for one.
+          - { runner: macos-15, target: aarch64-apple-darwin, jna: darwin-aarch64, lib: libgeocoordinates_ffi.dylib }
+          # Cross-build the Intel dylib on the arm64 runner rather than an Intel
+          # (macos-*-intel) one: the arm64 Apple toolchain links
+          # x86_64-apple-darwin natively, so no Intel runner is needed.
+          - { runner: macos-15, target: x86_64-apple-darwin, jna: darwin-x86-64, lib: libgeocoordinates_ffi.dylib }
           - { runner: windows-latest, target: x86_64-pc-windows-msvc, jna: win32-x86-64, lib: geocoordinates_ffi.dll }
     steps:
       - uses: actions/checkout@v4

@@ -59,12 +59,14 @@ jobs:
         include:
           - { runner: ubuntu-latest, target: x86_64 }
           - { runner: ubuntu-latest, target: aarch64 }
-          # Cross-build the Intel wheel on the arm64 runner: GitHub's Intel
-          # macos-13 runners are being retired and queue indefinitely. The arm64
-          # macOS toolchain targets x86_64-apple-darwin natively (same as the
-          # Swift XCFramework build), so this needs no Intel runner.
-          - { runner: macos-14, target: x86_64 }
-          - { runner: macos-14, target: aarch64 }
+          # macos-15 is GitHub's arm64 macOS 15 image; every macos-14 image is
+          # retired, and GitHub refuses a job that still asks for one. Cross-build
+          # the Intel wheel on that arm64 runner rather than an Intel
+          # (macos-*-intel) one: the arm64 macOS toolchain targets
+          # x86_64-apple-darwin natively (same as the Swift XCFramework build),
+          # so this needs no Intel runner.
+          - { runner: macos-15, target: x86_64 }
+          - { runner: macos-15, target: aarch64 }
     steps:
       - uses: actions/checkout@v4
       - name: Plan release (version + publish)
