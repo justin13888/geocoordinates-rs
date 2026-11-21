@@ -2,6 +2,7 @@
 //! writer.
 
 use geocoordinates_gazetteer::{Admin, Dataset, FeatureClass as Class, PlaceRow, encode};
+use proptest::prelude::*;
 
 use super::*;
 use crate::{Approx, Coordinate, Crs, Error, Length, LengthUnit};
@@ -408,6 +409,89 @@ fn options_admit_by_both_filters() {
     assert!(!options.admits(FeatureClass::Locality, Some(9)));
     assert!(!options.admits(FeatureClass::Locality, None));
     assert!(ReverseOptions::new().admits(FeatureClass::Section, None));
+}
+
+/// Each class as the writer stores it and as a lookup filters on it.
+const CLASSES: [(Class, FeatureClass); 7] = [
+    (Class::Section, FeatureClass::Section),
+    (Class::Locality, FeatureClass::Locality),
+    (Class::Admin4Seat, FeatureClass::Admin4Seat),
+    (Class::Admin3Seat, FeatureClass::Admin3Seat),
+    (Class::Admin2Seat, FeatureClass::Admin2Seat),
+    (Class::Admin1Seat, FeatureClass::Admin1Seat),
+    (Class::Capital, FeatureClass::Capital),
+];
+
+/// A position in the writer's 1e-5° units, often by a pole or the antimeridian,
+/// where neighbours are hardest to find.
+fn any_e5() -> impl Strategy<Value = (i32, i32)> {
+    let lat = prop_oneof![
+        2 => -9_000_000..=9_000_000_i32,
+        1 => 8_900_000..=9_000_000_i32,
+        1 => -9_000_000..=-8_900_000_i32,
+        2 => 4_800_000..=4_900_000_i32,
+    ];
+    let lon = prop_oneof![
+        2 => -18_000_000..=18_000_000_i32,
+        1 => 17_900_000..=18_000_000_i32,
+        1 => -18_000_000..=-17_900_000_i32,
+        2 => 200_000..=300_000_i32,
+    ];
+    (lat, lon)
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(128))]
+
+    /// The lookup returns what a scan of every place returns: the nearest that
+    /// passes the class, population and distance filters, the first listed on a
+    /// tie. Over 8 places, so a search that has to widen is exercised too.
+    #[test]
+    fn reverse_matches_brute_force_nearest_admitted_place(
+        places in prop::collection::vec(
+            (any_e5(), 0..7_usize, prop::sample::select(vec![0_u64, 500, 5_000, 200_000])),
+            0..80,
+        ),
+        query in any_e5(),
+        min_class in prop::option::of(0..7_usize),
+        min_population in prop::sample::select(vec![0_u64, 1, 1_000, 100_000]),
+        max_km in prop::sample::select(vec![0.0, 10.0, 50.0, 500.0, 20_100.0]),
+    ) {
+        let mut d = Dataset::new("d", "a");
+        for (i, &((lat_e5, lon_e5), class, population)) in places.iter().enumerate() {
+            let mut row = PlaceRow::new(lat_e5, lon_e5, format!("p{i}"), *b"XX", CLASSES[class].0);
+            row.population = population;
+            d.places.push(row);
+        }
+        // A copy of the first place, listed last, so ties occur.
+        if let Some(first) = d.places.first().cloned() {
+            d.places.push(PlaceRow { name: "copy".into(), ..first });
+        }
+        let g = Gazetteer::from_bytes(&encode(&d)).unwrap();
+        let at = wgs(f64::from(query.0) / 1e5, f64::from(query.1) / 1e5);
+        let mut options = ReverseOptions::default()
+            .with_min_population(min_population)
+            .with_max_distance(Length::from_unit(max_km, LengthUnit::Kilometer));
+        if let Some(min) = min_class {
+            options = options.with_min_feature_class(CLASSES[min].1);
+        }
+        let expected = d
+            .places
+            .iter()
+            .filter(|row| {
+                let class = CLASSES.iter().position(|c| c.0 == row.class).unwrap();
+                min_class.is_none_or(|min| class >= min)
+                    && (min_population == 0 || (row.population > 0 && row.population >= min_population))
+            })
+            .map(|row| {
+                let there = wgs(f64::from(row.lat_e5) / 1e5, f64::from(row.lon_e5) / 1e5);
+                (row.name.clone(), crate::geodesy::geodesic_distance(at, there).unwrap().meters())
+            })
+            .filter(|(_, meters)| *meters <= options.max_distance.meters())
+            .reduce(|best, next| if next.1 < best.1 { next } else { best });
+        let found = lookup(&g, at, &options).map(|place| (place.name().to_owned(), place.distance().meters()));
+        prop_assert_eq!(found, expected);
+    }
 }
 
 #[cfg(feature = "serde")]

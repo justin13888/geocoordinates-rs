@@ -491,8 +491,20 @@ fn updates_handle_every_id_and_crs_edge() {
     assert!(index.is_empty() && index.crs().is_none());
     assert!(index.clusters(world(), 0).unwrap().is_empty());
     // No level keeps a node of the last point, so its pin names nothing now.
-    assert!(index.children(pin).is_err());
-    assert!(index.leaves(pin, 1, 0).is_err());
+    assert!(matches!(
+        index.children(pin),
+        Err(Error::InvalidValue {
+            field: "cluster_id",
+            ..
+        })
+    ));
+    assert!(matches!(
+        index.leaves(pin, 1, 0),
+        Err(Error::InvalidValue {
+            field: "cluster_id",
+            ..
+        })
+    ));
     let second = index.insert(tokyo).unwrap();
     assert_eq!(second, first + 1);
     assert_eq!(index.crs(), Some(Crs::Tokyo));
