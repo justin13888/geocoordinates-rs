@@ -139,7 +139,29 @@ fn world_pixels_round_trip_and_wrap() {
             "{field}"
         );
     }
-    assert!(WorldPixel::from_coordinate(wgs(0.0, 0.0), 1.0, -1.0).is_err());
+    for (result, field) in [
+        (
+            WorldPixel::from_coordinate(wgs(0.0, 0.0), 1.0, -1.0),
+            "tile_px",
+        ),
+        (
+            WorldPixel::from_coordinate(wgs(0.0, 0.0), 1.0, f64::NAN),
+            "tile_px",
+        ),
+        (
+            WorldPixel::from_coordinate(wgs(0.0, 0.0), -1.0, 256.0),
+            "zoom",
+        ),
+        (
+            WorldPixel::from_coordinate(wgs(0.0, 0.0), 30.5, 256.0),
+            "zoom",
+        ),
+    ] {
+        assert!(
+            matches!(result, Err(Error::InvalidValue { field: f, .. }) if f == field),
+            "{field}"
+        );
+    }
 }
 
 #[test]

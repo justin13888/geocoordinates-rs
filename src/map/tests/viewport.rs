@@ -217,8 +217,15 @@ fn viewport_and_camera_validate() {
         ));
     }
     assert!(Camera::new(wgs(0.0, 0.0), 30.0).is_ok());
-    assert!(Camera::new(wgs(0.0, 0.0), 30.01).is_err());
-    assert!(Camera::new(wgs(0.0, 0.0), -0.01).is_err());
+    for zoom in [30.01, -0.01, f64::NAN, f64::INFINITY] {
+        assert!(
+            matches!(
+                Camera::new(wgs(0.0, 0.0), zoom),
+                Err(Error::InvalidValue { field: "zoom", .. })
+            ),
+            "{zoom}"
+        );
+    }
 }
 
 #[test]

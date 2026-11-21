@@ -122,7 +122,13 @@ fn levels_outside_a_grid_are_rejected() {
             ..
         })
     ));
-    assert!(Precision::geohash(13).is_err());
+    assert!(matches!(
+        Precision::geohash(13),
+        Err(Error::InvalidValue {
+            field: "length",
+            ..
+        })
+    ));
     assert!(Precision::geohash(1).is_ok() && Precision::geohash(12).is_ok());
     #[cfg(feature = "h3")]
     {
