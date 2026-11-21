@@ -35,6 +35,24 @@ private final class Everywhere: ReverseGeocoder, @unchecked Sendable {
     }
 }
 
+/// A Swift geocoder whose provider fails, as a platform adapter's would.
+private final class Failing: ReverseGeocoder, @unchecked Sendable {
+    let failure: Error
+
+    init(failure: Error) {
+        self.failure = failure
+    }
+
+    func reverse(coordinate: Coordinate, options: ReverseOptions) throws -> Place? {
+        throw failure
+    }
+}
+
+/// A provider failure that is not a `GeoError`.
+private struct ProviderOffline: Error, CustomStringConvertible {
+    var description: String { "provider offline" }
+}
+
 final class ReverseTests: XCTestCase {
     func testGazetteerLoadsAndResolves() throws {
         let gazetteer = try Gazetteer.fromBytes(bytes: Data(contentsOf: fixture))
@@ -82,5 +100,33 @@ final class ReverseTests: XCTestCase {
         let lyon = try reverseGeocode(
             geocoder: gazetteer, coordinate: at(45.75, 4.85), options: reverseOptionsDefault())
         XCTAssertEqual(lyon?.name, "Lyon")
+    }
+
+    func testAThrowingForeignGeocoderSurfacesItsGeoError() throws {
+        let failure = GeoError.InvalidValue(field: "language", detail: "provider has no such language")
+        XCTAssertThrowsError(
+            try reverseGeocode(
+                geocoder: Failing(failure: failure), coordinate: at(0, 1),
+                options: reverseOptionsDefault())
+        ) { error in
+            guard case let .InvalidValue(field, detail)? = error as? GeoError else {
+                return XCTFail("expected InvalidValue, got \(error)")
+            }
+            XCTAssertEqual(field, "language")
+            XCTAssertEqual(detail, "provider has no such language")
+        }
+    }
+
+    func testAThrowingForeignGeocodersUnexpectedErrorBecomesOther() throws {
+        XCTAssertThrowsError(
+            try reverseGeocode(
+                geocoder: Failing(failure: ProviderOffline()), coordinate: at(0, 1),
+                options: reverseOptionsDefault())
+        ) { error in
+            guard case let .Other(detail)? = error as? GeoError else {
+                return XCTFail("expected Other, got \(error)")
+            }
+            XCTAssertTrue(detail.contains("provider offline"), detail)
+        }
     }
 }

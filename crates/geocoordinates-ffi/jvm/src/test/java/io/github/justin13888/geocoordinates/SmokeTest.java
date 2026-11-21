@@ -27,6 +27,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatOptionsDefaul
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.geotagOptionsDefault;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.heightMeters;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.lengthUnitMetersPerUnit;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
@@ -36,6 +37,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinateWith;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseNmeaSentence;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseOptionsDefault;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseWkt;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.rawSourceNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.upsToCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84FromCoordinate;
@@ -45,6 +47,7 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToGcj02;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84Validate;
 
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import uniffi.geocoordinates_ffi.Accuracy;
 import uniffi.geocoordinates_ffi.AccuracyKind;
@@ -64,8 +67,10 @@ import uniffi.geocoordinates_ffi.GridKind;
 import uniffi.geocoordinates_ffi.Height;
 import uniffi.geocoordinates_ffi.LengthUnit;
 import uniffi.geocoordinates_ffi.MgrsPrecision;
+import uniffi.geocoordinates_ffi.ParseErrorKind;
 import uniffi.geocoordinates_ffi.ParseOptions;
 import uniffi.geocoordinates_ffi.RawSource;
+import uniffi.geocoordinates_ffi.Track;
 import uniffi.geocoordinates_ffi.Ups;
 import uniffi.geocoordinates_ffi.UtmHemisphere;
 import uniffi.geocoordinates_ffi.Wgs84;
@@ -229,6 +234,38 @@ class SmokeTest {
         assertThrows(
                 GeoException.Parse.class,
                 () -> parseNmeaSentence("$GPGGA,123519,,,,,0,00,,,M,,M,,"));
+        // Each rejection names its kind: a sentence type with no position, and a
+        // document nested past its format's limit.
+        GeoException.Parse unsupported =
+                assertThrows(GeoException.Parse.class, () -> parseNmeaSentence("$GPVTG,054.7,T"));
+        assertEquals(ParseErrorKind.UNSUPPORTED, unsupported.getKind());
+        GeoException.Parse deep =
+                assertThrows(
+                        GeoException.Parse.class,
+                        () -> parseWkt("GEOMETRYCOLLECTION(".repeat(200), AxisOrder.LON_LAT));
+        assertEquals(ParseErrorKind.TOO_DEEP, deep.getKind());
+    }
+
+    // A `java.time.Instant` before 1970 with a fractional second crosses into a
+    // Track and back unchanged. The fixes are about 56 m apart, inside the
+    // default 50 m/s speed limit; every instant is at least a second before the
+    // epoch, since one inside the last second crosses with its sign flipped (#342).
+    @Test
+    void preEpochAndSubsecondTimestampsRoundTripThroughATrack() throws GeoException {
+        Instant before = Instant.parse("1969-12-31T23:59:56.250Z");
+        Instant after = Instant.parse("1969-12-31T23:59:58.250Z");
+        Track track =
+                new Track(
+                        List.of(
+                                new Fix(coordinateNew(0.0, 0.0005, Crs.WGS84), null, after, null),
+                                new Fix(coordinateNew(0.0, 0.0, Crs.WGS84), null, before, null)));
+        List<Fix> fixes = track.fixes();
+        assertEquals(before, fixes.get(0).getTimestamp());
+        assertEquals(after, fixes.get(1).getTimestamp());
+        Instant midway = Instant.parse("1969-12-31T23:59:57.250Z");
+        Fix between = track.locate(midway, geotagOptionsDefault());
+        assertEquals(midway, between.getTimestamp());
+        assertEquals(0.00025, between.getCoord().getLon(), 1e-12);
     }
 
     // Fix metadata: every accuracy carries its kind, a GGA geoid separation is a

@@ -16,6 +16,7 @@ import initAsync from "../src/generated/web/wasm-bindgen/index.js";
 import geocoordinatesFfi, {
   AccuracyKind,
   AuxiliaryTagPolicy,
+  AxisOrder,
   Crs,
   DatumAmbiguity,
   ExifDms,
@@ -25,6 +26,7 @@ import geocoordinatesFfi, {
   MgrsPrecision,
   NullIslandPolicy,
   ParseErrorKind,
+  Track,
   UtmHemisphere,
   XmpGps,
   accuracyNew,
@@ -43,6 +45,7 @@ import geocoordinatesFfi, {
   gcj02ToBd09,
   gcj02ToWgs84Fast,
   gcj02ToWgs84Refined,
+  geotagOptionsDefault,
   geodesicDistanceM,
   h3Decode,
   h3Encode,
@@ -55,9 +58,13 @@ import geocoordinatesFfi, {
   parseExifWith,
   parseNmeaSentence,
   parseText,
+  parseWkt,
   parseXmp,
   parseXmpWith,
   rhumbBearingDeg,
+  s2Decode,
+  s2Encode,
+  s2Level,
   s2Validate,
   utmCentralMeridianDeg,
   utmFromCoordinate,
@@ -206,6 +213,30 @@ describe("grids and geodesics", () => {
     assert.equal(rmc.timestamp?.toISOString(), "1994-03-23T12:35:19.000Z");
   });
 
+  it("round-trips sub-second timestamps through a track", () => {
+    // About 56 m apart, inside the default 50 m/s speed limit. The instants are
+    // after the epoch: a pre-epoch `Date` traps the wasm module (#346), so only
+    // the Python, JVM and Swift tests cross one.
+    const before = new Date("1970-01-01T00:00:01.250Z");
+    const after = new Date("1970-01-01T00:00:03.250Z");
+    const timed = (lon: number, timestamp: Date) => ({
+      coord: coordinateNew(0.0, lon, Crs.Wgs84),
+      accuracy: undefined,
+      timestamp,
+      source: undefined,
+    });
+    const track = new Track([timed(0.0005, after), timed(0.0, before)]);
+    assert.deepEqual(
+      track.fixes().map((fix) => fix.timestamp?.toISOString()),
+      [before.toISOString(), after.toISOString()],
+    );
+    const midway = new Date("1970-01-01T00:00:02.250Z");
+    const between = track.locate(midway, geotagOptionsDefault());
+    assert.ok(between);
+    assert.equal(between.timestamp?.toISOString(), midway.toISOString());
+    near(between.coord.lon, 0.00025, 1e-12, "interpolated lon");
+  });
+
   it("tags each accuracy with its kind and types the geoid separation", () => {
     const gga = parseNmeaSentence(
       "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
@@ -275,6 +306,7 @@ describe("typed GeoError variants", () => {
     };
     const crossing = thrown(() => formatFix(handBuilt, formatOptionsDefault()));
     assert.ok(GeoError.InvalidValue.instanceOf(crossing), String(crossing));
+    assert.equal(crossing.inner.field, "horizontal");
   });
 
   it("InvalidCellId names the grid and value", () => {
@@ -294,6 +326,22 @@ describe("typed GeoError variants", () => {
       assert.ok(GeoError.InvalidCellId.instanceOf(bad), String(bad));
       assert.equal(bad.inner.grid, grid);
     }
+  });
+
+  it("round-trips an S2 cell id above 2^63", () => {
+    const cell = s2Encode(coordinateNew(40.7128, -74.006, Crs.Wgs84), 20);
+    assert.equal(cell.value, 9_926_595_630_970_437_632n);
+    assert.ok(cell.value >= 1n << 63n);
+    s2Validate(cell);
+    assert.equal(s2Level(cell), 20);
+    const back = s2Decode({ value: 9_926_595_630_970_437_632n });
+    near(back.coord.lat, 40.712_762_829, 1e-8, "S2 lat");
+    near(back.coord.lon, -74.006_004_053, 1e-8, "S2 lon");
+    // The id an error carries crosses back just as wide.
+    const max = (1n << 64n) - 1n;
+    const bad = thrown(() => s2Decode({ value: max }));
+    assert.ok(GeoError.InvalidCellId.instanceOf(bad), String(bad));
+    assert.equal(bad.inner.value, max);
   });
 
   it("InvalidGridRef carries the rejected reference", () => {
@@ -327,6 +375,12 @@ describe("typed GeoError variants", () => {
     const corrupt = thrown(() => parseNmeaSentence("$GPGLL,4916.45,N,12311.12,W,225444,A,*1E"));
     assert.ok(GeoError.Parse.instanceOf(corrupt), String(corrupt));
     assert.equal(corrupt.inner.kind, ParseErrorKind.Checksum);
+    const unsupported = thrown(() => parseNmeaSentence("$GPVTG,054.7,T"));
+    assert.ok(GeoError.Parse.instanceOf(unsupported), String(unsupported));
+    assert.equal(unsupported.inner.kind, ParseErrorKind.Unsupported);
+    const deep = thrown(() => parseWkt("GEOMETRYCOLLECTION(".repeat(200), AxisOrder.LonLat));
+    assert.ok(GeoError.Parse.instanceOf(deep), String(deep));
+    assert.equal(deep.inner.kind, ParseErrorKind.TooDeep);
   });
 });
 
