@@ -476,7 +476,7 @@ mod tests {
         assert_eq!(geo_kind("http:1,2"), syntax); // wrong scheme
         assert_eq!(geo_kind("geo:1,2;u=-1"), syntax);
         assert_eq!(geo_kind("geo:1,2;u=NaN"), syntax);
-        assert_eq!(geo_kind("geo:1,2;u=1;crs=wgs84"), syntax); // `crs` must come first
+        assert_eq!(geo_kind("geo:1,2;u=1;crs=wgs84"), syntax); // `crs` must precede `u`
         assert_eq!(geo_kind("geo:1,2;u=1;u=2"), syntax);
         assert_eq!(geo_kind("geo:1,2;"), syntax);
         assert_eq!(geo_kind("geo:1,2,inf"), syntax);
