@@ -63,26 +63,20 @@ impl TryFrom<GridBucketRepr> for GridBucket {
 }
 
 /// Whether `key` is a cell key exactly as [`bucket_by_geohash`] or `bucket_by_h3`
-/// writes it.
+/// writes it: a geohash, or a valid H3 cell in canonical lowercase hexadecimal.
+///
+/// The H3 arm is inline rather than a function stubbed out per feature, so the
+/// all-features mutation run never mutates a body it does not compile.
 #[cfg(feature = "serde")]
 fn is_cell_key(key: &str) -> bool {
-    if Geohash::parse(key).is_ok_and(|hash| hash.as_str() == key) {
-        return true;
-    }
-    is_h3_key(key)
-}
-
-/// Whether `key` is a valid H3 cell in canonical lowercase hexadecimal.
-#[cfg(all(feature = "serde", feature = "h3"))]
-fn is_h3_key(key: &str) -> bool {
-    u64::from_str_radix(key, 16)
-        .is_ok_and(|index| crate::dgg::H3Cell::new(index).is_ok() && format!("{index:x}") == key)
-}
-
-/// Without the `h3` feature no H3 key can be checked, so none is accepted.
-#[cfg(all(feature = "serde", not(feature = "h3")))]
-const fn is_h3_key(_key: &str) -> bool {
-    false
+    let geohash = Geohash::parse(key).is_ok_and(|hash| hash.as_str() == key);
+    #[cfg(feature = "h3")]
+    let h3 = u64::from_str_radix(key, 16)
+        .is_ok_and(|index| crate::dgg::H3Cell::new(index).is_ok() && format!("{index:x}") == key);
+    // Without the `h3` feature no H3 key can be checked, so none is accepted.
+    #[cfg(not(feature = "h3"))]
+    let h3 = false;
+    geohash || h3
 }
 
 impl GridBucket {
