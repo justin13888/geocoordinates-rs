@@ -317,8 +317,9 @@ bindings item below says which part of it could not be re-measured. The release 
   language green.
 - [x] `cargo run --all-features --example flagship` passes and exercises the
   eight core capability groups — "All 8 core capability groups passed." on
-  `f1eef54` with only that output line reworded; the feature-gated subsystems
-  are exercised by their per-feature test jobs instead.
+  `f1eef54` with only the banner and that closing line reworded; the
+  feature-gated subsystems are exercised by their per-feature test jobs
+  instead.
 - [x] Coverage threshold enabled in CI and met — a 98% line floor in
   `.coverage-baseline` (`mise run coverage` measured 98.63% at `f1eef54`), held
   shrink-only by `mise run coverage-ratchet` (#128).
