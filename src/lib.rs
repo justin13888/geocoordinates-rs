@@ -87,6 +87,8 @@ mod approx;
 mod convert; // runtime CRS dispatch (`Coordinate::try_to_crs`)
 mod coord;
 mod error;
+#[cfg(feature = "serde")]
+mod serde_util;
 mod units;
 
 pub mod angle;
@@ -164,9 +166,9 @@ mod promises;
 // (whose doc lists what it repeats). Every other item lives in its subsystem
 // module.
 pub use approx::Approx;
-pub use coord::{Coordinate, Crs, LatLon};
+pub use coord::{Coordinate, Crs, Height, LatLon};
 pub use error::{Error, ParseErrorKind, Result};
-pub use units::{Height, Length, LengthUnit};
+pub use units::{Length, LengthUnit};
 
 /// The nine prelude types, for a glob import: `use geocoordinates::prelude::*;`.
 ///

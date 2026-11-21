@@ -579,9 +579,9 @@ mod tests {
     #[test]
     fn invalid_value_fields_include_helper_arguments() {
         let fields = helper_arguments("field");
-        // A private helper (`fix.rs`), one whose name recurs privately in
-        // other files (`finite`, `baidu_mercator.rs`), and a crate-wide one
-        // called from another file (`ellipsoid_of_argument`).
+        // A private helper (`fix.rs`), a crate-wide one called from another
+        // file with a one-letter field (`finite`, `baidu_mercator.rs`), and
+        // another crate-wide one (`ellipsoid_of_argument`).
         for expected in ["horizontal", "minute_decimals", "x", "from_crs"] {
             assert!(
                 fields.iter().any(|(v, _)| v == expected),

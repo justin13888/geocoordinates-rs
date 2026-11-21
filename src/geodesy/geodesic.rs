@@ -4,9 +4,9 @@
 
 use geographiclib_rs::{DirectGeodesic, Geodesic, InverseGeodesic};
 
-use super::ecef::ellipsoid_of;
 #[cfg(doc)]
 use super::ellipsoid::Ellipsoid;
+use super::ellipsoid::ellipsoid_of;
 use crate::angle::{normalize_degrees, wrap_longitude};
 use crate::coord::{Coordinate, Crs, LatLon};
 use crate::error::{Error, Result};

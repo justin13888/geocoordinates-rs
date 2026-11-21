@@ -1,9 +1,12 @@
-//! Length units and conversions, and the surface-tagged [`Height`].
+//! Length units and conversions. The surface-tagged
+//! [`Height`](crate::Height) lives with [`Coordinate`](crate::Coordinate).
 //!
 //! Angle normalization helpers (longitude wrap, latitude clamp, degree
 //! normalization) live in [`crate::angle`], alongside the DD/DMS/DDM encodings.
 
 use core::ops::{Add, Mul, Sub};
+
+use crate::error::{Error, Result};
 
 /// A length, stored in meters, with conversions to common units.
 ///
@@ -162,52 +165,6 @@ impl LengthUnit {
     }
 }
 
-/// A height value, tagged by the surface it is measured from.
-///
-/// GNSS reports **ellipsoidal** height natively; humans expect **orthometric**
-/// height (above the geoid / "sea level"). Converting between them requires a
-/// geoid model — deferred behind the `geoid` feature (see
-/// [STABILIZATION.md](https://github.com/justin13888/geocoordinates-rs/blob/master/STABILIZATION.md)).
-///
-/// Only these two surfaces are modeled; tidal datums (MSL, MLLW, …) are out of
-/// scope.
-///
-/// ```
-/// use geocoordinates::{Coordinate, Height};
-///
-/// let summit = Coordinate::wgs84(27.9881, 86.925)?.with_height(Height::Orthometric(8848.86))?;
-/// assert_eq!(summit.height(), Some(Height::Orthometric(8848.86)));
-/// // The surface is part of the value: the same number above the ellipsoid differs.
-/// assert_ne!(Height::Orthometric(8848.86), Height::Ellipsoidal(8848.86));
-/// # Ok::<(), geocoordinates::Error>(())
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Height {
-    /// Meters above the reference ellipsoid.
-    Ellipsoidal(f64),
-    /// Meters above the geoid (mean sea level).
-    Orthometric(f64),
-}
-
-impl Height {
-    /// The height as a [`Length`], whichever surface it is measured from;
-    /// match on the variant to keep the surface.
-    ///
-    /// ```
-    /// use geocoordinates::{Height, Length};
-    ///
-    /// assert_eq!(Height::Ellipsoidal(46.9).length(), Length::from_meters(46.9));
-    /// assert_eq!(Height::Orthometric(-28.0).length().meters(), -28.0);
-    /// ```
-    #[must_use]
-    pub const fn length(self) -> Length {
-        match self {
-            Height::Ellipsoidal(value) | Height::Orthometric(value) => Length::from_meters(value),
-        }
-    }
-}
-
 impl Add for Length {
     type Output = Length;
     fn add(self, rhs: Length) -> Length {
@@ -232,6 +189,18 @@ impl Mul<f64> for Length {
         Length {
             meters: self.meters * rhs,
         }
+    }
+}
+
+/// `value` if it is finite, else [`Error::InvalidValue`] naming `field`.
+pub(crate) fn finite(value: f64, field: &'static str) -> Result<f64> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(Error::InvalidValue {
+            field,
+            detail: "must be finite".into(),
+        })
     }
 }
 

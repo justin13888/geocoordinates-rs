@@ -23,9 +23,10 @@
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 
-use super::ellipsoid::Ellipsoid;
+use super::ellipsoid::{Ellipsoid, ellipsoid_of, ellipsoid_of_argument};
 use crate::coord::{Coordinate, Crs, Height};
 use crate::error::{Error, Result};
+use crate::units::finite;
 
 fn height_meters(coord: Coordinate) -> Result<f64> {
     match coord.height() {
@@ -36,26 +37,6 @@ fn height_meters(coord: Coordinate) -> Result<f64> {
         }),
         None => Ok(0.0),
     }
-}
-
-/// The ellipsoid of a coordinate's own `crs`, or [`Error::CrsMismatch`]
-/// (expecting WGS-84) for the China obfuscation systems, which have none.
-pub(crate) fn ellipsoid_of(crs: Crs) -> Result<Ellipsoid> {
-    Ellipsoid::for_crs(crs).ok_or(Error::CrsMismatch {
-        expected: Crs::Wgs84,
-        found: crs,
-    })
-}
-
-/// The ellipsoid of a `crs` the caller passed as an argument, or
-/// [`Error::InvalidValue`] naming that argument (`field`) for the China
-/// obfuscation systems, which have none. No coordinate is on the wrong datum
-/// here, so the error is not a [`Error::CrsMismatch`].
-pub(crate) fn ellipsoid_of_argument(crs: Crs, field: &'static str) -> Result<Ellipsoid> {
-    Ellipsoid::for_crs(crs).ok_or_else(|| Error::InvalidValue {
-        field,
-        detail: format!("{crs} is not a geodetic datum and has no ellipsoid"),
-    })
 }
 
 /// A geocentric ECEF position in meters.
@@ -81,18 +62,6 @@ pub struct Ecef {
     x_m: f64,
     y_m: f64,
     z_m: f64,
-}
-
-/// `value` if it is finite, else [`Error::InvalidValue`] naming `field`.
-fn finite(value: f64, field: &'static str) -> Result<f64> {
-    if value.is_finite() {
-        Ok(value)
-    } else {
-        Err(Error::InvalidValue {
-            field,
-            detail: "must be finite".into(),
-        })
-    }
 }
 
 impl Ecef {

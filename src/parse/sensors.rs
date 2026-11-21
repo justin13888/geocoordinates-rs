@@ -14,7 +14,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use crate::angle::Hemisphere;
+use crate::angle::{Axis, Hemisphere};
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, ParseErrorKind, Result};
 use crate::fix::{Accuracy, AxisOrder, Confidence, Fix, RawSource};
@@ -170,16 +170,18 @@ fn parse_ddm(value: &str, hemi: &str, deg_digits: usize, raw: &str) -> Result<f6
     // still the same malformed-coordinate error rather than a panic.
     let degrees: u16 = deg_str.parse().map_err(|_| malformed())?;
     let minutes: f64 = min_str.parse().map_err(|_| malformed())?;
-    let hemisphere = match (deg_digits, hemi.trim()) {
-        (2, "N") => Hemisphere::North,
-        (2, "S") => Hemisphere::South,
-        (3, "E") => Hemisphere::East,
-        (3, "W") => Hemisphere::West,
-        other => {
-            return Err(syntax(format!(
-                "bad NMEA axis/hemisphere '{other:?}': {raw}"
-            )));
-        }
+    // A latitude has two degree digits and N / S, a longitude three and E / W.
+    let hemi = hemi.trim();
+    let digits_for = |h: Hemisphere| match h.axis() {
+        Axis::Latitude => 2,
+        Axis::Longitude => 3,
+    };
+    let hemisphere = hemi.parse().ok().and_then(Hemisphere::from_letter);
+    let Some(hemisphere) = hemisphere.filter(|&h| digits_for(h) == deg_digits) else {
+        let other = (deg_digits, hemi);
+        return Err(syntax(format!(
+            "bad NMEA axis/hemisphere '{other:?}': {raw}"
+        )));
     };
     // Minutes of 60 or more are a malformed field, not a position. Degrees
     // beyond the axis range still read as one, so they are not checked here:

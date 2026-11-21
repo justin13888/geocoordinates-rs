@@ -51,7 +51,8 @@ use core::f64::consts::PI;
 
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::geodesy::ecef::{Ecef, ellipsoid_of_argument};
+use crate::geodesy::ecef::Ecef;
+use crate::geodesy::ellipsoid::ellipsoid_of_argument;
 use crate::units::Length;
 
 /// Arc-seconds → radians (the rotation parameters are published in arc-seconds).
@@ -136,12 +137,7 @@ impl Helmert {
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn apply_ecef(self, ecef: Ecef) -> Result<Ecef> {
-        if !self.is_finite() {
-            return Err(Error::InvalidValue {
-                field: "helmert",
-                detail: "all seven parameters must be finite".into(),
-            });
-        }
+        self.check_finite()?;
         let rx = self.rx_arcsec * ARCSEC_TO_RAD;
         let ry = self.ry_arcsec * ARCSEC_TO_RAD;
         let rz = self.rz_arcsec * ARCSEC_TO_RAD;
@@ -190,9 +186,10 @@ impl Helmert {
         }
     }
 
-    /// Whether all seven parameters are finite.
-    fn is_finite(self) -> bool {
-        [
+    /// Rejects a transform with a non-finite parameter, as
+    /// [`Error::InvalidValue`] naming `"helmert"`.
+    fn check_finite(self) -> Result<()> {
+        let finite = [
             self.tx_m,
             self.ty_m,
             self.tz_m,
@@ -202,7 +199,15 @@ impl Helmert {
             self.scale_ppm,
         ]
         .iter()
-        .all(|v| v.is_finite())
+        .all(|v| v.is_finite());
+        if finite {
+            Ok(())
+        } else {
+            Err(Error::InvalidValue {
+                field: "helmert",
+                detail: "all seven parameters must be finite".into(),
+            })
+        }
     }
 }
 
@@ -300,12 +305,7 @@ impl DatumTransform {
     ) -> Result<Self> {
         ellipsoid_of_argument(from_crs, "from_crs")?;
         ellipsoid_of_argument(to_crs, "to_crs")?;
-        if !helmert.is_finite() {
-            return Err(Error::InvalidValue {
-                field: "helmert",
-                detail: "every parameter must be finite".into(),
-            });
-        }
+        helmert.check_finite()?;
         if accuracy.is_some_and(|a| !a.meters().is_finite() || a.meters() < 0.0) {
             return Err(Error::InvalidValue {
                 field: "accuracy",

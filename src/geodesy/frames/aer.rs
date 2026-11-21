@@ -1,9 +1,9 @@
 //! Construction, accessors, and conversions of [`Aer`].
 
-use super::{Aer, Enu, Ned, finite, magnitude};
+use super::{Aer, Enu, Ned, magnitude};
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::units::Length;
+use crate::units::{Length, finite};
 
 impl Aer {
     /// Construct from an azimuth and an elevation in degrees and a slant

@@ -40,9 +40,9 @@
 
 use core::f64::consts::{FRAC_PI_2, PI};
 
-use super::ecef::ellipsoid_of;
 #[cfg(doc)]
 use super::ellipsoid::Ellipsoid;
+use super::ellipsoid::ellipsoid_of;
 use super::geodesic::{finish, validate_bearing_and_distance, validate_pair};
 use super::series::KrugerSeries;
 use crate::angle::{clamp_latitude, normalize_degrees};

@@ -8,9 +8,9 @@ use super::{
     no_fix,
 };
 use crate::china::outside_china_box;
-use crate::coord::{Coordinate, Crs};
+use crate::coord::{Coordinate, Crs, Height};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, DatumAmbiguity, Fix, RawSource};
-use crate::units::{Height, Length};
+use crate::units::Length;
 use crate::{Error, Result};
 
 /// Confidence when `GPSMapDatum` did not name a datum and WGS-84 was assumed.

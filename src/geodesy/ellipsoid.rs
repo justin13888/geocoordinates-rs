@@ -8,9 +8,28 @@
 //! ```
 
 use crate::coord::Crs;
-#[cfg(any(feature = "serde", test))]
 use crate::error::{Error, Result};
 use crate::units::Length;
+
+/// The ellipsoid of a coordinate's own `crs`, or [`Error::CrsMismatch`]
+/// (expecting WGS-84) for the China obfuscation systems, which have none.
+pub(crate) fn ellipsoid_of(crs: Crs) -> Result<Ellipsoid> {
+    Ellipsoid::for_crs(crs).ok_or(Error::CrsMismatch {
+        expected: Crs::Wgs84,
+        found: crs,
+    })
+}
+
+/// The ellipsoid of a `crs` the caller passed as an argument, or
+/// [`Error::InvalidValue`] naming that argument (`field`) for the China
+/// obfuscation systems, which have none. No coordinate is on the wrong datum
+/// here, so the error is not a [`Error::CrsMismatch`].
+pub(crate) fn ellipsoid_of_argument(crs: Crs, field: &'static str) -> Result<Ellipsoid> {
+    Ellipsoid::for_crs(crs).ok_or_else(|| Error::InvalidValue {
+        field,
+        detail: format!("{crs} is not a geodetic datum and has no ellipsoid"),
+    })
+}
 
 /// A reference ellipsoid defined by its semi-major axis and inverse flattening.
 ///
@@ -44,7 +63,7 @@ pub struct Ellipsoid {
     semi_major: Length,
     #[cfg_attr(
         feature = "serde",
-        serde(serialize_with = "crate::approx::infinity_as_none::serialize")
+        serde(serialize_with = "crate::serde_util::infinity_as_none::serialize")
     )]
     inverse_flattening: f64,
 }
@@ -56,7 +75,7 @@ pub struct Ellipsoid {
 struct EllipsoidRecord {
     #[serde(rename = "semi_major_m")]
     semi_major: Length,
-    #[serde(with = "crate::approx::infinity_as_none")]
+    #[serde(with = "crate::serde_util::infinity_as_none")]
     inverse_flattening: f64,
 }
 

@@ -26,10 +26,11 @@
 //! # Ok::<(), geocoordinates::Error>(())
 //! ```
 
-use super::ecef::{Ecef, ellipsoid_of};
+use super::ecef::Ecef;
+use super::ellipsoid::ellipsoid_of;
 use crate::coord::{Coordinate, Height};
 use crate::error::{Error, Result};
-use crate::units::Length;
+use crate::units::{Length, finite};
 
 /// East-North-Up offset from a reference origin, in meters.
 ///
@@ -101,18 +102,6 @@ pub struct Aer {
     elevation_deg: f64,
     #[cfg_attr(feature = "serde", serde(rename = "range_m"))]
     range: Length,
-}
-
-/// `value` if it is finite, else [`Error::InvalidValue`] naming `field`.
-fn finite(value: f64, field: &'static str) -> Result<f64> {
-    if value.is_finite() {
-        Ok(value)
-    } else {
-        Err(Error::InvalidValue {
-            field,
-            detail: "must be finite".into(),
-        })
-    }
 }
 
 /// The Euclidean norm of a local offset, as [`Enu::to_aer`] computes its range.

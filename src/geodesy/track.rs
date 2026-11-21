@@ -12,7 +12,7 @@
 use geographiclib_rs::{DirectGeodesic, Geodesic, InverseGeodesic};
 
 use super::geodesic::{finish, geodesic_for_pair, validate_pair};
-use super::spherical::{coincident_or_antipodal, great_circle_crossings};
+use super::spherical::{check_path, cross, great_circle_crossings};
 #[cfg(doc)]
 use crate::coord::Crs;
 use crate::coord::{Coordinate, LatLon};
@@ -497,7 +497,7 @@ fn gnomonic_crossing(a: &Path<'_>, b: &Path<'_>, lat: f64, lon: f64) -> Option<(
                 gnomonic_forward(g, lat0, lon0, p)?,
                 gnomonic_forward(g, lat0, lon0, q)?,
             );
-            Some(cross3(
+            Some(cross(
                 [p.0 / unit, p.1 / unit, 1.0],
                 [q.0 / unit, q.1 / unit, 1.0],
             ))
@@ -511,7 +511,7 @@ fn gnomonic_crossing(a: &Path<'_>, b: &Path<'_>, lat: f64, lon: f64) -> Option<(
         if passes_within(line_a, tolerance) && passes_within(line_b, tolerance) {
             return Some((lat0, lon0));
         }
-        let [x, y, w] = cross3(line_a, line_b);
+        let [x, y, w] = cross(line_a, line_b);
         let (x, y) = (x / w * unit, y / w * unit);
         // Parallel lines meet at infinity.
         if !x.hypot(y).is_finite() {
@@ -554,25 +554,12 @@ fn passes_within(l: [f64; 3], distance: f64) -> bool {
     l[2].abs() < distance * l[0].hypot(l[1])
 }
 
-fn cross3(u: [f64; 3], v: [f64; 3]) -> [f64; 3] {
-    [
-        u[1] * v[2] - u[2] * v[1],
-        u[2] * v[0] - u[0] * v[2],
-        u[0] * v[1] - u[1] * v[0],
-    ]
-}
-
 /// The nearest foot from `point` onto the geodesic path `start` → `end`,
 /// after validating the three positions.
 fn foot_on_path(point: impl LatLon, start: impl LatLon, end: impl LatLon) -> Result<Foot> {
     validate_pair(point, start)?;
     let g = geodesic_for_pair(start, end)?;
-    if coincident_or_antipodal(start, end) {
-        return Err(Error::InvalidValue {
-            field: "path",
-            detail: "start and end must be distinct and not antipodal".into(),
-        });
-    }
+    check_path(start, end)?;
     let (azi, _, _): (f64, f64, f64) = g.inverse(start.lat(), start.lon(), end.lat(), end.lon());
     Path::new(&g, start, azi).foot(point.lat(), point.lon())
 }

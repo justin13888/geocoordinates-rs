@@ -15,10 +15,6 @@
 //! — eviltransform (BSD-2-Clause), coordtransform-rs (MIT/Apache-2.0), and
 //! undrift_gps (MIT) — never from PRCoords (GPL).
 
-// Shared test scaffolding: not every helper / field is exercised by the current
-// test set.
-#![allow(dead_code)]
-
 use crate::china::{Bd09, Gcj02, Wgs84};
 use crate::coord::LatLon;
 use crate::geodesy::{geodesic_distance, haversine_distance};
@@ -114,15 +110,20 @@ pub(crate) struct DatumVector {
 impl DatumVector {
     /// The WGS-84 point as a typed newtype.
     pub(crate) fn wgs84(&self) -> Wgs84 {
-        Wgs84::new(self.wgs84.0, self.wgs84.1).unwrap()
+        Wgs84::new(self.wgs84.0, self.wgs84.1).unwrap_or_else(|e| self.invalid(e))
     }
     /// The GCJ-02 point as a typed newtype.
     pub(crate) fn gcj02(&self) -> Gcj02 {
-        Gcj02::new(self.gcj02.0, self.gcj02.1).unwrap()
+        Gcj02::new(self.gcj02.0, self.gcj02.1).unwrap_or_else(|e| self.invalid(e))
     }
     /// The BD-09 point as a typed newtype, where the source provides one.
     pub(crate) fn bd09(&self) -> Option<Bd09> {
-        self.bd09.map(|(lat, lon)| Bd09::new(lat, lon).unwrap())
+        self.bd09
+            .map(|(lat, lon)| Bd09::new(lat, lon).unwrap_or_else(|e| self.invalid(e)))
+    }
+    /// Panics naming the vector whose transcribed value does not construct.
+    fn invalid(&self, error: crate::Error) -> ! {
+        panic!("reference vector {:?}: {error}", self.name)
     }
 }
 
