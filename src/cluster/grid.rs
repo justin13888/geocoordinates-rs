@@ -20,11 +20,69 @@ use crate::grids::Geohash;
 /// assert_eq!(buckets[0].cluster().count(), 1);
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
+///
+/// Under `serde` it deserializes only a `key` in the canonical form a bucketing
+/// function writes: a lowercase geohash, or, with the `h3` feature, a valid H3 cell
+/// in lowercase hexadecimal. Without `h3` an H3 key cannot be checked, so it is
+/// rejected rather than accepted unverified.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "GridBucketRepr"))]
 pub struct GridBucket {
     key: String,
     cluster: Cluster,
+}
+
+/// The unchecked wire shape of a [`GridBucket`], validated on its way in.
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+struct GridBucketRepr {
+    key: String,
+    cluster: Cluster,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<GridBucketRepr> for GridBucket {
+    type Error = crate::error::Error;
+
+    fn try_from(repr: GridBucketRepr) -> Result<Self> {
+        if !is_cell_key(&repr.key) {
+            return Err(crate::error::Error::InvalidValue {
+                field: "key",
+                detail: format!(
+                    "{:?} is neither a lowercase geohash nor a lowercase-hex H3 cell",
+                    repr.key
+                ),
+            });
+        }
+        Ok(Self {
+            key: repr.key,
+            cluster: repr.cluster,
+        })
+    }
+}
+
+/// Whether `key` is a cell key exactly as [`bucket_by_geohash`] or `bucket_by_h3`
+/// writes it.
+#[cfg(feature = "serde")]
+fn is_cell_key(key: &str) -> bool {
+    if Geohash::parse(key).is_ok_and(|hash| hash.as_str() == key) {
+        return true;
+    }
+    is_h3_key(key)
+}
+
+/// Whether `key` is a valid H3 cell in canonical lowercase hexadecimal.
+#[cfg(all(feature = "serde", feature = "h3"))]
+fn is_h3_key(key: &str) -> bool {
+    u64::from_str_radix(key, 16)
+        .is_ok_and(|index| crate::dgg::H3Cell::new(index).is_ok() && format!("{index:x}") == key)
+}
+
+/// Without the `h3` feature no H3 key can be checked, so none is accepted.
+#[cfg(all(feature = "serde", not(feature = "h3")))]
+const fn is_h3_key(_key: &str) -> bool {
+    false
 }
 
 impl GridBucket {
