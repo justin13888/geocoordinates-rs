@@ -214,9 +214,9 @@ cargo llvm-cov --all-features --lcov --output-path lcov.info
 cargo llvm-cov report --summary-only --fail-under-lines "$floor"
 '''
 
-# The floor in `.coverage-baseline` may only rise: it fails when the floor is
-# lower than the one on [base], or when the file is gone. A base that predates
-# the file has nothing to compare against, and the check passes.
+# The floor in `.coverage-baseline` may only rise: it fails below [base]'s, on a
+# missing file, and on an unresolved [base] under `CI=true` (locally it warns and
+# skips). A base that predates the file has nothing to compare, and passes.
 [tasks.coverage-ratchet]
 description = "Fail when the coverage floor in .coverage-baseline falls below the base's"
 usage = 'arg "[base]" help="Ref whose coverage floor this one may not fall below" default="origin/master"'
@@ -232,7 +232,8 @@ if [ ! -f "$baseline" ]; then
 fi
 floor="$(coverage_floor "$baseline" < "$baseline")"
 if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
-    echo "coverage-ratchet: no '$base' ref; skipping the comparison." >&2
+    [ "${CI:-}" = true ] && { echo "coverage-ratchet: no '$base' ref under CI" >&2; exit 1; }
+    echo "coverage-ratchet: warning: no '$base' ref; skipping the comparison." >&2
     exit 0
 fi
 if ! base_file="$(git show "$base:$baseline" 2>/dev/null)"; then
@@ -282,11 +283,10 @@ python3 -I scripts/public_api_snapshot.py "$toolchain" --check
 # --- Release versions ---
 
 # Every artifact of a release ships the workspace version in Cargo.toml
-# (`[workspace.package] version`). Both crates inherit it, the Python wheel reads
-# it through the FFI crate (maturin), and the JVM build reads it from Cargo.toml,
-# so none of those can carry a second copy; this fails if one does. The npm
-# manifest must hold a literal version, so it is a copy that `version-sync`
-# writes and this holds to the workspace version.
+# (`[workspace.package] version`). Both crates inherit it, maturin reads it for
+# the Python wheel, and the JVM build reads it from Cargo.toml, so none may hold
+# a second copy; this fails if one does. The npm manifest must hold a literal
+# version, a copy `version-sync` writes and this holds to the workspace version.
 [tasks.version-check]
 description = "Fail when a crate or binding manifest's version is not the workspace version"
 run = '''
@@ -327,7 +327,7 @@ if "version" in project or "version" not in project.get("dynamic", []):
     errors.append("crates/geocoordinates-ffi/pyproject.toml: version must be dynamic (maturin reads the FFI crate's)")
 
 gradle = "crates/geocoordinates-ffi/jvm/build.gradle.kts"
-if re.search(r'^version\s*=.*"[0-9]', read(gradle), re.MULTILINE):
+if re.search(r'^\s*(?:project\.)?version\s*=.*"[0-9]', read(gradle), re.MULTILINE):
     errors.append(f"{gradle}: the project version holds a literal; read it from Cargo.toml")
 
 if errors:
@@ -368,13 +368,16 @@ run = "cargo doc --no-deps --all-features"
 description = "core gates: fmt-check + lint + test"
 run = ["mise run fmt-check", "mise run lint", "mise run test"]
 
+[tasks.scripts-test]
+description = "Fixture tests for scripts/check_public_paths.py and the gate tasks here"
+run = "python3 -I -B -m unittest discover -s scripts/tests"
+
 # --- File length ---
 
 # Fails any tracked file over `max_file_lines` unless `.file-length-baseline`
 # lists it, and holds every listed file to its recorded length. Against [base],
-# the baseline may only shrink: no new entries, no raised caps, and no raised
-# `max_file_lines`. Plain awk and
-# no associative arrays in bash, so it runs on macOS's stock bash 3.2 too.
+# which must resolve under `CI=true`, the baseline may only shrink: no new entry,
+# raised cap, or raised `max_file_lines`. No associative arrays: macOS's bash 3.2.
 [tasks.file-length-check]
 description = "Fail files over the line limit unless baselined; the baseline may only shrink"
 usage = 'arg "[base]" help="Ref whose baseline this one may not exceed" default="origin/master"'
@@ -394,10 +397,10 @@ trap 'rm -f "$lengths" "$base_baseline"' EXIT
 
 # "<lines> <path>" for every tracked regular text file present in the worktree.
 # A binary file (one `grep -I` reads as binary, e.g. the bundled gazetteer data)
-# has no lines to count, so it is skipped rather than measured in newline bytes.
+# has no lines to count, so it is skipped. awk counts an unterminated last line.
 git ls-files -z | while IFS= read -r -d '' path; do
     if [ -f "$path" ] && [ ! -L "$path" ] && { [ ! -s "$path" ] || grep -Iq '' "$path"; }; then
-        printf '%s %s\n' "$(wc -l < "$path" | tr -d ' ')" "$path"
+        printf '%s %s\n' "$(awk 'END { print NR }' "$path")" "$path"
     fi
 done > "$lengths"
 
@@ -457,7 +460,8 @@ END {
 
 base_ok=1
 if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
-    echo "file-length-check: no '$base' ref; skipping the shrink-only comparison." >&2
+    [ "${CI:-}" = true ] && { echo "file-length-check: no '$base' ref under CI" >&2; exit 1; }
+    echo "file-length-check: warning: no '$base' ref; skipping the shrink-only comparison." >&2
     base_ok=0
 fi
 
