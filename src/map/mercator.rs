@@ -1,6 +1,7 @@
 //! [`WebMercator`], [`WorldPixel`], [`MAX_LATITUDE`] and [`MAX_TILE_ZOOM`],
-//! re-exported flat from [`map`](super), and the unit-square projection every map
-//! routine shares.
+//! re-exported flat from [`map`](super). The unit-square projection every map
+//! routine shares is defined in `cluster`'s private `unit_square` module and
+//! passed on to the rest of `map` from here.
 
 use std::f64::consts::PI;
 
