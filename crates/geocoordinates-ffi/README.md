@@ -91,10 +91,19 @@ Every export follows one scheme, so a name reads the same in every language
   `quadkey_canonicalize` validate a code and return its canonical form.
 - **Errors.** Every function that can fail throws the one `GeoError` type and
   documents which variants it raises under `# Errors`.
-  `tests/export_coverage.rs` enforces that, and that every export is called
-  by a Rust test.
 - **Exactness survives the boundary.** Approximate inverses keep their
   `_fast` / `_refined` suffixes, and names stay language-neutral.
+
+`tests/export_coverage.rs` holds the surface to this scheme by reading the
+crate's own source (comments and string literals blanked first, so a mention
+counts for nothing). It fails when an export is not called by a Rust test, or
+a fallible export by no test that also checks an error; when a fallible export
+has no non-empty `# Errors`; when a name breaks the scheme above (a bare `f64`
+return or parameter with no unit suffix, `_meters` outside its two exports, a
+text-to-`Fix` reader not named `parse_*`, …); when the number of exports, or of
+fallible ones, differs from the count pinned in the test, so none can disappear
+unnoticed; and when a function or constant in the core crate's public API
+snapshot has no FFI form, save the shrink-only gap lists beside the test.
 
 ## Surface
 
@@ -113,3 +122,21 @@ print(wgs.lat, wgs.lon, "±", wgs.max_error_m, "m")
 ```
 
 The WebAssembly/TypeScript bindings live in [`web/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web).
+
+## Building
+
+The released packages (`geocoordinates-rs` on PyPI and npm,
+`io.github.justin13888:geocoordinates` on Maven Central, and `GeoCoordinates` for
+SwiftPM) are built by CI. To generate the bindings yourself from a checkout of
+the repository, with [mise](https://mise.jdx.dev/) installed:
+
+```bash
+mise run bindings-python   # or bindings-kotlin / bindings-swift: builds the release
+                           # cdylib, then generates the sources into bindings/<lang>/
+mise run bindings-web      # TypeScript + wasm, built in crates/geocoordinates-ffi/web/
+mise run bindings          # all four
+```
+
+How to package a wheel, the XCFramework or the JAR locally, and how each
+release is published, are in
+[`PUBLISHING.md`](https://github.com/justin13888/geocoordinates-rs/blob/master/PUBLISHING.md#local-builds).
