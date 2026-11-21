@@ -327,8 +327,12 @@ fn backward_crossings_are_not_forward() {
 #[test]
 fn intersection_rejects_bad_bearings_and_datums() {
     let (a, b) = (c(0.0, 0.0), c(0.0, 10.0));
-    for (ba, bb) in [(f64::NAN, 0.0), (0.0, f64::INFINITY)] {
-        assert_invalid_value(intersection(a, ba, b, bb), "bearing");
+    for (ba, bb, field) in [
+        (f64::NAN, 0.0, "bearing_a_deg"),
+        (0.0, f64::INFINITY, "bearing_b_deg"),
+        (f64::NAN, f64::NAN, "bearing_a_deg"),
+    ] {
+        assert_invalid_value(intersection(a, ba, b, bb), field);
     }
     let tokyo = Coordinate::new(0.0, 10.0, Crs::Tokyo).unwrap();
     assert!(matches!(

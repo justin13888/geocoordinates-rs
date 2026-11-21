@@ -442,7 +442,7 @@ try:
     gc.aer_to_enu(gc.Aer(azimuth_deg=0.0, elevation_deg=91.0, range_m=1.0))
     raise AssertionError("expected GeoError.InvalidValue for a 91 degree elevation")
 except gc.GeoError.InvalidValue as e:
-    assert e.field == "elevation", e.field
+    assert e.field == "elevation_deg", e.field
 
 # --- Geodesics ---
 ny_london = gc.geodesic_distance_m(

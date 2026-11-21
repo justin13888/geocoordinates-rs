@@ -15,14 +15,14 @@ fn field_of<T: std::fmt::Debug>(result: Result<T>) -> &'static str {
 #[test]
 fn each_non_finite_component_is_rejected_by_name() {
     for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
-        assert_eq!(field_of(Enu::new(bad, 0.0, 0.0)), "east");
-        assert_eq!(field_of(Enu::new(0.0, bad, 0.0)), "north");
-        assert_eq!(field_of(Enu::new(0.0, 0.0, bad)), "up");
-        assert_eq!(field_of(Ned::new(bad, 0.0, 0.0)), "north");
-        assert_eq!(field_of(Ned::new(0.0, bad, 0.0)), "east");
-        assert_eq!(field_of(Ned::new(0.0, 0.0, bad)), "down");
-        assert_eq!(field_of(Aer::new(bad, 0.0, Length::ZERO)), "azimuth");
-        assert_eq!(field_of(Aer::new(0.0, bad, Length::ZERO)), "elevation");
+        assert_eq!(field_of(Enu::new(bad, 0.0, 0.0)), "east_m");
+        assert_eq!(field_of(Enu::new(0.0, bad, 0.0)), "north_m");
+        assert_eq!(field_of(Enu::new(0.0, 0.0, bad)), "up_m");
+        assert_eq!(field_of(Ned::new(bad, 0.0, 0.0)), "north_m");
+        assert_eq!(field_of(Ned::new(0.0, bad, 0.0)), "east_m");
+        assert_eq!(field_of(Ned::new(0.0, 0.0, bad)), "down_m");
+        assert_eq!(field_of(Aer::new(bad, 0.0, Length::ZERO)), "azimuth_deg");
+        assert_eq!(field_of(Aer::new(0.0, bad, Length::ZERO)), "elevation_deg");
         assert_eq!(
             field_of(Aer::new(0.0, 0.0, Length::from_meters(bad))),
             "range"
@@ -46,7 +46,7 @@ fn aer_rejects_out_of_range_elevation_and_negative_range() {
     for elevation in [90.000_000_001, -90.000_000_001, 180.0] {
         assert_eq!(
             field_of(Aer::new(0.0, elevation, Length::ZERO)),
-            "elevation"
+            "elevation_deg"
         );
     }
     assert_eq!(

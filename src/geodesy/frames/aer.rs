@@ -12,8 +12,8 @@ impl Aer {
     ///
     /// # Errors
     /// [`Error::InvalidValue`] naming:
-    /// - `"azimuth"` when the azimuth is not finite;
-    /// - `"elevation"` when the elevation is not finite or lies outside
+    /// - `"azimuth_deg"` when the azimuth is not finite;
+    /// - `"elevation_deg"` when the elevation is not finite or lies outside
     ///   `[-90, 90]`;
     /// - `"range"` when the range is not finite or is negative.
     ///
@@ -26,13 +26,17 @@ impl Aer {
     ///     Aer::new(0.0, 0.0, Length::from_meters(-1.0)),
     ///     Err(Error::InvalidValue { field: "range", .. })
     /// ));
+    /// assert!(matches!(
+    ///     Aer::new(0.0, 91.0, Length::ZERO),
+    ///     Err(Error::InvalidValue { field: "elevation_deg", .. })
+    /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn new(azimuth_deg: f64, elevation_deg: f64, range: Length) -> Result<Self> {
-        let azimuth_deg = crate::angle::normalize_degrees(finite(azimuth_deg, "azimuth")?);
+        let azimuth_deg = crate::angle::normalize_degrees(finite(azimuth_deg, "azimuth_deg")?);
         if !(-90.0..=90.0).contains(&elevation_deg) {
             return Err(Error::InvalidValue {
-                field: "elevation",
+                field: "elevation_deg",
                 detail: format!("{elevation_deg} is not in [-90, 90]"),
             });
         }

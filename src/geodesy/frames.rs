@@ -127,8 +127,8 @@ impl Enu {
     /// Construct from east, north, and up offsets in meters.
     ///
     /// # Errors
-    /// [`Error::InvalidValue`] naming `"east"`, `"north"`, or `"up"` when that
-    /// component is not finite, and `"magnitude"` when the components are
+    /// [`Error::InvalidValue`] naming `"east_m"`, `"north_m"`, or `"up_m"` when
+    /// that component is not finite, and `"magnitude"` when the components are
     /// finite but the offset's length overflows `f64` (beyond about 1.8e308 m).
     ///
     /// ```
@@ -138,14 +138,14 @@ impl Enu {
     /// assert_eq!((enu.east_m(), enu.north_m(), enu.up_m()), (1.0, 2.0, 3.0));
     /// assert!(matches!(
     ///     Enu::new(0.0, f64::NAN, 0.0),
-    ///     Err(Error::InvalidValue { field: "north", .. })
+    ///     Err(Error::InvalidValue { field: "north_m", .. })
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn new(east_m: f64, north_m: f64, up_m: f64) -> Result<Self> {
-        let east_m = finite(east_m, "east")?;
-        let north_m = finite(north_m, "north")?;
-        let up_m = finite(up_m, "up")?;
+        let east_m = finite(east_m, "east_m")?;
+        let north_m = finite(north_m, "north_m")?;
+        let up_m = finite(up_m, "up_m")?;
         check_magnitude(east_m, north_m, up_m)?;
         Ok(Self {
             east_m,
@@ -347,8 +347,8 @@ impl Ned {
     /// Construct from north, east, and down offsets in meters.
     ///
     /// # Errors
-    /// [`Error::InvalidValue`] naming `"north"`, `"east"`, or `"down"` when
-    /// that component is not finite, and `"magnitude"` as for [`Enu::new`].
+    /// [`Error::InvalidValue`] naming `"north_m"`, `"east_m"`, or `"down_m"`
+    /// when that component is not finite, and `"magnitude"` as for [`Enu::new`].
     ///
     /// ```
     /// use geocoordinates::{Error, geodesy::Ned};
@@ -357,14 +357,14 @@ impl Ned {
     /// assert_eq!((ned.north_m(), ned.east_m(), ned.down_m()), (2.0, 1.0, -3.0));
     /// assert!(matches!(
     ///     Ned::new(0.0, 0.0, f64::NAN),
-    ///     Err(Error::InvalidValue { field: "down", .. })
+    ///     Err(Error::InvalidValue { field: "down_m", .. })
     /// ));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn new(north_m: f64, east_m: f64, down_m: f64) -> Result<Self> {
-        let north_m = finite(north_m, "north")?;
-        let east_m = finite(east_m, "east")?;
-        let down_m = finite(down_m, "down")?;
+        let north_m = finite(north_m, "north_m")?;
+        let east_m = finite(east_m, "east_m")?;
+        let down_m = finite(down_m, "down_m")?;
         check_magnitude(north_m, east_m, down_m)?;
         Ok(Self {
             north_m,

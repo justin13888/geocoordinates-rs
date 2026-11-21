@@ -336,8 +336,8 @@ pub fn ecef_validate(ecef: Ecef) -> Result<(), GeoError> {
 /// Validate a (possibly hand-built) ENU record — the FFI form of `Enu::new`.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` naming `east`, `north`, or `up` when that
-/// component is not finite, and `magnitude` when the offset's length
+/// `GeoError::InvalidValue` naming `east_m`, `north_m`, or `up_m` (the
+/// parameters of `Enu::new`) when that component is not finite, and `magnitude` when the offset's length
 /// overflows.
 #[uniffi::export]
 pub fn enu_validate(enu: Enu) -> Result<(), GeoError> {
@@ -346,8 +346,8 @@ pub fn enu_validate(enu: Enu) -> Result<(), GeoError> {
 /// Validate a (possibly hand-built) NED record — the FFI form of `Ned::new`.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` naming `north`, `east`, or `down` when that
-/// component is not finite, and `magnitude` when the offset's length
+/// `GeoError::InvalidValue` naming `north_m`, `east_m`, or `down_m` (the
+/// parameters of `Ned::new`) when that component is not finite, and `magnitude` when the offset's length
 /// overflows.
 #[uniffi::export]
 pub fn ned_validate(ned: Ned) -> Result<(), GeoError> {
@@ -357,9 +357,9 @@ pub fn ned_validate(ned: Ned) -> Result<(), GeoError> {
 /// An azimuth outside `[0, 360)` is valid; the conversions normalize it.
 ///
 /// # Errors
-/// `GeoError::InvalidValue` naming `azimuth` when it is not finite,
-/// `elevation` when it is not finite or outside `[-90, 90]`, and `range` when
-/// it is not finite or negative.
+/// `GeoError::InvalidValue` naming `azimuth_deg` when it is not finite,
+/// `elevation_deg` when it is not finite or outside `[-90, 90]`, and `range`
+/// (the parameters of `Aer::new`) when it is not finite or negative.
 #[uniffi::export]
 pub fn aer_validate(aer: Aer) -> Result<(), GeoError> {
     gc::geodesy::Aer::try_from(aer).map(drop)

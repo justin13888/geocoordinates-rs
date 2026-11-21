@@ -148,7 +148,7 @@ fn public_geodesics_reject_mixed_crs_and_invalid_parameters() {
     assert_invalid_value(intermediate(c(0.0, 0.0), c(0.0, 1.0), -0.1), "fraction");
     assert_invalid_value(intermediate(c(0.0, 0.0), c(0.0, 1.0), f64::NAN), "fraction");
     let one_m = Length::from_meters(1.0);
-    assert_invalid_value(destination(c(0.0, 0.0), f64::NAN, one_m), "bearing");
+    assert_invalid_value(destination(c(0.0, 0.0), f64::NAN, one_m), "bearing_deg");
     assert_invalid_value(
         destination(c(0.0, 0.0), 0.0, Length::from_meters(f64::INFINITY)),
         "distance",
@@ -159,15 +159,20 @@ fn public_geodesics_reject_mixed_crs_and_invalid_parameters() {
     );
     assert_invalid_value(
         rhumb_destination(c(0.0, 0.0), f64::INFINITY, one_m),
-        "bearing",
+        "bearing_deg",
     );
     assert_invalid_value(
         intersection_spherical(c(0.0, 0.0), f64::NAN, c(1.0, 1.0), 0.0),
-        "bearing",
+        "bearing_a_deg",
     );
     assert_invalid_value(
         intersection_spherical(c(0.0, 0.0), 0.0, c(1.0, 1.0), f64::INFINITY),
-        "bearing",
+        "bearing_b_deg",
+    );
+    // Both non-finite: `a`'s bearing is reported.
+    assert_invalid_value(
+        intersection_spherical(c(0.0, 0.0), f64::NAN, c(1.0, 1.0), f64::NAN),
+        "bearing_a_deg",
     );
 }
 

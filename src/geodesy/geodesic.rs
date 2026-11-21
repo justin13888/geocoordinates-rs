@@ -10,7 +10,7 @@ use super::ellipsoid::ellipsoid_of;
 use crate::angle::{normalize_degrees, wrap_longitude};
 use crate::coord::{Coordinate, Crs, LatLon};
 use crate::error::{Error, Result};
-use crate::units::Length;
+use crate::units::{Length, finite};
 
 /// Ellipsoidal (Karney geodesic) distance between two points, measured on the
 /// ellipsoid of their shared [`Crs`].
@@ -110,8 +110,8 @@ pub fn final_bearing(a: impl LatLon, b: impl LatLon) -> Result<f64> {
 /// # Errors
 ///
 /// [`Error::CrsMismatch`] when `start` is GCJ-02 or BD-09, and
-/// [`Error::InvalidValue`] for a non-finite bearing or a non-finite or
-/// negative distance.
+/// [`Error::InvalidValue`] naming `"bearing_deg"` for a non-finite bearing,
+/// and `"distance"` for a non-finite or negative distance.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Error, Length, geodesy::destination};
@@ -123,6 +123,10 @@ pub fn final_bearing(a: impl LatLon, b: impl LatLon) -> Result<f64> {
 /// assert!(matches!(
 ///     destination(fiji, 90.0, Length::from_meters(-1.0)),
 ///     Err(Error::InvalidValue { field: "distance", .. })
+/// ));
+/// assert!(matches!(
+///     destination(fiji, f64::NAN, Length::from_meters(1.0)),
+///     Err(Error::InvalidValue { field: "bearing_deg", .. })
 /// ));
 /// # Ok::<(), geocoordinates::Error>(())
 /// ```
@@ -270,12 +274,7 @@ pub(super) fn validate_pair(a: impl LatLon, b: impl LatLon) -> Result<()> {
 }
 
 pub(super) fn validate_bearing_and_distance(bearing_deg: f64, distance: Length) -> Result<()> {
-    if !bearing_deg.is_finite() {
-        return Err(Error::InvalidValue {
-            field: "bearing",
-            detail: "must be finite".into(),
-        });
-    }
+    finite(bearing_deg, "bearing_deg")?;
     if !distance.meters().is_finite() || distance.meters() < 0.0 {
         return Err(Error::InvalidValue {
             field: "distance",
