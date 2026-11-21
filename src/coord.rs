@@ -165,7 +165,8 @@ impl Coordinate {
     ///     Coordinate::new(0.0, 181.0, Crs::Wgs84),
     ///     Err(Error::OutOfRange { lat: 0.0, lon: 181.0 })
     /// );
-    /// assert!(Coordinate::new(f64::NAN, 0.0, Crs::Wgs84).is_err());
+    /// let nan = Coordinate::new(f64::NAN, 0.0, Crs::Wgs84);
+    /// assert!(matches!(nan, Err(Error::OutOfRange { lat, lon: 0.0 }) if lat.is_nan()));
     /// # Ok::<(), geocoordinates::Error>(())
     /// ```
     pub fn new(lat: f64, lon: f64, crs: Crs) -> Result<Self> {
@@ -510,19 +511,33 @@ mod tests {
         assert!(zero.lat().is_sign_positive() && zero.lon().is_sign_positive());
     }
 
+    /// Every pair outside the closed ranges, or not finite, is the pair error
+    /// carrying the values given (bit for bit, so a NaN is the NaN passed).
     #[test]
-    fn new_rejects_out_of_range_and_nan() {
-        assert!(matches!(
-            Coordinate::wgs84(91.0, 0.0),
-            Err(Error::OutOfRange { lat, lon }) if lat == 91.0 && lon == 0.0
-        ));
-        assert!(Coordinate::wgs84(-90.5, 0.0).is_err());
-        assert!(Coordinate::wgs84(0.0, 181.0).is_err());
-        assert!(Coordinate::wgs84(0.0, -180.5).is_err());
-        assert!(Coordinate::wgs84(f64::NAN, 0.0).is_err());
-        assert!(Coordinate::wgs84(0.0, f64::NAN).is_err());
-        assert!(Coordinate::wgs84(f64::INFINITY, 0.0).is_err());
-        assert!(Coordinate::new(0.0, f64::NEG_INFINITY, Crs::Nad27).is_err());
+    fn non_finite_or_out_of_range_pairs_are_out_of_range_with_values() {
+        let (nan, inf) = (f64::NAN, f64::INFINITY);
+        for (lat, lon) in [
+            (91.0, 0.0),
+            (-90.5, 0.0),
+            (0.0, 181.0),
+            (0.0, -180.5),
+            (nan, 0.0),
+            (0.0, nan),
+            (inf, 0.0),
+            (0.0, -inf),
+            (-inf, nan),
+        ] {
+            for result in [
+                Coordinate::wgs84(lat, lon),
+                Coordinate::new(lat, lon, Crs::Nad27),
+                Coordinate::from_lon_lat(lon, lat, Crs::Gcj02),
+            ] {
+                let Err(Error::OutOfRange { lat: l, lon: o }) = result else {
+                    panic!("({lat}, {lon}): {result:?}");
+                };
+                assert_eq!((l.to_bits(), o.to_bits()), (lat.to_bits(), lon.to_bits()));
+            }
+        }
     }
 
     #[test]
@@ -552,7 +567,14 @@ mod tests {
         let lon_first = Coordinate::from_lon_lat(120.0, 30.0, Crs::Tokyo).unwrap();
         assert_eq!(lon_first, Coordinate::new(30.0, 120.0, Crs::Tokyo).unwrap());
         // A lon-lat pair whose "latitude" is out of range is rejected, not swapped.
-        assert!(Coordinate::from_lon_lat(10.0, 120.0, Crs::Wgs84).is_err());
+        let swapped = Coordinate::from_lon_lat(10.0, 120.0, Crs::Wgs84);
+        assert_eq!(
+            swapped,
+            Err(Error::OutOfRange {
+                lat: 120.0,
+                lon: 10.0
+            })
+        );
     }
 
     /// C4: `Coordinate` has no `Display`/`FromStr`, so the only text round trip
