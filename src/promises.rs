@@ -1,8 +1,8 @@
-//! Pins of the type-level promises `AGENTS.md` makes across the whole public
-//! surface: every public type deriving `Hash` hashes consistently with `Eq`,
-//! the core and option types are `Send + Sync`, and (under `serde`) every
-//! valid-by-construction type deserializes exactly what its constructor
-//! accepts. Each test names the promise it holds, so a rename or move that
+//! The crate's own pins of type-level promises across the public surface: the
+//! public types deriving `Hash` listed below hash consistently with `Eq`, the
+//! core and option types are `Send + Sync`, and (under `serde`) the
+//! valid-by-construction types `serde_agrees` covers deserialize exactly what
+//! their constructors accept. Each test names the promise it holds, so a rename or move that
 //! breaks one fails here rather than only in prose.
 
 use crate::angle::{Axis, Hemisphere};

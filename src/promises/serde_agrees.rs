@@ -1,5 +1,5 @@
-//! Valid by construction through serde: for every type `AGENTS.md` lists, a
-//! JSON record deserializes exactly when its constructor accepts the same
+//! Valid by construction through serde: for each of the types below, a JSON
+//! record deserializes exactly when its constructor accepts the same
 //! fields, and then to the same value. The generated fields cross every
 //! range edge; JSON carries no NaN or infinity, so the floats are finite
 //! (overflowing magnitudes included), and each constructor's own tests cover

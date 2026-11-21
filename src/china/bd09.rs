@@ -1,9 +1,12 @@
 //! GCJ-02 ↔ BD-09 transforms, and WGS-84 ↔ BD-09 compositions.
 //!
-//! `gcj2bd` is an exact (empirical) forward nudge in polar coordinates using
-//! Baidu's [`X_PI`](super::X_PI) constant. `bd2gcj` is only an approximate
-//! inverse; for sub-meter round-trips it is wrapped in the same fixed-point
-//! iteration as the GCJ inverse.
+//! The forward nudge, [`Gcj02::try_to_bd09`], is exact (empirical): a shift in
+//! polar coordinates using Baidu's [`X_PI`](super::X_PI) constant. Its inverse
+//! is only approximate, in two forms. [`Bd09::try_to_gcj02_fast`] is the closed
+//! form, within 0.5 m except within 0.02° of the antimeridian, where the bound
+//! is 125 m. [`Bd09::try_to_gcj02_refined`] wraps it in the same fixed-point
+//! iteration as the GCJ inverse, reporting 0.5 m when the iteration converges
+//! and 0.5 m plus the residual when it does not.
 //!
 //! The nudge is **not** gated to China: like every reference port, it applies
 //! worldwide. It treats latitude and longitude as plane coordinates, so near
@@ -189,7 +192,8 @@ impl Bd09 {
 // --- WGS-84 ↔ BD-09 compositions ---
 
 impl Wgs84 {
-    /// WGS-84 → BD-09. **Exact** composition `gcj2bd(wgs2gcj(x))`.
+    /// WGS-84 → BD-09. **Exact** composition: [`Gcj02::try_to_bd09`] of
+    /// [`Wgs84::to_gcj02`].
     ///
     /// # Errors
     ///

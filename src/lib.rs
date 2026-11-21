@@ -45,21 +45,18 @@
 //!
 //! ## One path per item
 //!
-//! Every public item has exactly one path, plus a [`prelude`] entry for the
-//! nine types it holds. The
-//! crate root holds the core types ([`Coordinate`], [`Crs`], [`Height`],
-//! [`LatLon`], [`Approx`], [`Length`], [`LengthUnit`], [`Error`],
-//! [`ParseErrorKind`], [`Result`]);
-//! every other item lives flat in its subsystem module: [`angle`], [`china`],
-//! [`fix`], [`format`](mod@format), [`geodesy`], [`grids`],
-//! [`parse`], `dgg` (behind the `h3` / `s2` features), `index` (behind the
-//! `index` feature), `exif` (behind the `exif` feature), `cluster` (behind
-//! the `cluster` feature), `reverse` (behind the `reverse` feature), `map`
-//! (behind the `map` feature), `geotag` (behind the `geotag` feature), and
-//! `privacy` (behind the `privacy` feature).
-//! Implementation
-//! submodules are private, so a type is never reachable at both
-//! `geodesy::Ecef` and `geodesy::ecef::Ecef`.
+//! Every public item has exactly one path, plus an entry in the [`prelude`]
+//! for the types it lists. The crate root holds the core types
+//! ([`Coordinate`], [`Crs`], [`Height`], [`LatLon`], [`Approx`], [`Length`],
+//! [`LengthUnit`], [`Error`], [`ParseErrorKind`], [`Result`]); every other item
+//! lives flat in its subsystem module: [`angle`], [`china`], [`fix`],
+//! [`format`](mod@format), [`geodesy`], [`grids`], [`parse`], `dgg` (behind
+//! the `h3` / `s2` features), `index` (behind the `index` feature), `exif`
+//! (behind the `exif` feature), `cluster` (behind the `cluster` feature),
+//! `reverse` (behind the `reverse` feature), `map` (behind the `map` feature),
+//! `geotag` (behind the `geotag` feature), and `privacy` (behind the `privacy`
+//! feature). Implementation submodules are private, so a type is never
+//! reachable at both `geodesy::Ecef` and `geodesy::ecef::Ecef`.
 //!
 //! See [AGENTS.md](https://github.com/justin13888/geocoordinates-rs/blob/master/AGENTS.md)
 //! for design constraints, and
@@ -163,9 +160,9 @@ pub(crate) mod test_support;
 mod promises;
 
 // The crate root holds the core types, each re-exported from its private
-// implementation module; it is their only path besides the [`prelude`],
-// which repeats them for a glob import (without `ParseErrorKind` and
-// `Result`, plus `fix::Fix`). Every other item lives in its subsystem module.
+// implementation module; it is their only path besides the [`prelude`]
+// (whose doc lists what it repeats). Every other item lives in its subsystem
+// module.
 pub use approx::Approx;
 pub use coord::{Coordinate, Crs, LatLon};
 pub use error::{Error, ParseErrorKind, Result};

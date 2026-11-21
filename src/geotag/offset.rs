@@ -21,6 +21,9 @@ use crate::{Coordinate, Error, Result};
 /// offsets, rounded to the millisecond, so one bad reference among three or
 /// more whose other offsets agree does not move it.
 ///
+/// Cost: O(references × fixes) Karney geodesic solves, since each reference
+/// is measured against every fix and every segment of the track.
+///
 /// Check the suggestion before trusting it: [`Track::locate`] each reference
 /// time with it and compare the result against the known location.
 ///

@@ -253,6 +253,10 @@ impl<T> Approx<T> {
 
     /// Map the inner value while preserving the error estimate.
     ///
+    /// The bound is carried over unchanged, so it stays true only if `f` does
+    /// not move the position (a re-tagging or a change of representation, not
+    /// a shift).
+    ///
     /// ```
     /// use geocoordinates::china::Gcj02;
     /// use geocoordinates::{Approx, Coordinate};
