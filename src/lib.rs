@@ -87,6 +87,8 @@ mod approx;
 mod convert; // runtime CRS dispatch (`Coordinate::try_to_crs`)
 mod coord;
 mod error;
+#[cfg(feature = "serde")]
+mod serde_util;
 mod units;
 
 pub mod angle;

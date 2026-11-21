@@ -63,7 +63,7 @@ pub struct Ellipsoid {
     semi_major: Length,
     #[cfg_attr(
         feature = "serde",
-        serde(serialize_with = "crate::approx::infinity_as_none::serialize")
+        serde(serialize_with = "crate::serde_util::infinity_as_none::serialize")
     )]
     inverse_flattening: f64,
 }
@@ -75,7 +75,7 @@ pub struct Ellipsoid {
 struct EllipsoidRecord {
     #[serde(rename = "semi_major_m")]
     semi_major: Length,
-    #[serde(with = "crate::approx::infinity_as_none")]
+    #[serde(with = "crate::serde_util::infinity_as_none")]
     inverse_flattening: f64,
 }
 
