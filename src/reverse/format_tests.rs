@@ -3,9 +3,9 @@
 use geocoordinates_gazetteer::{Dataset, FeatureClass as Class, PlaceRow, encode};
 use proptest::prelude::*;
 
-use super::Gazetteer;
 use super::format::crc32;
-use crate::{Error, ParseErrorKind};
+use super::{FeatureClass, Gazetteer, ReverseGeocoder, ReverseOptions};
+use crate::{Coordinate, Error, ParseErrorKind};
 
 /// A file with a correct header around `payload`.
 fn file(payload: &[u8]) -> Vec<u8> {
@@ -48,6 +48,99 @@ fn one_place() -> Dataset {
 fn the_crc_is_ieee() {
     assert_eq!(crc32(b""), 0);
     assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
+}
+
+/// The writer declares the format's constants a second time; these pin each one to
+/// the reader's, so the two cannot drift apart without a failing test.
+#[test]
+fn the_writer_header_is_the_readers() {
+    assert_eq!(geocoordinates_gazetteer::MAGIC, super::format::MAGIC);
+    assert_eq!(geocoordinates_gazetteer::VERSION, super::format::VERSION);
+    let bytes = encode(&Dataset::new("d", "a"));
+    assert_eq!(bytes[..4], super::format::MAGIC);
+    assert_eq!(bytes[4..6], super::format::VERSION.to_le_bytes());
+}
+
+#[test]
+fn the_writer_crc_is_the_readers() {
+    for bytes in [
+        &b""[..],
+        b"a",
+        b"123456789",
+        &[0xFF; 300],
+        &encode(&one_place()),
+    ] {
+        assert_eq!(geocoordinates_gazetteer::crc32(bytes), crc32(bytes));
+    }
+}
+
+/// The writer refuses a language the reader would reject, and only those: a tag the
+/// two disagree on either fails the build tool or makes a file that does not load.
+#[test]
+fn the_writer_accepts_the_language_tags_the_reader_does() {
+    for tag in [
+        "en",
+        "zh-Hant",
+        "zh-Hant-TW",
+        "pt-BR",
+        "es-419",
+        "sgn-ase",
+        "abcdefgh",
+        "en-x",
+        "",
+        "e",
+        "e1",
+        "12",
+        "en-",
+        "-en",
+        "en--us",
+        "en us",
+        "en_US",
+        "é",
+        "abcdefghi",
+        "en-toolongsub",
+    ] {
+        let written = geocoordinates_gazetteer::from_geonames(
+            &b""[..],
+            &b""[..],
+            &b""[..],
+            None::<&[u8]>,
+            &[tag.to_owned()],
+            "d",
+        );
+        assert_eq!(
+            written.is_ok(),
+            super::place::is_language_tag(tag),
+            "`{tag}`"
+        );
+    }
+}
+
+/// Every class the writer encodes loads back as the reader's class of that name.
+#[test]
+fn every_feature_class_survives_encode_and_load() {
+    let classes = [
+        (Class::Section, FeatureClass::Section),
+        (Class::Locality, FeatureClass::Locality),
+        (Class::Admin4Seat, FeatureClass::Admin4Seat),
+        (Class::Admin3Seat, FeatureClass::Admin3Seat),
+        (Class::Admin2Seat, FeatureClass::Admin2Seat),
+        (Class::Admin1Seat, FeatureClass::Admin1Seat),
+        (Class::Capital, FeatureClass::Capital),
+    ];
+    let mut d = Dataset::new("d", "a");
+    for (i, (written, _)) in (0i32..).zip(classes) {
+        d.places
+            .push(PlaceRow::new(i * 1_000_000, 0, "P", *b"AB", written));
+    }
+    let g = Gazetteer::from_bytes(&encode(&d)).unwrap();
+    assert_eq!(g.len(), classes.len());
+    for (i, (_, read)) in (0i32..).zip(classes) {
+        let at = Coordinate::wgs84(f64::from(i) * 10.0, 0.0).unwrap();
+        let place = g.reverse(at, &ReverseOptions::default()).unwrap().unwrap();
+        assert_eq!(place.coordinate(), at);
+        assert_eq!(place.feature_class(), Some(read));
+    }
 }
 
 #[test]
@@ -259,6 +352,12 @@ proptest! {
     #[test]
     fn arbitrary_payloads_never_panic(payload in proptest::collection::vec(any::<u8>(), 0..256)) {
         let _ = Gazetteer::from_bytes(&file(&payload));
+    }
+
+    /// The writer's CRC-32 is the reader's over any bytes.
+    #[test]
+    fn the_writer_crc_matches_on_arbitrary_bytes(bytes in proptest::collection::vec(any::<u8>(), 0..512)) {
+        prop_assert_eq!(geocoordinates_gazetteer::crc32(&bytes), crc32(&bytes));
     }
 
     /// Arbitrary bytes, header included, never panic the loader.
