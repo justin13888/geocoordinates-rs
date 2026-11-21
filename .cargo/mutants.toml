@@ -60,9 +60,6 @@ exclude_re = [
     # slow to finish inside the mutation timeout, so these report as timeouts.
     'src/cluster/hierarchy/forest\.rs:.*: replace cells_for -> u64 with 1',
     'src/cluster/hierarchy/forest\.rs:.*: replace cell_of -> u64 with 0',
-    # world_x's `lon - 180` only shifts every x by one whole world, which wrapped
-    # distances cannot see, and piles every point into column 0, as above.
-    'src/cluster/hierarchy/forest\.rs:.*: replace \+ with - in world_x',
     # The entries below name a line where one function holds both harmless mutants
     # and answer-changing ones, so a broader regex would hide the latter. An edit that
     # moves such a line brings its mutants back as missed, which is the safe failure:
@@ -72,23 +69,23 @@ exclude_re = [
     # raising `cells - 1` (`for_each_near`, `candidates`) adds no candidate. Dropping
     # `candidates`' one row of slack below the box keeps `cell_of(bottom)`, and a point
     # inside the box maps through the same monotonic function to no later a row.
-    'src/cluster/hierarchy/forest\.rs:349:.*: replace - with (\+|/) in Forest::for_each_near',
-    'src/cluster/hierarchy/forest\.rs:584:.*: replace - with (\+|/) in Forest::candidates',
-    'src/cluster/hierarchy/forest\.rs:584:.*: replace \+ with \* in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:340:.*: replace - with (\+|/) in Forest::for_each_near',
+    'src/cluster/hierarchy/forest\.rs:575:.*: replace - with (\+|/) in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:575:.*: replace \+ with \* in Forest::candidates',
     # `start`'s `% cells`: the loop reduces `start + step` by `cells` again, so leaving
     # `start` unreduced walks the same columns.
-    'src/cluster/hierarchy/forest\.rs:582:.*: replace % with \+ in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:573:.*: replace % with \+ in Forest::candidates',
     # Forest::candidates may always return more than the box holds, because
     # `ClusterIndex::clusters` filters by `contains`. Raising the column count, or
     # choosing the full walk (even at every query), changes speed, never an answer.
-    'src/cluster/hierarchy/forest\.rs:576:.*: replace \* with \+ in Forest::candidates',
-    'src/cluster/hierarchy/forest\.rs:576:.*: replace / with \* in Forest::candidates',
-    'src/cluster/hierarchy/forest\.rs:579:.*: replace < with (==|<=|>) in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:567:.*: replace \* with \+ in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:567:.*: replace / with \* in Forest::candidates',
+    'src/cluster/hierarchy/forest\.rs:570:.*: replace < with (==|<=|>) in Forest::candidates',
     # ClusterIndex::clusters' `rows` of `None` is the full walk, so a mutant that
     # makes it `None` for every box changes speed, never an answer.
-    'src/cluster/hierarchy\.rs:420:.*: replace < with > in ClusterIndex::clusters',
-    'src/cluster/hierarchy\.rs:420:.*: replace > with < in ClusterIndex::clusters',
-    'src/cluster/hierarchy\.rs:420:.*: delete - in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:421:.*: replace < with > in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:421:.*: replace > with < in ClusterIndex::clusters',
+    'src/cluster/hierarchy\.rs:421:.*: delete - in ClusterIndex::clusters',
     # Forest::seed_for compares keys unique by id, and a node equal to `best` is the
     # node itself, which `best` already names.
     'src/cluster/hierarchy/forest\.rs:.*: replace < with <= in Forest::seed_for',
