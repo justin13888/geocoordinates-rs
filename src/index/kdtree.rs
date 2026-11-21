@@ -221,18 +221,63 @@ impl Ord for Pending {
 }
 
 #[cfg(test)]
-impl KdTree {
-    /// Whether frontier entries compare equal exactly when their chords match.
-    pub(super) fn pending_eq_holds() -> bool {
+mod tests {
+    use super::*;
+
+    /// The unit vector of a latitude and longitude on the sphere, in degrees.
+    fn unit(lat: f64, lon: f64) -> Vector {
+        let (lat, lon) = (lat.to_radians(), lon.to_radians());
+        [lat.cos() * lon.cos(), lat.cos() * lon.sin(), lat.sin()]
+    }
+
+    #[test]
+    fn frontier_entries_compare_equal_only_when_their_chords_match() {
         let pending = |chord_sq| Pending {
             chord_sq,
             item: Item::Node(0),
         };
-        pending(1.0) == pending(1.0) && pending(1.0) != pending(2.0)
+        assert!(pending(1.0) == pending(1.0));
+        assert!(pending(1.0) != pending(2.0));
     }
 
-    /// The squared distance from `query` to the box around every point.
-    pub(super) fn root_box_chord_sq(&self, query: Vector) -> f64 {
-        box_chord_sq(&self.nodes[0], query)
+    #[test]
+    fn by_chord_yields_every_point_by_rising_chord() {
+        let tree =
+            KdTree::build((0..100).map(|i| unit(f64::from(i) - 50.0, f64::from(i) * 3.0 - 150.0)));
+        let query = unit(10.0, 10.0);
+        // One past the expected count: a walk that overruns fails here, not by hanging.
+        let walk: Vec<(f64, usize)> = tree.by_chord(query).take(101).collect();
+        assert_eq!(walk.len(), 100);
+        assert!(walk.windows(2).all(|pair| pair[0].0 <= pair[1].0));
+        let mut ids: Vec<usize> = walk.iter().map(|&(_, id)| id).collect();
+        ids.sort_unstable();
+        assert_eq!(ids, (0..100).collect::<Vec<_>>());
+        assert_eq!(KdTree::build([]).by_chord([1.0, 0.0, 0.0]).count(), 0);
+        let mut none = 0;
+        KdTree::build([]).for_each_within([1.0, 0.0, 0.0], 4.0, |_| none += 1);
+        assert_eq!(none, 0);
+    }
+
+    #[test]
+    fn by_chord_reports_the_squared_chord_to_each_point() {
+        let tree = KdTree::build([[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]]);
+        let walk: Vec<(f64, usize)> = tree.by_chord([1.0, 0.0, 0.0]).take(3).collect();
+        assert_eq!(walk, [(8.0, 1), (13.0, 0)]);
+    }
+
+    #[test]
+    fn for_each_within_keeps_only_points_inside_the_limit() {
+        let tree = KdTree::build([[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]]);
+        let mut found = Vec::new();
+        tree.for_each_within([1.0, 0.0, 0.0], 8.0, |id| found.push(id));
+        assert_eq!(found, [1]);
+    }
+
+    #[test]
+    fn the_box_distance_sums_the_gap_along_each_axis() {
+        let tree = KdTree::build([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]);
+        // Past the high side on x, inside on y, past the low side on z.
+        assert_eq!(box_chord_sq(&tree.nodes[0], [3.0, 0.5, -1.0]), 5.0);
+        assert_eq!(box_chord_sq(&tree.nodes[0], [0.5, 0.5, 0.5]), 0.0);
     }
 }
