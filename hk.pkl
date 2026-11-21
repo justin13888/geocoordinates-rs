@@ -4,8 +4,9 @@
 // once (in `.mise.toml`) and the hooks stay a thin scheduling layer. hk does
 // not read mise tasks natively; this is the documented integration.
 //
-// The version is pinned twice — here and as `hk` in `.mise.toml`. Bump both
-// together (`hk migrate` handles the amends URL).
+// The version is pinned three times — in the `amends` URL and `min_hk_version`
+// here, and as `hk` in `.mise.toml`. Bump all three together (`hk migrate`
+// handles the amends URL).
 amends "package://github.com/jdx/hk/releases/download/v1.57.0/hk@1.57.0#/Config.pkl"
 
 min_hk_version = "1.57.0"
@@ -90,10 +91,10 @@ hooks {
         }
     }
 
-    // `hk check` — the core gates (fmt-check + file-length-check + lint +
-    // ffi-check + test), runnable on demand. This is not full CI: CI also runs
-    // commits-check, features, msrv, doc, coverage, mutants, the Python/JVM/WASM smoke
-    // builds, and the Swift package build.
+    // `hk check` — the on-demand hook gates (fmt-check + file-length-check +
+    // lint + ffi-check + test); `mise run check` is the narrower core set. This
+    // is not full CI: the README's Development table lists every gate, and CI
+    // runs them all.
     // `hk fix` (below) only autofixes formatting and lint, not test.
     ["check"] {
         steps {

@@ -23,7 +23,8 @@ env:
 # ones contributors run locally are the same definitions (see .mise.toml).
 # Tool versions are pinned rather than floating, so a CI run is reproducible:
 # mise itself through each `jdx/mise-action` step's `version` input (bump every
-# occurrence here and in mutants-all.yml, ffi.yml, and release-jvm.yml together),
+# occurrence here and in mutants-all.yml, ffi.yml, release-jvm.yml,
+# release-plz.yml, and release-web.yml together),
 # and cargo-llvm-cov through
 # the `tool` input of `taiki-e/install-action`.
 jobs:

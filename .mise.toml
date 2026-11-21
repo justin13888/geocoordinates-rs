@@ -8,8 +8,8 @@
 # global pin would make every CI job pay for them. They are declared on the
 # tasks that use them instead, and install on first run.
 [tools]
-# Git hooks manager. The matching `amends` URL in `hk.pkl` embeds this same
-# version, so bump both together.
+# Git hooks manager. `hk.pkl` repeats this same version twice, in its `amends`
+# URL and in `min_hk_version`, so bump all three together.
 hk = "1.57.0"
 
 [env]
@@ -180,7 +180,7 @@ run = [
 ]
 
 # The per-feature job for `privacy`: its tests and doctests with no sibling feature
-# beyond the `index` it builds on (geohash snapping only), then again with `h3`,
+# on (geohash snapping only), then again with `h3`,
 # `s2` and `serde`, which add its H3 and S2 grids and its wire forms.
 [tasks.privacy-test]
 description = "Test the privacy feature alone, and with h3, s2 and serde"

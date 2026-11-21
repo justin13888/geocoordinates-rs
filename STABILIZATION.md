@@ -38,12 +38,16 @@ evidence:
    says so in its name (C1 / C14).
 3. Every public item carries a compiling doctest (G12):
    `cargo test --all-features --doc` runs 525 of them (515 examples and 10
-   `compile_fail` pins) at `1f122d1`, as measured in the [baseline](#baseline).
-4. Every `#[uniffi::export]` is called by a Rust test, and carries `# Errors`
-   when it is fallible, both enforced by
-   `crates/geocoordinates-ffi/tests/export_coverage.rs`; the exports follow
-   one naming scheme (G27); and the Python, Kotlin / Java, Swift and
-   TypeScript bindings each run behavioural tests in CI (G14).
+   `compile_fail` pins) at `f1eef54`, as measured in the [baseline](#baseline).
+4. `crates/geocoordinates-ffi/tests/export_coverage.rs` holds the FFI side to
+   the core: every non-trait function, method and constant in the core's
+   public API snapshot (`public-api/geocoordinates/`) has an FFI form under
+   its own name or one listed in the shrink-only `export_coverage/parity_gaps.rs`;
+   every `#[uniffi::export]` is called by a Rust test, carries `# Errors` when
+   it is fallible, and follows the one naming scheme (G27). Types are not
+   compared by that test; their semantics across the boundary are pinned by
+   the Python, Kotlin / Java, Swift and TypeScript behavioural tests each
+   binding runs in CI (G14).
 5. Antimeridian, pole and round-trip behavior is pinned by the characterization
    and property tests of #100 and by the regression test each C finding below
    added. Since G18 and G18b closed, neither round-trip property excludes any
@@ -58,14 +62,16 @@ exactly the [audit ledger](#audit-ledger)'s rows whose status reads `open`.
 Measured on `master` at the start of this effort (2026-09-01), and again on
 the settled 0.15.0 surface at `master@1f122d1` (2026-11-20), the merge of
 #307, the last pull request of the pre-1.0 audit to change code. #308, which
-re-measured it, changes only Markdown and doc comments, so
-no count moves at its head. Each 0.15.0 figure names the command that produced
-it:
+re-measured it, changes only Markdown and doc comments. The de-slop pass that
+followed (#337–#363) added tests and changed code, so the test, coverage and
+`cargo semver-checks` figures were measured again at `master@f1eef54`
+(2026-11-21), the merge of #363; the CI runs cited below stay at `1f122d1`.
+Each 0.15.0 figure names the command that produced it:
 
 | Signal | 2026-09-01 | 0.15.0 |
 |---|---|---|
-| Tests | 199 passing (191 unit + 8 flagship example) | 1380 core-crate, all features (`cargo test --all-features`: 800 unit, 47 integration in `tests/`, 8 flagship, and 515 doctests and 10 `compile_fail` doctests) + 164 FFI-crate Rust tests (`cargo test -p geocoordinates-ffi`) |
-| Coverage | 96.0% lines, 93.2% functions | 98.67% lines, 97.74% functions (`mise run coverage`, i.e. `cargo llvm-cov --all-features`); CI fails under a 98% line floor |
+| Tests | 199 passing (191 unit + 8 flagship example) | 1418 core-crate, all features (`cargo test --all-features` at `f1eef54`: 836 unit, 49 integration in `tests/`, 8 flagship, and 515 doctests and 10 `compile_fail` doctests) + 171 FFI-crate Rust tests (`cargo test -p geocoordinates-ffi`) |
+| Coverage | 96.0% lines, 93.2% functions | 98.63% lines, 97.42% functions at `f1eef54` (`mise run coverage`, i.e. `cargo llvm-cov --all-features`); CI fails under a 98% line floor |
 | `cargo fmt --check` | clean | clean |
 | `clippy -D warnings` (both crates) | clean | clean |
 | `rustdoc -D missing_docs` | clean | clean, and denied in CI |
@@ -169,9 +175,11 @@ merges.
 
 **Verified clean**, and deliberately so — do not "fix" these:
 
-- The FFI mirror has **zero** `_ =>` wildcard arms on data enums. The
-  compiler-enforced mirror sync works as designed; the single `other =>` arm is
-  the permitted error-only exception.
+- The FFI mirror has **zero** wildcard arms on data enums. The
+  compiler-enforced mirror sync works as designed; the two error mirrors carry
+  the documented fallbacks, the permitted error-only exception: an unknown
+  `Error` maps to `GeoError::Other` and an unknown `ParseErrorKind` to
+  `ParseErrorKind::Syntax` (`crates/geocoordinates-ffi/src/error.rs`).
 - Every public data-carrying type derives serde under the `serde` feature.
 - `Crs`, `LengthUnit`, `DatumAmbiguity` and `AccuracyKind` are exhaustive on purpose, each with a
   doc comment explaining why.
@@ -282,8 +290,9 @@ maintenance that closed no finding.
 0.15.0 is not cut until all of these hold. Each item names the ref its
 evidence is from: every item was re-measured on the settled surface at
 `master@1f122d1` (2026-11-20), as in the [baseline](#baseline), by #308, whose
-commits change only Markdown and doc comments; the bindings item below says
-which part of it could not be re-measured. The release PR
+commits change only Markdown and doc comments, and the doctest, flagship,
+coverage and `cargo semver-checks` items again at `master@f1eef54`; the
+bindings item below says which part of it could not be re-measured. The release PR
 (#133) ships the surface once the pre-1.0 audit has landed.
 
 - [x] Every ledger finding above is closed: no row is open and none is
@@ -297,7 +306,7 @@ which part of it could not be re-measured. The release PR
   the job of FFI run 44834520673 that runs `ffi-check` passed; each of the
   five also passed locally on #308's branch.
 - [x] `cargo test --all-features --doc` executes a non-zero number of doctests —
-  525 pass at `1f122d1` (515 examples and 10 `compile_fail` pins).
+  525 pass at `f1eef54`, as at `1f122d1` (515 examples and 10 `compile_fail` pins).
 - [ ] `mise run bindings` regenerates cleanly for all four languages, and each
   language's tests pass. Not yet re-measured in full: FFI run 44834520673 at
   `1f122d1` builds the `cdylib`, generates the Python, Kotlin and Swift
@@ -307,9 +316,12 @@ which part of it could not be re-measured. The release PR
   `ef195ff` (#212), which this item cited before the pre-1.0 audit, had every
   language green.
 - [x] `cargo run --all-features --example flagship` passes and exercises the
-  full surface — "All 8 shipped Rust capability groups passed." at `1f122d1`.
+  eight core capability groups — "All 8 core capability groups passed." on
+  `f1eef54` with only the banner and that closing line reworded; the
+  feature-gated subsystems are exercised by their per-feature test jobs
+  instead.
 - [x] Coverage threshold enabled in CI and met — a 98% line floor in
-  `.coverage-baseline` (`mise run coverage` measured 98.67% at `1f122d1`), held
+  `.coverage-baseline` (`mise run coverage` measured 98.63% at `f1eef54`), held
   shrink-only by `mise run coverage-ratchet` (#128).
 - [x] `cargo semver-checks` output reconciled against the release PR's
   changelog — every break recorded; see below.
@@ -317,8 +329,8 @@ which part of it could not be re-measured. The release PR
 ### `cargo semver-checks` against 0.14.2
 
 `cargo semver-checks -p geocoordinates --baseline-version 0.14.2 --all-features`
-(cargo-semver-checks 0.51.0, at `1f122d1`) fails 23 major checks and no minor
-ones. Every break traces to a pull request whose commit carries `!`, which the
+(cargo-semver-checks 0.51.0, at `f1eef54`, as at `1f122d1`) fails 23 major
+checks, the 23 lints the table names, and no minor ones. Every break traces to a pull request whose commit carries `!`, which the
 release PR's 0.15.0 changelog lists as **breaking**:
 
 | Break (lint) | Items | PR |
@@ -441,7 +453,7 @@ is `geodesy::GeoBounds`, in every build, rather than part of `index`.
 | Issue | Feature | Capability | Blocked by | PR |
 |---|---|---|---|---|
 | #221 | `exif` | Already-read EXIF/XMP GPS tag values to a `Fix` | — | #236 |
-| #222 | `index` | Antimeridian-aware geographic bounds; spatial index queries | — | #230 |
+| #222 | `index` | Antimeridian-aware geographic bounds; spatial index queries (`GeoBounds` since ungated, #283) | — | #230 |
 | #223 | `reverse`, `reverse-bundled` | Offline reverse geocoding behind a trait; `reverse-bundled` embeds the data | #222 | #242 |
 | #224 | `cluster` | Geodesic centroid and point clustering | #222 | #240 |
 | #225 | `map` | Web Mercator, tile and viewport math with GeoJSON layer output | #222, #224 | #244 |

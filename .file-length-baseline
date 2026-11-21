@@ -12,7 +12,7 @@
 # falls to the limit or below (remove its entry), and when an entry is added or
 # a cap raised relative to the base branch.
 
-# Grandfathered: split these, then lower or remove their entries.
+# Grandfathered: none remain. A file over the limit is split rather than listed.
 
 # Generated: tool output that is never edited by hand.
 generated CHANGELOG.md
