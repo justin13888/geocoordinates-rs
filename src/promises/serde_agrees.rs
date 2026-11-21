@@ -170,7 +170,7 @@ proptest! {
         x in around(-3e7, 3e7, &[0.0, -2.0e7, 2.0e7]),
         y in around(-3e7, 3e7, &[0.0, -1.3e7, 1.3e7]),
     ) {
-        agrees(json!({"x": x, "y": y}), BaiduMercator::new(x, y))?;
+        agrees(json!({"x_m": x, "y_m": y}), BaiduMercator::new(x, y))?;
     }
 
     #[test]
