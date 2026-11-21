@@ -296,7 +296,7 @@ mod tests {
     use super::*;
     use crate::china::{REFINED_BOUND_M, near_china_box};
     use crate::geodesy::haversine_distance;
-    use crate::test_support::{DATUM_VECTORS, assert_within_meters, china_box_grid};
+    use crate::test_support::{DATUM_VECTORS, REFERENCE_M, assert_within_meters, china_box_grid};
 
     fn bd(lat: f64, lon: f64) -> Bd09 {
         Bd09::new(lat, lon).unwrap()
@@ -311,7 +311,7 @@ mod tests {
         for v in DATUM_VECTORS {
             if let Some(expected) = v.bd09() {
                 let got = v.wgs84().try_to_bd09().unwrap();
-                assert_within_meters(got, expected, 0.2);
+                assert_within_meters(got, expected, REFERENCE_M);
                 assert_eq!(Bd09::try_from(v.wgs84()).unwrap(), got);
             }
         }
@@ -323,7 +323,7 @@ mod tests {
     fn gcj02_to_bd09_matches_coordtransform() {
         use crate::test_support::coordtransform::{GCJ_TO_BD, INPUT};
         let got = gcj(INPUT.0, INPUT.1).try_to_bd09().unwrap();
-        assert_within_meters(got, bd(GCJ_TO_BD.0, GCJ_TO_BD.1), 0.05);
+        assert_within_meters(got, bd(GCJ_TO_BD.0, GCJ_TO_BD.1), REFERENCE_M);
         assert_eq!(Bd09::try_from(gcj(INPUT.0, INPUT.1)).unwrap(), got);
     }
 
@@ -331,7 +331,7 @@ mod tests {
     fn bd09_to_gcj02_fast_matches_coordtransform() {
         use crate::test_support::coordtransform::{BD_TO_GCJ, INPUT};
         let got = bd(INPUT.0, INPUT.1).try_to_gcj02_fast().unwrap();
-        assert_within_meters(*got.value(), gcj(BD_TO_GCJ.0, BD_TO_GCJ.1), 0.05);
+        assert_within_meters(*got.value(), gcj(BD_TO_GCJ.0, BD_TO_GCJ.1), REFERENCE_M);
     }
 
     /// GCJ-02 → BD-09 is exact; the refined inverse recovers it to sub-meter.

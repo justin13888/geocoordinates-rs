@@ -305,12 +305,12 @@ mod tests {
     use super::*;
     use crate::china::REFINED_BOUND_M;
     use crate::geodesy::haversine_distance;
-    use crate::test_support::{DATUM_VECTORS, assert_within_meters, china_box_grid};
+    use crate::test_support::{DATUM_VECTORS, REFERENCE_M, assert_within_meters, china_box_grid};
 
     #[test]
     fn wgs84_to_gcj02_matches_references() {
         for v in DATUM_VECTORS {
-            assert_within_meters(v.wgs84().to_gcj02(), v.gcj02(), 0.2);
+            assert_within_meters(v.wgs84().to_gcj02(), v.gcj02(), REFERENCE_M);
         }
     }
 
@@ -347,7 +347,7 @@ mod tests {
         assert_within_meters(
             *got.value(),
             Wgs84::new(GCJ_TO_WGS_FAST.0, GCJ_TO_WGS_FAST.1).unwrap(),
-            0.05,
+            REFERENCE_M,
         );
     }
 

@@ -161,7 +161,7 @@ mod tests {
     use crate::china::REFINED_BOUND_M;
     use crate::coord::Height;
     use crate::geodesy::haversine_distance;
-    use crate::test_support::assert_close;
+    use crate::test_support::{REFERENCE_DEG, assert_close};
 
     // Reference triple from `test_support` (a single WGS-84 point and its exact
     // GCJ-02 / BD-09 images): (lat, lon).
@@ -191,7 +191,8 @@ mod tests {
         let g = Wgs84::new(WGS.0, WGS.1).unwrap().to_gcj02();
         assert_close(r.value().lat(), g.lat(), 1e-12);
         assert_close(r.value().lon(), g.lon(), 1e-12);
-        assert_close(r.value().lat(), GCJ.0, 1e-9);
+        assert_close(r.value().lat(), GCJ.0, REFERENCE_DEG);
+        assert_close(r.value().lon(), GCJ.1, REFERENCE_DEG);
     }
 
     #[test]
@@ -226,7 +227,8 @@ mod tests {
         let b = Gcj02::new(GCJ.0, GCJ.1).unwrap().try_to_bd09().unwrap();
         assert_close(r.value().lat(), b.lat(), 1e-12);
         assert_close(r.value().lon(), b.lon(), 1e-12);
-        assert_close(r.value().lat(), BD.0, 1e-9);
+        assert_close(r.value().lat(), BD.0, REFERENCE_DEG);
+        assert_close(r.value().lon(), BD.1, REFERENCE_DEG);
     }
 
     /// #172: BD-09 → GCJ-02 takes the direct refined inverse, so its bound is
