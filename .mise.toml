@@ -488,8 +488,13 @@ case "$(uname -s)" in
     Darwin) lib="target/release/libgeocoordinates_ffi.dylib" ;;
     *)      lib="target/release/libgeocoordinates_ffi.so" ;;
 esac
+# Swift is generated unformatted, as build-xcframework.sh does, so the copy
+# committed under swift/ matches whether or not swift-format is installed.
+format=()
+[ "$usage_lang" = swift ] && format=(--no-format)
 cargo run -q -p geocoordinates-ffi --bin uniffi-bindgen -- \
-    generate --library "$lib" --language "$usage_lang" --out-dir "bindings/$usage_lang"
+    generate ${format[@]+"${format[@]}"} --library "$lib" --language "$usage_lang" \
+    --out-dir "bindings/$usage_lang"
 '''
 
 [tasks.bindings-python]
@@ -501,6 +506,18 @@ run = "mise run bindings-generate python"
 description = "Generate the Kotlin bindings"
 depends = ["bindings-build"]
 run = "mise run bindings-generate kotlin"
+
+# The generated tree already carries its package path (uniffi/...), so it is
+# copied as is into the Gradle source set; ffi.yml and release-jvm.yml run this.
+[tasks.bindings-jvm-stage]
+description = "Generate the Kotlin bindings and stage them into the JVM Gradle project"
+depends = ["bindings-kotlin"]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p crates/geocoordinates-ffi/jvm/src/main/kotlin
+cp -R bindings/kotlin/. crates/geocoordinates-ffi/jvm/src/main/kotlin/
+'''
 
 [tasks.bindings-swift]
 description = "Generate the Swift bindings"
@@ -515,7 +532,9 @@ dir = "{{ config_root }}/crates/geocoordinates-ffi/web"
 # The generated wrapper crate and wasm builds of third-party deps are not where
 # warnings are denied (ffi.yml's `web-wasm` job relaxes it the same way).
 env = { RUSTFLAGS = "" }
-run = ["npm install", "npm run build"]
+# `npm ci` installs exactly package-lock.json, as ffi.yml and release-web.yml
+# (which run this task) need.
+run = ["npm ci", "npm run build"]
 
 # Java is served by the Kotlin/JVM artifact, so it has no separate generation.
 [tasks.bindings]

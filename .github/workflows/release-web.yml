@@ -86,11 +86,15 @@ jobs:
       - name: Plan release (version + publish)
         id: plan
         uses: ./.github/actions/release-plan
-      - run: npm ci
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.13 # keep in step with ci.yml's pin
+      # The same task contributors and ffi.yml run: `npm ci`, then the build.
+      # The build reads no package version, so the version is set after it.
+      - name: Build bindings
+        run: mise run bindings-web
       - name: Set package version
         run: npm version "${{ steps.plan.outputs.version }}" --no-git-tag-version --allow-same-version
-      - name: Build bindings
-        run: npm run build
       # The package a consumer installs must import from plain Node: pack it,
       # install the tarball into an empty project, and import it there.
       - name: Packed-tarball import (plain Node)
