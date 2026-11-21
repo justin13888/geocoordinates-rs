@@ -77,6 +77,10 @@ Every export follows one scheme, so a name reads the same in every language
     always the other side (`length_from_unit(value)` returns meters,
     `length_to_unit(meters)` takes them, and `length_unit_meters_per_unit`
     returns the ratio);
+  - the `ExifGps` and `XmpGps` tag-value records name each field after the
+    GPS tag it holds, so their meter-valued `altitude` (`GPSAltitude`) and
+    `h_positioning_error` (`GPSHPositioningError`) stay unsuffixed: they
+    carry the tag's raw value, not a crate magnitude;
   - a dimensionless value has no unit to name: a confidence in `[0, 1]`
     (`confidence_new(value)`), a fraction of a path
     (`intermediate(fraction)`), a fractional zoom level (`zoom` in
