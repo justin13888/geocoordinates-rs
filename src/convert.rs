@@ -62,7 +62,10 @@ impl Coordinate {
     ///   past a pole, within about 0.006° of one;
     /// - [`Error::InvalidValue`](crate::Error::InvalidValue) (field `height`) when
     ///   `self` carries an orthometric height and a leg is a Helmert datum shift,
-    ///   which needs an ellipsoidal height (no geoid model is available).
+    ///   which needs an ellipsoidal height (no geoid model is available), or
+    ///   an ellipsoidal height so large that the shifted position overflows,
+    ///   as [`DatumTransform::apply`](crate::geodesy::DatumTransform::apply)
+    ///   documents.
     ///
     /// ```
     /// use geocoordinates::{Coordinate, Crs};

@@ -137,6 +137,10 @@ pub fn destination(start: Coordinate, bearing_deg: f64, distance: Length) -> Res
 /// The geodesic midpoint between `a` and `b`, on the ellipsoid of their shared
 /// CRS. Returns a coordinate in that CRS with no height.
 ///
+/// Where `b` is so nearly antipodal to `a` that more than one shortest
+/// geodesic joins them, the midpoint is on the one GeographicLib's inverse
+/// solution returns, as for [`intermediate`].
+///
 /// # Errors
 ///
 /// As for [`intermediate`].
@@ -161,6 +165,11 @@ pub fn midpoint(a: Coordinate, b: Coordinate) -> Result<Coordinate> {
 /// The point a `fraction` (0.0 → `a`, 1.0 → `b`) of the way along the geodesic
 /// from `a` to `b`, on the ellipsoid of their shared CRS. Returns a coordinate
 /// in that CRS with no height.
+///
+/// Where `b` is so nearly antipodal to `a` that more than one shortest
+/// geodesic joins them (exact antipodes, or two points on the equator more
+/// than about 179.4° apart), the path is the one GeographicLib's inverse
+/// solution returns.
 ///
 /// # Errors
 ///

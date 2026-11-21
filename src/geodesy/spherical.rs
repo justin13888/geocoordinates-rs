@@ -6,14 +6,14 @@
 //! of radius `MEAN_EARTH_RADIUS_M`, so they are approximate by construction:
 //! a great-circle distance differs from the ellipsoidal geodesic by up to
 //! about 0.56% (see [`haversine_distance`]). They are implemented here
-//! directly and re-exported from [`super::geodesic`].
+//! directly and re-exported flat from [`geodesy`](super).
 //!
 //! The sphere is not any datum's surface, so the measurements accept any
 //! shared [`Crs`](crate::Crs) and measure its latitudes and longitudes as
 //! given. [`intersection_spherical`] produces a position, and so rejects
 //! GCJ-02 and BD-09 like the ellipsoidal producers do. At a pole, a bearing is
 //! taken against the meridian of the coordinate's own longitude, as in
-//! [`super::geodesic`].
+//! the ellipsoidal routines (see [`geodesy`](super)).
 
 use core::f64::consts::PI;
 

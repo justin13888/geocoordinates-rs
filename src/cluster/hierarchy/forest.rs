@@ -108,8 +108,10 @@ fn world_xy(point: Coordinate) -> (f64, f64) {
 }
 
 /// `lon` as a fraction of the world's width, west edge 0, east edge 1. The one
-/// copy of this projection: `map` draws its views and tiles through it too, so the
-/// pins this index places and the views a map shows cannot drift apart.
+/// copy of the unit-square projection that pins, tiles and views share: `map`
+/// draws its views and tiles through it too, so the pins this index places and
+/// the views a map shows cannot drift apart. `WebMercator`'s meters come from
+/// its own closed form instead.
 pub(crate) fn world_x(lon: f64) -> f64 {
     (lon + 180.0) / 360.0
 }
