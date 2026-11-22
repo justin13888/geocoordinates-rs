@@ -88,8 +88,6 @@ pub const ALLOWED: &[&str] = &[
     // Gaps: no FFI form yet, each tracked by an issue.
     // #336
     "ExifOptions::new",
-    // #335
-    "Place::localized_name",
     // #334
     "Representation::MAX_DDM_MINUTE_DECIMALS",
     "Representation::MAX_DD_DECIMALS",

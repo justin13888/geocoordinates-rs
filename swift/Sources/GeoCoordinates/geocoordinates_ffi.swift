@@ -13674,6 +13674,22 @@ public func gazetteerAsReverseGeocoder(gazetteer: Gazetteer) -> ReverseGeocoder 
 })
 }
 /**
+ * The name of `place` in the language `tag`, matched case-insensitively against
+ * the keys of `localized_names`, or none when it has no name in that language.
+ * A tag matches only itself: `zh` does not find `zh-Hant`.
+ *
+ * # Errors
+ * Every error of [`place_validate`]: the record is checked before the lookup.
+ */
+public func placeLocalizedName(place: Place, tag: String)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeGeoError_lift) {
+    uniffi_geocoordinates_ffi_fn_func_place_localized_name(
+        FfiConverterTypePlace_lower(place),
+        FfiConverterString.lower(tag),$0
+    )
+})
+}
+/**
  * A place named `name` at `coordinate` in the country `country_code`, resolved
  * from `query` with a conversion error of `query_max_error_m` meters (`0` for an
  * exact query). The distance is computed; set the optional fields on the record.
@@ -14517,6 +14533,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_gazetteer_as_reverse_geocoder() != 12896) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_place_localized_name() != 9947) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_place_new() != 33796) {
