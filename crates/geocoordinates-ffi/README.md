@@ -48,6 +48,45 @@ explicit `max_error_m`.
 Exact forward conversions return a bare datum record; approximate inverses
 return an `Approx*` record and keep the `_fast` / `_refined` suffix.
 
+## Unsigned integers from Java
+
+UniFFI maps `u8` / `u16` / `u32` / `u64` to Kotlin's `UByte` / `UShort` /
+`UInt` / `ULong`. These are inline classes, so Kotlin mangles every JVM member
+that takes or exposes one (`getValue-s-VKNKU`, `s2Encode-EK-6454`), and Java
+cannot name the mangled member. The JVM artifact therefore ships a small
+hand-written shim in the package `io.github.justin13888.geocoordinates`, in
+[`jvm/src/shim/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/jvm/src/shim/kotlin/io/github/justin13888/geocoordinates).
+Its holder objects (`S2Cells`, `H3Cells`, `Grids`, `Angles`, `Formats`,
+`Tiles`, `Clusters`, `SpatialIndexes`, `Tracks`, `Gazetteers`, `Places`,
+`Exif`, `Privacy`, `GeoErrors`) offer each such export, record factory and
+field as a static method over Java's own types:
+
+- A `u8` or `u16` crosses as an `int` and a `u32` as a `long`, holding the
+  value itself. The shim checks it against the unsigned range on the way in
+  and throws `IllegalArgumentException` naming the parameter, so no value is
+  truncated.
+- A `u64` crosses as a `long` holding the same 64 bits, which is Java's own
+  unsigned-long convention. A value above 2^63 - 1, such as most S2 cell ids,
+  reads as negative; `Long.toUnsignedString`, `Long.parseUnsignedLong` and
+  `Long.compareUnsigned` treat it as unsigned.
+- An optional unsigned value crosses as a nullable `Integer` / `Long`, and a
+  list of `u64` as a `long[]`.
+
+```java
+S2CellId cell = S2Cells.s2Encode(coord, 20);
+String id = Long.toUnsignedString(S2Cells.toLong(cell)); // "9926595630970437632"
+S2CellId same = S2Cells.fromLong(Long.parseUnsignedLong(id));
+```
+
+Free functions keep their export's name (`Grids.utmZoneFor`). A record
+factory is named after its record (`Tiles.tile(z, x, y)`). A field getter is
+the record and field names (`Tiles.tileX`), and an object method is the
+object and method names (`Clusters.clusterIndexInsert`). Records Java fills
+field by field get setters too: `Exif.setExifGpsAltitudeRef`,
+`Places.setPlacePopulation` and `Places.setReverseOptionsMinPopulation`. Any
+other record is rebuilt through its factory. Kotlin callers use the generated
+API directly.
+
 ## Timestamps
 
 A `SystemTime` crosses as UniFFI's builtin `Timestamp`, each language's native

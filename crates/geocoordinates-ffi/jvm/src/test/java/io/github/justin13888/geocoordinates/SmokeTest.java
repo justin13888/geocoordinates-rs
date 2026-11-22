@@ -1,5 +1,6 @@
 package io.github.justin13888.geocoordinates;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -11,23 +12,28 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.accuracyNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.accuracyValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.baiduMercatorFromCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.clusterIndexOptionsDefault;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coarsen;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.confidenceNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.confidenceValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.coordinateNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformCatalogToWgs84;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.datumTransformValidate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.dmsToDegrees;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ecefFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ecefValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidClarke1866;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidForCrs;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.ellipsoidValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.fixFromCoord;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatFix;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.formatOptionsDefault;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToBd09;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.gcj02ToWgs84Refined;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.geotagOptionsDefault;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.h3Decode;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.heightMeters;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.lengthUnitMetersPerUnit;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.mgrsFromCoordinate;
@@ -37,9 +43,16 @@ import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseCoordinateWith;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseNmeaSentence;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseOptionsDefault;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseExif;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.parseWkt;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.placeNew;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.rawSourceNew;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.reverseOptionsDefault;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.s2Decode;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.s2Validate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.tileValidate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.upsToCoordinate;
+import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.utmFromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84FromCoordinate;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84IsOutsideChina;
 import static uniffi.geocoordinates_ffi.Geocoordinates_ffiKt.wgs84ToCoordinate;
@@ -51,27 +64,52 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import uniffi.geocoordinates_ffi.Accuracy;
 import uniffi.geocoordinates_ffi.AccuracyKind;
+import uniffi.geocoordinates_ffi.ApproxCoordinate;
 import uniffi.geocoordinates_ffi.ApproxWgs84;
 import uniffi.geocoordinates_ffi.AxisOrder;
 import uniffi.geocoordinates_ffi.Bd09;
+import uniffi.geocoordinates_ffi.Cluster;
+import uniffi.geocoordinates_ffi.ClusterIndex;
 import uniffi.geocoordinates_ffi.Confidence;
 import uniffi.geocoordinates_ffi.Coordinate;
 import uniffi.geocoordinates_ffi.Crs;
 import uniffi.geocoordinates_ffi.DatumTransform;
 import uniffi.geocoordinates_ffi.DecimalSeparator;
+import uniffi.geocoordinates_ffi.DbscanResult;
 import uniffi.geocoordinates_ffi.Ecef;
+import uniffi.geocoordinates_ffi.ExifDms;
+import uniffi.geocoordinates_ffi.ExifGps;
+import uniffi.geocoordinates_ffi.ExifRational;
 import uniffi.geocoordinates_ffi.Fix;
+import uniffi.geocoordinates_ffi.FormatOptions;
+import uniffi.geocoordinates_ffi.Gazetteer;
 import uniffi.geocoordinates_ffi.Gcj02;
+import uniffi.geocoordinates_ffi.GeoBounds;
 import uniffi.geocoordinates_ffi.GeoException;
 import uniffi.geocoordinates_ffi.GridKind;
+import uniffi.geocoordinates_ffi.H3Cell;
 import uniffi.geocoordinates_ffi.Height;
+import uniffi.geocoordinates_ffi.Hemisphere;
+import uniffi.geocoordinates_ffi.HemisphereStyle;
+import uniffi.geocoordinates_ffi.MapCluster;
 import uniffi.geocoordinates_ffi.LengthUnit;
 import uniffi.geocoordinates_ffi.MgrsPrecision;
 import uniffi.geocoordinates_ffi.ParseErrorKind;
 import uniffi.geocoordinates_ffi.ParseOptions;
+import uniffi.geocoordinates_ffi.Place;
+import uniffi.geocoordinates_ffi.PointLabel;
+import uniffi.geocoordinates_ffi.Precision;
 import uniffi.geocoordinates_ffi.RawSource;
+import uniffi.geocoordinates_ffi.ReverseOptions;
+import uniffi.geocoordinates_ffi.S2CellId;
+import uniffi.geocoordinates_ffi.SnapGrid;
+import uniffi.geocoordinates_ffi.SpatialIndex;
+import uniffi.geocoordinates_ffi.SpatialNeighbor;
+import uniffi.geocoordinates_ffi.SymbolStyle;
+import uniffi.geocoordinates_ffi.Tile;
 import uniffi.geocoordinates_ffi.Track;
 import uniffi.geocoordinates_ffi.Ups;
+import uniffi.geocoordinates_ffi.Utm;
 import uniffi.geocoordinates_ffi.UtmHemisphere;
 import uniffi.geocoordinates_ffi.Wgs84;
 
@@ -304,5 +342,227 @@ class SmokeTest {
         assertThrows(
                 GeoException.InvalidValue.class,
                 () -> formatFix(handBuilt, formatOptionsDefault()));
+    }
+
+    // Kotlin mangles every member over an unsigned type, so Java reaches them
+    // through the shim's holders: a `u64` crosses as the same 64 bits in a `long`
+    // (an S2 id above 2^63 - 1 reads as negative), and a smaller unsigned value
+    // as its own `int` or `long`, range-checked on the way in.
+    @Test
+    void s2CellIdsAboveTwoToThe63CrossFromJava() throws GeoException {
+        Coordinate nyc = coordinateNew(40.7128, -74.006, Crs.WGS84);
+        S2CellId cell = S2Cells.s2Encode(nyc, 20);
+        long id = S2Cells.toLong(cell);
+        assertTrue(id < 0);
+        assertEquals("9926595630970437632", Long.toUnsignedString(id));
+        assertEquals(20, S2Cells.s2Level(cell));
+        s2Validate(cell);
+        assertEquals(cell, S2Cells.fromLong(id));
+        ApproxCoordinate back =
+                s2Decode(S2Cells.fromLong(Long.parseUnsignedLong("9926595630970437632")));
+        assertEquals(40.712_762_829, back.getCoord().getLat(), 1e-8);
+        assertEquals(-74.006_004_053, back.getCoord().getLon(), 1e-8);
+
+        // The id an error carries crosses back just as wide.
+        GeoException.InvalidCellId bad =
+                assertThrows(
+                        GeoException.InvalidCellId.class, () -> s2Decode(S2Cells.fromLong(-1L)));
+        assertEquals("S2", bad.getGrid());
+        assertEquals(
+                "18446744073709551615", Long.toUnsignedString(GeoErrors.invalidCellIdValue(bad)));
+        assertEquals(-1L, GeoErrors.invalidCellIdValue(GeoErrors.invalidCellId("S2", -1L)));
+
+        IllegalArgumentException wide =
+                assertThrows(IllegalArgumentException.class, () -> S2Cells.s2Encode(nyc, 256));
+        assertEquals("level must be in [0, 255], got 256", wide.getMessage());
+
+        H3Cell h3 = H3Cells.h3Encode(nyc, 9);
+        assertEquals(9, H3Cells.h3Resolution(h3));
+        assertEquals(h3, H3Cells.fromLong(H3Cells.toLong(h3)));
+        assertEquals(40.7128, h3Decode(h3).getCoord().getLat(), 1e-2);
+    }
+
+    @Test
+    void gridsAnglesAndFormatsTakeIntsFromJava() throws GeoException {
+        Coordinate nyc = coordinateNew(40.7128, -74.006, Crs.WGS84);
+        assertEquals("dr5re", Grids.geohashEncode(nyc, 5));
+        assertEquals("FN20", Grids.maidenheadEncode(nyc, 2));
+        assertEquals(11, Grids.plusCodeEncode(nyc, 10).length());
+        assertEquals(100L, Grids.mgrsPrecisionMeters(MgrsPrecision.M100));
+        Utm utm = utmFromCoordinate(nyc);
+        assertEquals(18, Grids.utmZone(utm));
+        assertEquals(18, Grids.utmZoneFor(nyc));
+        assertEquals(-75.0, Grids.utmCentralMeridianDeg(18), 0.0);
+        assertEquals(
+                utm, Grids.utm(18, utm.getHemisphere(), utm.getEastingM(), utm.getNorthingM()));
+
+        assertEquals(
+                40.7128, dmsToDegrees(Angles.dms(40, 42, 46.08, Hemisphere.NORTH)), 1e-9);
+        assertEquals(42, Angles.dmsMinutes(Angles.dms(40, 42, 46.08, Hemisphere.NORTH)));
+        assertEquals(40, Angles.ddmDegrees(Angles.ddm(40, 42.768, Hemisphere.NORTH)));
+        assertThrows(
+                IllegalArgumentException.class, () -> Angles.dms(-1, 0, 0.0, Hemisphere.NORTH));
+
+        FormatOptions geohash = new FormatOptions(Formats.geohash(5), DecimalSeparator.POINT);
+        assertEquals("dr5re", formatCoordinate(nyc, geohash));
+        assertEquals(5, Formats.geohashLength(Formats.geohash(5)));
+        HemisphereStyle signed = HemisphereStyle.SIGNED;
+        assertNull(Formats.decimalDegreesDecimals(Formats.decimalDegrees(null, signed)));
+        assertEquals(3, Formats.decimalDegreesDecimals(Formats.decimalDegrees(3, signed)));
+        SymbolStyle unicode = SymbolStyle.UNICODE;
+        assertEquals(2, Formats.dmsSecondDecimals(Formats.dms(2, unicode, signed)));
+        assertEquals(4, Formats.ddmMinuteDecimals(Formats.ddm(4, unicode, signed)));
+        assertEquals(10, Formats.plusCodeLength(Formats.plusCode(10)));
+        assertEquals(3, Formats.maidenheadPairs(Formats.maidenhead(3)));
+        assertEquals(40, Angles.dmsDegrees(Angles.dms(40, 42, 46.08, Hemisphere.NORTH)));
+    }
+
+    @Test
+    void tilesAndPrecisionTakeIntsFromJava() throws GeoException {
+        Coordinate nyc = coordinateNew(40.7128, -74.006, Crs.WGS84);
+        Tile tile = Tiles.tileFromCoordinate(nyc, 10);
+        assertEquals(10, Tiles.tileZ(tile));
+        assertEquals(301L, Tiles.tileX(tile));
+        assertEquals(385L, Tiles.tileY(tile));
+        assertEquals(tile, Tiles.tile(10, 301L, 385L));
+        tileValidate(tile);
+        assertTrue(Tiles.tileMaxZoom() >= 10);
+        GeoBounds box = new GeoBounds(-10.0, -10.0, 10.0, 10.0, Crs.WGS84);
+        assertEquals(1, Tiles.tilesCovering(box, 0, 4L).size());
+        assertThrows(IllegalArgumentException.class, () -> Tiles.tile(0, 1L << 32, 0L));
+
+        Precision precision = Privacy.precision(SnapGrid.GEOHASH, 5);
+        assertEquals(5, Privacy.precisionLevel(precision));
+        assertNotEquals(nyc, coarsen(nyc, precision).getCoord());
+    }
+
+    @Test
+    void clusterIdsAndCountsCrossAsLongsFromJava() throws GeoException {
+        List<Coordinate> points =
+                List.of(
+                        coordinateNew(40.0, -74.0, Crs.WGS84),
+                        coordinateNew(40.0001, -74.0, Crs.WGS84),
+                        coordinateNew(10.0, 10.0, Crs.WGS84));
+        DbscanResult result = Clusters.dbscan(points, 100.0, 2L);
+        Cluster cluster = result.getClusters().get(0);
+        assertArrayEquals(new long[] {0L, 1L}, Clusters.clusterMembers(cluster));
+        assertEquals(2L, Clusters.clusterCount(cluster));
+        PointLabel.Cluster label = (PointLabel.Cluster) result.getLabels().get(0);
+        assertEquals(Clusters.clusterId(cluster), Clusters.pointLabelClusterId(label));
+        assertEquals(label, Clusters.pointLabelCluster(Clusters.clusterId(cluster)));
+        assertTrue(result.getLabels().get(2) instanceof PointLabel.Noise);
+        assertEquals(
+                cluster,
+                Clusters.cluster(
+                        Clusters.clusterId(cluster),
+                        cluster.getCentroid(),
+                        cluster.getCentroidMaxErrorM(),
+                        cluster.getBounds(),
+                        2L,
+                        new long[] {0L, 1L}));
+        assertEquals(1, Clusters.bucketByGeohash(points.subList(0, 2), 5).size());
+        assertEquals(1, Clusters.bucketByH3(points.subList(0, 2), 7).size());
+        assertArrayEquals(
+                new long[] {0L, 1L},
+                Clusters.tripVisits(
+                        Clusters.trip(
+                                new long[] {0L, 1L},
+                                Instant.EPOCH,
+                                Instant.EPOCH.plusSeconds(60),
+                                cluster.getBounds())));
+
+        ClusterIndex index = new ClusterIndex(points, clusterIndexOptionsDefault());
+        assertEquals(3L, Clusters.clusterIndexLen(index));
+        long added = Clusters.clusterIndexInsert(index, coordinateNew(-30.0, 20.0, Crs.WGS84));
+        assertEquals(-30.0, Clusters.clusterIndexCoordinate(index, added).getLat(), 0.0);
+        Clusters.clusterIndexRemove(index, added);
+        assertNull(Clusters.clusterIndexCoordinate(index, added));
+        GeoBounds globe = new GeoBounds(-90.0, -180.0, 90.0, 180.0, Crs.WGS84);
+        List<MapCluster> world =
+                Clusters.clusterIndexClusters(index, globe, Clusters.clusterMaxZoom());
+        assertEquals(3L, world.stream().mapToLong(Clusters::mapClusterCount).sum());
+        MapCluster first = world.get(0);
+        assertEquals(
+                first,
+                Clusters.mapCluster(
+                        Clusters.mapClusterId(first),
+                        Clusters.mapClusterZoom(first),
+                        first.getCentroid(),
+                        first.getCentroidMaxErrorM(),
+                        first.getBounds(),
+                        Clusters.mapClusterCount(first)));
+        MapCluster pair =
+                Clusters.clusterIndexClusters(index, globe, 0).stream().filter(c -> Clusters.mapClusterCount(c) == 2L).findFirst().get();
+        long[] leaves = Clusters.clusterIndexLeaves(index, Clusters.mapClusterId(pair), 10L, 0L);
+        java.util.Arrays.sort(leaves);
+        assertArrayEquals(new long[] {0L, 1L}, leaves);
+        assertFalse(Clusters.clusterIndexChildren(index, Clusters.mapClusterId(pair)).isEmpty());
+
+        SpatialIndex spatial = new SpatialIndex(points);
+        assertEquals(3L, SpatialIndexes.spatialIndexLen(spatial));
+        SpatialNeighbor nearest =
+                SpatialIndexes.spatialIndexNearest(
+                                spatial, coordinateNew(10.1, 10.0, Crs.WGS84), 1L)
+                        .get(0);
+        assertEquals(2L, SpatialIndexes.spatialNeighborIndex(nearest));
+        assertEquals(
+                nearest,
+                SpatialIndexes.spatialNeighbor(
+                        nearest.getCoordinate(), 2L, nearest.getDistanceM()));
+
+        Instant second = Instant.EPOCH.plusSeconds(1);
+        Track track = new Track(List.of(new Fix(points.get(0), null, second, null)));
+        assertEquals(1L, Tracks.trackLen(track));
+        assertEquals(0L, Tracks.trackDroppedUntimed(track));
+    }
+
+    @Test
+    void placesAndExifTagsSetUnsignedFieldsFromJava() throws GeoException {
+        Coordinate nyc = coordinateNew(40.7128, -74.006, Crs.WGS84);
+        Place place = placeNew("Somewhere", nyc, "US", nyc, 0.0);
+        assertNull(Places.placePopulation(place));
+        long most = Long.parseUnsignedLong("18446744073709551615");
+        Places.setPlacePopulation(place, most);
+        assertEquals(most, Places.placePopulation(place));
+
+        // The fixture the Kotlin suite reads, relative to the Gradle project.
+        Gazetteer gazetteer =
+                Gazetteer.Companion.open("../../../src/reverse/data/fixture.gaz");
+        assertTrue(Gazetteers.gazetteerLen(gazetteer) > 0L);
+
+        ReverseOptions options = reverseOptionsDefault();
+        Places.setReverseOptionsMinPopulation(options, 1_000L);
+        assertEquals(1_000L, Places.reverseOptionsMinPopulation(options));
+        assertEquals(
+                options,
+                Places.reverseOptions(
+                        options.getLanguages(),
+                        options.getMaxDistanceM(),
+                        1_000L,
+                        options.getMinFeatureClass()));
+
+        ExifRational.Unsigned ten = Exif.unsignedRational(10L, 1L);
+        assertEquals(10L, Exif.unsignedRationalNumerator(ten));
+        assertEquals(1L, Exif.unsignedRationalDenominator(ten));
+        assertEquals(
+                4_294_967_295L,
+                Exif.unsignedRationalNumerator(Exif.unsignedRational(4_294_967_295L, 1L)));
+        ExifGps gps = Exif.exifGps();
+        gps.setLatitude(
+                new ExifDms(
+                        Exif.unsignedRational(39L, 1L),
+                        Exif.unsignedRational(54L, 1L),
+                        Exif.unsignedRational(0L, 1L)));
+        gps.setLatitudeRef("N");
+        gps.setLongitude(
+                new ExifDms(
+                        Exif.unsignedRational(116L, 1L),
+                        Exif.unsignedRational(24L, 1L),
+                        Exif.unsignedRational(0L, 1L)));
+        gps.setLongitudeRef("E");
+        gps.setAltitude(ten);
+        Exif.setExifGpsAltitudeRef(gps, 1);
+        assertEquals(1, Exif.exifGpsAltitudeRef(gps));
+        assertEquals(new Height.Orthometric(-10.0), parseExif(gps).getFix().getCoord().getHeight());
     }
 }
