@@ -220,8 +220,14 @@ pub struct Visit {
     /// The visit's fixes, as positions in the list given to [`segment_visits`].
     pub cluster: Cluster,
     /// The time of the first fix.
+    ///
+    /// An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+    /// its sign lost, like [`Fix::timestamp`].
     pub arrival: SystemTime,
     /// The time of the last fix.
+    ///
+    /// An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+    /// its sign lost, like [`Fix::timestamp`].
     pub departure: SystemTime,
 }
 
@@ -282,8 +288,14 @@ pub struct Trip {
     /// The visits, as positions in the list given to [`segment_trips`], by arrival.
     pub visits: Vec<u64>,
     /// The earliest arrival.
+    ///
+    /// An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+    /// its sign lost, like [`Fix::timestamp`].
     pub start: SystemTime,
     /// The latest departure.
+    ///
+    /// An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+    /// its sign lost, like [`Fix::timestamp`].
     pub end: SystemTime,
     /// A box holding the bounds of every visit.
     pub bounds: GeoBounds,
