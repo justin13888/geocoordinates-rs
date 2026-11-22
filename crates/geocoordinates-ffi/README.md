@@ -38,6 +38,7 @@ explicit `max_error_m`.
 | `map::clusters_to_geojson` (takes checked `MapCluster`s) | `clusters_in_view_geojson`, the view query and the layer in one call, since a `MapCluster` record cannot become a checked core cluster again |
 | `map::MAX_LATITUDE` / `map::MAX_TILE_ZOOM` (constants) | `web_mercator_max_latitude_deg` / `tile_max_zoom` |
 | `Representation::MAX_DD_DECIMALS` / `MAX_DMS_SECOND_DECIMALS` / `MAX_DDM_MINUTE_DECIMALS` (associated constants) | `representation_max_dd_decimals` / `representation_max_dms_second_decimals` / `representation_max_ddm_minute_decimals`, getters prefixed with the type |
+| `cluster::MAX_ZOOM` (constant) | `cluster_max_zoom` |
 | `geotag::Track` (holds its fixes) | the object `Track` |
 | `geotag::estimate_offset` (takes `(SystemTime, Coordinate)` tuples) | `estimate_offset_ms`, over `GeotagReference` records |
 | `privacy::apply` (a name too generic for a flat namespace) | `apply_exclusion_zones` |
