@@ -346,7 +346,8 @@ pub fn cluster_index_options_default() -> ClusterIndexOptions {
 pub struct MapCluster {
     /// The id, for [`ClusterIndex::children`] and [`ClusterIndex::leaves`].
     pub id: u64,
-    /// The zoom this is drawn at; a point under a zoom-22 cluster has 23.
+    /// The zoom this is drawn at; a point under a cluster at
+    /// [`cluster_max_zoom`] is one deeper.
     pub zoom: u8,
     /// The mean of the cluster's points, which is approximate.
     pub centroid: Coordinate,
@@ -373,9 +374,16 @@ impl From<&gc::cluster::MapCluster> for MapCluster {
     }
 }
 
-/// A per-zoom hierarchy for map pins, zooms 0 to 22, with updates that need no rebuild
-/// — the object form of [`gc::cluster::ClusterIndex`]. The clusters are a function of
-/// the set of points, never of the order they arrived in.
+/// The deepest zoom a [`ClusterIndex`] builds clusters at, 22:
+/// [`gc::cluster::MAX_ZOOM`].
+#[uniffi::export]
+pub fn cluster_max_zoom() -> u8 {
+    gc::cluster::MAX_ZOOM
+}
+
+/// A per-zoom hierarchy for map pins, zooms 0 to [`cluster_max_zoom`], with updates
+/// that need no rebuild — the object form of [`gc::cluster::ClusterIndex`]. The
+/// clusters are a function of the set of points, never of the order they arrived in.
 #[derive(Debug, uniffi::Object)]
 pub struct ClusterIndex {
     inner: RwLock<gc::cluster::ClusterIndex>,
@@ -458,15 +466,15 @@ impl ClusterIndex {
     /// The clusters at `zoom` whose centroids lie in `bounds`, ordered by id.
     ///
     /// # Errors
-    /// `GeoError::InvalidValue` (field `zoom`) above 22, or for an invalid
-    /// [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
+    /// `GeoError::InvalidValue` (field `zoom`) above [`cluster_max_zoom`], or for an
+    /// invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
     /// reference system than the points.
     pub fn clusters(&self, bounds: GeoBounds, zoom: u8) -> Result<Vec<MapCluster>, GeoError> {
         Ok(pins(&self.read().clusters(bounds.try_into()?, zoom)?))
     }
 
     /// The clusters at the next zoom that `cluster_id` splits into, or the point under
-    /// a zoom-22 cluster. A point has no children.
+    /// a cluster at [`cluster_max_zoom`]. A point has no children.
     ///
     /// # Errors
     /// `GeoError::InvalidValue` (field `cluster_id`) when there is no such cluster.
