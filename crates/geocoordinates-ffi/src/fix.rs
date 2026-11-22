@@ -108,6 +108,12 @@ pub struct Fix {
     /// Positional accuracy, if reported.
     pub accuracy: Option<Accuracy>,
     /// Observation time, if known.
+    ///
+    /// An instant in the last second before 1970-01-01T00:00:00Z (strictly
+    /// between -1 s and 0 s) crosses the boundary with its sign lost, as its
+    /// mirror image after the epoch: UniFFI's `Timestamp` keeps the sign on the
+    /// whole seconds, which are zero there. Every other instant, before or after
+    /// the epoch, crosses unchanged. See the FFI README's "Timestamps" section.
     pub timestamp: Option<std::time::SystemTime>,
     /// The raw input and how confidently it was interpreted.
     pub source: Option<RawSource>,
