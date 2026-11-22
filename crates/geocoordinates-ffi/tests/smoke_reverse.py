@@ -16,6 +16,15 @@ paris = gazetteer.reverse(gc.coordinate_new(48.86, 2.35, gc.Crs.WGS84), options)
 assert paris.name == "Paris" and paris.country_code == "FR", paris
 assert paris.localized_names == {"ja": "パリ"}, paris.localized_names
 assert paris.feature_class == gc.FeatureClass.CAPITAL and paris.query_max_error_m == 0.0
+assert gc.place_localized_name(paris, "JA") == "パリ"
+assert gc.place_localized_name(paris, "fr") is None
+mislabeled = gc.place_new("Paris", paris.coordinate, "FR", paris.coordinate, 0.0)
+mislabeled.localized_names = {"not a tag": "x"}
+try:
+    gc.place_localized_name(mislabeled, "ja")
+    raise AssertionError("expected InvalidValue for a localized-name key that is not a tag")
+except gc.GeoError.InvalidValue as e:
+    assert e.field == "language", e.field
 assert gazetteer.reverse(gc.coordinate_new(0.0, -30.0, gc.Crs.WGS84), gc.reverse_options_default()) is None
 try:
     gc.Gazetteer.from_bytes(b"GCGZ")

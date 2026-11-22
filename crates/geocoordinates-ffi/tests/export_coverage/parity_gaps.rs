@@ -89,6 +89,4 @@ pub const ALLOWED: &[&str] = &[
     "ExifOptions::new",
     // #333
     "MAX_ZOOM",
-    // #335
-    "Place::localized_name",
 ];
