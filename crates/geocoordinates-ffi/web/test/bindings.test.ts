@@ -56,6 +56,7 @@ import geocoordinatesFfi, {
   parseCoordinate,
   parseExif,
   parseExifWith,
+  parseGpx,
   parseNmeaSentence,
   parseText,
   parseWkt,
@@ -212,6 +213,20 @@ describe("grids and geodesics", () => {
       "$GPRMC,123519,A,3340.000,S,07030.000,W,000.0,000.0,230394,,*10",
     );
     assert.equal(rmc.timestamp?.toISOString(), "1994-03-23T12:35:19.000Z");
+  });
+
+  it("drops a pre-epoch GPX time with a note instead of trapping", () => {
+    // wasm32's SystemTime cannot hold an instant before 1970, so the reader
+    // leaves the timestamp empty and says why (#372); a later one is kept.
+    const [old, recent] = parseGpx(
+      '<gpx version="1.1" creator="x" xmlns="http://www.topografix.com/GPX/1/1">' +
+        '<wpt lat="1" lon="2"><time>1969-12-31T23:59:58Z</time></wpt>' +
+        '<wpt lat="3" lon="4"><time>1970-01-01T00:00:01Z</time></wpt></gpx>',
+    );
+    assert.equal(old.timestamp, undefined);
+    assert.ok(old.source?.notes.some((note) => note.startsWith("GPX time")));
+    assert.equal(recent.timestamp?.toISOString(), "1970-01-01T00:00:01.000Z");
+    assert.deepEqual(recent.source?.notes, []);
   });
 
   it("round-trips sub-second timestamps through a track", () => {

@@ -380,7 +380,9 @@ pub fn parse_wkt(input: &str, axis_order: AxisOrder) -> Result<Vec<Fix>> {
 /// GPX names its axes with `lat`/`lon` attributes, so each fix's
 /// [`RawSource::axis_order`] is `None`. `<ele>` is mean-sea-level elevation in
 /// practice and becomes [`Height::Orthometric`]; `<time>` becomes
-/// [`Fix::timestamp`]; `<hdop>` becomes a horizontal accuracy of `HDOP × 5 m`
+/// [`Fix::timestamp`] (left `None`, with a note on the fix's
+/// [`RawSource::notes`], where the platform's `SystemTime` cannot hold it, as
+/// on `wasm32-unknown-unknown` for an instant before 1970); `<hdop>` becomes a horizontal accuracy of `HDOP × 5 m`
 /// (a nominal GPS user-equivalent range error, the scaling the NMEA parser
 /// applies to `GGA`), tagged [`AccuracyKind::OneSigma`](crate::fix::AccuracyKind::OneSigma). A document
 /// with no points yields `Ok(vec![])`. Each fix's raw source is its point
@@ -421,9 +423,16 @@ pub fn parse_gpx(input: &str) -> Result<Vec<Fix>> {
         };
         let mut position =
             Position::new(lon, lat, wp.elevation.map(Height::Orthometric), None, raw);
-        position.timestamp = wp
-            .time
-            .map(|t| std::time::SystemTime::from(time::OffsetDateTime::from(t)));
+        if let Some(t) = wp.time {
+            let t = time::OffsetDateTime::from(t);
+            position.timestamp = gpx_system_time(t);
+            if position.timestamp.is_none() {
+                position.notes.push(format!(
+                    "GPX time '{t}' is not representable as this platform's SystemTime; \
+                     timestamp left empty"
+                ));
+            }
+        }
         position.hdop = wp.hdop;
         out.push(position);
     }
@@ -446,6 +455,23 @@ pub fn parse_gpx(input: &str) -> Result<Vec<Fix>> {
         }
     }
     into_fixes("gpx", out)
+}
+
+/// The GPX instant `t` as a [`SystemTime`](std::time::SystemTime), or `None`
+/// where this platform's `SystemTime` cannot represent it.
+///
+/// `time`'s `From<OffsetDateTime> for SystemTime` subtracts from the epoch
+/// unchecked, which panics on `wasm32-unknown-unknown` for a pre-epoch instant
+/// (its `SystemTime` is an unsigned duration since the epoch); this checks it.
+#[cfg(feature = "gpx")]
+fn gpx_system_time(t: time::OffsetDateTime) -> Option<std::time::SystemTime> {
+    let epoch = std::time::SystemTime::UNIX_EPOCH;
+    let offset = t - time::OffsetDateTime::UNIX_EPOCH;
+    if offset.is_negative() {
+        epoch.checked_sub(offset.unsigned_abs())
+    } else {
+        epoch.checked_add(offset.unsigned_abs())
+    }
 }
 
 /// Parse every placemark and geometry position in a KML document (lon,lat,alt).
