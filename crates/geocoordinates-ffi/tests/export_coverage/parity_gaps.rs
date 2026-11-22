@@ -22,8 +22,10 @@ pub const RENAMED: &[(&str, &str)] = &[
     // `ExclusionZone` is a data enum checked by `exclusion_zone_validate`.
     ("ExclusionZone::from_bounds", "exclusion_zone_validate"),
     ("ExclusionZone::from_circle", "exclusion_zone_validate"),
-    // A record built from its corners, checked by `geo_bounds_validate`.
+    // A record of edges, built from its corners or its edges, checked by
+    // `geo_bounds_validate`.
     ("GeoBounds::from_corners", "geo_bounds_validate"),
+    ("GeoBounds::from_edges", "geo_bounds_validate"),
     // A grid code is a `String`; `parse` is its canonical form.
     ("Geohash::parse", "geohash_canonicalize"),
     ("Maidenhead::parse", "maidenhead_canonicalize"),

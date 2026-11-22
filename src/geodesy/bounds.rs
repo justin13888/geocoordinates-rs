@@ -156,19 +156,39 @@ impl GeoBounds {
         })
     }
 
-    /// A box from four edges on `crs`, through [`from_corners`](Self::from_corners).
+    /// A box from its four edges on `crs`, in decimal degrees, through
+    /// [`from_corners`](Self::from_corners): `south` and `west` are the
+    /// south-west corner, `north` and `east` the north-east corner.
     ///
-    /// Each edge is one axis, so an edge that is non-finite or out of range is
-    /// [`Error::InvalidValue`] naming it (`south`, `west`, `north` or `east`),
-    /// checked before the corners are built. South north of north is the
-    /// `field: "south_west"` error of `from_corners`.
-    pub(crate) fn from_edges(
-        south: f64,
-        west: f64,
-        north: f64,
-        east: f64,
-        crs: Crs,
-    ) -> Result<Self> {
+    /// A `west` greater than `east` crosses the antimeridian, not an error. The
+    /// order is not GeoJSON's `bbox` (`[west, south, east, north]`); prefer
+    /// `from_corners`, whose corners are [`Coordinate`]s that carry the CRS.
+    ///
+    /// # Errors
+    ///
+    /// Each edge is one axis, so an edge that is non-finite or out of range
+    /// (`[-90, 90]` for `south` and `north`, `[-180, 180]` for `west` and
+    /// `east`) is [`Error::InvalidValue`] naming it (`field: "south"`, `"west"`,
+    /// `"north"` or `"east"`), checked before the corners are built. A `south`
+    /// north of `north` is the `field: "south_west"` error of `from_corners`.
+    ///
+    /// ```
+    /// use geocoordinates::{Crs, Error, geodesy::GeoBounds};
+    ///
+    /// let fiji = GeoBounds::from_edges(-21.0, 176.0, -12.0, -178.0, Crs::Wgs84)?;
+    /// assert!(fiji.crosses_antimeridian());
+    ///
+    /// assert!(matches!(
+    ///     GeoBounds::from_edges(0.0, 0.0, 1.0, 181.0, Crs::Wgs84),
+    ///     Err(Error::InvalidValue { field: "east", .. })
+    /// ));
+    /// assert!(matches!(
+    ///     GeoBounds::from_edges(1.0, 0.0, 0.0, 1.0, Crs::Wgs84),
+    ///     Err(Error::InvalidValue { field: "south_west", .. })
+    /// ));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    pub fn from_edges(south: f64, west: f64, north: f64, east: f64, crs: Crs) -> Result<Self> {
         for (field, value, limit) in [
             ("south", south, 90.0),
             ("west", west, 180.0),
