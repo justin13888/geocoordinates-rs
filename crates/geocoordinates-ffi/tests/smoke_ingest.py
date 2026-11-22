@@ -134,13 +134,13 @@ try:
     raise AssertionError("expected InvalidValue for a 0/0 altitude")
 except gc.GeoError.InvalidValue as e:
     assert e.field == "altitude", e.field
-kept = gc.parse_exif_with(
-    ifd,
-    gc.ExifOptions(
-        null_island=gc.NullIslandPolicy.ACCEPT,
-        invalid_auxiliary=gc.AuxiliaryTagPolicy.DROP,
-    ),
-)
+exif_defaults = gc.exif_options_default()
+assert exif_defaults == gc.ExifOptions(
+    null_island=gc.NullIslandPolicy.ACCEPT,
+    invalid_auxiliary=gc.AuxiliaryTagPolicy.REJECT,
+), exif_defaults
+exif_defaults.invalid_auxiliary = gc.AuxiliaryTagPolicy.DROP
+kept = gc.parse_exif_with(ifd, exif_defaults)
 assert kept.fix.coord.lat == 39.9, kept.fix.coord
 assert kept.fix.coord.height is None, kept.fix.coord
 assert any(n.startswith("GPSAltitude") for n in kept.fix.source.notes), kept.fix.source

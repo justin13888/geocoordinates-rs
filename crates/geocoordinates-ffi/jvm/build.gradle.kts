@@ -8,6 +8,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // workflow before `gradle`; both are git-ignored. The Kotlin bindings load the
 // native library through JNA, which auto-extracts it from the JAR using the
 // `<os>-<arch>/` resource layout, so the published JAR is self-contained.
+//
+// The hand-written Java shim (src/shim/kotlin/io/github/justin13888/geocoordinates/)
+// is tracked, so it lives outside the git-ignored generated source set and is
+// added to `main` below.
 plugins {
     kotlin("jvm") version "2.1.0"
     id("com.vanniktech.maven.publish") version "0.29.0"
@@ -42,6 +46,9 @@ dependencies {
 
 kotlin {
     compilerOptions { jvmTarget.set(JvmTarget.JVM_11) }
+    // Java cannot name a member that takes or exposes Kotlin's unsigned types
+    // (Kotlin mangles it), so the shim re-exposes each one over long / int.
+    sourceSets["main"].kotlin.srcDir("src/shim/kotlin")
 }
 java {
     sourceCompatibility = JavaVersion.VERSION_11

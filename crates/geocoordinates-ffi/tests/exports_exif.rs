@@ -122,6 +122,20 @@ fn parse_xmp_carries_every_property() {
 }
 
 #[test]
+fn exif_options_default_mirrors_the_core_default() {
+    assert_eq!(exif_options_default(), LENIENT);
+    // The defaults are what `parse_exif` / `parse_xmp` apply.
+    assert_eq!(
+        parse_exif_with(full_ifd(), exif_options_default()).unwrap(),
+        parse_exif(full_ifd()).unwrap()
+    );
+    assert_eq!(
+        parse_xmp_with(full_xmp(), exif_options_default()).unwrap(),
+        parse_xmp(full_xmp()).unwrap()
+    );
+}
+
+#[test]
 fn parse_exif_with_applies_the_null_island_policy() {
     let null_island = ExifGps {
         latitude: dms(0, 0, 0),
