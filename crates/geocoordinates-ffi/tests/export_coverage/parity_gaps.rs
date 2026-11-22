@@ -41,6 +41,8 @@ pub const RENAMED: &[(&str, &str)] = &[
     ("Neighbor::index", "SpatialNeighbor.index"),
     ("NorthBearing::degrees", "NorthBearing.bearing_deg"),
     ("ParseOptions::for_format", "format_options_parse_options"),
+    // The `Place` record is every part at once, checked by `place_validate`.
+    ("Place::from_parts", "place_validate"),
     ("Place::with_admin1", "Place.admin1_code"),
     ("Place::with_admin2", "Place.admin2_code"),
     ("Place::with_localized_name", "Place.localized_names"),

@@ -125,21 +125,6 @@ impl From<gc::reverse::Place> for Place {
     }
 }
 
-fn admin_pair(
-    field: &str,
-    code: Option<String>,
-    name: Option<String>,
-) -> Result<Option<(String, String)>, GeoError> {
-    match (code, name) {
-        (Some(code), Some(name)) => Ok(Some((code, name))),
-        (None, None) => Ok(None),
-        _ => Err(GeoError::InvalidValue {
-            field: field.to_owned(),
-            detail: "needs both a code and a name, or neither".to_owned(),
-        }),
-    }
-}
-
 impl TryFrom<Place> for gc::reverse::Place {
     type Error = GeoError;
 
@@ -148,39 +133,18 @@ impl TryFrom<Place> for gc::reverse::Place {
             gc::Coordinate::try_from(place.query)?,
             gc::Length::from_meters(place.query_max_error_m),
         )?;
-        let mut core = Self::new(
+        let core = Self::from_parts(
             place.name,
             place.coordinate.try_into()?,
             &place.country_code,
             query,
+            (place.admin1_code, place.admin1_name),
+            (place.admin2_code, place.admin2_name),
+            place.feature_class.map(Into::into),
+            place.population,
+            place.localized_names,
+            gc::Length::from_meters(place.distance_m),
         )?;
-        let computed = core.distance().meters();
-        // Written so a NaN `distance_m` is rejected too.
-        let matches = (computed - place.distance_m).abs() <= 1e-3;
-        if !matches {
-            return Err(GeoError::InvalidValue {
-                field: "distance".to_owned(),
-                detail: format!(
-                    "{} m is not the {computed} m from the query to the place",
-                    place.distance_m
-                ),
-            });
-        }
-        if let Some((code, name)) = admin_pair("admin1", place.admin1_code, place.admin1_name)? {
-            core = core.with_admin1(code, name);
-        }
-        if let Some((code, name)) = admin_pair("admin2", place.admin2_code, place.admin2_name)? {
-            core = core.with_admin2(code, name);
-        }
-        if let Some(class) = place.feature_class {
-            core = core.with_feature_class(class.into());
-        }
-        if let Some(population) = place.population {
-            core = core.with_population(population);
-        }
-        for (tag, name) in place.localized_names {
-            core = core.with_localized_name(&tag, name)?;
-        }
         Ok(core)
     }
 }

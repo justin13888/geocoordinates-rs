@@ -8,6 +8,9 @@ use crate::error::{Error, Result};
 use crate::geodesy::geodesic_distance;
 use crate::units::Length;
 
+#[cfg(feature = "serde")]
+mod repr; // the wire shape, validated through `Place::from_parts`
+
 /// How significant a populated place is, from a neighbourhood up to a capital.
 ///
 /// Variants are ordered by significance, so
@@ -83,11 +86,12 @@ pub(super) fn bad_language_tag(field: &'static str, tag: &str) -> Error {
 /// alpha-2 code, every localized name is keyed by a BCP-47 tag, and the distance
 /// is the geodesic distance from [`query`](Self::query) to the place. Build one
 /// with [`new`](Self::new) and the `with_*` builders, which a custom
-/// `ReverseGeocoder` uses to return its own results.
+/// `ReverseGeocoder` uses to return its own results, or rebuild one from every
+/// field at once with [`from_parts`](Self::from_parts).
 ///
-/// Under the `serde` feature, deserialization applies the same checks and
-/// recomputes the distance, rejecting a stated distance more than a millimetre
-/// off.
+/// Under the `serde` feature, deserialization goes through
+/// [`from_parts`](Self::from_parts): it applies the same checks and recomputes the
+/// distance, rejecting a stated distance more than a millimetre off.
 ///
 /// ```
 /// use geocoordinates::{Approx, Coordinate, Error, Length};
@@ -110,7 +114,10 @@ pub(super) fn bad_language_tag(field: &'static str, tag: &str) -> Error {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(into = "PlaceRepr", try_from = "PlaceRepr"))]
+#[cfg_attr(
+    feature = "serde",
+    serde(into = "repr::PlaceRepr", try_from = "repr::PlaceRepr")
+)]
 pub struct Place {
     name: String,
     coordinate: Coordinate,
@@ -122,94 +129,6 @@ pub struct Place {
     distance: Length,
     query: Approx<Coordinate>,
     localized_names: BTreeMap<String, String>,
-}
-
-/// The wire shape of a [`Place`], validated on its way in.
-#[cfg(feature = "serde")]
-#[derive(serde::Serialize, serde::Deserialize)]
-struct PlaceRepr {
-    name: String,
-    coordinate: Coordinate,
-    country_code: String,
-    admin1_code: Option<String>,
-    admin1_name: Option<String>,
-    admin2_code: Option<String>,
-    admin2_name: Option<String>,
-    feature_class: Option<FeatureClass>,
-    population: Option<u64>,
-    #[serde(rename = "distance_m")]
-    distance: Length,
-    query: Approx<Coordinate>,
-    #[serde(default)]
-    localized_names: BTreeMap<String, String>,
-}
-
-#[cfg(feature = "serde")]
-impl From<Place> for PlaceRepr {
-    fn from(place: Place) -> Self {
-        let (admin1_code, admin1_name) = place.admin1.unzip();
-        let (admin2_code, admin2_name) = place.admin2.unzip();
-        Self {
-            name: place.name,
-            coordinate: place.coordinate,
-            country_code: place.country_code,
-            admin1_code,
-            admin1_name,
-            admin2_code,
-            admin2_name,
-            feature_class: place.feature_class,
-            population: place.population,
-            distance: place.distance,
-            query: place.query,
-            localized_names: place.localized_names,
-        }
-    }
-}
-
-/// Both halves of an admin division, or neither.
-#[cfg(feature = "serde")]
-fn admin_pair(
-    field: &'static str,
-    code: Option<String>,
-    name: Option<String>,
-) -> Result<Option<(String, String)>> {
-    match (code, name) {
-        (Some(code), Some(name)) => Ok(Some((code, name))),
-        (None, None) => Ok(None),
-        _ => Err(Error::InvalidValue {
-            field,
-            detail: "needs both a code and a name, or neither".into(),
-        }),
-    }
-}
-
-#[cfg(feature = "serde")]
-impl TryFrom<PlaceRepr> for Place {
-    type Error = Error;
-
-    fn try_from(repr: PlaceRepr) -> Result<Self> {
-        let mut place = Self::new(repr.name, repr.coordinate, &repr.country_code, repr.query)?;
-        // Written so a NaN distance is rejected too.
-        let matches = (place.distance.meters() - repr.distance.meters()).abs() <= 1e-3;
-        if !matches {
-            return Err(Error::InvalidValue {
-                field: "distance",
-                detail: format!(
-                    "{} m is not the {} m from the query to the place",
-                    repr.distance.meters(),
-                    place.distance.meters()
-                ),
-            });
-        }
-        place.admin1 = admin_pair("admin1", repr.admin1_code, repr.admin1_name)?;
-        place.admin2 = admin_pair("admin2", repr.admin2_code, repr.admin2_name)?;
-        place.feature_class = repr.feature_class;
-        place.population = repr.population;
-        for (tag, name) in repr.localized_names {
-            place = place.with_localized_name(&tag, name)?;
-        }
-        Ok(place)
-    }
 }
 
 impl Place {
@@ -266,7 +185,7 @@ impl Place {
             });
         }
         let distance = geodesic_distance(*query.value(), coordinate)?;
-        Ok(Self::from_parts(
+        Ok(Self::from_checked(
             name,
             coordinate,
             country_code.to_owned(),
@@ -275,8 +194,104 @@ impl Place {
         ))
     }
 
+    /// A place rebuilt from every one of its fields, checked as a whole: what a
+    /// record that crosses a boundary (a deserialized value, an FFI record) holds.
+    ///
+    /// Applies every check of [`new`](Self::new) and of
+    /// [`with_localized_name`](Self::with_localized_name), and two more: each admin
+    /// division is a `(code, name)` pair with both halves or neither, and
+    /// `distance` must be within a millimetre of the geodesic distance from `query`
+    /// to `coordinate`, which is what the place holds.
+    ///
+    /// # Errors
+    ///
+    /// Every error of [`new`](Self::new); [`Error::InvalidValue`] (field `admin1` /
+    /// `admin2`) for a division with a code but no name or the reverse, (field
+    /// `language`) for a localized-name key that is not a BCP-47 tag, or (field
+    /// `distance`) for a distance more than a millimetre off, or NaN.
+    ///
+    /// ```
+    /// use std::collections::BTreeMap;
+    /// use geocoordinates::{Approx, Coordinate, Error, Length};
+    /// use geocoordinates::reverse::{FeatureClass, Place};
+    ///
+    /// let at = Coordinate::wgs84(37.77, -122.42)?;
+    /// let query = Approx::new(at, Length::ZERO)?;
+    /// let names = BTreeMap::from([("ja".to_owned(), "サンフランシスコ".to_owned())]);
+    /// let place = Place::from_parts(
+    ///     "San Francisco", at, "US", query,
+    ///     (Some("CA".into()), Some("California".into())),
+    ///     (None, None),
+    ///     Some(FeatureClass::Admin2Seat),
+    ///     Some(808_437),
+    ///     names,
+    ///     Length::ZERO,
+    /// )?;
+    /// assert_eq!(place.admin1_name(), Some("California"));
+    /// assert_eq!(place.localized_name("JA"), Some("サンフランシスコ"));
+    ///
+    /// let half = Place::from_parts(
+    ///     "San Francisco", at, "US", query,
+    ///     (Some("CA".into()), None), (None, None), None, None, BTreeMap::new(), Length::ZERO,
+    /// );
+    /// assert!(matches!(half, Err(Error::InvalidValue { field: "admin1", .. })));
+    /// let far = Place::from_parts(
+    ///     "San Francisco", at, "US", query,
+    ///     (None, None), (None, None), None, None, BTreeMap::new(), Length::from_meters(5.0),
+    /// );
+    /// assert!(matches!(far, Err(Error::InvalidValue { field: "distance", .. })));
+    /// # Ok::<(), geocoordinates::Error>(())
+    /// ```
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one argument per field of the record it rebuilds"
+    )]
+    pub fn from_parts(
+        name: impl Into<String>,
+        coordinate: Coordinate,
+        country_code: &str,
+        query: Approx<Coordinate>,
+        admin1: (Option<String>, Option<String>),
+        admin2: (Option<String>, Option<String>),
+        feature_class: Option<FeatureClass>,
+        population: Option<u64>,
+        localized_names: impl IntoIterator<Item = (String, String)>,
+        distance: Length,
+    ) -> Result<Self> {
+        let mut place = Self::new(name, coordinate, country_code, query)?;
+        // Written so a NaN distance is rejected too.
+        let matches = (place.distance.meters() - distance.meters()).abs() <= 1e-3;
+        if !matches {
+            return Err(Error::InvalidValue {
+                field: "distance",
+                detail: format!(
+                    "{} m is not the {} m from the query to the place",
+                    distance.meters(),
+                    place.distance.meters()
+                ),
+            });
+        }
+        // Both halves of a division, or neither.
+        let pair = |field, division| match division {
+            (Some(code), Some(name)) => Ok(Some((code, name))),
+            (None, None) => Ok(None),
+            _ => Err(Error::InvalidValue {
+                field,
+                detail: "needs both a code and a name, or neither".into(),
+            }),
+        };
+        place.admin1 = pair("admin1", admin1)?;
+        place.admin2 = pair("admin2", admin2)?;
+        place.feature_class = feature_class;
+        place.population = population;
+        for (tag, name) in localized_names {
+            place = place.with_localized_name(&tag, name)?;
+        }
+        Ok(place)
+    }
+
     /// A place whose fields the caller has already checked.
-    pub(super) fn from_parts(
+    pub(super) fn from_checked(
         name: String,
         coordinate: Coordinate,
         country_code: String,
