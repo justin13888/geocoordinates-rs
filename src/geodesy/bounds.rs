@@ -160,8 +160,9 @@ impl GeoBounds {
     /// [`from_corners`](Self::from_corners): `south` and `west` are the
     /// south-west corner, `north` and `east` the north-east corner.
     ///
-    /// A `west` greater than `east` crosses the antimeridian, not an error.
-    /// Prefer `from_corners` where the corners are already [`Coordinate`]s.
+    /// A `west` greater than `east` crosses the antimeridian, not an error. The
+    /// order is not GeoJSON's `bbox` (`[west, south, east, north]`); prefer
+    /// `from_corners`, whose corners are [`Coordinate`]s that carry the CRS.
     ///
     /// # Errors
     ///
