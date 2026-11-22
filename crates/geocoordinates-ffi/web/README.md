@@ -55,5 +55,35 @@ location explicitly. To load the module from elsewhere, pass its bytes, a compil
 `WebAssembly.Module`, or a URL:
 `await uniffiInitAsync(new URL("/static/geocoordinates.wasm", location.href))`.
 
+### Timestamps before 1970
+
+The WebAssembly build cannot represent an instant before 1970-01-01T00:00:00Z: one
+that crossed into the module would panic in Rust, surfacing as an untyped
+`RuntimeError: unreachable` trap that skips the call's cleanup inside the module. So each
+entry point that takes a `Date` checks it first and throws `PreEpochTimestampError`
+(exported by this package) for a pre-epoch one, before anything reaches wasm. Its
+`field` names the rejected value in snake_case, as `GeoError.InvalidValue` does, and
+its `timestamp` holds the `Date`:
+
+| Entry point | Checked `Date` | `field` |
+| --- | --- | --- |
+| `new Track(fixes)`, `segmentVisits`, `formatFix`, `applyExclusionZones` | each `Fix.timestamp` | `"timestamp"` |
+| `Track.locate(at, ...)` | `at` | `"at"` |
+| `estimateOffsetMs` | each `GeotagReference.photoTime` | `"photo_time"` |
+| `segmentTrips`, `visitValidate` | each `Visit.arrival` / `departure` | `"arrival"` / `"departure"` |
+
+```ts
+import { PreEpochTimestampError, Track } from "geocoordinates-rs";
+
+try {
+  new Track([{ coord, accuracy: undefined, timestamp: new Date("1969-07-20T20:17:40Z"), source: undefined }]);
+} catch (e) {
+  if (e instanceof PreEpochTimestampError) console.log(e.field, e.timestamp); // "timestamp", 1969-07-20...
+}
+```
+
+The default export's `geocoordinates_ffi` namespace carries the same checks. The
+Python, Kotlin/Java and Swift bindings accept pre-epoch instants.
+
 The package is ES modules only (no CommonJS build) and targets ES2021+ (the runtime uses
 `FinalizationRegistry`).
