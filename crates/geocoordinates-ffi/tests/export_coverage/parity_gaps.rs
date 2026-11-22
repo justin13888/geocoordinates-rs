@@ -19,6 +19,7 @@ pub const RENAMED: &[(&str, &str)] = &[
     ("Coordinate::try_to_crs", "convert"),
     ("Dbscan::clusters", "DbscanResult.clusters"),
     ("Dbscan::labels", "DbscanResult.labels"),
+    ("ExifOptions::new", "exif_options_default"),
     // `ExclusionZone` is a data enum checked by `exclusion_zone_validate`.
     ("ExclusionZone::from_bounds", "exclusion_zone_validate"),
     ("ExclusionZone::from_circle", "exclusion_zone_validate"),
@@ -86,8 +87,6 @@ pub const ALLOWED: &[&str] = &[
     // Deliberate: `NorthBearing` is output-only across the boundary.
     "NorthBearing::new",
     // Gaps: no FFI form yet, each tracked by an issue.
-    // #336
-    "ExifOptions::new",
     // #334
     "Representation::MAX_DDM_MINUTE_DECIMALS",
     "Representation::MAX_DD_DECIMALS",

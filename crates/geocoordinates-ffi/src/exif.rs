@@ -284,8 +284,44 @@ pub enum AuxiliaryTagPolicy {
     Drop,
 }
 
+impl From<NullIslandPolicy> for gc::exif::NullIslandPolicy {
+    fn from(policy: NullIslandPolicy) -> Self {
+        match policy {
+            NullIslandPolicy::Accept => Self::Accept,
+            NullIslandPolicy::Reject => Self::Reject,
+        }
+    }
+}
+
+impl From<gc::exif::NullIslandPolicy> for NullIslandPolicy {
+    fn from(policy: gc::exif::NullIslandPolicy) -> Self {
+        match policy {
+            gc::exif::NullIslandPolicy::Accept => Self::Accept,
+            gc::exif::NullIslandPolicy::Reject => Self::Reject,
+        }
+    }
+}
+
+impl From<AuxiliaryTagPolicy> for gc::exif::AuxiliaryTagPolicy {
+    fn from(policy: AuxiliaryTagPolicy) -> Self {
+        match policy {
+            AuxiliaryTagPolicy::Reject => Self::Reject,
+            AuxiliaryTagPolicy::Drop => Self::Drop,
+        }
+    }
+}
+
+impl From<gc::exif::AuxiliaryTagPolicy> for AuxiliaryTagPolicy {
+    fn from(policy: gc::exif::AuxiliaryTagPolicy) -> Self {
+        match policy {
+            gc::exif::AuxiliaryTagPolicy::Reject => Self::Reject,
+            gc::exif::AuxiliaryTagPolicy::Drop => Self::Drop,
+        }
+    }
+}
+
 /// Options for [`parse_exif_with`] and [`parse_xmp_with`] — mirror of
-/// [`gc::exif::ExifOptions`].
+/// [`gc::exif::ExifOptions`]. Start from [`exif_options_default`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
 pub struct ExifOptions {
     /// What to do with a position of exactly 0°, 0°.
@@ -297,14 +333,19 @@ pub struct ExifOptions {
 impl From<ExifOptions> for gc::exif::ExifOptions {
     fn from(options: ExifOptions) -> Self {
         Self::new()
-            .with_null_island(match options.null_island {
-                NullIslandPolicy::Accept => gc::exif::NullIslandPolicy::Accept,
-                NullIslandPolicy::Reject => gc::exif::NullIslandPolicy::Reject,
-            })
-            .with_invalid_auxiliary(match options.invalid_auxiliary {
-                AuxiliaryTagPolicy::Reject => gc::exif::AuxiliaryTagPolicy::Reject,
-                AuxiliaryTagPolicy::Drop => gc::exif::AuxiliaryTagPolicy::Drop,
-            })
+            .with_null_island(options.null_island.into())
+            .with_invalid_auxiliary(options.invalid_auxiliary.into())
+    }
+}
+
+/// The default options: 0°, 0° is accepted as any other position, and an invalid
+/// auxiliary tag fails the whole conversion.
+#[uniffi::export]
+pub fn exif_options_default() -> ExifOptions {
+    let options = gc::exif::ExifOptions::default();
+    ExifOptions {
+        null_island: options.null_island.into(),
+        invalid_auxiliary: options.invalid_auxiliary.into(),
     }
 }
 

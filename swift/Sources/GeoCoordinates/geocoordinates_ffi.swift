@@ -3963,7 +3963,7 @@ public func FfiConverterTypeExifGps_lower(_ value: ExifGps) -> RustBuffer {
 
 /**
  * Options for [`parse_exif_with`] and [`parse_xmp_with`] — mirror of
- * [`gc::exif::ExifOptions`].
+ * [`gc::exif::ExifOptions`]. Start from [`exif_options_default`].
  */
 public struct ExifOptions: Equatable, Hashable {
     /**
@@ -11634,6 +11634,16 @@ public func s2Validate(cell: S2CellId)throws   {try rustCallWithError(FfiConvert
 }
 }
 /**
+ * The default options: 0°, 0° is accepted as any other position, and an invalid
+ * auxiliary tag fails the whole conversion.
+ */
+public func exifOptionsDefault() -> ExifOptions  {
+    return try!  FfiConverterTypeExifOptions_lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_exif_options_default($0
+    )
+})
+}
+/**
  * Read GPS IFD tag values, accepting a position of 0°, 0° — the FFI form of the core
  * `CaptureGeo::from_exif`.
  *
@@ -14143,6 +14153,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_s2_validate() != 24086) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_exif_options_default() != 5359) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_exif() != 64414) {
