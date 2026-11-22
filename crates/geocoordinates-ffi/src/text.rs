@@ -342,6 +342,30 @@ pub fn format_options_default() -> FormatOptions {
     gc::format::FormatOptions::default().into()
 }
 
+/// The most decimal places of degrees `Representation::DecimalDegrees`
+/// renders, 15: [`gc::format::Representation::MAX_DD_DECIMALS`]. A larger
+/// `decimals` makes [`format_coordinate`] fail.
+#[uniffi::export]
+pub fn representation_max_dd_decimals() -> u8 {
+    gc::format::Representation::MAX_DD_DECIMALS
+}
+
+/// The most decimal places of arcseconds `Representation::Dms` renders, 9:
+/// [`gc::format::Representation::MAX_DMS_SECOND_DECIMALS`]. A larger
+/// `second_decimals` makes [`format_coordinate`] fail.
+#[uniffi::export]
+pub fn representation_max_dms_second_decimals() -> u8 {
+    gc::format::Representation::MAX_DMS_SECOND_DECIMALS
+}
+
+/// The most decimal places of arcminutes `Representation::Ddm` renders, 12:
+/// [`gc::format::Representation::MAX_DDM_MINUTE_DECIMALS`]. A larger
+/// `minute_decimals` makes [`format_coordinate`] fail.
+#[uniffi::export]
+pub fn representation_max_ddm_minute_decimals() -> u8 {
+    gc::format::Representation::MAX_DDM_MINUTE_DECIMALS
+}
+
 /// The decimal separator a BCP-47 locale tag conventionally uses.
 ///
 /// A **heuristic**, not locale data: a small allowlist of decimal-comma
