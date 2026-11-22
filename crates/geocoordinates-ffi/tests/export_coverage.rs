@@ -38,7 +38,7 @@ use std::path::{Path, PathBuf};
 
 /// The number of exports: free functions, object constructors and methods, and
 /// foreign-trait methods. Update it in the diff that adds or removes one.
-const EXPORTS: usize = 240;
+const EXPORTS: usize = 243;
 /// The number of those exports whose return type resolves to a `Result`.
 const FALLIBLE_EXPORTS: usize = 196;
 

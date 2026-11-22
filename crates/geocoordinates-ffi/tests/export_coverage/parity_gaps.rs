@@ -91,8 +91,4 @@ pub const ALLOWED: &[&str] = &[
     "MAX_ZOOM",
     // #335
     "Place::localized_name",
-    // #334
-    "Representation::MAX_DDM_MINUTE_DECIMALS",
-    "Representation::MAX_DD_DECIMALS",
-    "Representation::MAX_DMS_SECOND_DECIMALS",
 ];
