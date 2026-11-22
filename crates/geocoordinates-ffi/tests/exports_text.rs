@@ -113,6 +113,40 @@ fn format_coordinate_reports_typed_errors() {
 }
 
 #[test]
+fn representation_caps_are_the_bounds_format_coordinate_enforces() {
+    assert_eq!(representation_max_dd_decimals(), 15);
+    assert_eq!(representation_max_dms_second_decimals(), 9);
+    assert_eq!(representation_max_ddm_minute_decimals(), 12);
+    let ny = wgs84(40.7128, -74.006);
+    let dms = |p| Representation::Dms {
+        second_decimals: Some(p),
+        symbols: SymbolStyle::Unicode,
+        hemisphere: HemisphereStyle::Cardinal,
+    };
+    let ddm = |p| Representation::Ddm {
+        minute_decimals: Some(p),
+        symbols: SymbolStyle::Unicode,
+        hemisphere: HemisphereStyle::Cardinal,
+    };
+    let (dd_cap, dms_cap, ddm_cap) = (
+        representation_max_dd_decimals(),
+        representation_max_dms_second_decimals(),
+        representation_max_ddm_minute_decimals(),
+    );
+    // Each cap renders, and one digit more is refused on its own field.
+    let cases = [
+        (dd(Some(dd_cap)), dd(Some(dd_cap + 1)), "decimals"),
+        (dms(dms_cap), dms(dms_cap + 1), "second_decimals"),
+        (ddm(ddm_cap), ddm(ddm_cap + 1), "minute_decimals"),
+    ];
+    for (at_cap, past_cap, field) in cases {
+        assert!(format_coordinate(ny, opts(at_cap)).is_ok());
+        let refused = format_coordinate(ny, opts(past_cap));
+        assert!(matches!(&refused, Err(GeoError::InvalidValue { field: f, .. }) if f == field));
+    }
+}
+
+#[test]
 fn format_coordinate_honours_a_comma_separator() {
     let de = FormatOptions {
         representation: dd(Some(2)),
