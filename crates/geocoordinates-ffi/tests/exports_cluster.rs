@@ -188,6 +188,20 @@ fn visits_and_trips_cross_with_their_times() {
 }
 
 #[test]
+fn cluster_max_zoom_bounds_the_index_zooms() {
+    assert_eq!(cluster_max_zoom(), 22);
+    let index = ClusterIndex::new(vec![wgs84(0.0, 0.0)], cluster_index_options_default()).unwrap();
+    assert_eq!(
+        index.clusters(world(), cluster_max_zoom()).unwrap().len(),
+        1
+    );
+    assert!(is_field(
+        index.clusters(world(), cluster_max_zoom() + 1),
+        "zoom"
+    ));
+}
+
+#[test]
 fn cluster_index_answers_and_updates() {
     let options = cluster_index_options_default();
     assert_eq!((options.radius_px, options.tile_px), (40.0, 512.0));

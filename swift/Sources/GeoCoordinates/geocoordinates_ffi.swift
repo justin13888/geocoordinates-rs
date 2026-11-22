@@ -687,15 +687,15 @@ fileprivate struct FfiConverterDuration: FfiConverterRustBuffer {
 
 
 /**
- * A per-zoom hierarchy for map pins, zooms 0 to 22, with updates that need no rebuild
- * — the object form of [`gc::cluster::ClusterIndex`]. The clusters are a function of
- * the set of points, never of the order they arrived in.
+ * A per-zoom hierarchy for map pins, zooms 0 to [`cluster_max_zoom`], with updates
+ * that need no rebuild — the object form of [`gc::cluster::ClusterIndex`]. The
+ * clusters are a function of the set of points, never of the order they arrived in.
  */
 public protocol ClusterIndexProtocol: AnyObject, Sendable {
     
     /**
      * The clusters at the next zoom that `cluster_id` splits into, or the point under
-     * a zoom-22 cluster. A point has no children.
+     * a cluster at [`cluster_max_zoom`]. A point has no children.
      *
      * # Errors
      * `GeoError::InvalidValue` (field `cluster_id`) when there is no such cluster.
@@ -706,8 +706,8 @@ public protocol ClusterIndexProtocol: AnyObject, Sendable {
      * The clusters at `zoom` whose centroids lie in `bounds`, ordered by id.
      *
      * # Errors
-     * `GeoError::InvalidValue` (field `zoom`) above 22, or for an invalid
-     * [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
+     * `GeoError::InvalidValue` (field `zoom`) above [`cluster_max_zoom`], or for an
+     * invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
      * reference system than the points.
      */
     func clusters(bounds: GeoBounds, zoom: UInt8) throws  -> [MapCluster]
@@ -762,9 +762,9 @@ public protocol ClusterIndexProtocol: AnyObject, Sendable {
     
 }
 /**
- * A per-zoom hierarchy for map pins, zooms 0 to 22, with updates that need no rebuild
- * — the object form of [`gc::cluster::ClusterIndex`]. The clusters are a function of
- * the set of points, never of the order they arrived in.
+ * A per-zoom hierarchy for map pins, zooms 0 to [`cluster_max_zoom`], with updates
+ * that need no rebuild — the object form of [`gc::cluster::ClusterIndex`]. The
+ * clusters are a function of the set of points, never of the order they arrived in.
  */
 open class ClusterIndex: ClusterIndexProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -839,7 +839,7 @@ public convenience init(points: [Coordinate], options: ClusterIndexOptions)throw
     
     /**
      * The clusters at the next zoom that `cluster_id` splits into, or the point under
-     * a zoom-22 cluster. A point has no children.
+     * a cluster at [`cluster_max_zoom`]. A point has no children.
      *
      * # Errors
      * `GeoError::InvalidValue` (field `cluster_id`) when there is no such cluster.
@@ -857,8 +857,8 @@ open func children(clusterId: UInt64)throws  -> [MapCluster]  {
      * The clusters at `zoom` whose centroids lie in `bounds`, ordered by id.
      *
      * # Errors
-     * `GeoError::InvalidValue` (field `zoom`) above 22, or for an invalid
-     * [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
+     * `GeoError::InvalidValue` (field `zoom`) above [`cluster_max_zoom`], or for an
+     * invalid [`GeoBounds`] record; `GeoError::CrsMismatch` when `bounds` is on another
      * reference system than the points.
      */
 open func clusters(bounds: GeoBounds, zoom: UInt8)throws  -> [MapCluster]  {
@@ -4889,7 +4889,8 @@ public struct MapCluster: Equatable, Hashable {
      */
     public var id: UInt64
     /**
-     * The zoom this is drawn at; a point under a zoom-22 cluster has 23.
+     * The zoom this is drawn at; a point under a cluster at
+     * [`cluster_max_zoom`] is one deeper.
      */
     public var zoom: UInt8
     /**
@@ -4917,7 +4918,8 @@ public struct MapCluster: Equatable, Hashable {
          * The id, for [`ClusterIndex::children`] and [`ClusterIndex::leaves`].
          */id: UInt64, 
         /**
-         * The zoom this is drawn at; a point under a zoom-22 cluster has 23.
+         * The zoom this is drawn at; a point under a cluster at
+         * [`cluster_max_zoom`] is one deeper.
          */zoom: UInt8, 
         /**
          * The mean of the cluster's points, which is approximate.
@@ -11292,6 +11294,16 @@ public func clusterIndexOptionsDefault() -> ClusterIndexOptions  {
 })
 }
 /**
+ * The deepest zoom a [`ClusterIndex`] builds clusters at, 22:
+ * [`gc::cluster::MAX_ZOOM`].
+ */
+public func clusterMaxZoom() -> UInt8  {
+    return try!  FfiConverterUInt8.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_cluster_max_zoom($0
+    )
+})
+}
+/**
  * Checks a hand-built [`Cluster`] against the core crate's rules.
  *
  * # Errors
@@ -14067,6 +14079,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_cluster_index_options_default() != 54555) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_geocoordinates_ffi_checksum_func_cluster_max_zoom() != 57858) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_geocoordinates_ffi_checksum_func_cluster_validate() != 26196) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -14571,10 +14586,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 37769) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_children() != 47930) {
+    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_children() != 59857) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_clusters() != 10435) {
+    if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_clusters() != 14950) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_coordinate() != 50825) {
