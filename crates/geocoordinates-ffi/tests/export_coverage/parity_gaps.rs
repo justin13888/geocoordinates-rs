@@ -32,6 +32,7 @@ pub const RENAMED: &[(&str, &str)] = &[
     ("Height::length", "height_meters"),
     ("MAX_LATITUDE", "web_mercator_max_latitude_deg"),
     ("MAX_TILE_ZOOM", "tile_max_zoom"),
+    ("MAX_ZOOM", "cluster_max_zoom"),
     ("MgrsPrecision::side", "mgrs_precision_meters"),
     ("Neighbor::coordinate", "SpatialNeighbor.coordinate"),
     ("Neighbor::distance", "SpatialNeighbor.distance_m"),
@@ -87,8 +88,6 @@ pub const ALLOWED: &[&str] = &[
     // Gaps: no FFI form yet, each tracked by an issue.
     // #336
     "ExifOptions::new",
-    // #333
-    "MAX_ZOOM",
     // #335
     "Place::localized_name",
     // #334
