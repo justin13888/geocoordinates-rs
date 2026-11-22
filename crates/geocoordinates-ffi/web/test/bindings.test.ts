@@ -74,6 +74,7 @@ import geocoordinatesFfi, {
   wgs84ToBd09,
   wgs84ToGcj02,
 } from "../src/generated/web/geocoordinates_ffi";
+import * as entry from "../src/index";
 
 // Reference triple from src/test_support.rs (coordtransform-rs), lat first.
 const WGS = { lat: 39.915, lon: 116.404 };
@@ -214,9 +215,7 @@ describe("grids and geodesics", () => {
   });
 
   it("round-trips sub-second timestamps through a track", () => {
-    // About 56 m apart, inside the default 50 m/s speed limit. The instants are
-    // after the epoch: a pre-epoch `Date` traps the wasm module (#346), so only
-    // the Python, JVM and Swift tests cross one.
+    // About 56 m apart, inside the default 50 m/s speed limit.
     const before = new Date("1970-01-01T00:00:01.250Z");
     const after = new Date("1970-01-01T00:00:03.250Z");
     const timed = (lon: number, timestamp: Date) => ({
@@ -444,5 +443,86 @@ describe("EXIF and XMP GPS tags", () => {
     assert.equal(kept.fix.coord.lat, 39.9);
     assert.equal(kept.fix.coord.height, undefined);
     assert.ok(kept.fix.source?.notes.some((note) => note.startsWith("GPSAltitude")));
+  });
+});
+
+// The package entry (`src/index.ts`) checks every `Date` before it crosses: a
+// pre-epoch one would trap the module with `RuntimeError: unreachable` (#346).
+describe("pre-epoch timestamps", () => {
+  const PRE = new Date("1969-12-31T23:59:58.750Z");
+  const fixAt = (timestamp: Date | undefined, lon = 0.0) => ({
+    ...fixFromCoord(coordinateNew(0.0, lon, Crs.Wgs84)),
+    timestamp,
+  });
+
+  // Asserts `call` throws a `PreEpochTimestampError` naming `field` and `PRE`.
+  function rejects(call: () => unknown, field: string): void {
+    const e = thrown(call);
+    assert.ok(e instanceof entry.PreEpochTimestampError, String(e));
+    assert.ok(e instanceof Error);
+    assert.equal(e.name, "PreEpochTimestampError");
+    assert.equal(e.field, field);
+    assert.equal(e.timestamp, PRE);
+    assert.match(e.message, /1969-12-31T23:59:58\.750Z/);
+  }
+
+  const track = () =>
+    new entry.Track([
+      fixAt(new Date("1970-01-01T00:00:00.000Z")),
+      fixAt(new Date("1970-01-01T00:00:02.000Z"), 0.0005),
+    ]);
+
+  it("rejects a pre-epoch Fix timestamp at every entry that takes a Fix", () => {
+    rejects(() => new entry.Track([fixAt(undefined), fixAt(PRE)]), "timestamp");
+    rejects(() => entry.formatFix(fixAt(PRE), formatOptionsDefault()), "timestamp");
+    rejects(
+      () => entry.applyExclusionZones(fixAt(PRE), [], entry.ZoneAction.Strip.new()),
+      "timestamp",
+    );
+    rejects(() => entry.segmentVisits([fixAt(PRE)], 50.0, 60_000), "timestamp");
+    // The default export's namespace holds the checked forms too.
+    const ns = entry.default.geocoordinates_ffi;
+    assert.equal(ns.wgs84ToGcj02, wgs84ToGcj02);
+    rejects(() => new ns.Track([fixAt(PRE)]), "timestamp");
+    rejects(() => ns.formatFix(fixAt(PRE), formatOptionsDefault()), "timestamp");
+  });
+
+  it("rejects a pre-epoch photo time and locate instant", () => {
+    const t = track();
+    rejects(() => t.locate(PRE, geotagOptionsDefault()), "at");
+    rejects(
+      () => entry.estimateOffsetMs(t, [{ photoTime: PRE, location: coordinateNew(0, 0, Crs.Wgs84) }]),
+      "photo_time",
+    );
+  });
+
+  it("rejects a pre-epoch visit arrival or departure", () => {
+    const stay = (lon: number, seconds: number) =>
+      fixAt(new Date(Date.UTC(1970, 0, 1, 0, 0, seconds)), lon);
+    const [visit] = entry.segmentVisits([stay(0.0, 0), stay(0.0, 120)], 50.0, 60_000);
+    assert.ok(visit);
+    entry.visitValidate(visit);
+    assert.equal(entry.segmentTrips([visit], 60_000).length, 1);
+    rejects(() => entry.visitValidate({ ...visit, arrival: PRE }), "arrival");
+    rejects(() => entry.segmentTrips([visit, { ...visit, departure: PRE }], 60_000), "departure");
+  });
+
+  it("passes the epoch itself and later instants through unchanged", () => {
+    const t = track();
+    assert.equal(t.fixes().length, 2);
+    const at = t.locate(new Date("1970-01-01T00:00:01.000Z"), geotagOptionsDefault());
+    near(at?.coord.lon ?? NaN, 0.00025, 1e-12, "interpolated lon");
+    assert.equal(
+      entry.estimateOffsetMs(t, [
+        { photoTime: new Date(0), location: coordinateNew(0, 0, Crs.Wgs84) },
+      ]),
+      0n,
+    );
+    assert.equal(
+      entry.formatFix(fixAt(new Date(0)), formatOptionsDefault()),
+      formatFix(fixAt(new Date(0)), formatOptionsDefault()),
+    );
+    const kept = entry.applyExclusionZones(fixAt(new Date(0)), [], entry.ZoneAction.Strip.new());
+    assert.equal(kept?.timestamp?.toISOString(), new Date(0).toISOString());
   });
 });
