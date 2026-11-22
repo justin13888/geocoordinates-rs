@@ -89,6 +89,9 @@ pub fn geotag_options_default() -> GeotagOptions {
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct GeotagReference {
     /// The photo's time on the camera's clock.
+    ///
+    /// An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+    /// its sign lost, like [`Fix::timestamp`].
     pub photo_time: SystemTime,
     /// Where the photo was taken.
     pub location: Coordinate,
@@ -125,6 +128,10 @@ impl Track {
     /// Where the track was at the photo time `at`, or `None` when the track does
     /// not cover it. The result is a derived fix: its source's `raw` starts with
     /// `geotag:`, and its accuracy grows with the time to the fixes it came from.
+    ///
+    /// An `at` strictly between -1 s and 0 s from the Unix epoch arrives with its
+    /// sign lost, like [`Fix::timestamp`], so the track is searched at the mirror
+    /// instant after the epoch.
     ///
     /// # Errors
     /// `GeoError::InvalidValue` (field `max_speed_mps`) when the speed is negative
