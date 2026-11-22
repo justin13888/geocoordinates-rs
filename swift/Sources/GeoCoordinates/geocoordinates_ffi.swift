@@ -13987,6 +13987,39 @@ public func parseTextWith(input: String, options: ParseOptions)throws  -> Fix  {
     )
 })
 }
+/**
+ * The most decimal places of degrees `Representation::DecimalDegrees`
+ * renders, 15: [`gc::format::Representation::MAX_DD_DECIMALS`]. A larger
+ * `decimals` makes [`format_coordinate`] fail.
+ */
+public func representationMaxDdDecimals() -> UInt8  {
+    return try!  FfiConverterUInt8.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_representation_max_dd_decimals($0
+    )
+})
+}
+/**
+ * The most decimal places of arcminutes `Representation::Ddm` renders, 12:
+ * [`gc::format::Representation::MAX_DDM_MINUTE_DECIMALS`]. A larger
+ * `minute_decimals` makes [`format_coordinate`] fail.
+ */
+public func representationMaxDdmMinuteDecimals() -> UInt8  {
+    return try!  FfiConverterUInt8.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_representation_max_ddm_minute_decimals($0
+    )
+})
+}
+/**
+ * The most decimal places of arcseconds `Representation::Dms` renders, 9:
+ * [`gc::format::Representation::MAX_DMS_SECOND_DECIMALS`]. A larger
+ * `second_decimals` makes [`format_coordinate`] fail.
+ */
+public func representationMaxDmsSecondDecimals() -> UInt8  {
+    return try!  FfiConverterUInt8.lift(try! rustCall() {
+    uniffi_geocoordinates_ffi_fn_func_representation_max_dms_second_decimals($0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -14631,6 +14664,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_func_parse_text_with() != 37769) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_representation_max_dd_decimals() != 15263) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_representation_max_ddm_minute_decimals() != 13705) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_geocoordinates_ffi_checksum_func_representation_max_dms_second_decimals() != 12338) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_method_clusterindex_children() != 59857) {
