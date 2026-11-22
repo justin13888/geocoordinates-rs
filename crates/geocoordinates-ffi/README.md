@@ -47,6 +47,24 @@ explicit `max_error_m`.
 Exact forward conversions return a bare datum record; approximate inverses
 return an `Approx*` record and keep the `_fast` / `_refined` suffix.
 
+## Timestamps
+
+A `SystemTime` crosses as UniFFI's builtin `Timestamp`, each language's native
+instant type. Its wire format keeps the sign on the whole seconds and the
+fraction as unsigned nanoseconds, so an instant in the last second before the
+Unix epoch, strictly between 1969-12-31T23:59:59Z and 1970-01-01T00:00:00Z, has
+zero whole seconds and loses its sign: it arrives as its mirror image after the
+epoch, in both directions (1969-12-31T23:59:59.25Z crosses as
+1970-01-01T00:00:00.75Z). Every other instant, before or after the epoch, crosses
+unchanged. This applies to every timestamp-typed field and argument:
+`Fix.timestamp`, `GeotagReference.photo_time`, the `at` argument of
+`Track.locate`, `Visit.arrival` / `Visit.departure` and `Trip.start` /
+`Trip.end`. Within that second, `Track.locate` searches the track at the mirror
+instant. The TypeScript wrapper rejects every pre-epoch `Date` before it reaches
+wasm (see [`web/`](https://github.com/justin13888/geocoordinates-rs/tree/master/crates/geocoordinates-ffi/web)),
+so the window does not arise there. The window is UniFFI's and is pinned by the
+Python smoke test; it closes when a UniFFI release keeps the sign.
+
 ## Naming
 
 Every export follows one scheme, so a name reads the same in every language

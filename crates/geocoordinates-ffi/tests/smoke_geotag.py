@@ -54,3 +54,36 @@ midway = datetime.datetime(1969, 12, 31, 23, 59, 57, 250_000, tzinfo=utc)
 between = pre_epoch.locate(midway, gc.geotag_options_default())
 assert between.timestamp == midway, between.timestamp
 assert abs(between.coord.lon - 0.00025) < 1e-12, between.coord
+
+# an_instant_in_the_last_second_before_the_epoch_crosses_with_its_sign_lost:
+# pins UniFFI's Timestamp window documented in the FFI README (#342). The wire
+# format keeps the sign on the whole seconds, which are zero here, so the
+# instant arrives as its mirror image after the epoch. When a UniFFI release
+# keeps the sign this fails: drop the README caveat and the field docs with it.
+in_window = datetime.datetime(1969, 12, 31, 23, 59, 59, 250_000, tzinfo=utc)
+mirror = datetime.datetime(1970, 1, 1, 0, 0, 0, 750_000, tzinfo=utc)
+windowed = gc.Track(
+    [
+        gc.Fix(coord=gc.coordinate_new(0.0, 0.0, gc.Crs.WGS84), accuracy=None, timestamp=in_window, source=None),
+    ]
+)
+assert [f.timestamp for f in windowed.fixes()] == [mirror], windowed.fixes()
+# Track.locate's `at`: a query in the window between fixes at -1.75 s and
+# +0.25 s arrives as +0.75 s, after the last fix, so the track does not cover it.
+two_before = datetime.datetime(1969, 12, 31, 23, 59, 58, 250_000, tzinfo=utc)
+just_after = datetime.datetime(1970, 1, 1, 0, 0, 0, 250_000, tzinfo=utc)
+spanning = gc.Track(
+    [
+        gc.Fix(coord=gc.coordinate_new(0.0, 0.0, gc.Crs.WGS84), accuracy=None, timestamp=two_before, source=None),
+        gc.Fix(coord=gc.coordinate_new(0.0, 0.0001, gc.Crs.WGS84), accuracy=None, timestamp=just_after, source=None),
+    ]
+)
+assert spanning.locate(two_before, gc.geotag_options_default()) is not None
+assert spanning.locate(in_window, gc.geotag_options_default()) is None
+# GeotagReference.photo_time: the track reached `here` at +0.25 s, so a photo
+# taken there at -0.75 s would give +1000 ms; it arrives as +0.75 s and gives
+# -500 ms. An instant outside the window, at -1.25 s, gives its true +1500 ms.
+here = gc.coordinate_new(0.0, 0.0001, gc.Crs.WGS84)
+outside = datetime.datetime(1969, 12, 31, 23, 59, 58, 750_000, tzinfo=utc)
+assert gc.estimate_offset_ms(spanning, [gc.GeotagReference(photo_time=in_window, location=here)]) == -500
+assert gc.estimate_offset_ms(spanning, [gc.GeotagReference(photo_time=outside, location=here)]) == 1_500
