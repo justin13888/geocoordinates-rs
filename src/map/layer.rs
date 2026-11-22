@@ -172,7 +172,7 @@ pub fn clusters_to_geojson(
 mod tests {
     use super::{abbreviated, clusters_to_geojson, points_to_geojson};
     use crate::cluster::ClusterIndex;
-    use crate::geodesy::GeoBounds;
+    use crate::geodesy::{GeoBounds, GeoBoundsEdges};
     use crate::map::DisplayDatum;
     use crate::{Coordinate, Crs};
 
@@ -190,7 +190,14 @@ mod tests {
     #[test]
     fn golden_cluster_layers() {
         let index = ClusterIndex::new(china(), Default::default()).unwrap();
-        let world = GeoBounds::from_edges(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+        let world = GeoBounds::from_edges(GeoBoundsEdges {
+            south: -90.0,
+            west: -180.0,
+            north: 90.0,
+            east: 180.0,
+            crs: Crs::Wgs84,
+        })
+        .unwrap();
         let pins = index.clusters(world, 4).unwrap();
         assert_eq!(
             clusters_to_geojson(&index, &pins, DisplayDatum::Wgs84).unwrap(),
@@ -214,7 +221,14 @@ mod tests {
             .map(|(lat, lon)| Coordinate::wgs84(lat, lon).unwrap())
             .collect();
         let other = ClusterIndex::new(elsewhere, Default::default()).unwrap();
-        let world = GeoBounds::from_edges(-90.0, -180.0, 90.0, 180.0, Crs::Wgs84).unwrap();
+        let world = GeoBounds::from_edges(GeoBoundsEdges {
+            south: -90.0,
+            west: -180.0,
+            north: 90.0,
+            east: 180.0,
+            crs: Crs::Wgs84,
+        })
+        .unwrap();
         let (ours, theirs) = (
             index.clusters(world, 4).unwrap(),
             other.clusters(world, 4).unwrap(),

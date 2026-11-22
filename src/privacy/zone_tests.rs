@@ -6,9 +6,20 @@ use proptest::prelude::*;
 use super::tests::any_wgs84;
 use super::{ExclusionZone, Precision, ZoneAction, apply, coarsen};
 use crate::fix::{Accuracy, AccuracyKind, Confidence, Fix, RawSource};
-use crate::geodesy::GeoBounds;
+use crate::geodesy::{GeoBounds, GeoBoundsEdges};
 use crate::geodesy::{destination, geodesic_distance};
 use crate::{Coordinate, Crs, Error, Height, Length};
+
+/// The edge record of a box, positionally, for the tables in these tests.
+fn edges_on(south: f64, west: f64, north: f64, east: f64, crs: Crs) -> GeoBoundsEdges {
+    GeoBoundsEdges {
+        south,
+        west,
+        north,
+        east,
+        crs,
+    }
+}
 
 fn wgs84(lat: f64, lon: f64) -> Coordinate {
     Coordinate::wgs84(lat, lon).unwrap()
@@ -55,7 +66,7 @@ fn getters_return_what_built_the_zone() {
         Some((wgs84(1.0, 2.0), Length::from_meters(3.0)))
     );
     assert_eq!((zone.bounds(), zone.crs()), (None, Crs::Wgs84));
-    let bounds = GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Gcj02).unwrap();
+    let bounds = GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Gcj02)).unwrap();
     let zone = ExclusionZone::from_bounds(bounds);
     assert_eq!(
         (zone.bounds(), zone.circle(), zone.crs()),
@@ -102,13 +113,13 @@ fn a_circle_at_a_pole_holds_the_pole_at_every_longitude() {
 #[test]
 fn a_box_zone_handles_the_antimeridian_and_the_poles() {
     let crossing = ExclusionZone::from_bounds(
-        GeoBounds::from_edges(-21.0, 176.0, -12.0, -178.0, Crs::Wgs84).unwrap(),
+        GeoBounds::from_edges(edges_on(-21.0, 176.0, -12.0, -178.0, Crs::Wgs84)).unwrap(),
     );
     assert!(crossing.contains(wgs84(-12.0, 176.0)).unwrap()); // a corner
     assert!(crossing.contains(wgs84(-17.0, -180.0)).unwrap());
     assert!(!crossing.contains(wgs84(-17.0, -177.9)).unwrap());
     let cap = ExclusionZone::from_bounds(
-        GeoBounds::from_edges(85.0, 10.0, 90.0, 20.0, Crs::Wgs84).unwrap(),
+        GeoBounds::from_edges(edges_on(85.0, 10.0, 90.0, 20.0, Crs::Wgs84)).unwrap(),
     );
     assert!(cap.contains(wgs84(90.0, -100.0)).unwrap());
     assert!(!cap.contains(wgs84(89.0, -100.0)).unwrap());
@@ -121,8 +132,9 @@ fn membership_off_the_zone_datum_is_refused() {
         circle(10.0, 20.0, 1.0).contains(point),
         Err(Error::CrsMismatch { .. })
     ));
-    let bounds =
-        ExclusionZone::from_bounds(GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Wgs84).unwrap());
+    let bounds = ExclusionZone::from_bounds(
+        GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Wgs84)).unwrap(),
+    );
     assert!(matches!(
         bounds.contains(point),
         Err(Error::CrsMismatch { .. })
@@ -193,8 +205,9 @@ fn apply_strips_or_coarsens_a_fix_in_any_zone() {
 
 #[test]
 fn apply_checks_every_zone_datum_even_after_a_match() {
-    let nad27 =
-        ExclusionZone::from_bounds(GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Nad27).unwrap());
+    let nad27 = ExclusionZone::from_bounds(
+        GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Nad27)).unwrap(),
+    );
     let zones = [circle(0.0, 0.0, 100.0), nad27];
     assert!(matches!(
         apply(Fix::from_coord(wgs84(0.0, 0.0)), &zones, ZoneAction::Strip),
@@ -237,8 +250,9 @@ fn serde_round_trips_and_validates() {
         "{negative}"
     );
 
-    let bounds =
-        ExclusionZone::from_bounds(GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Wgs84).unwrap());
+    let bounds = ExclusionZone::from_bounds(
+        GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Wgs84)).unwrap(),
+    );
     let json = serde_json::to_string(&bounds).unwrap();
     assert_eq!(
         serde_json::from_str::<ExclusionZone>(&json).unwrap(),
@@ -339,7 +353,7 @@ fn any_zone() -> impl Strategy<Value = ExclusionZone> {
     });
     let bounds = (any_wgs84(), any_wgs84()).prop_map(|(a, b)| {
         let (south, north) = (a.lat().min(b.lat()), a.lat().max(b.lat()));
-        let edges = GeoBounds::from_edges(south, a.lon(), north, b.lon(), Crs::Wgs84);
+        let edges = GeoBounds::from_edges(edges_on(south, a.lon(), north, b.lon(), Crs::Wgs84));
         ExclusionZone::from_bounds(edges.unwrap())
     });
     prop_oneof![circle, bounds]

@@ -215,17 +215,21 @@ pub const fn geocoordinates::geodesy::GeoBounds::crs(self) -> geocoordinates::Cr
 pub const fn geocoordinates::geodesy::GeoBounds::east(self) -> f64
 pub fn geocoordinates::geodesy::GeoBounds::expand_by(self, geocoordinates::Length) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::from_corners(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
-pub fn geocoordinates::geodesy::GeoBounds::from_edges(f64, f64, f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::from_points(impl core::iter::traits::collect::IntoIterator<Item = geocoordinates::Coordinate>) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::intersects(self, Self) -> geocoordinates::Result<bool>
 pub const fn geocoordinates::geodesy::GeoBounds::north(self) -> f64
 pub const fn geocoordinates::geodesy::GeoBounds::south(self) -> f64
 pub fn geocoordinates::geodesy::GeoBounds::union(self, Self) -> geocoordinates::Result<Self>
 pub const fn geocoordinates::geodesy::GeoBounds::west(self) -> f64
+impl geocoordinates::geodesy::GeoBounds
+pub fn geocoordinates::geodesy::GeoBounds::from_edges(geocoordinates::geodesy::GeoBoundsEdges) -> geocoordinates::Result<Self>
 impl core::clone::Clone for geocoordinates::geodesy::GeoBounds
 pub fn geocoordinates::geodesy::GeoBounds::clone(&self) -> Self
 impl core::cmp::PartialEq for geocoordinates::geodesy::GeoBounds
 pub fn geocoordinates::geodesy::GeoBounds::eq(&self, &Self) -> bool
+impl core::convert::TryFrom<geocoordinates::geodesy::GeoBoundsEdges> for geocoordinates::geodesy::GeoBounds
+pub type geocoordinates::geodesy::GeoBounds::Error = geocoordinates::Error
+pub fn geocoordinates::geodesy::GeoBounds::try_from(geocoordinates::geodesy::GeoBoundsEdges) -> geocoordinates::Result<Self>
 impl core::fmt::Debug for geocoordinates::geodesy::GeoBounds
 pub fn geocoordinates::geodesy::GeoBounds::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for geocoordinates::geodesy::GeoBounds
@@ -241,6 +245,34 @@ impl core::marker::Unpin for geocoordinates::geodesy::GeoBounds
 impl core::marker::UnsafeUnpin for geocoordinates::geodesy::GeoBounds
 impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::GeoBounds
 impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::GeoBounds
+pub struct geocoordinates::geodesy::GeoBoundsEdges
+pub geocoordinates::geodesy::GeoBoundsEdges::crs: geocoordinates::Crs
+pub geocoordinates::geodesy::GeoBoundsEdges::east: f64
+pub geocoordinates::geodesy::GeoBoundsEdges::north: f64
+pub geocoordinates::geodesy::GeoBoundsEdges::south: f64
+pub geocoordinates::geodesy::GeoBoundsEdges::west: f64
+impl core::clone::Clone for geocoordinates::geodesy::GeoBoundsEdges
+pub fn geocoordinates::geodesy::GeoBoundsEdges::clone(&self) -> Self
+impl core::cmp::PartialEq for geocoordinates::geodesy::GeoBoundsEdges
+pub fn geocoordinates::geodesy::GeoBoundsEdges::eq(&self, &Self) -> bool
+impl core::convert::TryFrom<geocoordinates::geodesy::GeoBoundsEdges> for geocoordinates::geodesy::GeoBounds
+pub type geocoordinates::geodesy::GeoBounds::Error = geocoordinates::Error
+pub fn geocoordinates::geodesy::GeoBounds::try_from(geocoordinates::geodesy::GeoBoundsEdges) -> geocoordinates::Result<Self>
+impl core::fmt::Debug for geocoordinates::geodesy::GeoBoundsEdges
+pub fn geocoordinates::geodesy::GeoBoundsEdges::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for geocoordinates::geodesy::GeoBoundsEdges
+impl core::marker::StructuralPartialEq for geocoordinates::geodesy::GeoBoundsEdges
+impl serde_core::ser::Serialize for geocoordinates::geodesy::GeoBoundsEdges
+pub fn geocoordinates::geodesy::GeoBoundsEdges::serialize<__S>(&self, __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl<'de> serde_core::de::Deserialize<'de> for geocoordinates::geodesy::GeoBoundsEdges
+pub fn geocoordinates::geodesy::GeoBoundsEdges::deserialize<__D>(__D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for geocoordinates::geodesy::GeoBoundsEdges
+impl core::marker::Send for geocoordinates::geodesy::GeoBoundsEdges
+impl core::marker::Sync for geocoordinates::geodesy::GeoBoundsEdges
+impl core::marker::Unpin for geocoordinates::geodesy::GeoBoundsEdges
+impl core::marker::UnsafeUnpin for geocoordinates::geodesy::GeoBoundsEdges
+impl core::panic::unwind_safe::RefUnwindSafe for geocoordinates::geodesy::GeoBoundsEdges
+impl core::panic::unwind_safe::UnwindSafe for geocoordinates::geodesy::GeoBoundsEdges
 pub struct geocoordinates::geodesy::Helmert
 pub geocoordinates::geodesy::Helmert::rx_arcsec: f64
 pub geocoordinates::geodesy::Helmert::ry_arcsec: f64

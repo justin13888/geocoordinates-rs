@@ -1,5 +1,6 @@
 use proptest::prelude::*;
 
+use super::edge_tests::edges_on;
 use super::*;
 use crate::LengthUnit;
 use crate::geodesy::{destination, geodesic_distance};
@@ -9,7 +10,7 @@ fn wgs84(lat: f64, lon: f64) -> Coordinate {
 }
 
 fn bounds(south: f64, west: f64, north: f64, east: f64) -> GeoBounds {
-    GeoBounds::from_edges(south, west, north, east, Crs::Wgs84).unwrap()
+    GeoBounds::from_edges(edges_on(south, west, north, east, Crs::Wgs84)).unwrap()
 }
 
 fn edges(b: GeoBounds) -> (f64, f64, f64, f64) {
@@ -26,43 +27,8 @@ fn from_lons(lons: &[f64]) -> (f64, f64) {
 }
 
 #[test]
-fn from_edges_names_the_edge_outside_the_range() {
-    for (args, name) in [
-        ((-90.5, 0.0, 0.0, 0.0), "south"),
-        ((0.0, -180.5, 0.0, 0.0), "west"),
-        ((0.0, 0.0, 90.5, 0.0), "north"),
-        ((0.0, 0.0, 0.0, 180.5), "east"),
-        ((f64::NAN, 0.0, 0.0, 0.0), "south"),
-        ((0.0, f64::INFINITY, 0.0, 0.0), "west"),
-        ((0.0, 0.0, f64::NEG_INFINITY, 0.0), "north"),
-        ((0.0, 0.0, 0.0, f64::NAN), "east"),
-    ] {
-        let found = GeoBounds::from_edges(args.0, args.1, args.2, args.3, Crs::Wgs84);
-        assert!(
-            matches!(found, Err(Error::InvalidValue { field, .. }) if field == name),
-            "{args:?}: {found:?}"
-        );
-    }
-    assert!(matches!(
-        GeoBounds::from_edges(1.0, 0.0, 0.0, 0.0, Crs::Wgs84),
-        Err(Error::InvalidValue {
-            field: "south_west",
-            ..
-        })
-    ));
-}
-
-#[test]
-fn from_edges_accepts_the_extreme_edges() {
-    assert_eq!(
-        edges(bounds(-90.0, -180.0, 90.0, 180.0)),
-        (-90.0, -180.0, 90.0, 180.0)
-    );
-}
-
-#[test]
 fn getters_read_back_and_crossing_is_west_past_east() {
-    let b = GeoBounds::from_edges(1.0, 2.0, 3.0, 4.0, Crs::Nad27).unwrap();
+    let b = GeoBounds::from_edges(edges_on(1.0, 2.0, 3.0, 4.0, Crs::Nad27)).unwrap();
     assert_eq!(edges(b), (1.0, 2.0, 3.0, 4.0));
     assert_eq!(b.crs(), Crs::Nad27);
     assert!(!b.crosses_antimeridian());
@@ -235,7 +201,7 @@ fn intersects_handles_latitude_antimeridian_and_poles() {
             .unwrap()
     );
     assert!(!cap.intersects(south).unwrap());
-    let other = GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Gcj02).unwrap();
+    let other = GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Gcj02)).unwrap();
     assert!(matches!(
         a.intersects(other),
         Err(Error::CrsMismatch { .. })
@@ -332,7 +298,7 @@ fn union_of_a_pole_box_keeps_only_real_longitudes() {
         edges(pole.union(south_pole).unwrap()),
         (-90.0, 0.0, 90.0, 0.0)
     );
-    let other = GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Gcj02).unwrap();
+    let other = GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Gcj02)).unwrap();
     assert!(matches!(a.union(other), Err(Error::CrsMismatch { .. })));
 }
 
@@ -350,7 +316,7 @@ fn center_is_the_middle_of_the_edges() {
     assert_eq!(center(bounds(0.0, 180.0, 0.0, -170.0)), (0.0, -175.0));
     assert_eq!(bounds(0.0, 0.0, 1.0, 1.0).center().crs(), Crs::Wgs84);
     assert_eq!(
-        GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Tokyo)
+        GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Tokyo))
             .unwrap()
             .center()
             .crs(),
@@ -370,7 +336,7 @@ fn expand_by_validates_its_inputs() {
             })
         ));
     }
-    let gcj = GeoBounds::from_edges(0.0, 0.0, 1.0, 1.0, Crs::Gcj02).unwrap();
+    let gcj = GeoBounds::from_edges(edges_on(0.0, 0.0, 1.0, 1.0, Crs::Gcj02)).unwrap();
     assert!(matches!(
         gcj.expand_by(Length::from_meters(0.0)),
         Err(Error::CrsMismatch {
@@ -464,22 +430,12 @@ fn expand_by_uses_the_crs_ellipsoid() {
     let wgs = bounds(10.0, 20.0, 11.0, 21.0)
         .expand_by(km(1000.0))
         .unwrap();
-    let tokyo = GeoBounds::from_edges(10.0, 20.0, 11.0, 21.0, Crs::Tokyo)
+    let tokyo = GeoBounds::from_edges(edges_on(10.0, 20.0, 11.0, 21.0, Crs::Tokyo))
         .unwrap()
         .expand_by(km(1000.0))
         .unwrap();
     assert_eq!(tokyo.crs(), Crs::Tokyo);
     assert_ne!(wgs.north(), tokyo.north());
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn serde_round_trips_and_validates() {
-    let b = bounds(1.0, 170.0, 2.0, -170.0);
-    let json = serde_json::to_string(&b).unwrap();
-    assert_eq!(serde_json::from_str::<GeoBounds>(&json).unwrap(), b);
-    let bad = r#"{"south":5.0,"west":0.0,"north":1.0,"east":0.0,"crs":"Wgs84"}"#;
-    assert!(serde_json::from_str::<GeoBounds>(bad).is_err());
 }
 
 pub(super) fn lon_near_antimeridian() -> impl Strategy<Value = f64> {

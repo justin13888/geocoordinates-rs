@@ -40,13 +40,13 @@ impl TryFrom<GeoBounds> for gc::geodesy::GeoBounds {
     type Error = gc::Error;
 
     fn try_from(bounds: GeoBounds) -> Result<Self, gc::Error> {
-        Self::from_edges(
-            bounds.south,
-            bounds.west,
-            bounds.north,
-            bounds.east,
-            bounds.crs.into(),
-        )
+        Self::from_edges(gc::geodesy::GeoBoundsEdges {
+            south: bounds.south,
+            west: bounds.west,
+            north: bounds.north,
+            east: bounds.east,
+            crs: bounds.crs.into(),
+        })
     }
 }
 

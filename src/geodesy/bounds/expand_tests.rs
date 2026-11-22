@@ -3,12 +3,13 @@
 
 use proptest::prelude::*;
 
+use super::edge_tests::edges_on;
 use super::tests::lon_near_antimeridian;
 use super::*;
 use crate::geodesy::destination;
 
 fn bounds(south: f64, west: f64, north: f64, east: f64) -> GeoBounds {
-    GeoBounds::from_edges(south, west, north, east, Crs::Wgs84).unwrap()
+    GeoBounds::from_edges(edges_on(south, west, north, east, Crs::Wgs84)).unwrap()
 }
 
 fn geodesic() -> Geodesic {
