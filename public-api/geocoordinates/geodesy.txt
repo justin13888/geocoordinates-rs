@@ -215,6 +215,7 @@ pub const fn geocoordinates::geodesy::GeoBounds::crs(self) -> geocoordinates::Cr
 pub const fn geocoordinates::geodesy::GeoBounds::east(self) -> f64
 pub fn geocoordinates::geodesy::GeoBounds::expand_by(self, geocoordinates::Length) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::from_corners(geocoordinates::Coordinate, geocoordinates::Coordinate) -> geocoordinates::Result<Self>
+pub fn geocoordinates::geodesy::GeoBounds::from_edges(f64, f64, f64, f64, geocoordinates::Crs) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::from_points(impl core::iter::traits::collect::IntoIterator<Item = geocoordinates::Coordinate>) -> geocoordinates::Result<Self>
 pub fn geocoordinates::geodesy::GeoBounds::intersects(self, Self) -> geocoordinates::Result<bool>
 pub const fn geocoordinates::geodesy::GeoBounds::north(self) -> f64
