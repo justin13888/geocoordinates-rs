@@ -260,7 +260,7 @@ impl Gazetteer {
             })
         };
         let country = String::from_utf8_lossy(&entry.country).into_owned();
-        let mut place = Place::from_parts(
+        let mut place = Place::from_checked(
             d.string(entry.name).to_owned(),
             hit.coordinate(),
             country,

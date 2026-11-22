@@ -66,6 +66,7 @@ pub const fn geocoordinates::reverse::Place::coordinate(&self) -> geocoordinates
 pub fn geocoordinates::reverse::Place::country_code(&self) -> &str
 pub const fn geocoordinates::reverse::Place::distance(&self) -> geocoordinates::Length
 pub const fn geocoordinates::reverse::Place::feature_class(&self) -> core::option::Option<geocoordinates::reverse::FeatureClass>
+pub fn geocoordinates::reverse::Place::from_parts(impl core::convert::Into<alloc::string::String>, geocoordinates::Coordinate, &str, geocoordinates::Approx<geocoordinates::Coordinate>, (core::option::Option<alloc::string::String>, core::option::Option<alloc::string::String>), (core::option::Option<alloc::string::String>, core::option::Option<alloc::string::String>), core::option::Option<geocoordinates::reverse::FeatureClass>, core::option::Option<u64>, impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, alloc::string::String)>, geocoordinates::Length) -> geocoordinates::Result<Self>
 pub fn geocoordinates::reverse::Place::localized_name(&self, &str) -> core::option::Option<&str>
 pub const fn geocoordinates::reverse::Place::localized_names(&self) -> &alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>
 pub fn geocoordinates::reverse::Place::name(&self) -> &str

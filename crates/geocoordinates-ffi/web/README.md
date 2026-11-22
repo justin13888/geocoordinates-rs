@@ -83,7 +83,9 @@ try {
 ```
 
 The default export's `geocoordinates_ffi` namespace carries the same checks. The
-Python, Kotlin/Java and Swift bindings accept pre-epoch instants.
+Python, Kotlin/Java and Swift bindings accept pre-epoch instants, except that one
+strictly within the last second before the epoch loses its sign (see
+[Timestamps](../README.md#timestamps)).
 
 The package is ES modules only (no CommonJS build) and targets ES2021+ (the runtime uses
 `FinalizationRegistry`).

@@ -1789,6 +1789,10 @@ public protocol TrackProtocol: AnyObject, Sendable {
      * not cover it. The result is a derived fix: its source's `raw` starts with
      * `geotag:`, and its accuracy grows with the time to the fixes it came from.
      *
+     * An `at` strictly between -1 s and 0 s from the Unix epoch arrives with its
+     * sign lost, like [`Fix::timestamp`], so the track is searched at the mirror
+     * instant after the epoch.
+     *
      * # Errors
      * `GeoError::InvalidValue` (field `max_speed_mps`) when the speed is negative
      * or not finite.
@@ -1930,6 +1934,10 @@ open func len() -> UInt64  {
      * Where the track was at the photo time `at`, or `None` when the track does
      * not cover it. The result is a derived fix: its source's `raw` starts with
      * `geotag:`, and its accuracy grows with the time to the fixes it came from.
+     *
+     * An `at` strictly between -1 s and 0 s from the Unix epoch arrives with its
+     * sign lost, like [`Fix::timestamp`], so the track is searched at the mirror
+     * instant after the epoch.
      *
      * # Errors
      * `GeoError::InvalidValue` (field `max_speed_mps`) when the speed is negative
@@ -4126,6 +4134,12 @@ public struct Fix: Equatable, Hashable {
     public var accuracy: Accuracy?
     /**
      * Observation time, if known.
+     *
+     * An instant in the last second before 1970-01-01T00:00:00Z (strictly
+     * between -1 s and 0 s) crosses the boundary with its sign lost, as its
+     * mirror image after the epoch: UniFFI's `Timestamp` keeps the sign on the
+     * whole seconds, which are zero there. Every other instant, before or after
+     * the epoch, crosses unchanged. See the FFI README's "Timestamps" section.
      */
     public var timestamp: Date?
     /**
@@ -4144,6 +4158,12 @@ public struct Fix: Equatable, Hashable {
          */accuracy: Accuracy?, 
         /**
          * Observation time, if known.
+         *
+         * An instant in the last second before 1970-01-01T00:00:00Z (strictly
+         * between -1 s and 0 s) crosses the boundary with its sign lost, as its
+         * mirror image after the epoch: UniFFI's `Timestamp` keeps the sign on the
+         * whole seconds, which are zero there. Every other instant, before or after
+         * the epoch, crosses unchanged. See the FFI README's "Timestamps" section.
          */timestamp: Date?, 
         /**
          * The raw input and how confidently it was interpreted.
@@ -4558,6 +4578,9 @@ public func FfiConverterTypeGeotagOptions_lower(_ value: GeotagOptions) -> RustB
 public struct GeotagReference: Equatable, Hashable {
     /**
      * The photo's time on the camera's clock.
+     *
+     * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+     * its sign lost, like [`Fix::timestamp`].
      */
     public var photoTime: Date
     /**
@@ -4570,6 +4593,9 @@ public struct GeotagReference: Equatable, Hashable {
     public init(
         /**
          * The photo's time on the camera's clock.
+         *
+         * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+         * its sign lost, like [`Fix::timestamp`].
          */photoTime: Date, 
         /**
          * Where the photo was taken.
@@ -5937,10 +5963,16 @@ public struct Trip: Equatable, Hashable {
     public var visits: [UInt64]
     /**
      * The earliest arrival.
+     *
+     * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+     * its sign lost, like [`Fix::timestamp`].
      */
     public var start: Date
     /**
      * The latest departure.
+     *
+     * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+     * its sign lost, like [`Fix::timestamp`].
      */
     public var end: Date
     /**
@@ -5956,9 +5988,15 @@ public struct Trip: Equatable, Hashable {
          */visits: [UInt64], 
         /**
          * The earliest arrival.
+         *
+         * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+         * its sign lost, like [`Fix::timestamp`].
          */start: Date, 
         /**
          * The latest departure.
+         *
+         * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+         * its sign lost, like [`Fix::timestamp`].
          */end: Date, 
         /**
          * A box holding the bounds of every visit.
@@ -6290,10 +6328,16 @@ public struct Visit: Equatable, Hashable {
     public var cluster: Cluster
     /**
      * The time of the first fix.
+     *
+     * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+     * its sign lost, like [`Fix::timestamp`].
      */
     public var arrival: Date
     /**
      * The time of the last fix.
+     *
+     * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+     * its sign lost, like [`Fix::timestamp`].
      */
     public var departure: Date
 
@@ -6305,9 +6349,15 @@ public struct Visit: Equatable, Hashable {
          */cluster: Cluster, 
         /**
          * The time of the first fix.
+         *
+         * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+         * its sign lost, like [`Fix::timestamp`].
          */arrival: Date, 
         /**
          * The time of the last fix.
+         *
+         * An instant strictly between -1 s and 0 s from the Unix epoch crosses with
+         * its sign lost, like [`Fix::timestamp`].
          */departure: Date) {
         self.cluster = cluster
         self.arrival = arrival
@@ -14638,7 +14688,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_geocoordinates_ffi_checksum_method_track_len() != 40100) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_geocoordinates_ffi_checksum_method_track_locate() != 12187) {
+    if (uniffi_geocoordinates_ffi_checksum_method_track_locate() != 56822) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_geocoordinates_ffi_checksum_method_spatialindex_crs() != 14985) {
