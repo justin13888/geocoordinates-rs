@@ -47,7 +47,10 @@ pub fn parse_wkt(input: String, axis_order: AxisOrder) -> Result<Vec<Fix>, GeoEr
 
 /// Parse track / route / waypoint positions from a GPX document. `<ele>` is an
 /// orthometric (sea-level) height, `<time>` the fix timestamp, and `<hdop>` a
-/// horizontal accuracy of `HDOP × 5 m`.
+/// horizontal accuracy of `HDOP × 5 m`. Where the platform's `SystemTime`
+/// cannot hold a `<time>`, as on wasm32 (the TypeScript bindings) for an
+/// instant before 1970, the fix's `timestamp` is left empty and a note
+/// starting `GPX time` is added to its `source.notes`; the position is kept.
 ///
 /// # Errors
 /// `GeoError::Parse` (kind `Syntax`) on malformed GPX or a `lat` / `lon` out
