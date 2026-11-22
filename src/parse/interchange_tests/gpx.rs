@@ -59,6 +59,27 @@ fn gpx_keeps_time_and_hdop() {
 }
 
 #[test]
+fn gpx_pre_epoch_time_converts_without_panicking() {
+    use std::time::{Duration, SystemTime};
+
+    let doc = format!(
+        r#"{GPX_HEAD}
+          <wpt lat="1" lon="2"><time>1969-12-31T23:59:58.25Z</time></wpt>
+          <wpt lat="3" lon="4"><time>1970-01-01T00:00:00Z</time></wpt>
+        </gpx>"#
+    );
+    let fixes = parse_gpx(&doc).unwrap();
+    // A native SystemTime is signed, so the pre-epoch instant is kept exactly
+    // and no note is left; where SystemTime cannot hold it (wasm32), the
+    // checked conversion leaves the timestamp `None` with a note instead of
+    // panicking (pinned by the web bindings' test).
+    let before = SystemTime::UNIX_EPOCH - Duration::from_millis(1_750);
+    assert_eq!(fixes[0].timestamp, Some(before));
+    assert!(source(&fixes[0]).notes.is_empty());
+    assert_eq!(fixes[1].timestamp, Some(SystemTime::UNIX_EPOCH));
+}
+
+#[test]
 fn gpx_emits_waypoints_then_tracks_then_routes() {
     let doc = format!(
         r#"{GPX_HEAD}
