@@ -187,6 +187,39 @@ fn place_new_builds_and_validate_checks() {
     assert!(place_validate(full).is_ok());
 }
 
+#[test]
+fn localized_name_matches_case_insensitively() {
+    let options = ReverseOptions {
+        languages: vec!["ja".into()],
+        ..reverse_options_default()
+    };
+    let place = paris(options);
+    assert_eq!(
+        place_localized_name(place.clone(), "JA".into()).unwrap(),
+        Some("パリ".to_owned())
+    );
+    assert_eq!(place_localized_name(place, "fr".into()).unwrap(), None);
+
+    let at = wgs84(25.03, 121.56);
+    let mut place = place_new("Taipei".into(), at, "TW".into(), at, 0.0).unwrap();
+    place
+        .localized_names
+        .insert("zh-Hant".into(), "臺北".into());
+    assert_eq!(
+        place_localized_name(place.clone(), "zh-hant".into()).unwrap(),
+        Some("臺北".to_owned())
+    );
+    assert_eq!(
+        place_localized_name(place.clone(), "zh".into()).unwrap(),
+        None
+    );
+    place.localized_names.insert("not a tag".into(), "x".into());
+    assert!(matches!(
+        place_localized_name(place, "zh-Hant".into()),
+        Err(GeoError::InvalidValue { field, .. }) if field == "language"
+    ));
+}
+
 /// A geocoder the way a foreign language would write one: here, one that always
 /// answers with the same place, valid or not.
 struct Fixed(Option<Place>);
