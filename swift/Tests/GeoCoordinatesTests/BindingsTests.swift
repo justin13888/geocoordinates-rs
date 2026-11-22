@@ -299,7 +299,8 @@ final class TypedErrorTests: XCTestCase {
         XCTAssertEqual(kind, .noFix)
         gps.latitudeRef = "N"
         gps.altitude = .unsigned(numerator: 0, denominator: 0)
-        let reject = ExifOptions(nullIsland: .accept, invalidAuxiliary: .reject)
+        let reject = exifOptionsDefault()
+        XCTAssertEqual(reject, ExifOptions(nullIsland: .accept, invalidAuxiliary: .reject))
         guard case let .InvalidValue(altitude, _)? = geoError({
             try parseExifWith(gps: gps, options: reject)
         }) else { return XCTFail("expected InvalidValue for a 0/0 altitude") }
