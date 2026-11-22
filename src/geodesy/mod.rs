@@ -85,7 +85,7 @@ pub(crate) mod series; // Krüger n-series shared by rhumb lines and UTM
 mod spherical; // haversine, cross/along-track, intersection on the mean sphere
 mod track; // cross/along-track and intersection on the datum ellipsoid
 
-pub use bounds::GeoBounds;
+pub use bounds::{GeoBounds, GeoBoundsEdges};
 pub(crate) use datum::HubRoute;
 pub use datum::{DatumTransform, Helmert};
 pub use ecef::Ecef;

@@ -3,7 +3,7 @@
 use super::mercator::{MAX_TILE_ZOOM, edge_lon_at, lat_at, unit_x, unit_y};
 use crate::coord::{Coordinate, Crs};
 use crate::error::{Error, Result};
-use crate::geodesy::GeoBounds;
+use crate::geodesy::{GeoBounds, GeoBoundsEdges};
 
 /// One XYZ ("slippy map") tile: zoom `z`, column `x` counted east from the
 /// antimeridian, row `y` counted south from the map's top edge, valid by
@@ -199,13 +199,13 @@ impl Tile {
     pub fn bounds(self, crs: Crs) -> GeoBounds {
         let n = tiles_across(self.z) as f64;
         let (x, y) = (f64::from(self.x), f64::from(self.y));
-        GeoBounds::from_edges(
-            lat_at((y + 1.0) / n),
-            edge_lon_at(x / n),
-            lat_at(y / n),
-            edge_lon_at((x + 1.0) / n),
+        GeoBounds::from_edges(GeoBoundsEdges {
+            south: lat_at((y + 1.0) / n),
+            west: edge_lon_at(x / n),
+            north: lat_at(y / n),
+            east: edge_lon_at((x + 1.0) / n),
             crs,
-        )
+        })
         .expect("a tile's edges are valid bounds")
     }
 

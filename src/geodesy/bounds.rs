@@ -3,6 +3,9 @@
 use geographiclib_rs::{DirectGeodesic, Geodesic, InverseGeodesic};
 
 mod arc;
+mod edges;
+
+pub use self::edges::GeoBoundsEdges;
 
 use self::arc::{LonArc, canonical_edges, same_meridian, smallest_arc};
 use super::Ellipsoid;
@@ -32,8 +35,10 @@ const REACH_SEARCH_STEPS: usize = 60;
 ///
 /// **Axis order.** [`from_corners`](Self::from_corners) takes the south-west and
 /// north-east corners as [`Coordinate`]s, so latitude and longitude cannot be
-/// transposed and the CRS travels with the corners. The serde record names each
-/// edge (`south`, `west`, `north`, `east`), so its field order carries no meaning.
+/// transposed and the CRS travels with the corners.
+/// [`from_edges`](Self::from_edges) takes a [`GeoBoundsEdges`] record that names
+/// each edge (`south`, `west`, `north`, `east`), and so does the serde record, so
+/// no field order carries meaning.
 ///
 /// ```
 /// use geocoordinates::{Coordinate, Error, geodesy::GeoBounds};
@@ -58,33 +63,13 @@ const REACH_SEARCH_STEPS: usize = 60;
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(try_from = "GeoBoundsRepr"))]
+#[cfg_attr(feature = "serde", serde(try_from = "GeoBoundsEdges"))]
 pub struct GeoBounds {
     south: f64,
     west: f64,
     north: f64,
     east: f64,
     crs: Crs,
-}
-
-/// The unchecked wire shape of a [`GeoBounds`], validated on its way in.
-#[cfg(feature = "serde")]
-#[derive(serde::Deserialize)]
-struct GeoBoundsRepr {
-    south: f64,
-    west: f64,
-    north: f64,
-    east: f64,
-    crs: Crs,
-}
-
-#[cfg(feature = "serde")]
-impl TryFrom<GeoBoundsRepr> for GeoBounds {
-    type Error = Error;
-
-    fn try_from(repr: GeoBoundsRepr) -> Result<Self> {
-        Self::from_edges(repr.south, repr.west, repr.north, repr.east, repr.crs)
-    }
 }
 
 impl GeoBounds {
@@ -154,58 +139,6 @@ impl GeoBounds {
             east: north_east.lon(),
             crs: south_west.crs(),
         })
-    }
-
-    /// A box from its four edges on `crs`, in decimal degrees, through
-    /// [`from_corners`](Self::from_corners): `south` and `west` are the
-    /// south-west corner, `north` and `east` the north-east corner.
-    ///
-    /// A `west` greater than `east` crosses the antimeridian, not an error. The
-    /// order is not GeoJSON's `bbox` (`[west, south, east, north]`); prefer
-    /// `from_corners`, whose corners are [`Coordinate`]s that carry the CRS.
-    ///
-    /// # Errors
-    ///
-    /// Each edge is one axis, so an edge that is non-finite or out of range
-    /// (`[-90, 90]` for `south` and `north`, `[-180, 180]` for `west` and
-    /// `east`) is [`Error::InvalidValue`] naming it (`field: "south"`, `"west"`,
-    /// `"north"` or `"east"`), checked before the corners are built. A `south`
-    /// north of `north` is the `field: "south_west"` error of `from_corners`.
-    ///
-    /// ```
-    /// use geocoordinates::{Crs, Error, geodesy::GeoBounds};
-    ///
-    /// let fiji = GeoBounds::from_edges(-21.0, 176.0, -12.0, -178.0, Crs::Wgs84)?;
-    /// assert!(fiji.crosses_antimeridian());
-    ///
-    /// assert!(matches!(
-    ///     GeoBounds::from_edges(0.0, 0.0, 1.0, 181.0, Crs::Wgs84),
-    ///     Err(Error::InvalidValue { field: "east", .. })
-    /// ));
-    /// assert!(matches!(
-    ///     GeoBounds::from_edges(1.0, 0.0, 0.0, 1.0, Crs::Wgs84),
-    ///     Err(Error::InvalidValue { field: "south_west", .. })
-    /// ));
-    /// # Ok::<(), geocoordinates::Error>(())
-    /// ```
-    pub fn from_edges(south: f64, west: f64, north: f64, east: f64, crs: Crs) -> Result<Self> {
-        for (field, value, limit) in [
-            ("south", south, 90.0),
-            ("west", west, 180.0),
-            ("north", north, 90.0),
-            ("east", east, 180.0),
-        ] {
-            if !value.is_finite() || value.abs() > limit {
-                return Err(Error::InvalidValue {
-                    field,
-                    detail: format!("{value} is not a finite value in [-{limit}, {limit}]"),
-                });
-            }
-        }
-        Self::from_corners(
-            Coordinate::new(south, west, crs)?,
-            Coordinate::new(north, east, crs)?,
-        )
     }
 
     /// The smallest box holding every point, choosing the smallest longitude
@@ -563,7 +496,13 @@ impl GeoBounds {
             } else {
                 meridian_lat(&geodesic, self.south, 180.0, meters)
             };
-            return Self::from_edges(south, -180.0, north, 180.0, self.crs);
+            return Self::from_edges(GeoBoundsEdges {
+                south,
+                west: -180.0,
+                north,
+                east: 180.0,
+                crs: self.crs,
+            });
         }
         let north = meridian_lat(&geodesic, self.north, 0.0, meters);
         let south = meridian_lat(&geodesic, self.south, 180.0, meters);
@@ -574,13 +513,25 @@ impl GeoBounds {
             + EXPAND_MARGIN_DEG;
         let arc = self.arc();
         if arc.span() + 2.0 * reach >= 360.0 {
-            return Self::from_edges(south, -180.0, north, 180.0, self.crs);
+            return Self::from_edges(GeoBoundsEdges {
+                south,
+                west: -180.0,
+                north,
+                east: 180.0,
+                crs: self.crs,
+            });
         }
         let (west, east) = canonical_edges(
             wrap_longitude(arc.west - reach),
             wrap_longitude(arc.east + reach),
         );
-        Self::from_edges(south, west, north, east, self.crs)
+        Self::from_edges(GeoBoundsEdges {
+            south,
+            west,
+            north,
+            east,
+            crs: self.crs,
+        })
     }
 
     fn require_crs(self, found: Crs) -> Result<()> {
@@ -648,6 +599,8 @@ fn longitude_reach(geodesic: &Geodesic, lat: f64, meters: f64) -> f64 {
 
 #[cfg(test)]
 mod corner_tests;
+#[cfg(test)]
+mod edge_tests;
 #[cfg(test)]
 mod expand_tests;
 #[cfg(test)]

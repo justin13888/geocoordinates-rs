@@ -5,7 +5,7 @@ use super::mercator::{check_tile_px, check_zoom, lat_at, lon_at, unit_x, unit_y}
 use crate::cluster::{ClusterIndex, MAX_ZOOM, MapCluster};
 use crate::coord::Coordinate;
 use crate::error::{Error, Result};
-use crate::geodesy::GeoBounds;
+use crate::geodesy::{GeoBounds, GeoBoundsEdges};
 
 /// The map view on screen: its width and height, and the width of one tile, all in
 /// pixels, valid by construction.
@@ -340,7 +340,13 @@ pub fn viewport_bounds(camera: Camera, viewport: Viewport) -> Result<GeoBounds> 
     } else {
         lat_at(y + half_h)
     };
-    GeoBounds::from_edges(south, west, north, east, camera.center.crs())
+    GeoBounds::from_edges(GeoBoundsEdges {
+        south,
+        west,
+        north,
+        east,
+        crs: camera.center.crs(),
+    })
 }
 
 /// The clusters of `index` a map at the fractional `zoom` draws in `bounds`: the
