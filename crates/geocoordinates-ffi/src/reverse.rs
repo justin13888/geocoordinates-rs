@@ -225,6 +225,18 @@ pub fn place_validate(place: Place) -> Result<(), GeoError> {
     Ok(())
 }
 
+/// The name of `place` in the language `tag`, matched case-insensitively against
+/// the keys of `localized_names`, or none when it has no name in that language.
+/// A tag matches only itself: `zh` does not find `zh-Hant`.
+///
+/// # Errors
+/// Every error of [`place_validate`]: the record is checked before the lookup.
+#[uniffi::export]
+pub fn place_localized_name(place: Place, tag: String) -> Result<Option<String>, GeoError> {
+    let place = gc::reverse::Place::try_from(place)?;
+    Ok(place.localized_name(&tag).map(str::to_owned))
+}
+
 /// What a reverse geocoder may return — mirror of
 /// [`gc::reverse::ReverseOptions`]. Start from [`reverse_options_default`].
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
